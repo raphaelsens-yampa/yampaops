@@ -49,9 +49,11 @@ export function StripePricesTable() {
   const [editing, setEditing] = useState<StripePrice | null>(null);
 
   const [form, setForm] = useState({
-    product_name: "", plan_name: "", price_id: "", area: "", seller_id: "", mrr: "",
-    commission_product_id: "", commission_value: "",
+    commission_product_id: "", price_id: "", area: "", seller_id: "", mrr: "", commission_value: "",
   });
+
+  // Derived from selected product
+  const selectedProduct = products.find((p) => p.id === form.commission_product_id);
 
   const fetchData = async () => {
     const [{ data: priceData }, { data: profData }, { data: prodData }] = await Promise.all([
@@ -81,37 +83,36 @@ export function StripePricesTable() {
   const handleProductChange = (cpId: string) => {
     const prod = products.find((p) => p.id === cpId);
     const mrr = prod ? prod.plan_mrr.toString() : form.mrr;
-    const cv = calcCommission(mrr, cpId);
+    const cv = prod ? ((Number(mrr) * prod.commission_percent) / 100).toFixed(2) : "0";
     setForm({ ...form, commission_product_id: cpId, mrr, commission_value: cv });
   };
 
   const openNew = () => {
     setEditing(null);
-    setForm({ product_name: "", plan_name: "", price_id: "", area: "", seller_id: "", mrr: "", commission_product_id: "", commission_value: "" });
+    setForm({ commission_product_id: "", price_id: "", area: "", seller_id: "", mrr: "", commission_value: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (p: StripePrice) => {
     setEditing(p);
     setForm({
-      product_name: p.product_name,
-      plan_name: p.plan_name,
+      commission_product_id: p.commission_product_id || "",
       price_id: p.price_id,
       area: p.area || "",
       seller_id: p.seller_id || "",
       mrr: p.mrr.toString(),
-      commission_product_id: p.commission_product_id || "",
       commission_value: p.commission_value.toString(),
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!form.product_name || !form.price_id) return;
+    if (!form.price_id || !form.commission_product_id) return;
     setSaving(true);
+    const prod = products.find((p) => p.id === form.commission_product_id);
     const payload = {
-      product_name: form.product_name,
-      plan_name: form.plan_name,
+      product_name: prod?.name || "",
+      plan_name: prod?.plan_name || "",
       price_id: form.price_id,
       area: form.area || null,
       seller_id: form.seller_id || null,
@@ -151,11 +152,15 @@ export function StripePricesTable() {
     const p = profiles.find((p) => p.user_id === id);
     return p?.full_name || p?.email || id;
   };
-  const getProductLabel = (id: string | null) => {
-    if (!id) return "—";
-    const p = products.find((p) => p.id === id);
-    if (!p) return "—";
-    return `${p.name} / ${p.plan_name} / ${p.periodicity}`;
+  const getProductId = (cpId: string | null) => {
+    if (!cpId) return "—";
+    const p = products.find((p) => p.id === cpId);
+    return p?.product_id || p?.name || "—";
+  };
+  const getPeriodicity = (cpId: string | null) => {
+    if (!cpId) return "—";
+    const p = products.find((p) => p.id === cpId);
+    return p?.periodicity || "—";
   };
 
   return (
@@ -171,32 +176,40 @@ export function StripePricesTable() {
               <DialogTitle>{editing ? "Editar Price ID" : "Novo Price ID"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Produto</Label>
-                  <Input value={form.product_name} onChange={(e) => setForm({ ...form, product_name: e.target.value })} placeholder="Ex: +Sucesso" />
-                </div>
-                <div>
-                  <Label>Plano</Label>
-                  <Input value={form.plan_name} onChange={(e) => setForm({ ...form, plan_name: e.target.value })} placeholder="Ex: Mensal" />
-                </div>
-              </div>
               <div>
-                <Label>Price ID (Stripe)</Label>
-                <Input value={form.price_id} onChange={(e) => setForm({ ...form, price_id: e.target.value })} placeholder="price_..." />
-              </div>
-              <div>
-                <Label>Product ID (Produto/Plano/Periodicidade)</Label>
+                <Label>Product ID</Label>
                 <Select value={form.commission_product_id} onValueChange={handleProductChange}>
                   <SelectTrigger><SelectValue placeholder="Selecionar Product ID" /></SelectTrigger>
                   <SelectContent>
                     {products.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.product_id ? `${p.product_id} — ` : ""}{p.name} / {p.plan_name} / {p.periodicity} ({p.commission_percent}%)
+                        {p.product_id || p.name} — {p.name} / {p.plan_name} / {p.periodicity} ({p.commission_percent}%)
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {selectedProduct && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Produto</Label>
+                    <Input value={selectedProduct.name} readOnly className="bg-muted" />
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Plano</Label>
+                    <Input value={selectedProduct.plan_name} readOnly className="bg-muted" />
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Periodicidade</Label>
+                    <Input value={selectedProduct.periodicity} readOnly className="bg-muted" />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label>Price ID (Stripe)</Label>
+                <Input value={form.price_id} onChange={(e) => setForm({ ...form, price_id: e.target.value })} placeholder="price_..." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -241,12 +254,14 @@ export function StripePricesTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Product ID</TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead>Plano</TableHead>
+                <TableHead>Periodicidade</TableHead>
                 <TableHead>Price ID</TableHead>
-                <TableHead>Product ID</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Comissão</TableHead>
+                <TableHead>Área</TableHead>
                 <TableHead>Vendedor</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
@@ -254,12 +269,14 @@ export function StripePricesTable() {
             <TableBody>
               {prices.map((p) => (
                 <TableRow key={p.id}>
+                  <TableCell className="font-mono text-xs">{getProductId(p.commission_product_id)}</TableCell>
                   <TableCell className="font-medium">{p.product_name}</TableCell>
                   <TableCell>{p.plan_name}</TableCell>
+                  <TableCell>{getPeriodicity(p.commission_product_id)}</TableCell>
                   <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
-                  <TableCell className="text-xs">{getProductLabel(p.commission_product_id)}</TableCell>
                   <TableCell className="text-right">{fmt(p.mrr)}</TableCell>
                   <TableCell className="text-right font-medium">{fmt(p.commission_value)}</TableCell>
+                  <TableCell>{p.area || "—"}</TableCell>
                   <TableCell>{getSellerName(p.seller_id)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -275,7 +292,7 @@ export function StripePricesTable() {
               ))}
               {prices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
                 </TableRow>
               )}
             </TableBody>
