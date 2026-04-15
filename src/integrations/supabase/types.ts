@@ -128,7 +128,7 @@ export type Database = {
           name: string
           notes: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
-          stage: Database["public"]["Enums"]["lead_stage"]
+          stage: string
           take_rate: number | null
           updated_at: string
         }
@@ -144,7 +144,7 @@ export type Database = {
           name: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
-          stage?: Database["public"]["Enums"]["lead_stage"]
+          stage?: string
           take_rate?: number | null
           updated_at?: string
         }
@@ -160,8 +160,44 @@ export type Database = {
           name?: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
-          stage?: Database["public"]["Enums"]["lead_stage"]
+          stage?: string
           take_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pipeline_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_lost: boolean
+          is_won: boolean
+          name: string
+          position: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_won?: boolean
+          name: string
+          position?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_won?: boolean
+          name?: string
+          position?: number
+          slug?: string
           updated_at?: string
         }
         Relationships: []
