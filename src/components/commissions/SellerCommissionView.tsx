@@ -31,7 +31,7 @@ interface Props {
   filterMonth: Date;
 }
 
-const CHART_COLORS = ["hsl(152, 60%, 42%)", "hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)"];
+const CHART_COLORS = ["hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)", "hsl(152, 60%, 42%)"];
 
 export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loading, filterMonth }: Props) {
   const now = new Date();
@@ -60,10 +60,10 @@ export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loadin
   }, [filtered, filterMonth]);
 
   const chartData = [
-    { name: "Fechado", value: wonMrr },
     { name: "Meta Empresa", value: goalsByScope.company },
     { name: "Meta Equipe", value: goalsByScope.team },
     { name: "Meta Individual", value: goalsByScope.individual },
+    { name: "Fechado", value: wonMrr },
   ];
 
   const hasChartData = wonMrr > 0 || goalsByScope.company > 0 || goalsByScope.team > 0 || goalsByScope.individual > 0;
