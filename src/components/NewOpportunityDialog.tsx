@@ -14,6 +14,7 @@ interface NewOpportunityDialogProps {
   stageOrder: string[];
   stageLabels: Record<string, string>;
   onCreated: () => void;
+  pipelineId?: string;
 }
 
 export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCreated }: NewOpportunityDialogProps) {
