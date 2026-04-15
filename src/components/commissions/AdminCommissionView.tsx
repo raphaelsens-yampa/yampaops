@@ -43,13 +43,13 @@ export function AdminCommissionView({ commissions, profiles, loading, filterMont
   }, [commissions, filterMonth]);
 
   const { provM1, provM2, channelRanking, sellerTotals } = useMemo(() => {
-    const m1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const m2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    const m1 = new Date(filterMonth.getFullYear(), filterMonth.getMonth() + 1, 1);
+    const m2 = new Date(filterMonth.getFullYear(), filterMonth.getMonth() + 2, 1);
     let pm1 = 0, pm2 = 0;
     const channels: Record<string, { commission: number; mrr: number }> = {};
     const sellers: Record<string, { earned: number; clawback: number }> = {};
 
-    for (const c of commissions) {
+    for (const c of filtered) {
       const pm = new Date(c.payment_month);
       if (c.status === "provisioned") {
         if (pm.getFullYear() === m1.getFullYear() && pm.getMonth() === m1.getMonth()) pm1 += c.commission_amount;
@@ -74,7 +74,7 @@ export function AdminCommissionView({ commissions, profiles, loading, filterMont
         return { id, name: p?.full_name || p?.email || id, ...v, net: v.earned - v.clawback };
       }).sort((a, b) => b.net - a.net),
     };
-  }, [commissions, profiles]);
+  }, [filtered, profiles, filterMonth]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtMonth = (d: string) => new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
