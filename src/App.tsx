@@ -11,7 +11,7 @@ import SellerKanban from "./pages/SellerKanban";
 import Goals from "./pages/Goals";
 import Pipeline from "./pages/Pipeline";
 import Team from "./pages/Team";
-import Import from "./pages/Import";
+import Contacts from "./pages/Contacts";
 import Forecast from "./pages/Forecast";
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
@@ -45,7 +45,7 @@ function AppRoutes() {
         <Route path="/forecast" element={<Forecast />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/team" element={<Team />} />
-        <Route path="/import" element={<Import />} />
+        <Route path="/contacts" element={<Contacts />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
