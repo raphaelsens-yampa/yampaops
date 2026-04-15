@@ -12,10 +12,9 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 interface Product {
   id: string;
   name: string;
-  subscription_commission: number;
-  setup_commission: number;
-  annual_multiplier: number;
-  monthly_multiplier: number;
+  plan_value: number;
+  plan_mrr: number;
+  commission_percent: number;
 }
 
 export function ProductPricingTable() {
@@ -26,13 +25,7 @@ export function ProductPricingTable() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
-  const [form, setForm] = useState({
-    name: "",
-    subscription_commission: "",
-    setup_commission: "",
-    annual_multiplier: "1",
-    monthly_multiplier: "1",
-  });
+  const [form, setForm] = useState({ name: "", plan_value: "", plan_mrr: "", commission_percent: "10" });
 
   const fetchProducts = async () => {
     const { data } = await supabase.from("commission_products").select("*").order("name");
@@ -44,7 +37,7 @@ export function ProductPricingTable() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", subscription_commission: "", setup_commission: "", annual_multiplier: "1", monthly_multiplier: "1" });
+    setForm({ name: "", plan_value: "", plan_mrr: "", commission_percent: "10" });
     setDialogOpen(true);
   };
 
@@ -52,10 +45,9 @@ export function ProductPricingTable() {
     setEditing(p);
     setForm({
       name: p.name,
-      subscription_commission: p.subscription_commission.toString(),
-      setup_commission: p.setup_commission.toString(),
-      annual_multiplier: p.annual_multiplier.toString(),
-      monthly_multiplier: p.monthly_multiplier.toString(),
+      plan_value: p.plan_value.toString(),
+      plan_mrr: p.plan_mrr.toString(),
+      commission_percent: p.commission_percent.toString(),
     });
     setDialogOpen(true);
   };
@@ -65,10 +57,9 @@ export function ProductPricingTable() {
     setSaving(true);
     const payload = {
       name: form.name,
-      subscription_commission: Number(form.subscription_commission) || 0,
-      setup_commission: Number(form.setup_commission) || 0,
-      annual_multiplier: Number(form.annual_multiplier) || 1,
-      monthly_multiplier: Number(form.monthly_multiplier) || 1,
+      plan_value: Number(form.plan_value) || 0,
+      plan_mrr: Number(form.plan_mrr) || 0,
+      commission_percent: Number(form.commission_percent) || 0,
     };
 
     const { error } = editing
@@ -101,7 +92,7 @@ export function ProductPricingTable() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-medium">Tabela de Produtos e Comissões</CardTitle>
+        <CardTitle className="text-sm font-medium">Produtos e Comissões</CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
@@ -112,28 +103,22 @@ export function ProductPricingTable() {
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <Label>Nome</Label>
+                <Label>Nome do Produto</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Comissão Assinatura (R$)</Label>
-                  <Input type="number" value={form.subscription_commission} onChange={(e) => setForm({ ...form, subscription_commission: e.target.value })} />
+                  <Label>Valor do Plano (R$)</Label>
+                  <Input type="number" value={form.plan_value} onChange={(e) => setForm({ ...form, plan_value: e.target.value })} />
                 </div>
                 <div>
-                  <Label>Comissão Setup (R$)</Label>
-                  <Input type="number" value={form.setup_commission} onChange={(e) => setForm({ ...form, setup_commission: e.target.value })} />
+                  <Label>MRR do Plano (R$)</Label>
+                  <Input type="number" value={form.plan_mrr} onChange={(e) => setForm({ ...form, plan_mrr: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Multiplicador Anual</Label>
-                  <Input type="number" step="0.1" value={form.annual_multiplier} onChange={(e) => setForm({ ...form, annual_multiplier: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Multiplicador Mensal</Label>
-                  <Input type="number" step="0.1" value={form.monthly_multiplier} onChange={(e) => setForm({ ...form, monthly_multiplier: e.target.value })} />
-                </div>
+              <div>
+                <Label>Comissão (% do primeiro MRR)</Label>
+                <Input type="number" step="0.1" value={form.commission_percent} onChange={(e) => setForm({ ...form, commission_percent: e.target.value })} />
               </div>
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
@@ -151,10 +136,9 @@ export function ProductPricingTable() {
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>
-                <TableHead className="text-right">Assinatura</TableHead>
-                <TableHead className="text-right">Setup</TableHead>
-                <TableHead className="text-right">Mult. Anual</TableHead>
-                <TableHead className="text-right">Mult. Mensal</TableHead>
+                <TableHead className="text-right">Valor do Plano</TableHead>
+                <TableHead className="text-right">MRR</TableHead>
+                <TableHead className="text-right">Comissão (%)</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -162,10 +146,9 @@ export function ProductPricingTable() {
               {products.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="text-right">{fmt(p.subscription_commission)}</TableCell>
-                  <TableCell className="text-right">{fmt(p.setup_commission)}</TableCell>
-                  <TableCell className="text-right">{p.annual_multiplier}x</TableCell>
-                  <TableCell className="text-right">{p.monthly_multiplier}x</TableCell>
+                  <TableCell className="text-right">{fmt(p.plan_value)}</TableCell>
+                  <TableCell className="text-right">{fmt(p.plan_mrr)}</TableCell>
+                  <TableCell className="text-right">{p.commission_percent}%</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
