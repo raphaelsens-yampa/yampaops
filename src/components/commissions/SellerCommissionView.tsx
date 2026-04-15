@@ -142,18 +142,34 @@ export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loadin
       {/* Chart MRR vs Metas */}
       {hasChartData && (
         <Card>
-          <CardHeader><CardTitle className="text-sm font-medium">MRR Fechado vs Metas</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">MRR Fechado vs Metas</CardTitle>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {allChartItems.map((item) => (
+                <Toggle
+                  key={item.key}
+                  size="sm"
+                  pressed={visibleKeys.has(item.key)}
+                  onPressedChange={() => toggleKey(item.key)}
+                  className="text-xs data-[state=on]:text-primary-foreground"
+                  style={visibleKeys.has(item.key) ? { backgroundColor: item.color, color: "#fff" } : {}}
+                >
+                  {item.name}
+                </Toggle>
+              ))}
+            </div>
+          </CardHeader>
           <CardContent>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} domain={[0, "auto"]} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i]} />
+                    {chartData.map((item, i) => (
+                      <Cell key={i} fill={item.color} />
                     ))}
                   </Bar>
                 </BarChart>
