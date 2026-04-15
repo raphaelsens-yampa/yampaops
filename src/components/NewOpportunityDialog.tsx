@@ -145,6 +145,7 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
       estimated_close_date: oppCloseDate || null,
       consultant_id: oppConsultant || null,
       stage: oppStage || stageOrder[0] || "novo_lead",
+      ...(pipelineId ? { pipeline_id: pipelineId } : {}),
     });
 
     if (error) {
