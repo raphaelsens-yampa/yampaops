@@ -6,21 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { STAGE_ORDER, ORIGIN_LABELS, STAGE_WEIGHTS } from "@/lib/constants";
+import { ORIGIN_LABELS, STAGE_WEIGHTS } from "@/lib/constants";
 import { MetricCard } from "@/components/MetricCard";
 import { GoalsProgress } from "@/components/GoalsProgress";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { Plus, MessageSquare, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
+import { usePipelineStages } from "@/hooks/usePipelineStages";
 import type { Database } from "@/integrations/supabase/types";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
-type LeadStage = Database["public"]["Enums"]["lead_stage"];
 
 export default function SellerKanban() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { stages, stageOrder, stageLabels, stageColors, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,11 +75,10 @@ export default function SellerKanban() {
     if (!over) return;
 
     const leadId = active.id as string;
-    // The "over" could be a column (stage id) or another card
     let newStage: string = over.id as string;
 
     // If dropped over a card, find that card's stage
-    if (!STAGE_ORDER.includes(newStage as any)) {
+    if (!stageOrder.includes(newStage)) {
       const overLead = leads.find(l => l.id === newStage);
       if (overLead) newStage = overLead.stage;
       else return;
@@ -88,10 +88,10 @@ export default function SellerKanban() {
     if (!currentLead || currentLead.stage === newStage) return;
 
     // Optimistic update
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage as LeadStage } : l));
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage as any } : l));
 
     const { error } = await supabase.from("leads").update({
-      stage: newStage as LeadStage,
+      stage: newStage as any,
       last_interaction_at: new Date().toISOString(),
     }).eq("id", leadId);
 
@@ -99,7 +99,7 @@ export default function SellerKanban() {
       toast({ title: "Erro ao mover", description: error.message, variant: "destructive" });
       loadData();
     }
-  }, [leads, toast]);
+  }, [leads, stageOrder, toast]);
 
   async function logActivity(leadId: string) {
     if (!user) return;
@@ -112,8 +112,10 @@ export default function SellerKanban() {
     toast({ title: "Atividade registrada" });
   }
 
-  const activeLeads = leads.filter(l => !["fechado_won", "perdido"].includes(l.stage));
-  const wonLeads = leads.filter(l => l.stage === "fechado_won");
+  const wonSlug = wonStage?.slug || "fechado_won";
+  const lostSlug = lostStage?.slug || "perdido";
+  const activeLeads = leads.filter(l => l.stage !== wonSlug && l.stage !== lostSlug);
+  const wonLeads = leads.filter(l => l.stage === wonSlug);
   const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
 
   const now = new Date();
@@ -130,7 +132,7 @@ export default function SellerKanban() {
     return last < oneDayAgo;
   });
 
-  if (loading) {
+  if (loading || stagesLoading) {
     return <Layout><div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Carregando...</p></div></Layout>;
   }
 
@@ -173,10 +175,12 @@ export default function SellerKanban() {
 
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 overflow-x-auto pb-4">
-            {STAGE_ORDER.map(stage => (
+            {stageOrder.map(stage => (
               <KanbanColumn
                 key={stage}
                 stage={stage}
+                stageName={stageLabels[stage] || stage}
+                stageColor={stageColors[stage]}
                 leads={leads.filter(l => l.stage === stage)}
                 activityOpen={activityOpen}
                 setActivityOpen={setActivityOpen}
