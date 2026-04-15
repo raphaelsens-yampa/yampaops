@@ -180,7 +180,7 @@ export function StripePricesTable() {
                   <SelectContent>
                     {products.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.product_id || p.name} — {p.name} / {p.plan_name} / {p.periodicity} ({p.commission_percent}%)
+                        {p.product_id ? `#${p.product_id}` : "—"} | {p.name} | {p.plan_name || "—"} | {p.periodicity} ({p.commission_percent}%)
                       </SelectItem>
                     ))}
                   </SelectContent>
