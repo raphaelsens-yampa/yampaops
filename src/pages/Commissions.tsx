@@ -5,16 +5,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { SellerCommissionView } from "@/components/commissions/SellerCommissionView";
 import { AdminCommissionView } from "@/components/commissions/AdminCommissionView";
-import { DollarSign } from "lucide-react";
+import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
+import { DollarSign, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
 
 export default function Commissions() {
   const { session, role } = useAuth();
   const isAdmin = role === "admin";
   const userId = session?.user?.id;
 
+  const now = new Date();
+  const [filterMonth, setFilterMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const [commissions, setCommissions] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
@@ -29,11 +31,9 @@ export default function Commissions() {
   const fetchData = async () => {
     setLoading(true);
 
-    // Fetch commissions with opportunity and product info
     let query = supabase
       .from("commissions")
       .select("*, opportunity:opportunities(name, company, estimated_mrr, origin), product:commission_products(name)")
-
       .order("sale_date", { ascending: false });
 
     if (!isAdmin) {
@@ -43,25 +43,19 @@ export default function Commissions() {
     const { data: commData } = await query;
     setCommissions(commData || []);
 
-    // Fetch profiles for admin view
     if (isAdmin) {
       const { data: profData } = await supabase.from("profiles").select("user_id, full_name, email");
       setProfiles(profData || []);
     }
 
-    // Fetch goals for current period
-    const now = new Date();
     const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
     let goalsQuery = supabase.from("goals").select("target_mrr").lte("period_start", periodStart).gte("period_end", periodStart);
     if (!isAdmin) goalsQuery = goalsQuery.eq("user_id", userId!);
     const { data: goalsData } = await goalsQuery;
     setGoals(goalsData || []);
 
-    // Won MRR for current month
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-
-    // Get won stages
     const { data: wonStages } = await supabase.from("pipeline_stages").select("slug").eq("is_won", true);
     const wonSlugs = (wonStages || []).map((s) => s.slug);
 
@@ -83,18 +77,21 @@ export default function Commissions() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             <h1 className="font-heading text-2xl font-bold">Comissões</h1>
           </div>
-          {isAdmin && (
-            <Link to="/commissions/settings">
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-1" /> Configurações
-              </Button>
-            </Link>
-          )}
+          <div className="flex items-center gap-3">
+            <CommissionMonthFilter currentMonth={filterMonth} onMonthChange={setFilterMonth} />
+            {isAdmin && (
+              <Link to="/commissions/settings">
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-1" /> Configurações
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {isAdmin ? (
@@ -109,14 +106,15 @@ export default function Commissions() {
                 goals={goals}
                 wonMrr={wonMrr}
                 loading={loading}
+                filterMonth={filterMonth}
               />
             </TabsContent>
             <TabsContent value="admin">
-              <AdminCommissionView commissions={commissions} profiles={profiles} loading={loading} />
+              <AdminCommissionView commissions={commissions} profiles={profiles} loading={loading} filterMonth={filterMonth} />
             </TabsContent>
           </Tabs>
         ) : (
-          <SellerCommissionView commissions={commissions} goals={goals} wonMrr={wonMrr} loading={loading} />
+          <SellerCommissionView commissions={commissions} goals={goals} wonMrr={wonMrr} loading={loading} filterMonth={filterMonth} />
         )}
       </div>
     </Layout>
