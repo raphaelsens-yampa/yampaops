@@ -35,7 +35,7 @@ interface Props {
 const CHART_COLORS = ["hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)", "hsl(152, 60%, 42%)"];
 
 export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loading, filterMonth }: Props) {
-  const now = new Date();
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(() => new Set(["company", "team", "individual", "won"]));
 
   const filtered = useMemo(() => {
     return commissions.filter((c) => {
@@ -60,12 +60,24 @@ export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loadin
     return { provisioned: prov, nextPayment: next, walletNext2: wallet };
   }, [filtered, filterMonth]);
 
-  const chartData = [
-    { name: "Meta Empresa", value: goalsByScope.company },
-    { name: "Meta Equipe", value: goalsByScope.team },
-    { name: "Meta Individual", value: goalsByScope.individual },
-    { name: "Fechado", value: wonMrr },
+  const allChartItems = [
+    { key: "company", name: "Meta Empresa", value: goalsByScope.company, color: CHART_COLORS[0] },
+    { key: "team", name: "Meta Equipe", value: goalsByScope.team, color: CHART_COLORS[1] },
+    { key: "individual", name: "Meta Individual", value: goalsByScope.individual, color: CHART_COLORS[2] },
+    { key: "won", name: "Fechado", value: wonMrr, color: CHART_COLORS[3] },
   ];
+
+  const chartData = allChartItems.filter((item) => visibleKeys.has(item.key));
+
+  const toggleKey = (key: string) => {
+    setVisibleKeys((prev) => {
+      if (prev.has(key) && prev.size <= 1) return prev; // keep at least one
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const hasChartData = wonMrr > 0 || goalsByScope.company > 0 || goalsByScope.team > 0 || goalsByScope.individual > 0;
 
