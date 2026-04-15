@@ -14,6 +14,7 @@ import Team from "./pages/Team";
 import Import from "./pages/Import";
 import Forecast from "./pages/Forecast";
 import UsersPage from "./pages/Users";
+import ProfilePage from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="/team" element={<Team />} />
         <Route path="/import" element={<Import />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
@@ -55,6 +57,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<SellerKanban />} />
       <Route path="/goals" element={<Goals />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

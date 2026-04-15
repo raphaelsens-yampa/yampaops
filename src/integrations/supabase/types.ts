@@ -50,6 +50,9 @@ export type Database = {
           id: string
           lead_id: string
           notes: string | null
+          opportunity_id: string | null
+          result: string | null
+          scheduled_at: string | null
           type: Database["public"]["Enums"]["activity_type"]
           user_id: string
         }
@@ -58,6 +61,9 @@ export type Database = {
           id?: string
           lead_id: string
           notes?: string | null
+          opportunity_id?: string | null
+          result?: string | null
+          scheduled_at?: string | null
           type: Database["public"]["Enums"]["activity_type"]
           user_id: string
         }
@@ -66,6 +72,9 @@ export type Database = {
           id?: string
           lead_id?: string
           notes?: string | null
+          opportunity_id?: string | null
+          result?: string | null
+          scheduled_at?: string | null
           type?: Database["public"]["Enums"]["activity_type"]
           user_id?: string
         }
@@ -74,18 +83,66 @@ export type Database = {
             foreignKeyName: "activities_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
-            referencedRelation: "leads"
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
             referencedColumns: ["id"]
           },
         ]
       }
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          icp_level: number | null
+          id: string
+          name: string
+          phone: string | null
+          segment: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          icp_level?: number | null
+          id?: string
+          name: string
+          phone?: string | null
+          segment?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          icp_level?: number | null
+          id?: string
+          name?: string
+          phone?: string | null
+          segment?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
+          campaign: string | null
           channel: Database["public"]["Enums"]["lead_origin"] | null
           created_at: string
           id: string
           period_end: string
           period_start: string
+          scope: string | null
           target_agendamentos: number | null
           target_comparecimentos: number | null
           target_conversoes: number | null
@@ -98,15 +155,18 @@ export type Database = {
           target_taxa_conversao: number | null
           target_taxa_resposta: number | null
           target_tpv: number | null
+          team_id: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          campaign?: string | null
           channel?: Database["public"]["Enums"]["lead_origin"] | null
           created_at?: string
           id?: string
           period_end: string
           period_start: string
+          scope?: string | null
           target_agendamentos?: number | null
           target_comparecimentos?: number | null
           target_conversoes?: number | null
@@ -119,15 +179,18 @@ export type Database = {
           target_taxa_conversao?: number | null
           target_taxa_resposta?: number | null
           target_tpv?: number | null
+          team_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          campaign?: string | null
           channel?: Database["public"]["Enums"]["lead_origin"] | null
           created_at?: string
           id?: string
           period_end?: string
           period_start?: string
+          scope?: string | null
           target_agendamentos?: number | null
           target_comparecimentos?: number | null
           target_conversoes?: number | null
@@ -140,61 +203,96 @@ export type Database = {
           target_taxa_conversao?: number | null
           target_taxa_resposta?: number | null
           target_tpv?: number | null
+          team_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goals_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      leads: {
+      opportunities: {
         Row: {
           attribution: Database["public"]["Enums"]["attribution_model"] | null
           company: string | null
           consultant_id: string | null
+          contact_id: string | null
           created_at: string
+          estimated_close_date: string | null
           estimated_mrr: number | null
           estimated_tpv: number | null
           id: string
           last_interaction_at: string | null
+          loss_reason: string | null
           name: string
           notes: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
+          probability: number | null
           stage: string
+          sub_origin: string | null
           take_rate: number | null
+          title: string | null
           updated_at: string
         }
         Insert: {
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           company?: string | null
           consultant_id?: string | null
+          contact_id?: string | null
           created_at?: string
+          estimated_close_date?: string | null
           estimated_mrr?: number | null
           estimated_tpv?: number | null
           id?: string
           last_interaction_at?: string | null
+          loss_reason?: string | null
           name: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
+          probability?: number | null
           stage?: string
+          sub_origin?: string | null
           take_rate?: number | null
+          title?: string | null
           updated_at?: string
         }
         Update: {
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           company?: string | null
           consultant_id?: string | null
+          contact_id?: string | null
           created_at?: string
+          estimated_close_date?: string | null
           estimated_mrr?: number | null
           estimated_tpv?: number | null
           id?: string
           last_interaction_at?: string | null
+          loss_reason?: string | null
           name?: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
+          probability?: number | null
           stage?: string
+          sub_origin?: string | null
           take_rate?: number | null
+          title?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pipeline_stages: {
         Row: {
@@ -235,27 +333,92 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          birth_date: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
+          phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          birth_date?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          birth_date?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string
+          id: string
+          role_in_team: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role_in_team?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role_in_team?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -325,9 +488,18 @@ export type Database = {
         | "resposta_recebida"
         | "call_realizada"
         | "reuniao_executada"
+        | "whatsapp"
+        | "proposta"
       app_role: "admin" | "seller"
       attribution_model: "first_click" | "last_click"
-      lead_origin: "freetrial" | "cursos" | "outbound" | "campanhas" | "base"
+      lead_origin:
+        | "freetrial"
+        | "cursos"
+        | "outbound"
+        | "campanhas"
+        | "base"
+        | "campanhas_marketing"
+        | "campanhas_base"
       lead_stage:
         | "novo_lead"
         | "contato_realizado"
@@ -468,10 +640,20 @@ export const Constants = {
         "resposta_recebida",
         "call_realizada",
         "reuniao_executada",
+        "whatsapp",
+        "proposta",
       ],
       app_role: ["admin", "seller"],
       attribution_model: ["first_click", "last_click"],
-      lead_origin: ["freetrial", "cursos", "outbound", "campanhas", "base"],
+      lead_origin: [
+        "freetrial",
+        "cursos",
+        "outbound",
+        "campanhas",
+        "base",
+        "campanhas_marketing",
+        "campanhas_base",
+      ],
       lead_stage: [
         "novo_lead",
         "contato_realizado",

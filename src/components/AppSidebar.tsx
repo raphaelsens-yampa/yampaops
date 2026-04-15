@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, FileUp, Sun, Moon, LogOut, ChevronLeft, TrendingUp, ShieldCheck,
+  BarChart3, Users, Target, Kanban, FileUp, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -69,6 +69,11 @@ export function AppSidebar() {
           <p className="text-xs text-sidebar-foreground/70 truncate px-1">{profile.full_name}</p>
         )}
         <div className={`flex ${collapsed ? 'flex-col items-center gap-1' : 'gap-1'}`}>
+          <SidebarMenuButton asChild>
+            <NavLink to="/profile" className="hover:bg-sidebar-accent/50 h-8 w-8 flex items-center justify-center" activeClassName="bg-sidebar-accent text-sidebar-primary">
+              <User className="h-4 w-4" />
+            </NavLink>
+          </SidebarMenuButton>
           <Button variant="ghost" size="icon" onClick={toggle} className="text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8">
             {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </Button>

@@ -28,6 +28,8 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   resposta_recebida: "Resposta Recebida",
   call_realizada: "Call Realizada",
   reuniao_executada: "Reunião Executada",
+  whatsapp: "WhatsApp",
+  proposta: "Proposta Enviada",
 };
 
 export const STAGE_WEIGHTS: Record<string, number> = {

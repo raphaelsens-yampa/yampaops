@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       const [leadsRes, actsRes, goalsRes, profsRes] = await Promise.all([
-        supabase.from("leads").select("*"),
+        supabase.from("opportunities").select("*"),
         supabase.from("activities").select("*"),
         supabase.from("goals").select("*"),
         supabase.from("profiles").select("*"),
@@ -55,7 +55,6 @@ export default function AdminDashboard() {
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
-  // Funnel data using dynamic stages
   const funnelData: Record<string, { count: number; mrr: number }> = {};
   stageOrder.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
   leads.forEach(l => {
@@ -126,7 +125,7 @@ export default function AdminDashboard() {
           <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<TrendingUp className="h-5 w-5" />} />
           <MetricCard title="Conversão" value={`${convRate}%`} icon={<BarChart3 className="h-5 w-5" />} />
           <MetricCard title="Vel. Média" value={`${avgVelocity}d`} icon={<Zap className="h-5 w-5" />} subtitle="dias até fechar" />
-          <MetricCard title="Leads Ativos" value={activeLeads.length} icon={<Users className="h-5 w-5" />} />
+          <MetricCard title="Oportunidades" value={activeLeads.length} icon={<Users className="h-5 w-5" />} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

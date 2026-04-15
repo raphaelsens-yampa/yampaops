@@ -16,13 +16,13 @@ import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useS
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import type { Database } from "@/integrations/supabase/types";
 
-type Lead = Database["public"]["Tables"]["leads"]["Row"];
+type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
 export default function SellerKanban() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { stages, stageOrder, stageLabels, stageColors, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<Opportunity[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -45,7 +45,7 @@ export default function SellerKanban() {
 
   async function loadData() {
     const [leadsRes, goalsRes] = await Promise.all([
-      supabase.from("leads").select("*").eq("consultant_id", user!.id).order("created_at", { ascending: false }),
+      supabase.from("opportunities").select("*").eq("consultant_id", user!.id).order("created_at", { ascending: false }),
       supabase.from("goals").select("*").eq("user_id", user!.id),
     ]);
     setLeads(leadsRes.data || []);
@@ -55,7 +55,7 @@ export default function SellerKanban() {
 
   async function createLead() {
     if (!nlName || !user) return;
-    const { error } = await supabase.from("leads").insert({
+    const { error } = await supabase.from("opportunities").insert({
       name: nlName, company: nlCompany || null, origin: nlOrigin as any,
       consultant_id: user.id, estimated_mrr: parseFloat(nlMrr) || 0,
     });
@@ -77,7 +77,6 @@ export default function SellerKanban() {
     const leadId = active.id as string;
     let newStage: string = over.id as string;
 
-    // If dropped over a card, find that card's stage
     if (!stageOrder.includes(newStage)) {
       const overLead = leads.find(l => l.id === newStage);
       if (overLead) newStage = overLead.stage;
@@ -87,11 +86,10 @@ export default function SellerKanban() {
     const currentLead = leads.find(l => l.id === leadId);
     if (!currentLead || currentLead.stage === newStage) return;
 
-    // Optimistic update
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage as any } : l));
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
 
-    const { error } = await supabase.from("leads").update({
-      stage: newStage as any,
+    const { error } = await supabase.from("opportunities").update({
+      stage: newStage,
       last_interaction_at: new Date().toISOString(),
     }).eq("id", leadId);
 
@@ -104,9 +102,9 @@ export default function SellerKanban() {
   async function logActivity(leadId: string) {
     if (!user) return;
     await supabase.from("activities").insert({
-      lead_id: leadId, user_id: user.id, type: activityType as any, notes: activityNotes || null,
+      lead_id: leadId, opportunity_id: leadId, user_id: user.id, type: activityType as any, notes: activityNotes || null,
     });
-    await supabase.from("leads").update({ last_interaction_at: new Date().toISOString() }).eq("id", leadId);
+    await supabase.from("opportunities").update({ last_interaction_at: new Date().toISOString() }).eq("id", leadId);
     setActivityOpen(null);
     setActivityNotes("");
     toast({ title: "Atividade registrada" });
@@ -143,10 +141,10 @@ export default function SellerKanban() {
           <h1 className="text-2xl font-heading font-bold">Meu Pipeline</h1>
           <Dialog open={newLeadOpen} onOpenChange={setNewLeadOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-1" /> Novo Lead</Button>
+              <Button><Plus className="h-4 w-4 mr-1" /> Nova Oportunidade</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Novo Lead</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Nova Oportunidade</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <Input placeholder="Nome" value={nlName} onChange={e => setNlName(e.target.value)} />
                 <Input placeholder="Empresa" value={nlCompany} onChange={e => setNlCompany(e.target.value)} />
@@ -159,14 +157,14 @@ export default function SellerKanban() {
                   </SelectContent>
                 </Select>
                 <Input type="number" placeholder="MRR Estimado" value={nlMrr} onChange={e => setNlMrr(e.target.value)} />
-                <Button onClick={createLead} className="w-full">Criar Lead</Button>
+                <Button onClick={createLead} className="w-full">Criar</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <MetricCard title="Leads Ativos" value={activeLeads.length} icon={<GripVertical className="h-5 w-5" />} />
+          <MetricCard title="Oportunidades Ativas" value={activeLeads.length} icon={<GripVertical className="h-5 w-5" />} />
           <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<Plus className="h-5 w-5" />} />
           <MetricCard title="Follow-up Pendente" value={needsFollowUp.length} icon={<MessageSquare className="h-5 w-5" />} subtitle="sem interação 24h+" />
         </div>
