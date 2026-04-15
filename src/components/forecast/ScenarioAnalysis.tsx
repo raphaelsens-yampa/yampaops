@@ -2,14 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  AlertTriangle, CheckCircle2, Lightbulb, Users, PhoneCall, Target,
+  AlertTriangle, CheckCircle2, Lightbulb, Users,
 } from "lucide-react";
-import { SAAS_BENCHMARKS, FUNNEL_TRANSITIONS } from "@/lib/constants";
+import type { DynamicTransition } from "@/pages/Forecast";
 
 interface ScenarioAnalysisProps {
   actualRates: Record<string, number | null>;
   stageCounts: Record<string, number>;
   sellerCount: number;
+  transitions: DynamicTransition[];
+  stageLabels: Record<string, string>;
 }
 
 interface Recommendation {
@@ -19,31 +21,36 @@ interface Recommendation {
   description: string;
 }
 
+const DEFAULT_BENCHMARK = 0.25;
+
 const CAPACITY_DEFAULTS = {
   mqls_per_sdr: 150,
   calls_per_closer: 40,
   meetings_per_seller: 20,
 };
 
-export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount }: ScenarioAnalysisProps) {
+export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount, transitions, stageLabels }: ScenarioAnalysisProps) {
   const recommendations: Recommendation[] = [];
 
-  // Analyze each transition
-  FUNNEL_TRANSITIONS.forEach((t) => {
-    const benchmark = SAAS_BENCHMARKS[t.benchmarkKey];
+  // Analyze each transition dynamically
+  transitions.forEach((t) => {
     const actual = actualRates[t.key];
-    if (actual === null) return;
+    if (actual === null || actual === undefined) return;
 
-    const ratio = actual / benchmark;
-
-    if (ratio < 0.5) {
-      // Critical: way below benchmark
-      const rec = getRecommendation(t.key, "critical");
-      if (rec) recommendations.push(rec);
-    } else if (ratio < 0.8) {
-      // Warning: below benchmark
-      const rec = getRecommendation(t.key, "warning");
-      if (rec) recommendations.push(rec);
+    if (actual < DEFAULT_BENCHMARK * 0.5) {
+      recommendations.push({
+        severity: "critical",
+        icon: AlertTriangle,
+        title: `${t.label} — taxa crítica`,
+        description: `A taxa de conversão de ${(actual * 100).toFixed(1)}% está muito baixa. Revise o processo nesta etapa para identificar gargalos.`,
+      });
+    } else if (actual < DEFAULT_BENCHMARK * 0.8) {
+      recommendations.push({
+        severity: "warning",
+        icon: AlertTriangle,
+        title: `${t.label} — pode melhorar`,
+        description: `A taxa de ${(actual * 100).toFixed(1)}% está abaixo do esperado. Otimize a abordagem nesta transição.`,
+      });
     }
   });
 
@@ -67,36 +74,23 @@ export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount }: Scen
     });
   }
 
-  // If no issues found
   if (recommendations.length === 0) {
     recommendations.push({
       severity: "opportunity",
       icon: CheckCircle2,
       title: "Funil saudável",
-      description: "As taxas de conversão estão alinhadas com os benchmarks de mercado. Continue monitorando.",
+      description: "As taxas de conversão estão dentro do esperado. Continue monitorando.",
     });
   }
 
-  // Sort by severity
   const order = { critical: 0, warning: 1, opportunity: 2 };
   recommendations.sort((a, b) => order[a.severity] - order[b.severity]);
 
-  // Capacity bars
   const capacityBars = [
     {
-      label: "SDR — MQLs/pessoa",
+      label: "SDR — Leads/pessoa",
       current: Math.round(leadsPerSeller),
       max: CAPACITY_DEFAULTS.mqls_per_sdr,
-    },
-    {
-      label: "Closer — Calls/mês",
-      current: stageCounts.proposta_enviada ?? 0,
-      max: CAPACITY_DEFAULTS.calls_per_closer * Math.max(1, sellerCount),
-    },
-    {
-      label: "Reuniões/mês",
-      current: stageCounts.diagnostico ?? 0,
-      max: CAPACITY_DEFAULTS.meetings_per_seller * Math.max(1, sellerCount),
     },
   ];
 
@@ -105,11 +99,10 @@ export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount }: Scen
       <CardHeader>
         <CardTitle className="font-heading text-lg">Análise de Cenário & Recomendações</CardTitle>
         <CardDescription>
-          Gargalos identificados e sugestões baseadas nos seus dados vs. benchmarks SaaS
+          Gargalos identificados e sugestões baseadas nos seus dados
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Capacity utilization */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Aproveitamento de Capacidade
@@ -136,7 +129,6 @@ export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount }: Scen
           </div>
         </div>
 
-        {/* Recommendations */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Recomendações
@@ -187,44 +179,4 @@ export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount }: Scen
       </CardContent>
     </Card>
   );
-}
-
-function getRecommendation(key: string, severity: "critical" | "warning"): Recommendation | null {
-  const map: Record<string, { title: string; description: string; icon: React.ElementType }> = {
-    prospeccao_resposta: {
-      title: "Taxa de resposta baixa",
-      description:
-        severity === "critical"
-          ? "A taxa de resposta está muito abaixo do benchmark. Revise a cadência de prospecção, melhore a qualificação dos leads ou invista em aquisição de leads de topo de funil mais qualificados."
-          : "A taxa de resposta pode melhorar. Teste novos canais de aquisição ou refine o ICP (perfil de cliente ideal).",
-      icon: AlertTriangle,
-    },
-    resposta_agendamento: {
-      title: "Agendamento está abaixo do esperado",
-      description:
-        severity === "critical"
-          ? "Poucos contatos estão virando reuniões. Melhore o script de abordagem, treine SDRs ou contrate mais um SDR para aumentar o volume."
-          : "A conversão para agendamento pode ser otimizada. Revise o pitch inicial e teste abordagens diferentes.",
-      icon: PhoneCall,
-    },
-    agendamento_comparecimento: {
-      title: "Comparecimento em reuniões baixo",
-      description:
-        severity === "critical"
-          ? "Muitas reuniões agendadas não estão acontecendo. Implemente confirmações automáticas por WhatsApp/email 24h antes e lembretes no dia."
-          : "Melhore o comparecimento com lembretes automáticos e confirmação de presença antes da reunião.",
-      icon: Target,
-    },
-    comparecimento_conversao: {
-      title: "Conversão final está baixa",
-      description:
-        severity === "critical"
-          ? "A taxa de fechamento está crítica. Revise a proposta comercial, treine closers em técnicas de negociação e analise os motivos de perda."
-          : "A conversão pode melhorar. Analise os deals perdidos para identificar objeções recorrentes e ajuste a proposta.",
-      icon: Target,
-    },
-  };
-
-  const entry = map[key];
-  return entry ? { severity, ...entry } : null;
 }
