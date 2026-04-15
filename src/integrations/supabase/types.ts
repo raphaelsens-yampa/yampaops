@@ -97,33 +97,30 @@ export type Database = {
       }
       commission_products: {
         Row: {
-          annual_multiplier: number
+          commission_percent: number
           created_at: string
           id: string
-          monthly_multiplier: number
           name: string
-          setup_commission: number
-          subscription_commission: number
+          plan_mrr: number
+          plan_value: number
           updated_at: string
         }
         Insert: {
-          annual_multiplier?: number
+          commission_percent?: number
           created_at?: string
           id?: string
-          monthly_multiplier?: number
           name: string
-          setup_commission?: number
-          subscription_commission?: number
+          plan_mrr?: number
+          plan_value?: number
           updated_at?: string
         }
         Update: {
-          annual_multiplier?: number
+          commission_percent?: number
           created_at?: string
           id?: string
-          monthly_multiplier?: number
           name?: string
-          setup_commission?: number
-          subscription_commission?: number
+          plan_mrr?: number
+          plan_value?: number
           updated_at?: string
         }
         Relationships: []
@@ -154,6 +151,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      commission_triggers: {
+        Row: {
+          created_at: string
+          extra_percent: number
+          goal_id: string | null
+          goal_type: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          extra_percent?: number
+          goal_id?: string | null
+          goal_type?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          extra_percent?: number
+          goal_id?: string | null
+          goal_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_triggers_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       commissions: {
         Row: {
@@ -544,6 +582,42 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_prices: {
+        Row: {
+          area: string | null
+          created_at: string
+          id: string
+          mrr: number
+          plan_name: string
+          price_id: string
+          product_name: string
+          seller_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          area?: string | null
+          created_at?: string
+          id?: string
+          mrr?: number
+          plan_name: string
+          price_id: string
+          product_name: string
+          seller_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area?: string | null
+          created_at?: string
+          id?: string
+          mrr?: number
+          plan_name?: string
+          price_id?: string
+          product_name?: string
+          seller_id?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
