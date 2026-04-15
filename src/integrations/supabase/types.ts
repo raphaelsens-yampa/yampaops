@@ -597,6 +597,7 @@ export type Database = {
       stripe_prices: {
         Row: {
           area: string | null
+          commission_percent: number
           commission_product_id: string | null
           commission_value: number
           created_at: string
@@ -610,6 +611,7 @@ export type Database = {
         }
         Insert: {
           area?: string | null
+          commission_percent?: number
           commission_product_id?: string | null
           commission_value?: number
           created_at?: string
@@ -623,6 +625,7 @@ export type Database = {
         }
         Update: {
           area?: string | null
+          commission_percent?: number
           commission_product_id?: string | null
           commission_value?: number
           created_at?: string
