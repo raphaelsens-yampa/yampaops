@@ -194,6 +194,16 @@ export default function PipelinePage() {
             })}
           </div>
         </DragDropContext>
+
+        <EditOpportunityDialog
+          opportunity={editingOpp}
+          open={!!editingOpp}
+          onOpenChange={(open) => { if (!open) setEditingOpp(null); }}
+          stageOrder={stageOrder}
+          stageLabels={stageLabels}
+          profiles={profiles}
+          onUpdated={loadData}
+        />
       </div>
     </Layout>
   );
