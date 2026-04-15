@@ -9,49 +9,34 @@ export interface PipelineStage {
   color: string | null;
   is_won: boolean;
   is_lost: boolean;
+  pipeline_id: string;
 }
 
-let cachedStages: PipelineStage[] | null = null;
-let cachePromise: Promise<PipelineStage[]> | null = null;
+export function usePipelineStages(pipelineId?: string) {
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [loading, setLoading] = useState(true);
 
-async function fetchStages(): Promise<PipelineStage[]> {
-  const { data } = await supabase
-    .from("pipeline_stages")
-    .select("*")
-    .order("position", { ascending: true });
-  cachedStages = (data as PipelineStage[]) || [];
-  return cachedStages;
-}
-
-export function invalidateStagesCache() {
-  cachedStages = null;
-  cachePromise = null;
-}
-
-export function usePipelineStages() {
-  const [stages, setStages] = useState<PipelineStage[]>(cachedStages || []);
-  const [loading, setLoading] = useState(!cachedStages);
-
-  useEffect(() => {
-    if (cachedStages) {
-      setStages(cachedStages);
-      setLoading(false);
-      return;
+  const fetchStages = async () => {
+    let query = supabase
+      .from("pipeline_stages")
+      .select("*")
+      .order("position", { ascending: true });
+    if (pipelineId) {
+      query = query.eq("pipeline_id", pipelineId);
     }
-    if (!cachePromise) cachePromise = fetchStages();
-    cachePromise.then((s) => {
-      setStages(s);
-      setLoading(false);
-    });
-  }, []);
-
-  const refetch = async () => {
-    invalidateStagesCache();
-    const s = await fetchStages();
-    setStages(s);
+    const { data } = await query;
+    setStages((data as PipelineStage[]) || []);
+    setLoading(false);
   };
 
-  // Derived helpers
+  useEffect(() => {
+    fetchStages();
+  }, [pipelineId]);
+
+  const refetch = async () => {
+    await fetchStages();
+  };
+
   const stageOrder = stages.map((s) => s.slug);
   const stageLabels: Record<string, string> = {};
   const stageColors: Record<string, string> = {};
