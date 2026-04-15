@@ -28,7 +28,7 @@ export default function GoalsPage() {
   const [gEnd, setGEnd] = useState("");
   const [gMrr, setGMrr] = useState("");
   const [gDeals, setGDeals] = useState("");
-  const [gTpv, setGTpv] = useState("");
+  const [gArpa, setGArpa] = useState("");
 
   // Stage volume targets
   const [gProspeccoes, setGProspeccoes] = useState("");
@@ -57,7 +57,7 @@ export default function GoalsPage() {
 
   function resetForm() {
     setGChannel("all"); setGUser("none"); setGStart(""); setGEnd("");
-    setGMrr(""); setGDeals(""); setGTpv("");
+    setGMrr(""); setGDeals(""); setGArpa("");
     setGProspeccoes(""); setGRespostas(""); setGAgendamentos("");
     setGComparecimentos(""); setGConversoes("");
     setGTaxaResposta(""); setGTaxaAgendamento(""); setGTaxaComparecimento(""); setGTaxaConversao("");
@@ -72,7 +72,7 @@ export default function GoalsPage() {
       period_start: gStart, period_end: gEnd,
       target_mrr: parseFloat(gMrr) || 0,
       target_deals: parseInt(gDeals) || 0,
-      target_tpv: parseFloat(gTpv) || 0,
+      target_tpv: parseFloat(gArpa) || 0,
       target_prospeccoes: parseInt(gProspeccoes) || 0,
       target_respostas: parseInt(gRespostas) || 0,
       target_agendamentos: parseInt(gAgendamentos) || 0,
@@ -130,7 +130,7 @@ export default function GoalsPage() {
                     <Label className="text-sm font-semibold">Metas de resultado</Label>
                     <Input type="number" placeholder="MRR Alvo (R$)" value={gMrr} onChange={e => setGMrr(e.target.value)} />
                     <Input type="number" placeholder="Qtd Deals" value={gDeals} onChange={e => setGDeals(e.target.value)} />
-                    <Input type="number" placeholder="TPV Alvo (R$)" value={gTpv} onChange={e => setGTpv(e.target.value)} />
+                    <Input type="number" placeholder="ARPA Alvo (R$)" value={gArpa} onChange={e => setGArpa(e.target.value)} />
                   </div>
 
                   <Separator />
@@ -171,7 +171,7 @@ export default function GoalsPage() {
                   <TableHead>Período</TableHead>
                   <TableHead className="text-right">MRR Alvo</TableHead>
                   <TableHead className="text-right">Deals</TableHead>
-                  <TableHead className="text-right">TPV</TableHead>
+                  <TableHead className="text-right">ARPA</TableHead>
                   {role === "admin" && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>

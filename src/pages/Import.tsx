@@ -47,7 +47,7 @@ export default function ImportPage() {
         else if (lower.includes("empresa") || lower === "company") autoMap[h] = "company";
         else if (lower.includes("origem") || lower === "origin") autoMap[h] = "origin";
         else if (lower.includes("mrr")) autoMap[h] = "estimated_mrr";
-        else if (lower.includes("tpv")) autoMap[h] = "estimated_tpv";
+        else if (lower.includes("arpa") || lower.includes("tpv")) autoMap[h] = "estimated_tpv";
         else if (lower.includes("take")) autoMap[h] = "take_rate";
         else if (lower.includes("nota") || lower === "notes") autoMap[h] = "notes";
         else if (lower.includes("stage") || lower.includes("etapa")) autoMap[h] = "stage";

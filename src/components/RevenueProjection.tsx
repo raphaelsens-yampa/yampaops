@@ -11,7 +11,7 @@ export function RevenueProjection({ leads }: Props) {
   const wonLeads = leads.filter(l => l.stage === "fechado_won");
 
   // Group by month (created_at) for projection
-  const months: Record<string, { mrr_closed: number; tpv_closed: number; mrr_projected: number; tpv_projected: number }> = {};
+  const months: Record<string, { mrr_closed: number; arpa_closed: number; mrr_projected: number; arpa_projected: number }> = {};
 
   const getMonthKey = (d: string) => {
     const date = new Date(d);
@@ -29,14 +29,14 @@ export function RevenueProjection({ leads }: Props) {
   for (let i = -2; i <= 2; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    months[key] = { mrr_closed: 0, tpv_closed: 0, mrr_projected: 0, tpv_projected: 0 };
+    months[key] = { mrr_closed: 0, arpa_closed: 0, mrr_projected: 0, arpa_projected: 0 };
   }
 
   wonLeads.forEach(l => {
     const key = getMonthKey(l.updated_at);
     if (months[key]) {
       months[key].mrr_closed += l.estimated_mrr || 0;
-      months[key].tpv_closed += (l.estimated_tpv || 0) * (l.take_rate || 0) / 100;
+      months[key].arpa_closed += (l.estimated_tpv || 0) * (l.take_rate || 0) / 100;
     }
   });
 
@@ -46,7 +46,7 @@ export function RevenueProjection({ leads }: Props) {
     const weight = STAGE_WEIGHTS[l.stage] || 0;
     if (months[currentKey]) {
       months[currentKey].mrr_projected += (l.estimated_mrr || 0) * weight;
-      months[currentKey].tpv_projected += (l.estimated_tpv || 0) * (l.take_rate || 0) / 100 * weight;
+      months[currentKey].arpa_projected += (l.estimated_tpv || 0) * (l.take_rate || 0) / 100 * weight;
     }
   });
 
@@ -56,13 +56,13 @@ export function RevenueProjection({ leads }: Props) {
       name: getLabel(key),
       "MRR Fechado": Math.round(v.mrr_closed),
       "MRR Projetado": Math.round(v.mrr_projected),
-      "Receita TPV": Math.round(v.tpv_closed + v.tpv_projected),
+      "Receita ARPA": Math.round(v.arpa_closed + v.arpa_projected),
     }));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Projeção de Receita (MRR + TPV × Take Rate)</CardTitle>
+        <CardTitle className="text-lg">Projeção de Receita (MRR + ARPA × Take Rate)</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -73,7 +73,7 @@ export function RevenueProjection({ leads }: Props) {
             <Legend />
             <Bar dataKey="MRR Fechado" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} stackId="mrr" />
             <Bar dataKey="MRR Projetado" fill="hsl(var(--primary) / 0.4)" radius={[4, 4, 0, 0]} stackId="mrr" />
-            <Bar dataKey="Receita TPV" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Receita ARPA" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>
