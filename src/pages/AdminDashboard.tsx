@@ -24,6 +24,18 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function loadPipelines() {
+      const { data } = await supabase.from("pipelines").select("id, name").order("is_default", { ascending: false });
+      const pips = data || [];
+      setPipelines(pips);
+      if (pips.length > 0 && !selectedPipelineId) {
+        setSelectedPipelineId(pips[0].id);
+      }
+    }
+    loadPipelines();
+  }, []);
+
+  useEffect(() => {
     async function load() {
       const [leadsRes, actsRes, goalsRes, profsRes] = await Promise.all([
         supabase.from("opportunities").select("*"),
