@@ -33,7 +33,7 @@ export function ScenarioAnalysis({ actualRates, stageCounts, sellerCount, transi
   const recommendations: Recommendation[] = [];
 
   // Analyze each transition dynamically
-  transitions.forEach((t) => {
+  (transitions ?? []).forEach((t) => {
     const actual = actualRates[t.key];
     if (actual === null || actual === undefined) return;
 

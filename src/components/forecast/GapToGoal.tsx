@@ -27,7 +27,8 @@ export function GapToGoal({
   // Build steps from transitions in reverse
   // transitions[last] is "lastActive → won", transitions[0] is "first → second"
   // We need: for each stage, how many are needed
-  const reversedTransitions = [...transitions].reverse();
+  const safeTransitions = transitions ?? [];
+  const reversedTransitions = [...safeTransitions].reverse();
 
   const stageNeeded: Record<string, number> = {};
   if (wonSlug) stageNeeded[wonSlug] = targetDeals;
@@ -42,9 +43,9 @@ export function GapToGoal({
 
   // Build display steps: all unique stages from transitions + won
   const stageSequence: string[] = [];
-  if (transitions.length > 0) {
-    stageSequence.push(transitions[0].fromSlug);
-    for (const t of transitions) {
+  if (safeTransitions.length > 0) {
+    stageSequence.push(safeTransitions[0].fromSlug);
+    for (const t of safeTransitions) {
       stageSequence.push(t.toSlug);
     }
   }

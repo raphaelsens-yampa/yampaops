@@ -44,7 +44,7 @@ export function ConversionRates({ actualRates, stageCounts, stageGoals, transiti
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transitions.map((t) => {
+            {(transitions ?? []).map((t) => {
               const actual = actualRates[t.key];
               const realizedValue = stageCounts[t.toSlug] ?? 0;
 
