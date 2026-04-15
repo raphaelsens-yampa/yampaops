@@ -14,6 +14,7 @@ import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
 import { PipelineManager } from "@/components/PipelineManager";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
+import { EditOpportunityDialog } from "@/components/EditOpportunityDialog";
 
 interface Pipeline {
   id: string;
