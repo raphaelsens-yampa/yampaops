@@ -18,6 +18,8 @@ interface StripePrice {
   area: string | null;
   seller_id: string | null;
   mrr: number;
+  product_id: string | null;
+  commission_value: number;
 }
 
 interface Profile {
@@ -26,34 +28,59 @@ interface Profile {
   email: string | null;
 }
 
+interface CommissionProduct {
+  id: string;
+  name: string;
+  commission_percent: number;
+}
+
 export function StripePricesTable() {
   const { toast } = useToast();
   const [prices, setPrices] = useState<StripePrice[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [products, setProducts] = useState<CommissionProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<StripePrice | null>(null);
 
   const [form, setForm] = useState({
-    product_name: "", plan_name: "", price_id: "", area: "", seller_id: "", mrr: "",
+    product_name: "", plan_name: "", price_id: "", area: "", seller_id: "", mrr: "", product_id: "", commission_value: "",
   });
 
   const fetchData = async () => {
-    const [{ data: priceData }, { data: profData }] = await Promise.all([
+    const [{ data: priceData }, { data: profData }, { data: prodData }] = await Promise.all([
       supabase.from("stripe_prices").select("*").order("product_name"),
       supabase.from("profiles").select("user_id, full_name, email"),
+      supabase.from("commission_products").select("id, name, commission_percent").order("name"),
     ]);
     setPrices((priceData as StripePrice[]) || []);
     setProfiles(profData || []);
+    setProducts((prodData as CommissionProduct[]) || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
+  const calcCommission = (mrr: string, productId: string) => {
+    const prod = products.find((p) => p.id === productId);
+    if (!prod || !mrr) return "0";
+    return ((Number(mrr) * prod.commission_percent) / 100).toFixed(2);
+  };
+
+  const handleMrrChange = (mrr: string) => {
+    const commission = calcCommission(mrr, form.product_id);
+    setForm({ ...form, mrr, commission_value: commission });
+  };
+
+  const handleProductChange = (productId: string) => {
+    const commission = calcCommission(form.mrr, productId);
+    setForm({ ...form, product_id: productId, commission_value: commission });
+  };
+
   const openNew = () => {
     setEditing(null);
-    setForm({ product_name: "", plan_name: "", price_id: "", area: "", seller_id: "", mrr: "" });
+    setForm({ product_name: "", plan_name: "", price_id: "", area: "", seller_id: "", mrr: "", product_id: "", commission_value: "" });
     setDialogOpen(true);
   };
 
@@ -66,6 +93,8 @@ export function StripePricesTable() {
       area: p.area || "",
       seller_id: p.seller_id || "",
       mrr: p.mrr.toString(),
+      product_id: p.product_id || "",
+      commission_value: p.commission_value.toString(),
     });
     setDialogOpen(true);
   };
@@ -80,6 +109,8 @@ export function StripePricesTable() {
       area: form.area || null,
       seller_id: form.seller_id || null,
       mrr: Number(form.mrr) || 0,
+      product_id: form.product_id || null,
+      commission_value: Number(form.commission_value) || 0,
     };
 
     const { error } = editing
@@ -113,6 +144,11 @@ export function StripePricesTable() {
     const p = profiles.find((p) => p.user_id === id);
     return p?.full_name || p?.email || id;
   };
+  const getProductName = (id: string | null) => {
+    if (!id) return "—";
+    const p = products.find((p) => p.id === id);
+    return p?.name || "—";
+  };
 
   return (
     <Card>
@@ -141,26 +177,44 @@ export function StripePricesTable() {
                 <Label>Price ID (Stripe)</Label>
                 <Input value={form.price_id} onChange={(e) => setForm({ ...form, price_id: e.target.value })} placeholder="price_..." />
               </div>
+              <div>
+                <Label>Produto de Comissão</Label>
+                <Select value={form.product_id} onValueChange={handleProductChange}>
+                  <SelectTrigger><SelectValue placeholder="Vincular produto de comissão" /></SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name} ({p.commission_percent}%)</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>MRR (R$)</Label>
+                  <Input type="number" value={form.mrr} onChange={(e) => handleMrrChange(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Comissão (R$)</Label>
+                  <Input type="number" value={form.commission_value} readOnly className="bg-muted" />
+                  <p className="text-xs text-muted-foreground mt-1">Calculado automaticamente</p>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Área</Label>
                   <Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex: Comercial" />
                 </div>
                 <div>
-                  <Label>MRR (R$)</Label>
-                  <Input type="number" value={form.mrr} onChange={(e) => setForm({ ...form, mrr: e.target.value })} />
+                  <Label>Vendedor</Label>
+                  <Select value={form.seller_id} onValueChange={(v) => setForm({ ...form, seller_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      {profiles.map((p) => (
+                        <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              <div>
-                <Label>Vendedor</Label>
-                <Select value={form.seller_id} onValueChange={(v) => setForm({ ...form, seller_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
-                  <SelectContent>
-                    {profiles.map((p) => (
-                      <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
@@ -180,9 +234,10 @@ export function StripePricesTable() {
                 <TableHead>Produto</TableHead>
                 <TableHead>Plano</TableHead>
                 <TableHead>Price ID</TableHead>
-                <TableHead>Área</TableHead>
-                <TableHead>Vendedor</TableHead>
+                <TableHead>Comissão (Produto)</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
+                <TableHead className="text-right">Comissão</TableHead>
+                <TableHead>Vendedor</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -192,9 +247,10 @@ export function StripePricesTable() {
                   <TableCell className="font-medium">{p.product_name}</TableCell>
                   <TableCell>{p.plan_name}</TableCell>
                   <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
-                  <TableCell>{p.area || "—"}</TableCell>
-                  <TableCell>{getSellerName(p.seller_id)}</TableCell>
+                  <TableCell>{getProductName(p.product_id)}</TableCell>
                   <TableCell className="text-right">{fmt(p.mrr)}</TableCell>
+                  <TableCell className="text-right font-medium">{fmt(p.commission_value)}</TableCell>
+                  <TableCell>{getSellerName(p.seller_id)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
@@ -209,7 +265,7 @@ export function StripePricesTable() {
               ))}
               {prices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
                 </TableRow>
               )}
             </TableBody>
