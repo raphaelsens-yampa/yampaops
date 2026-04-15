@@ -12,6 +12,7 @@ import Goals from "./pages/Goals";
 import Pipeline from "./pages/Pipeline";
 import Team from "./pages/Team";
 import Import from "./pages/Import";
+import Forecast from "./pages/Forecast";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
         <Route path="/pipeline" element={<Pipeline />} />
+        <Route path="/forecast" element={<Forecast />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/team" element={<Team />} />
         <Route path="/import" element={<Import />} />
