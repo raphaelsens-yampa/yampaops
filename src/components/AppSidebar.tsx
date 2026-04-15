@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, FileUp, Sun, Moon, LogOut, ChevronLeft, TrendingUp,
+  BarChart3, Users, Target, Kanban, FileUp, Sun, Moon, LogOut, ChevronLeft, TrendingUp, ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -18,6 +18,7 @@ const adminItems = [
   { title: "Metas", url: "/goals", icon: Target },
   { title: "Equipe", url: "/team", icon: Users },
   { title: "Importar", url: "/import", icon: FileUp },
+  { title: "Usuários", url: "/users", icon: ShieldCheck },
 ];
 
 const sellerItems = [
