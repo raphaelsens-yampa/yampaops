@@ -17,7 +17,7 @@ interface NewOpportunityDialogProps {
   pipelineId?: string;
 }
 
-export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCreated }: NewOpportunityDialogProps) {
+export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCreated, pipelineId }: NewOpportunityDialogProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
