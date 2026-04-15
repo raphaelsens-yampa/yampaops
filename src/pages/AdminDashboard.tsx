@@ -14,12 +14,26 @@ import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
+  const [pipelines, setPipelines] = useState<{ id: string; name: string }[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined);
+  const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages(selectedPipelineId);
   const [leads, setLeads] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPipelines() {
+      const { data } = await supabase.from("pipelines").select("id, name").order("is_default", { ascending: false });
+      const pips = data || [];
+      setPipelines(pips);
+      if (pips.length > 0 && !selectedPipelineId) {
+        setSelectedPipelineId(pips[0].id);
+      }
+    }
+    loadPipelines();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -55,9 +69,14 @@ export default function AdminDashboard() {
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
+  // Filter leads by selected pipeline for the funnel
+  const pipelineLeads = selectedPipelineId
+    ? leads.filter(l => l.pipeline_id === selectedPipelineId)
+    : leads;
+
   const funnelData: Record<string, { count: number; mrr: number }> = {};
   stageOrder.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
-  leads.forEach(l => {
+  pipelineLeads.forEach(l => {
     if (funnelData[l.stage]) {
       funnelData[l.stage].count++;
       funnelData[l.stage].mrr += l.estimated_mrr || 0;
@@ -129,7 +148,14 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PipelineFunnel data={funnelData} stageOrder={stageOrder} stageLabels={stageLabels} />
+          <PipelineFunnel
+            data={funnelData}
+            stageOrder={stageOrder}
+            stageLabels={stageLabels}
+            pipelines={pipelines}
+            selectedPipelineId={selectedPipelineId}
+            onPipelineChange={setSelectedPipelineId}
+          />
           <GoalsProgress goals={goalsProgress} />
         </div>
 
