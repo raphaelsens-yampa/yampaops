@@ -605,6 +605,7 @@ export type Database = {
           mrr: number
           plan_name: string
           price_id: string
+          price_name: string
           product_name: string
           seller_id: string | null
           updated_at: string
@@ -619,6 +620,7 @@ export type Database = {
           mrr?: number
           plan_name: string
           price_id: string
+          price_name?: string
           product_name: string
           seller_id?: string | null
           updated_at?: string
@@ -633,6 +635,7 @@ export type Database = {
           mrr?: number
           plan_name?: string
           price_id?: string
+          price_name?: string
           product_name?: string
           seller_id?: string | null
           updated_at?: string
