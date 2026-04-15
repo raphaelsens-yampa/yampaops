@@ -15,6 +15,7 @@ interface StripePrice {
   product_name: string;
   plan_name: string;
   price_id: string;
+  price_name: string;
   area: string | null;
   seller_id: string | null;
   mrr: number;
@@ -41,7 +42,7 @@ export function StripePricesTable() {
   const [editing, setEditing] = useState<StripePrice | null>(null);
 
   const [form, setForm] = useState({
-    commission_product_id: "", price_id: "", area: "", seller_id: "",
+    commission_product_id: "", price_id: "", price_name: "", area: "", seller_id: "",
     mrr: "", commission_percent: "", commission_value: "",
   });
 
@@ -84,7 +85,7 @@ export function StripePricesTable() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ commission_product_id: "", price_id: "", area: "", seller_id: "", mrr: "", commission_percent: "", commission_value: "" });
+    setForm({ commission_product_id: "", price_id: "", price_name: "", area: "", seller_id: "", mrr: "", commission_percent: "", commission_value: "" });
     setDialogOpen(true);
   };
 
@@ -93,6 +94,7 @@ export function StripePricesTable() {
     setForm({
       commission_product_id: p.commission_product_id || "",
       price_id: p.price_id,
+      price_name: p.price_name || "",
       area: p.area || "",
       seller_id: p.seller_id || "",
       mrr: p.mrr.toString(),
@@ -110,6 +112,7 @@ export function StripePricesTable() {
       product_name: prod?.name || "",
       plan_name: prod?.plan_name || "",
       price_id: form.price_id,
+      price_name: form.price_name,
       area: form.area || null,
       seller_id: form.seller_id || null,
       mrr: Number(form.mrr) || 0,
@@ -204,9 +207,15 @@ export function StripePricesTable() {
                 </div>
               )}
 
-              <div>
-                <Label>Price ID (Stripe)</Label>
-                <Input value={form.price_id} onChange={(e) => setForm({ ...form, price_id: e.target.value })} placeholder="price_..." />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Price ID (Stripe)</Label>
+                  <Input value={form.price_id} onChange={(e) => setForm({ ...form, price_id: e.target.value })} placeholder="price_..." />
+                </div>
+                <div>
+                  <Label>Price Name</Label>
+                  <Input value={form.price_name} onChange={(e) => setForm({ ...form, price_name: e.target.value })} placeholder="Ex: Plano Pro Mensal" />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -260,6 +269,7 @@ export function StripePricesTable() {
                 <TableHead>Plano</TableHead>
                 <TableHead>Periodicidade</TableHead>
                 <TableHead>Price ID</TableHead>
+                <TableHead>Price Name</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">% Comissão</TableHead>
                 <TableHead className="text-right">Comissão</TableHead>
@@ -276,6 +286,7 @@ export function StripePricesTable() {
                   <TableCell>{p.plan_name}</TableCell>
                   <TableCell>{getPeriodicity(p.commission_product_id)}</TableCell>
                   <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
+                  <TableCell>{p.price_name || "—"}</TableCell>
                   <TableCell className="text-right">{fmt(p.mrr)}</TableCell>
                   <TableCell className="text-right">{p.commission_percent}%</TableCell>
                   <TableCell className="text-right font-medium">{fmt(p.commission_value)}</TableCell>
@@ -295,7 +306,7 @@ export function StripePricesTable() {
               ))}
               {prices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
                 </TableRow>
               )}
             </TableBody>
