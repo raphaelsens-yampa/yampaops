@@ -18,12 +18,14 @@ const adminItems = [
   { title: "Metas", url: "/goals", icon: Target },
   { title: "Equipe", url: "/team", icon: Users },
   { title: "Contatos", url: "/contacts", icon: Contact },
+  { title: "Comissões", url: "/commissions", icon: DollarSign },
   { title: "Usuários", url: "/users", icon: ShieldCheck },
 ];
 
 const sellerItems = [
   { title: "Meu Pipeline", url: "/", icon: Kanban },
   { title: "Minhas Metas", url: "/goals", icon: Target },
+  { title: "Comissões", url: "/commissions", icon: DollarSign },
 ];
 
 export function AppSidebar() {

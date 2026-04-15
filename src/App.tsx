@@ -48,6 +48,8 @@ function AppRoutes() {
         <Route path="/goals" element={<Goals />} />
         <Route path="/team" element={<Team />} />
         <Route path="/contacts" element={<Contacts />} />
+        <Route path="/commissions" element={<Commissions />} />
+        <Route path="/commissions/settings" element={<CommissionSettings />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
@@ -59,6 +61,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<SellerKanban />} />
       <Route path="/goals" element={<Goals />} />
+      <Route path="/commissions" element={<Commissions />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
