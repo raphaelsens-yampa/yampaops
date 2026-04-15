@@ -33,6 +33,7 @@ export default function Commissions() {
     let query = supabase
       .from("commissions")
       .select("*, opportunity:opportunities(name, company, estimated_mrr, origin), product:commission_products(name)")
+
       .order("sale_date", { ascending: false });
 
     if (!isAdmin) {
