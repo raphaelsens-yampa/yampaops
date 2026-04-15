@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, FileUp, Sun, Moon, LogOut, ChevronLeft,
+  BarChart3, Users, Target, Kanban, FileUp, Sun, Moon, LogOut, ChevronLeft, TrendingUp,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 const adminItems = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
+  { title: "Forecast", url: "/forecast", icon: TrendingUp },
   { title: "Metas", url: "/goals", icon: Target },
   { title: "Equipe", url: "/team", icon: Users },
   { title: "Importar", url: "/import", icon: FileUp },
