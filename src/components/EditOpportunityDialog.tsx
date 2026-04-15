@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2 } from "lucide-react";
@@ -40,6 +41,17 @@ export function EditOpportunityDialog({
   const [consultantId, setConsultantId] = useState("");
   const [notes, setNotes] = useState("");
   const [lossReason, setLossReason] = useState("");
+  const [productId, setProductId] = useState("");
+  const [billingType, setBillingType] = useState("monthly");
+  const [isActive, setIsActive] = useState(true);
+  const [cancellationDate, setCancellationDate] = useState("");
+  const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from("commission_products").select("id, name").order("name").then(({ data }) => {
+      setProducts(data || []);
+    });
+  }, []);
 
   useEffect(() => {
     if (opportunity) {
@@ -56,6 +68,10 @@ export function EditOpportunityDialog({
       setConsultantId(opportunity.consultant_id || "");
       setNotes(opportunity.notes || "");
       setLossReason(opportunity.loss_reason || "");
+      setProductId(opportunity.product_id || "");
+      setBillingType(opportunity.billing_type || "monthly");
+      setIsActive(opportunity.is_active !== false);
+      setCancellationDate(opportunity.cancellation_date || "");
     }
   }, [opportunity]);
 
@@ -76,6 +92,10 @@ export function EditOpportunityDialog({
       consultant_id: consultantId || null,
       notes: notes || null,
       loss_reason: lossReason || null,
+      product_id: productId || null,
+      billing_type: billingType,
+      is_active: isActive,
+      cancellation_date: cancellationDate || null,
     }).eq("id", opportunity.id);
 
     setSaving(false);
@@ -188,6 +208,45 @@ export function EditOpportunityDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Produto</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar produto" /></SelectTrigger>
+                <SelectContent>
+                  {products.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo de Cobrança</Label>
+              <Select value={billingType} onValueChange={setBillingType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                  <SelectItem value="annual">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <Label>Oportunidade Ativa</Label>
+              <p className="text-xs text-muted-foreground">Desmarque para registrar cancelamento</p>
+            </div>
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          {!isActive && (
+            <div>
+              <Label>Data de Cancelamento</Label>
+              <Input type="date" value={cancellationDate} onChange={e => setCancellationDate(e.target.value)} />
+            </div>
+          )}
 
           <div>
             <Label>Notas</Label>
