@@ -4,8 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DollarSign, Clock, Wallet, FileText, FileSpreadsheet } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { exportCommissionsPDF, exportCommissionsXLSX } from "@/lib/commissionExport";
+import type { GoalsByScope } from "@/pages/Commissions";
 
 interface Commission {
   id: string;
@@ -24,13 +25,15 @@ interface Commission {
 
 interface Props {
   commissions: Commission[];
-  goals: { target_mrr: number | null }[];
+  goalsByScope: GoalsByScope;
   wonMrr: number;
   loading: boolean;
   filterMonth: Date;
 }
 
-export function SellerCommissionView({ commissions, goals, wonMrr, loading, filterMonth }: Props) {
+const CHART_COLORS = ["hsl(152, 60%, 42%)", "hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)"];
+
+export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loading, filterMonth }: Props) {
   const now = new Date();
 
   const filtered = useMemo(() => {
@@ -42,10 +45,10 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading, filt
 
   const { provisioned, nextPayment, walletNext2 } = useMemo(() => {
     let prov = 0, next = 0, wallet = 0;
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const month2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    const nextMonth = new Date(filterMonth.getFullYear(), filterMonth.getMonth() + 1, 1);
+    const month2 = new Date(filterMonth.getFullYear(), filterMonth.getMonth() + 2, 1);
 
-    for (const c of commissions) {
+    for (const c of filtered) {
       if (c.status === "provisioned") {
         prov += c.commission_amount;
         const pm = new Date(c.payment_month);
@@ -54,10 +57,17 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading, filt
       }
     }
     return { provisioned: prov, nextPayment: next, walletNext2: wallet };
-  }, [commissions]);
+  }, [filtered, filterMonth]);
 
-  const targetMrr = goals.reduce((s, g) => s + (g.target_mrr || 0), 0);
-  const chartData = [{ name: "MRR", fechado: wonMrr, meta: targetMrr }];
+  const chartData = [
+    { name: "Fechado", value: wonMrr },
+    { name: "Meta Empresa", value: goalsByScope.company },
+    { name: "Meta Equipe", value: goalsByScope.team },
+    { name: "Meta Individual", value: goalsByScope.individual },
+  ];
+
+  const hasChartData = wonMrr > 0 || goalsByScope.company > 0 || goalsByScope.team > 0 || goalsByScope.individual > 0;
+
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtMonth = (d: string) => new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
   const monthLabel = filterMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -116,21 +126,23 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading, filt
         </Card>
       </div>
 
-      {/* Chart */}
-      {targetMrr > 0 && (
+      {/* Chart MRR vs Metas */}
+      {hasChartData && (
         <Card>
-          <CardHeader><CardTitle className="text-sm font-medium">MRR Fechado vs Meta</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm font-medium">MRR Fechado vs Metas</CardTitle></CardHeader>
           <CardContent>
-            <div className="h-48">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={chartData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
-                  <Legend />
-                  <Bar dataKey="fechado" name="Fechado" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="meta" name="Meta" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {chartData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -184,9 +196,7 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading, filt
                     {c.type === "clawback" ? "-" : ""}{fmt(Math.abs(c.commission_amount))}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="font-normal">
-                      {fmtMonth(c.payment_month)}
-                    </Badge>
+                    <Badge variant="outline" className="font-normal">{fmtMonth(c.payment_month)}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={c.status === "paid" ? "default" : c.status === "reversed" ? "destructive" : "secondary"}>
