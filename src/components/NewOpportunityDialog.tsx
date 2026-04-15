@@ -14,9 +14,10 @@ interface NewOpportunityDialogProps {
   stageOrder: string[];
   stageLabels: Record<string, string>;
   onCreated: () => void;
+  pipelineId?: string;
 }
 
-export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCreated }: NewOpportunityDialogProps) {
+export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCreated, pipelineId }: NewOpportunityDialogProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
@@ -144,6 +145,7 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
       estimated_close_date: oppCloseDate || null,
       consultant_id: oppConsultant || null,
       stage: oppStage || stageOrder[0] || "novo_lead",
+      ...(pipelineId ? { pipeline_id: pipelineId } : {}),
     });
 
     if (error) {

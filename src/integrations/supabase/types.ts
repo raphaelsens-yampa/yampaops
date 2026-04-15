@@ -233,6 +233,7 @@ export type Database = {
           name: string
           notes: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
+          pipeline_id: string | null
           probability: number | null
           stage: string
           sub_origin: string | null
@@ -255,6 +256,7 @@ export type Database = {
           name: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
+          pipeline_id?: string | null
           probability?: number | null
           stage?: string
           sub_origin?: string | null
@@ -277,6 +279,7 @@ export type Database = {
           name?: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
+          pipeline_id?: string | null
           probability?: number | null
           stage?: string
           sub_origin?: string | null
@@ -292,6 +295,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "opportunities_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pipeline_stages: {
@@ -302,6 +312,7 @@ export type Database = {
           is_lost: boolean
           is_won: boolean
           name: string
+          pipeline_id: string
           position: number
           slug: string
           updated_at: string
@@ -313,6 +324,7 @@ export type Database = {
           is_lost?: boolean
           is_won?: boolean
           name: string
+          pipeline_id?: string
           position?: number
           slug: string
           updated_at?: string
@@ -324,8 +336,44 @@ export type Database = {
           is_lost?: boolean
           is_won?: boolean
           name?: string
+          pipeline_id?: string
           position?: number
           slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
           updated_at?: string
         }
         Relationships: []
