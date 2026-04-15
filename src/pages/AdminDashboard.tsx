@@ -148,7 +148,14 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PipelineFunnel data={funnelData} stageOrder={stageOrder} stageLabels={stageLabels} />
+          <PipelineFunnel
+            data={funnelData}
+            stageOrder={stageOrder}
+            stageLabels={stageLabels}
+            pipelines={pipelines}
+            selectedPipelineId={selectedPipelineId}
+            onPipelineChange={setSelectedPipelineId}
+          />
           <GoalsProgress goals={goalsProgress} />
         </div>
 
