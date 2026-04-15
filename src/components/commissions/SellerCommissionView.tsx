@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DollarSign, Clock, Wallet, FileText, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { exportCommissionsPDF, exportCommissionsXLSX } from "@/lib/commissionExport";
+import { Toggle } from "@/components/ui/toggle";
 import type { GoalsByScope } from "@/pages/Commissions";
 
 interface Commission {
@@ -34,7 +35,7 @@ interface Props {
 const CHART_COLORS = ["hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)", "hsl(152, 60%, 42%)"];
 
 export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loading, filterMonth }: Props) {
-  const now = new Date();
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(() => new Set(["company", "team", "individual", "won"]));
 
   const filtered = useMemo(() => {
     return commissions.filter((c) => {
@@ -59,12 +60,24 @@ export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loadin
     return { provisioned: prov, nextPayment: next, walletNext2: wallet };
   }, [filtered, filterMonth]);
 
-  const chartData = [
-    { name: "Meta Empresa", value: goalsByScope.company },
-    { name: "Meta Equipe", value: goalsByScope.team },
-    { name: "Meta Individual", value: goalsByScope.individual },
-    { name: "Fechado", value: wonMrr },
+  const allChartItems = [
+    { key: "company", name: "Meta Empresa", value: goalsByScope.company, color: CHART_COLORS[0] },
+    { key: "team", name: "Meta Equipe", value: goalsByScope.team, color: CHART_COLORS[1] },
+    { key: "individual", name: "Meta Individual", value: goalsByScope.individual, color: CHART_COLORS[2] },
+    { key: "won", name: "Fechado", value: wonMrr, color: CHART_COLORS[3] },
   ];
+
+  const chartData = allChartItems.filter((item) => visibleKeys.has(item.key));
+
+  const toggleKey = (key: string) => {
+    setVisibleKeys((prev) => {
+      if (prev.has(key) && prev.size <= 1) return prev; // keep at least one
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const hasChartData = wonMrr > 0 || goalsByScope.company > 0 || goalsByScope.team > 0 || goalsByScope.individual > 0;
 
@@ -129,18 +142,34 @@ export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loadin
       {/* Chart MRR vs Metas */}
       {hasChartData && (
         <Card>
-          <CardHeader><CardTitle className="text-sm font-medium">MRR Fechado vs Metas</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">MRR Fechado vs Metas</CardTitle>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {allChartItems.map((item) => (
+                <Toggle
+                  key={item.key}
+                  size="sm"
+                  pressed={visibleKeys.has(item.key)}
+                  onPressedChange={() => toggleKey(item.key)}
+                  className="text-xs data-[state=on]:text-primary-foreground"
+                  style={visibleKeys.has(item.key) ? { backgroundColor: item.color, color: "#fff" } : {}}
+                >
+                  {item.name}
+                </Toggle>
+              ))}
+            </div>
+          </CardHeader>
           <CardContent>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} domain={[0, "auto"]} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i]} />
+                    {chartData.map((item, i) => (
+                      <Cell key={i} fill={item.color} />
                     ))}
                   </Bar>
                 </BarChart>
