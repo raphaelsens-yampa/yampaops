@@ -199,7 +199,6 @@ export function AdminCommissionView({ commissions, profiles, loading, filterMont
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <CardTitle className="text-sm font-medium">Extrato Detalhado</CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
-            <CommissionMonthFilter currentMonth={filterMonth} onMonthChange={setFilterMonth} />
             <div className="flex gap-1">
               <Button variant="outline" size="sm" onClick={() => exportCommissionsPDF(buildExportRows(), "Comissões Gerencial", monthLabel)} disabled={filtered.length === 0}>
                 <FileText className="h-4 w-4 mr-1" /> PDF
