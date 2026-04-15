@@ -1,11 +1,10 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DollarSign, Clock, Wallet, FileText, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { CommissionMonthFilter } from "./CommissionMonthFilter";
 import { exportCommissionsPDF, exportCommissionsXLSX } from "@/lib/commissionExport";
 
 interface Commission {
@@ -28,11 +27,11 @@ interface Props {
   goals: { target_mrr: number | null }[];
   wonMrr: number;
   loading: boolean;
+  filterMonth: Date;
 }
 
-export function SellerCommissionView({ commissions, goals, wonMrr, loading }: Props) {
+export function SellerCommissionView({ commissions, goals, wonMrr, loading, filterMonth }: Props) {
   const now = new Date();
-  const [filterMonth, setFilterMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
 
   const filtered = useMemo(() => {
     return commissions.filter((c) => {
