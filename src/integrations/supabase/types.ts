@@ -588,38 +588,52 @@ export type Database = {
       stripe_prices: {
         Row: {
           area: string | null
+          commission_value: number
           created_at: string
           id: string
           mrr: number
           plan_name: string
           price_id: string
+          product_id: string | null
           product_name: string
           seller_id: string | null
           updated_at: string
         }
         Insert: {
           area?: string | null
+          commission_value?: number
           created_at?: string
           id?: string
           mrr?: number
           plan_name: string
           price_id: string
+          product_id?: string | null
           product_name: string
           seller_id?: string | null
           updated_at?: string
         }
         Update: {
           area?: string | null
+          commission_value?: number
           created_at?: string
           id?: string
           mrr?: number
           plan_name?: string
           price_id?: string
+          product_id?: string | null
           product_name?: string
           seller_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stripe_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "commission_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_members: {
         Row: {
