@@ -48,7 +48,7 @@ export default function UsersPage() {
 
     const profiles = profilesRes.data || [];
     const roles = rolesRes.data || [];
-    const levels = (levelsRes.data || []) as AccessLevel[];
+    const levels = (levelsRes.data || []) as unknown as AccessLevel[];
     const assignments = assignmentsRes.data || [];
 
     setAccessLevels(levels);
