@@ -13,7 +13,7 @@ import { StageManager } from "@/components/StageManager";
 import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
 
 export default function PipelinePage() {
-  const { user, role } = useAuth();
+  const { role } = useAuth();
   const { stages, stageOrder, stageLabels, stageColors, loading: stagesLoading, refetch } = usePipelineStages();
   const [leads, setLeads] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
