@@ -39,7 +39,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <div className="flex items-center gap-2 px-3 py-4">
+          <div className={`flex items-center py-4 ${collapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}>
             <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
               <span className="text-sidebar-primary-foreground font-heading font-bold text-sm">Y</span>
             </div>
@@ -64,11 +64,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-3 space-y-2">
+      <SidebarFooter className={`space-y-2 ${collapsed ? 'items-center px-0 py-3' : 'p-3'}`}>
         {!collapsed && profile?.full_name && (
           <p className="text-xs text-sidebar-foreground/70 truncate px-1">{profile.full_name}</p>
         )}
-        <div className="flex gap-1">
+        <div className={`flex ${collapsed ? 'flex-col items-center gap-1' : 'gap-1'}`}>
           <Button variant="ghost" size="icon" onClick={toggle} className="text-sidebar-foreground hover:bg-sidebar-accent h-8 w-8">
             {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
           </Button>
