@@ -19,23 +19,15 @@ interface StripePrice {
   seller_id: string | null;
   mrr: number;
   commission_product_id: string | null;
+  commission_percent: number;
   commission_value: number;
 }
 
-interface Profile {
-  user_id: string;
-  full_name: string | null;
-  email: string | null;
-}
+interface Profile { user_id: string; full_name: string | null; email: string | null; }
 
 interface CommissionProduct {
-  id: string;
-  product_id: string | null;
-  name: string;
-  plan_name: string;
-  periodicity: string;
-  commission_percent: number;
-  plan_mrr: number;
+  id: string; product_id: string | null; name: string; plan_name: string;
+  periodicity: string; commission_percent: number; plan_mrr: number;
 }
 
 export function StripePricesTable() {
@@ -49,10 +41,10 @@ export function StripePricesTable() {
   const [editing, setEditing] = useState<StripePrice | null>(null);
 
   const [form, setForm] = useState({
-    commission_product_id: "", price_id: "", area: "", seller_id: "", mrr: "", commission_value: "",
+    commission_product_id: "", price_id: "", area: "", seller_id: "",
+    mrr: "", commission_percent: "", commission_value: "",
   });
 
-  // Derived from selected product
   const selectedProduct = products.find((p) => p.id === form.commission_product_id);
 
   const fetchData = async () => {
@@ -69,27 +61,30 @@ export function StripePricesTable() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const calcCommission = (mrr: string, cpId: string) => {
-    const prod = products.find((p) => p.id === cpId);
-    if (!prod || !mrr) return "0";
-    return ((Number(mrr) * prod.commission_percent) / 100).toFixed(2);
+  const recalc = (mrr: string, pct: string) => {
+    if (!mrr || !pct) return "0";
+    return ((Number(mrr) * Number(pct)) / 100).toFixed(2);
   };
 
   const handleMrrChange = (mrr: string) => {
-    const cv = calcCommission(mrr, form.commission_product_id);
-    setForm({ ...form, mrr, commission_value: cv });
+    setForm((f) => ({ ...f, mrr, commission_value: recalc(mrr, f.commission_percent) }));
+  };
+
+  const handlePercentChange = (pct: string) => {
+    setForm((f) => ({ ...f, commission_percent: pct, commission_value: recalc(f.mrr, pct) }));
   };
 
   const handleProductChange = (cpId: string) => {
     const prod = products.find((p) => p.id === cpId);
     const mrr = prod ? prod.plan_mrr.toString() : form.mrr;
-    const cv = prod ? ((Number(mrr) * prod.commission_percent) / 100).toFixed(2) : "0";
-    setForm({ ...form, commission_product_id: cpId, mrr, commission_value: cv });
+    const pct = prod ? prod.commission_percent.toString() : form.commission_percent;
+    const cv = recalc(mrr, pct);
+    setForm({ ...form, commission_product_id: cpId, mrr, commission_percent: pct, commission_value: cv });
   };
 
   const openNew = () => {
     setEditing(null);
-    setForm({ commission_product_id: "", price_id: "", area: "", seller_id: "", mrr: "", commission_value: "" });
+    setForm({ commission_product_id: "", price_id: "", area: "", seller_id: "", mrr: "", commission_percent: "", commission_value: "" });
     setDialogOpen(true);
   };
 
@@ -101,6 +96,7 @@ export function StripePricesTable() {
       area: p.area || "",
       seller_id: p.seller_id || "",
       mrr: p.mrr.toString(),
+      commission_percent: p.commission_percent.toString(),
       commission_value: p.commission_value.toString(),
     });
     setDialogOpen(true);
@@ -118,6 +114,7 @@ export function StripePricesTable() {
       seller_id: form.seller_id || null,
       mrr: Number(form.mrr) || 0,
       commission_product_id: form.commission_product_id || null,
+      commission_percent: Number(form.commission_percent) || 0,
       commission_value: Number(form.commission_value) || 0,
     };
 
@@ -211,15 +208,19 @@ export function StripePricesTable() {
                 <Label>Price ID (Stripe)</Label>
                 <Input value={form.price_id} onChange={(e) => setForm({ ...form, price_id: e.target.value })} placeholder="price_..." />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label>MRR (R$)</Label>
                   <Input type="number" value={form.mrr} onChange={(e) => handleMrrChange(e.target.value)} />
                 </div>
                 <div>
+                  <Label>% Comissão</Label>
+                  <Input type="number" step="0.1" value={form.commission_percent} onChange={(e) => handlePercentChange(e.target.value)} />
+                  <p className="text-xs text-muted-foreground mt-1">Editável</p>
+                </div>
+                <div>
                   <Label>Comissão (R$)</Label>
                   <Input type="number" value={form.commission_value} readOnly className="bg-muted" />
-                  <p className="text-xs text-muted-foreground mt-1">Calculado pelo % do Product ID</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -260,6 +261,7 @@ export function StripePricesTable() {
                 <TableHead>Periodicidade</TableHead>
                 <TableHead>Price ID</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
+                <TableHead className="text-right">% Comissão</TableHead>
                 <TableHead className="text-right">Comissão</TableHead>
                 <TableHead>Área</TableHead>
                 <TableHead>Vendedor</TableHead>
@@ -275,6 +277,7 @@ export function StripePricesTable() {
                   <TableCell>{getPeriodicity(p.commission_product_id)}</TableCell>
                   <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
                   <TableCell className="text-right">{fmt(p.mrr)}</TableCell>
+                  <TableCell className="text-right">{p.commission_percent}%</TableCell>
                   <TableCell className="text-right font-medium">{fmt(p.commission_value)}</TableCell>
                   <TableCell>{p.area || "—"}</TableCell>
                   <TableCell>{getSellerName(p.seller_id)}</TableCell>
@@ -292,7 +295,7 @@ export function StripePricesTable() {
               ))}
               {prices.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhum Price ID cadastrado</TableCell>
                 </TableRow>
               )}
             </TableBody>
