@@ -1,0 +1,143 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Layout } from "@/components/Layout";
+import { MetricCard } from "@/components/MetricCard";
+import { PipelineFunnel } from "@/components/PipelineFunnel";
+import { BottleneckAlerts } from "@/components/BottleneckAlerts";
+import { Leaderboard } from "@/components/Leaderboard";
+import { GoalsProgress } from "@/components/GoalsProgress";
+import { STAGE_ORDER, STAGE_WEIGHTS, ACTIVE_STAGES } from "@/lib/constants";
+import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
+
+export default function AdminDashboard() {
+  const { user } = useAuth();
+  const [leads, setLeads] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const [leadsRes, actsRes, goalsRes, profsRes] = await Promise.all([
+        supabase.from("leads").select("*"),
+        supabase.from("activities").select("*"),
+        supabase.from("goals").select("*"),
+        supabase.from("profiles").select("*"),
+      ]);
+      setLeads(leadsRes.data || []);
+      setActivities(actsRes.data || []);
+      setGoals(goalsRes.data || []);
+      setProfiles(profsRes.data || []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  // Metrics
+  const activeLeads = leads.filter(l => !["fechado_won", "perdido"].includes(l.stage));
+  const wonLeads = leads.filter(l => l.stage === "fechado_won");
+  const totalPipelineMRR = activeLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
+  const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
+  const totalLeads = leads.filter(l => l.stage !== "perdido").length;
+  const convRate = totalLeads > 0 ? ((wonLeads.length / totalLeads) * 100).toFixed(1) : "0";
+
+  // Sales velocity (avg days from creation to won)
+  const wonDays = wonLeads.map(l => {
+    const created = new Date(l.created_at).getTime();
+    const updated = new Date(l.updated_at).getTime();
+    return (updated - created) / (1000 * 60 * 60 * 24);
+  });
+  const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
+
+  // Funnel data
+  const funnelData: Record<string, { count: number; mrr: number }> = {};
+  STAGE_ORDER.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
+  leads.forEach(l => {
+    if (funnelData[l.stage]) {
+      funnelData[l.stage].count++;
+      funnelData[l.stage].mrr += l.estimated_mrr || 0;
+    }
+  });
+
+  // Bottleneck
+  const now = Date.now();
+  const stagnant = activeLeads
+    .map(l => {
+      const last = new Date(l.last_interaction_at || l.updated_at).getTime();
+      const days = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+      const prof = profiles.find(p => p.user_id === l.consultant_id);
+      return { id: l.id, name: l.name, company: l.company, stage: l.stage, consultant_name: prof?.full_name || null, days_stuck: days };
+    })
+    .filter(l => l.days_stuck >= 2)
+    .sort((a, b) => b.days_stuck - a.days_stuck);
+
+  // Leaderboard
+  const sellerMap = new Map<string, { name: string; deals_won: number; mrr_won: number; contacts: number; meetings: number }>();
+  profiles.forEach(p => sellerMap.set(p.user_id, { name: p.full_name || "—", deals_won: 0, mrr_won: 0, contacts: 0, meetings: 0 }));
+  wonLeads.forEach(l => {
+    const s = sellerMap.get(l.consultant_id);
+    if (s) { s.deals_won++; s.mrr_won += l.estimated_mrr || 0; }
+  });
+  activities.forEach(a => {
+    const s = sellerMap.get(a.user_id);
+    if (s) {
+      if (["mensagem_enviada", "call_realizada"].includes(a.type)) s.contacts++;
+      if (a.type === "reuniao_executada") s.meetings++;
+    }
+  });
+
+  // Goals progress
+  const now_month = new Date();
+  const currentGoals = goals.filter(g => {
+    const start = new Date(g.period_start);
+    const end = new Date(g.period_end);
+    return now_month >= start && now_month <= end;
+  });
+
+  const goalsProgress = currentGoals.map(g => {
+    const channelLeads = g.channel
+      ? wonLeads.filter(l => l.origin === g.channel)
+      : wonLeads;
+    const achieved = channelLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
+    const pipelineLeads = g.channel
+      ? activeLeads.filter(l => l.origin === g.channel)
+      : activeLeads;
+    const weighted = pipelineLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0) * (STAGE_WEIGHTS[l.stage] || 0), 0);
+    return {
+      channel: g.channel, target_mrr: g.target_mrr || 0,
+      achieved_mrr: achieved, weighted_pipeline: weighted,
+    };
+  });
+
+  if (loading) {
+    return <Layout><div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Carregando...</p></div></Layout>;
+  }
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-heading font-bold">Dashboard</h1>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <MetricCard title="Pipeline MRR" value={`R$ ${totalPipelineMRR.toLocaleString("pt-BR")}`} icon={<DollarSign className="h-5 w-5" />} />
+          <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<TrendingUp className="h-5 w-5" />} />
+          <MetricCard title="Conversão" value={`${convRate}%`} icon={<BarChart3 className="h-5 w-5" />} />
+          <MetricCard title="Vel. Média" value={`${avgVelocity}d`} icon={<Zap className="h-5 w-5" />} subtitle="dias até fechar" />
+          <MetricCard title="Leads Ativos" value={activeLeads.length} icon={<Users className="h-5 w-5" />} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PipelineFunnel data={funnelData} />
+          <GoalsProgress goals={goalsProgress} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Leaderboard sellers={Array.from(sellerMap.values())} />
+          <BottleneckAlerts leads={stagnant} />
+        </div>
+      </div>
+    </Layout>
+  );
+}
