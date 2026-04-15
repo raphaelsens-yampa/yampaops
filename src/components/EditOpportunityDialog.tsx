@@ -209,6 +209,45 @@ export function EditOpportunityDialog({
             </Select>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Produto</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar produto" /></SelectTrigger>
+                <SelectContent>
+                  {products.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo de Cobrança</Label>
+              <Select value={billingType} onValueChange={setBillingType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                  <SelectItem value="annual">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <Label>Oportunidade Ativa</Label>
+              <p className="text-xs text-muted-foreground">Desmarque para registrar cancelamento</p>
+            </div>
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          {!isActive && (
+            <div>
+              <Label>Data de Cancelamento</Label>
+              <Input type="date" value={cancellationDate} onChange={e => setCancellationDate(e.target.value)} />
+            </div>
+          )
+
           <div>
             <Label>Notas</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
