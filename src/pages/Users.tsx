@@ -7,12 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { Shield, UserPlus, Pencil, Users } from "lucide-react";
+import { AccessLevelManager, CRM_AREAS, type AccessLevel, type Permissions } from "@/components/AccessLevelManager";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -22,38 +22,52 @@ interface UserRow {
   full_name: string | null;
   avatar_url: string | null;
   role: AppRole;
+  access_level_id: string | null;
+  access_level_name: string | null;
   created_at: string;
 }
 
 export default function UsersPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [accessLevels, setAccessLevels] = useState<AccessLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [newRole, setNewRole] = useState<AppRole>("seller");
+  const [newAccessLevelId, setNewAccessLevelId] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
-  async function loadUsers() {
-    const [profilesRes, rolesRes] = await Promise.all([
+  async function loadData() {
+    const [profilesRes, rolesRes, levelsRes, assignmentsRes] = await Promise.all([
       supabase.from("profiles").select("*"),
       supabase.from("user_roles").select("*"),
+      supabase.from("access_levels").select("*").order("created_at"),
+      supabase.from("user_access_levels").select("*"),
     ]);
 
     const profiles = profilesRes.data || [];
     const roles = rolesRes.data || [];
+    const levels = (levelsRes.data || []) as unknown as AccessLevel[];
+    const assignments = assignmentsRes.data || [];
+
+    setAccessLevels(levels);
 
     const merged: UserRow[] = profiles.map((p) => {
       const r = roles.find((r) => r.user_id === p.user_id);
+      const assignment = assignments.find((a) => a.user_id === p.user_id);
+      const level = assignment ? levels.find((l) => l.id === assignment.access_level_id) : null;
       return {
         user_id: p.user_id,
         full_name: p.full_name,
         avatar_url: p.avatar_url,
         role: (r?.role as AppRole) || "seller",
+        access_level_id: assignment?.access_level_id || null,
+        access_level_name: level?.name || null,
         created_at: p.created_at,
       };
     });
 
-    // Sort admins first, then alphabetically
     merged.sort((a, b) => {
       if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
       return (a.full_name || "").localeCompare(b.full_name || "");
@@ -64,31 +78,48 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    loadUsers();
+    loadData();
   }, []);
 
-  async function handleRoleChange() {
+  async function handleSaveUser() {
     if (!editingUser) return;
     setSaving(true);
 
-    // Update the role in user_roles
-    const { error } = await supabase
+    // Update role
+    const { error: roleError } = await supabase
       .from("user_roles")
       .update({ role: newRole })
       .eq("user_id", editingUser.user_id);
 
-    if (error) {
-      toast({ title: "Erro ao atualizar papel", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Papel atualizado", description: `${editingUser.full_name} agora é ${newRole === "admin" ? "Administrador" : "Vendedor"}.` });
-      await loadUsers();
+    if (roleError) {
+      toast({ title: "Erro ao atualizar papel", description: roleError.message, variant: "destructive" });
+      setSaving(false);
+      return;
     }
 
+    // Update access level assignment
+    if (newAccessLevelId) {
+      // Upsert: delete existing then insert
+      await supabase.from("user_access_levels").delete().eq("user_id", editingUser.user_id);
+      const { error: alError } = await supabase.from("user_access_levels").insert({
+        user_id: editingUser.user_id,
+        access_level_id: newAccessLevelId,
+      });
+      if (alError) {
+        toast({ title: "Erro ao atribuir nível", description: alError.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+    } else {
+      // Remove access level
+      await supabase.from("user_access_levels").delete().eq("user_id", editingUser.user_id);
+    }
+
+    toast({ title: "Usuário atualizado" });
+    await loadData();
     setSaving(false);
     setEditingUser(null);
   }
-
-  const roleLabel = (role: AppRole) => role === "admin" ? "Administrador" : "Vendedor";
 
   if (loading) {
     return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
@@ -100,9 +131,7 @@ export default function UsersPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold">Administração de Usuários</h1>
-        </div>
+        <h1 className="text-2xl font-heading font-bold">Administração de Usuários</h1>
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -141,73 +170,94 @@ export default function UsersPage() {
           </Card>
         </div>
 
-        {/* Users table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Usuários da Plataforma</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Nível de Acesso</TableHead>
-                  <TableHead>Desde</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u) => {
-                  const isSelf = u.user_id === user?.id;
-                  return (
-                    <TableRow key={u.user_id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold uppercase">
-                            {(u.full_name || "?")[0]}
-                          </div>
-                          <div>
-                            <p className="font-medium">{u.full_name || "—"}</p>
-                            {isSelf && <span className="text-xs text-muted-foreground">(você)</span>}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                          {u.role === "admin" ? "Administrador" : "Vendedor"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {new Date(u.created_at).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={isSelf}
-                          onClick={() => {
-                            setEditingUser(u);
-                            setNewRole(u.role);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4 mr-1" />
-                          Editar
-                        </Button>
-                      </TableCell>
+        <Tabs defaultValue="users">
+          <TabsList>
+            <TabsTrigger value="users">Usuários</TabsTrigger>
+            <TabsTrigger value="levels">Níveis de Acesso</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Usuários da Plataforma</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Papel</TableHead>
+                      <TableHead>Nível de Acesso</TableHead>
+                      <TableHead>Desde</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((u) => {
+                      const isSelf = u.user_id === user?.id;
+                      return (
+                        <TableRow key={u.user_id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold uppercase">
+                                {(u.full_name || "?")[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium">{u.full_name || "—"}</p>
+                                {isSelf && <span className="text-xs text-muted-foreground">(você)</span>}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={u.role === "admin" ? "default" : "secondary"}>
+                              {u.role === "admin" ? "Admin" : "Seller"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {u.access_level_name ? (
+                              <Badge variant="outline">{u.access_level_name}</Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Não atribuído</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {new Date(u.created_at).toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={isSelf}
+                              onClick={() => {
+                                setEditingUser(u);
+                                setNewRole(u.role);
+                                setNewAccessLevelId(u.access_level_id || "");
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Editar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="levels" className="mt-4">
+            <AccessLevelManager levels={accessLevels} onUpdate={loadData} />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      {/* Edit Role Dialog */}
+      {/* Edit User Dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar Nível de Acesso</DialogTitle>
+            <DialogTitle>Editar Usuário</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -215,21 +265,63 @@ export default function UsersPage() {
               <p className="font-medium">{editingUser?.full_name || "—"}</p>
             </div>
             <div className="space-y-2">
-              <Label>Nível de Acesso</Label>
+              <Label>Papel Base</Label>
               <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador — acesso total ao painel gerencial</SelectItem>
-                  <SelectItem value="seller">Vendedor — acesso ao pipeline e metas próprias</SelectItem>
+                  <SelectItem value="admin">Admin — controle de sistema</SelectItem>
+                  <SelectItem value="seller">Seller — vendedor padrão</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">Define o acesso base (admin vê tudo, seller vê apenas o próprio pipeline).</p>
             </div>
+            <div className="space-y-2">
+              <Label>Nível de Acesso</Label>
+              <Select value={newAccessLevelId} onValueChange={setNewAccessLevelId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar nível..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {accessLevels.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                      {l.description ? ` — ${l.description}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">O nível de acesso define permissões granulares de visualização, criação e edição por área.</p>
+            </div>
+
+            {/* Preview permissions */}
+            {newAccessLevelId && newAccessLevelId !== "none" && (() => {
+              const level = accessLevels.find((l) => l.id === newAccessLevelId);
+              if (!level) return null;
+              const perms = level.permissions as Permissions;
+              return (
+                <div className="space-y-1">
+                  <Label className="text-sm">Permissões do nível "{level.name}"</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {CRM_AREAS.map((area) => {
+                      const p = perms[area.key];
+                      if (!p?.view && !p?.create && !p?.edit) return null;
+                      return (
+                        <Badge key={area.key} variant="secondary" className="text-xs">
+                          {area.label}: {[p.view && "Ver", p.create && "Criar", p.edit && "Editar"].filter(Boolean).join(", ")}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
-            <Button onClick={handleRoleChange} disabled={saving || newRole === editingUser?.role}>
+            <Button onClick={handleSaveUser} disabled={saving}>
               {saving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>

@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_levels: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          permissions: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       activities: {
         Row: {
           created_at: string
@@ -228,6 +258,35 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_access_levels: {
+        Row: {
+          access_level_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          access_level_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          access_level_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_access_levels_access_level_id_fkey"
+            columns: ["access_level_id"]
+            isOneToOne: false
+            referencedRelation: "access_levels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
