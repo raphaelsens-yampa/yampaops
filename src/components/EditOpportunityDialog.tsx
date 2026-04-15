@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2 } from "lucide-react";
@@ -40,6 +41,17 @@ export function EditOpportunityDialog({
   const [consultantId, setConsultantId] = useState("");
   const [notes, setNotes] = useState("");
   const [lossReason, setLossReason] = useState("");
+  const [productId, setProductId] = useState("");
+  const [billingType, setBillingType] = useState("monthly");
+  const [isActive, setIsActive] = useState(true);
+  const [cancellationDate, setCancellationDate] = useState("");
+  const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from("commission_products").select("id, name").order("name").then(({ data }) => {
+      setProducts(data || []);
+    });
+  }, []);
 
   useEffect(() => {
     if (opportunity) {
@@ -56,6 +68,10 @@ export function EditOpportunityDialog({
       setConsultantId(opportunity.consultant_id || "");
       setNotes(opportunity.notes || "");
       setLossReason(opportunity.loss_reason || "");
+      setProductId(opportunity.product_id || "");
+      setBillingType(opportunity.billing_type || "monthly");
+      setIsActive(opportunity.is_active !== false);
+      setCancellationDate(opportunity.cancellation_date || "");
     }
   }, [opportunity]);
 
@@ -76,6 +92,10 @@ export function EditOpportunityDialog({
       consultant_id: consultantId || null,
       notes: notes || null,
       loss_reason: lossReason || null,
+      product_id: productId || null,
+      billing_type: billingType,
+      is_active: isActive,
+      cancellation_date: cancellationDate || null,
     }).eq("id", opportunity.id);
 
     setSaving(false);
