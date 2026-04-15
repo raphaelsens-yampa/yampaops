@@ -11,37 +11,93 @@ import { Settings } from "lucide-react";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { StageManager } from "@/components/StageManager";
 import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
+import { PipelineManager } from "@/components/PipelineManager";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { useToast } from "@/hooks/use-toast";
+
+interface Pipeline {
+  id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+}
 
 export default function PipelinePage() {
   const { role } = useAuth();
-  const { stages, stageOrder, stageLabels, stageColors, loading: stagesLoading, refetch } = usePipelineStages();
+  const { toast } = useToast();
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [currentPipelineId, setCurrentPipelineId] = useState<string>("");
+  const { stages, stageOrder, stageLabels, stageColors, loading: stagesLoading, refetch } = usePipelineStages(currentPipelineId || undefined);
   const [leads, setLeads] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
 
+  const loadPipelines = useCallback(async () => {
+    const { data } = await supabase.from("pipelines").select("*").order("is_default", { ascending: false }).order("name");
+    const list = (data || []) as Pipeline[];
+    setPipelines(list);
+    if (!currentPipelineId && list.length > 0) {
+      const def = list.find(p => p.is_default);
+      setCurrentPipelineId(def?.id || list[0].id);
+    }
+  }, [currentPipelineId]);
+
   const loadData = useCallback(async () => {
+    if (!currentPipelineId) return;
     const [leadsRes, profsRes] = await Promise.all([
-      supabase.from("opportunities").select("*, contacts:contact_id(name, company)"),
+      supabase.from("opportunities").select("*, contacts:contact_id(name, company)").eq("pipeline_id", currentPipelineId),
       supabase.from("profiles").select("*"),
     ]);
     setLeads(leadsRes.data || []);
     setProfiles(profsRes.data || []);
     setLoading(false);
-  }, []);
+  }, [currentPipelineId]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadPipelines(); }, []);
+  useEffect(() => { if (currentPipelineId) { setLoading(true); loadData(); refetch(); } }, [currentPipelineId]);
+
+  const handleDragEnd = async (result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+    const newStage = destination.droppableId;
+    const lead = leads.find(l => l.id === draggableId);
+    if (!lead || lead.stage === newStage) return;
+
+    // Optimistic update
+    setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, stage: newStage } : l));
+
+    const { error } = await supabase.from("opportunities").update({ stage: newStage }).eq("id", draggableId);
+    if (error) {
+      toast({ title: "Erro ao mover", description: error.message, variant: "destructive" });
+      setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, stage: lead.stage } : l));
+    }
+  };
 
   const filtered = filter === "all" ? leads : leads.filter(l => l.origin === filter);
 
   if (loading || stagesLoading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
 
+  const currentPipeline = pipelines.find(p => p.id === currentPipelineId);
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold">Pipeline</h1>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-heading font-bold">
+              {currentPipeline?.name || "Pipeline"}
+            </h1>
+            {pipelines.length > 1 && (
+              <Select value={currentPipelineId} onValueChange={setCurrentPipelineId}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {role === "admin" && (
               <>
@@ -50,11 +106,18 @@ export default function PipelinePage() {
                   stageOrder={stageOrder}
                   stageLabels={stageLabels}
                   onCreated={loadData}
+                  pipelineId={currentPipelineId}
+                />
+                <PipelineManager
+                  pipelines={pipelines}
+                  currentPipelineId={currentPipelineId}
+                  onSelect={setCurrentPipelineId}
+                  onUpdate={loadPipelines}
                 />
                 <Dialog open={manageOpen} onOpenChange={setManageOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4 mr-1" /> Gerenciar Etapas
+                      <Settings className="h-4 w-4 mr-1" /> Etapas
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
@@ -74,38 +137,60 @@ export default function PipelinePage() {
           </div>
         </div>
 
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {stageOrder.map(stage => {
-            const stageLeads = filtered.filter(l => l.stage === stage);
-            const stageMRR = stageLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
-            const color = stageColors[stage];
-            return (
-              <div key={stage} className="min-w-[250px] flex-shrink-0">
-                <div className="mb-2 px-1">
-                  <div className="flex items-center gap-2">
-                    {color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />}
-                    <h3 className="text-sm font-heading font-semibold">{stageLabels[stage] || stage}</h3>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {stageOrder.map(stage => {
+              const stageLeads = filtered.filter(l => l.stage === stage);
+              const stageMRR = stageLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
+              const color = stageColors[stage];
+              return (
+                <div key={stage} className="min-w-[260px] flex-shrink-0">
+                  <div className="mb-2 px-1">
+                    <div className="flex items-center gap-2">
+                      {color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />}
+                      <h3 className="text-sm font-heading font-semibold">{stageLabels[stage] || stage}</h3>
+                      <span className="text-xs bg-muted rounded-full px-1.5 py-0.5 text-muted-foreground">{stageLeads.length}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">R$ {stageMRR.toLocaleString("pt-BR")} MRR</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{stageLeads.length} oportunidades · R$ {stageMRR.toLocaleString("pt-BR")}</p>
+                  <Droppable droppableId={stage}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`space-y-2 rounded-lg p-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
+                      >
+                        {stageLeads.map((lead, index) => (
+                          <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                              >
+                                <Card className={`transition-shadow ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : ""}`}>
+                                  <CardContent className="p-3">
+                                    <p className="font-medium text-sm">{lead.title || lead.name}</p>
+                                    {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
+                                    <div className="flex items-center justify-between mt-1 text-xs">
+                                      <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
+                                      <span className="text-muted-foreground">{ORIGIN_LABELS[lead.origin] || lead.origin}</span>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
                 </div>
-                <div className="space-y-2 bg-muted/30 rounded-lg p-2 min-h-[100px]">
-                  {stageLeads.map(lead => (
-                    <Card key={lead.id}>
-                      <CardContent className="p-3">
-                        <p className="font-medium text-sm">{lead.title || lead.name}</p>
-                        {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
-                        <div className="flex items-center justify-between mt-1 text-xs">
-                          <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
-                          <span className="text-muted-foreground">{ORIGIN_LABELS[lead.origin] || lead.origin}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </DragDropContext>
       </div>
     </Layout>
   );
