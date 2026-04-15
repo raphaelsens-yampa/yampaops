@@ -1,13 +1,14 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { KanbanCard } from "./KanbanCard";
-import { STAGE_LABELS } from "@/lib/constants";
 import type { Database } from "@/integrations/supabase/types";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
 
 interface KanbanColumnProps {
   stage: string;
+  stageName: string;
+  stageColor?: string;
   leads: Lead[];
   activityOpen: string | null;
   setActivityOpen: (id: string | null) => void;
@@ -19,7 +20,7 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({
-  stage, leads,
+  stage, stageName, stageColor, leads,
   activityOpen, setActivityOpen,
   activityType, setActivityType,
   activityNotes, setActivityNotes, onLogActivity,
@@ -29,7 +30,10 @@ export function KanbanColumn({
   return (
     <div className="min-w-[260px] flex-shrink-0">
       <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="text-sm font-heading font-semibold">{STAGE_LABELS[stage]}</h3>
+        <div className="flex items-center gap-2">
+          {stageColor && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stageColor }} />}
+          <h3 className="text-sm font-heading font-semibold">{stageName}</h3>
+        </div>
         <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">{leads.length}</span>
       </div>
       <div

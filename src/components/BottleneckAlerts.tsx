@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
-import { STAGE_LABELS } from "@/lib/constants";
 
 interface StagnantLead {
   id: string;
@@ -13,9 +12,10 @@ interface StagnantLead {
 
 interface Props {
   leads: StagnantLead[];
+  stageLabels?: Record<string, string>;
 }
 
-export function BottleneckAlerts({ leads }: Props) {
+export function BottleneckAlerts({ leads, stageLabels = {} }: Props) {
   if (leads.length === 0) {
     return (
       <Card>
@@ -40,7 +40,7 @@ export function BottleneckAlerts({ leads }: Props) {
             <div>
               <span className="font-medium">{l.name}</span>
               {l.company && <span className="text-muted-foreground"> · {l.company}</span>}
-              <span className="text-xs text-muted-foreground block">{STAGE_LABELS[l.stage]} · {l.consultant_name || "Sem consultor"}</span>
+              <span className="text-xs text-muted-foreground block">{stageLabels[l.stage] || l.stage} · {l.consultant_name || "Sem consultor"}</span>
             </div>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${l.days_stuck > 5 ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
               {l.days_stuck}d

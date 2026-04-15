@@ -1,12 +1,13 @@
-import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
   data: Record<string, { count: number; mrr: number }>;
+  stageOrder: string[];
+  stageLabels: Record<string, string>;
 }
 
-export function PipelineFunnel({ data }: Props) {
-  const stages = STAGE_ORDER.filter(s => s !== "perdido");
+export function PipelineFunnel({ data, stageOrder, stageLabels }: Props) {
+  const stages = stageOrder;
   const maxCount = Math.max(...stages.map(s => data[s]?.count || 0), 1);
 
   return (
@@ -24,7 +25,7 @@ export function PipelineFunnel({ data }: Props) {
           return (
             <div key={stage} className="space-y-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">{STAGE_LABELS[stage]}</span>
+                <span className="font-medium">{stageLabels[stage] || stage}</span>
                 <div className="flex items-center gap-3">
                   {convRate && <span className="text-xs text-muted-foreground">{convRate}%</span>}
                   <span className="font-medium">{d.count}</span>

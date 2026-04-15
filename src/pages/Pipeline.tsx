@@ -2,15 +2,22 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { STAGE_LABELS, STAGE_ORDER, ORIGIN_LABELS } from "@/lib/constants";
+import { Card, CardContent } from "@/components/ui/card";
+import { ORIGIN_LABELS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
+import { usePipelineStages } from "@/hooks/usePipelineStages";
+import { StageManager } from "@/components/StageManager";
 
 export default function PipelinePage() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const { stages, stageOrder, stageLabels, stageColors, loading: stagesLoading, refetch } = usePipelineStages();
   const [leads, setLeads] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [manageOpen, setManageOpen] = useState(false);
 
   useEffect(() => {
     supabase.from("leads").select("*, profiles:consultant_id(full_name)").then(({ data }) => {
@@ -21,30 +28,51 @@ export default function PipelinePage() {
 
   const filtered = filter === "all" ? leads : leads.filter(l => l.origin === filter);
 
-  if (loading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
+  if (loading || stagesLoading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
 
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold">Pipeline</h1>
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os canais</SelectItem>
-              {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {role === "admin" && (
+              <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-1" /> Gerenciar Etapas
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Gerenciar Etapas do Pipeline</DialogTitle>
+                  </DialogHeader>
+                  <StageManager stages={stages} onUpdate={refetch} />
+                </DialogContent>
+              </Dialog>
+            )}
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os canais</SelectItem>
+                {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {STAGE_ORDER.map(stage => {
+          {stageOrder.map(stage => {
             const stageLeads = filtered.filter(l => l.stage === stage);
-            const stageMRR = stageLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
+            const stageMRR = stageLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
+            const color = stageColors[stage];
             return (
               <div key={stage} className="min-w-[250px] flex-shrink-0">
                 <div className="mb-2 px-1">
-                  <h3 className="text-sm font-heading font-semibold">{STAGE_LABELS[stage]}</h3>
+                  <div className="flex items-center gap-2">
+                    {color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />}
+                    <h3 className="text-sm font-heading font-semibold">{stageLabels[stage] || stage}</h3>
+                  </div>
                   <p className="text-xs text-muted-foreground">{stageLeads.length} leads · R$ {stageMRR.toLocaleString("pt-BR")}</p>
                 </div>
                 <div className="space-y-2 bg-muted/30 rounded-lg p-2 min-h-[100px]">

@@ -7,12 +7,14 @@ import { PipelineFunnel } from "@/components/PipelineFunnel";
 import { BottleneckAlerts } from "@/components/BottleneckAlerts";
 import { Leaderboard } from "@/components/Leaderboard";
 import { GoalsProgress } from "@/components/GoalsProgress";
-import { STAGE_ORDER, STAGE_WEIGHTS, ACTIVE_STAGES } from "@/lib/constants";
+import { STAGE_WEIGHTS } from "@/lib/constants";
 import { RevenueProjection } from "@/components/RevenueProjection";
+import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
   const [leads, setLeads] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
@@ -36,15 +38,16 @@ export default function AdminDashboard() {
     load();
   }, []);
 
-  // Metrics
-  const activeLeads = leads.filter(l => !["fechado_won", "perdido"].includes(l.stage));
-  const wonLeads = leads.filter(l => l.stage === "fechado_won");
+  const wonSlug = wonStage?.slug || "fechado_won";
+  const lostSlug = lostStage?.slug || "perdido";
+
+  const activeLeads = leads.filter(l => l.stage !== wonSlug && l.stage !== lostSlug);
+  const wonLeads = leads.filter(l => l.stage === wonSlug);
   const totalPipelineMRR = activeLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
   const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
-  const totalLeads = leads.filter(l => l.stage !== "perdido").length;
+  const totalLeads = leads.filter(l => l.stage !== lostSlug).length;
   const convRate = totalLeads > 0 ? ((wonLeads.length / totalLeads) * 100).toFixed(1) : "0";
 
-  // Sales velocity (avg days from creation to won)
   const wonDays = wonLeads.map(l => {
     const created = new Date(l.created_at).getTime();
     const updated = new Date(l.updated_at).getTime();
@@ -52,9 +55,9 @@ export default function AdminDashboard() {
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
-  // Funnel data
+  // Funnel data using dynamic stages
   const funnelData: Record<string, { count: number; mrr: number }> = {};
-  STAGE_ORDER.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
+  stageOrder.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
   leads.forEach(l => {
     if (funnelData[l.stage]) {
       funnelData[l.stage].count++;
@@ -62,7 +65,6 @@ export default function AdminDashboard() {
     }
   });
 
-  // Bottleneck
   const now = Date.now();
   const stagnant = activeLeads
     .map(l => {
@@ -74,7 +76,6 @@ export default function AdminDashboard() {
     .filter(l => l.days_stuck >= 2)
     .sort((a, b) => b.days_stuck - a.days_stuck);
 
-  // Leaderboard
   const sellerMap = new Map<string, { name: string; deals_won: number; mrr_won: number; contacts: number; meetings: number }>();
   profiles.forEach(p => sellerMap.set(p.user_id, { name: p.full_name || "—", deals_won: 0, mrr_won: 0, contacts: 0, meetings: 0 }));
   wonLeads.forEach(l => {
@@ -89,7 +90,6 @@ export default function AdminDashboard() {
     }
   });
 
-  // Goals progress
   const now_month = new Date();
   const currentGoals = goals.filter(g => {
     const start = new Date(g.period_start);
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
     };
   });
 
-  if (loading) {
+  if (loading || stagesLoading) {
     return <Layout><div className="flex items-center justify-center h-64"><p className="text-muted-foreground">Carregando...</p></div></Layout>;
   }
 
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PipelineFunnel data={funnelData} />
+          <PipelineFunnel data={funnelData} stageOrder={stageOrder} stageLabels={stageLabels} />
           <GoalsProgress goals={goalsProgress} />
         </div>
 
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Leaderboard sellers={Array.from(sellerMap.values())} />
-          <BottleneckAlerts leads={stagnant} />
+          <BottleneckAlerts leads={stagnant} stageLabels={stageLabels} />
         </div>
       </div>
     </Layout>

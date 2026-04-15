@@ -5,9 +5,7 @@ import { GapToGoal } from "@/components/forecast/GapToGoal";
 import { ScenarioAnalysis } from "@/components/forecast/ScenarioAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { FUNNEL_TRANSITIONS } from "@/lib/constants";
-import type { Database } from "@/integrations/supabase/types";
 
-type LeadStage = Database["public"]["Enums"]["lead_stage"];
 
 interface StageGoals {
   target_prospeccoes: number;
@@ -101,7 +99,7 @@ export default function Forecast() {
       setStageGoals(aggregated);
 
       // Calculate actual conversion rates
-      const stageOrder: LeadStage[] = [
+      const stageOrder: string[] = [
         "novo_lead", "contato_realizado", "diagnostico",
         "proposta_enviada", "negociacao", "fechado_won",
       ];
