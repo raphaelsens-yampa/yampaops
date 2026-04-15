@@ -1,40 +1,102 @@
 
 
-# Painel de Contatos — Substituir "Importar" por "Contatos"
+# Motor de Comissionamento e Projeção Financeira
 
 ## Visão Geral
-Transformar a rota `/import` em `/contacts` — um painel completo de gestão de contatos com listagem, busca, criação, edição, e importação/exportação de **Contatos** e **Oportunidades** via CSV.
+Criar um módulo completo de comissões com regra T+2, clawback, tabela de produtos/preços e dashboards para vendedor e admin.
 
-## Mudanças
+---
 
-### 1. Sidebar e Rotas
-- Renomear "Importar" → "Contatos", ícone `Contact`, URL `/contacts`
-- Atualizar `App.tsx` com nova rota
+## 1. Novas Tabelas (Migration)
 
-### 2. Nova página `src/pages/Contacts.tsx` (substitui `Import.tsx`)
+**`commission_products`** — Tabela de produtos e suas comissões:
+- `id`, `name` (ex: "+Sucesso", "+Lucro", "+Controle", "BPO Junior"...)
+- `subscription_commission` (decimal), `setup_commission` (decimal)
+- `annual_multiplier` (decimal, default 1.0), `monthly_multiplier` (decimal, default 1.0)
+- `created_at`, `updated_at`
 
-**Layout com 3 Tabs**: "Listagem" | "Importar Contatos" | "Importar Oportunidades"
+**`commission_settings`** — Parâmetros globais (single row):
+- `id`, `guarantee_months` (int, default 3), `payment_day` (int, default 10), `t_plus_months` (int, default 2)
+- `created_at`, `updated_at`
 
-**Tab Listagem**:
-- Busca por nome/email/empresa
-- Filtros: Segmento, Nível ICP (1-5)
-- Tabela: Nome, Email, Telefone, Empresa, Segmento, ICP, Oportunidades vinculadas, Data criação
-- Botão "Novo Contato" — Dialog com formulário completo
-- Ações por linha: Editar, Excluir
-- Exportar contatos em CSV
+**`commissions`** — Lançamentos individuais de comissão:
+- `id`, `opportunity_id` (FK), `seller_id` (FK profiles.user_id), `product_id` (FK commission_products)
+- `sale_date` (date), `payment_month` (date — mês de pagamento calculado T+2)
+- `commission_amount` (decimal), `type` (enum: 'earned' | 'clawback')
+- `status` (enum: 'provisioned' | 'paid' | 'reversed')
+- `created_at`
 
-**Tab Importar Contatos**:
-- Upload CSV com mapeamento de colunas para campos da tabela `contacts` (name, email, phone, company, segment, icp_level)
-- Preview e importação em lote
+**Alteração em `opportunities`**:
+- Adicionar `is_active` (boolean, default true)
+- Adicionar `cancellation_date` (date, nullable)
+- Adicionar `product_id` (uuid, FK commission_products, nullable)
+- Adicionar `billing_type` (text: 'monthly' | 'annual', default 'monthly')
 
-**Tab Importar Oportunidades**:
-- Upload CSV com mapeamento para campos da tabela `opportunities` (name, company, origin, estimated_mrr, estimated_tpv, take_rate, stage, title, sub_origin, probability, etc.)
-- Lógica atual do `Import.tsx` reaproveitada aqui
-- Exportar oportunidades em CSV
+RLS: Admins ALL, Sellers SELECT own (by seller_id).
 
-### 3. Arquivos afetados
-- Criar `src/pages/Contacts.tsx`
-- Remover `src/pages/Import.tsx`
-- Editar `src/components/AppSidebar.tsx` (renomear item)
-- Editar `src/App.tsx` (trocar rota)
+---
+
+## 2. Lógica de Negócio
+
+**Geração de comissão**: Ao marcar oportunidade como Won, o sistema cria registro em `commissions` com:
+- `payment_month` = mês da venda + T+2
+- `commission_amount` = valor do produto × multiplicador (anual/mensal)
+- `status` = 'provisioned'
+
+**Clawback**: Ao marcar `is_active = false` em uma oportunidade:
+- Se `cancellation_date` < `sale_date + guarantee_months`, gera lançamento com `type = 'clawback'` e valor negativo no próximo ciclo de pagamento.
+
+---
+
+## 3. Novos Componentes e Páginas
+
+**`src/pages/Commissions.tsx`** — Página principal com tabs:
+
+**Tab "Visão Vendedor"** (seller vê só o seu):
+- Card "Saldo Provisionado" (soma comissões provisioned)
+- Card "Próximo Recebimento" (soma do próximo mês de pagamento)
+- Gráfico de barras: MRR Fechado vs Meta
+- Tabela extrato: Cliente | Data Venda | Plano | Comissão | Data Crédito
+
+**Tab "Visão Admin"** (apenas admin):
+- Card "Provisão Total" (desembolso M+1 e M+2)
+- Ranking de Canais (origin) por comissão gerada e MRR
+- Tabela de todos os vendedores com totais
+
+**`src/pages/CommissionSettings.tsx`** (admin only):
+- CRUD de `commission_products` (tabela de preços)
+- Edição de `commission_settings` (meses garantia, T+, dia pagamento)
+
+---
+
+## 4. Rotas e Sidebar
+
+- Adicionar "Comissões" na sidebar (ícone `DollarSign`), visível para admin e seller
+- Admin: rota `/commissions` e `/commissions/settings`
+- Seller: rota `/commissions` (apenas visão própria)
+
+---
+
+## 5. Arquivos Afetados
+
+| Ação | Arquivo |
+|------|---------|
+| Criar | `supabase/migrations/..._commissions.sql` |
+| Criar | `src/pages/Commissions.tsx` |
+| Criar | `src/pages/CommissionSettings.tsx` |
+| Criar | `src/components/commissions/SellerCommissionView.tsx` |
+| Criar | `src/components/commissions/AdminCommissionView.tsx` |
+| Criar | `src/components/commissions/ProductPricingTable.tsx` |
+| Editar | `src/components/AppSidebar.tsx` (novo item) |
+| Editar | `src/App.tsx` (novas rotas) |
+| Editar | `src/components/EditOpportunityDialog.tsx` (campos is_active, product, billing_type) |
+
+---
+
+## Detalhes Técnicos
+
+- Enums criados via SQL: `commission_type` ('earned', 'clawback'), `commission_status` ('provisioned', 'paid', 'reversed')
+- Cálculo T+2 feito no frontend ao criar comissão, armazenando `payment_month` diretamente
+- Seed de `commission_products` com os valores da tabela de referência (+Sucesso, +Lucro, +Controle, BPO)
+- Seed de `commission_settings` com defaults (3 meses garantia, dia 10, T+2)
 
