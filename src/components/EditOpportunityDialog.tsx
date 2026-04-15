@@ -246,7 +246,7 @@ export function EditOpportunityDialog({
               <Label>Data de Cancelamento</Label>
               <Input type="date" value={cancellationDate} onChange={e => setCancellationDate(e.target.value)} />
             </div>
-          )
+          )}
 
           <div>
             <Label>Notas</Label>
