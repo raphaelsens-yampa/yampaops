@@ -14,7 +14,9 @@ import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
+  const [pipelines, setPipelines] = useState<{ id: string; name: string }[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined);
+  const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages(selectedPipelineId);
   const [leads, setLeads] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
