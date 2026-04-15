@@ -23,7 +23,7 @@ export default function PipelinePage() {
 
   const loadData = useCallback(async () => {
     const [leadsRes, profsRes] = await Promise.all([
-      supabase.from("opportunities").select("*, profiles:consultant_id(full_name)"),
+      supabase.from("opportunities").select("*, contacts:contact_id(name, company)"),
       supabase.from("profiles").select("*"),
     ]);
     setLeads(leadsRes.data || []);
