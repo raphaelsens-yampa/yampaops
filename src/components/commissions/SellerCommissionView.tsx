@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Clock, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, Clock, Wallet, FileText, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { CommissionMonthFilter } from "./CommissionMonthFilter";
+import { exportCommissionsPDF, exportCommissionsXLSX } from "@/lib/commissionExport";
 
 interface Commission {
   id: string;
@@ -29,51 +32,54 @@ interface Props {
 
 export function SellerCommissionView({ commissions, goals, wonMrr, loading }: Props) {
   const now = new Date();
-  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [filterMonth, setFilterMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
+
+  const filtered = useMemo(() => {
+    return commissions.filter((c) => {
+      const sd = new Date(c.sale_date);
+      return sd.getFullYear() === filterMonth.getFullYear() && sd.getMonth() === filterMonth.getMonth();
+    });
+  }, [commissions, filterMonth]);
 
   const { provisioned, nextPayment, walletNext2 } = useMemo(() => {
-    let prov = 0;
-    let next = 0;
-    let wallet = 0;
-
-    const nextMonth = new Date(currentMonth);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const month2 = new Date(currentMonth);
-    month2.setMonth(month2.getMonth() + 2);
+    let prov = 0, next = 0, wallet = 0;
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const month2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
 
     for (const c of commissions) {
       if (c.status === "provisioned") {
         prov += c.commission_amount;
         const pm = new Date(c.payment_month);
-        if (pm.getFullYear() === nextMonth.getFullYear() && pm.getMonth() === nextMonth.getMonth()) {
-          next += c.commission_amount;
-        }
-        if (pm <= month2) {
-          wallet += c.commission_amount;
-        }
+        if (pm.getFullYear() === nextMonth.getFullYear() && pm.getMonth() === nextMonth.getMonth()) next += c.commission_amount;
+        if (pm <= month2) wallet += c.commission_amount;
       }
     }
     return { provisioned: prov, nextPayment: next, walletNext2: wallet };
-  }, [commissions, currentMonth]);
+  }, [commissions]);
 
   const targetMrr = goals.reduce((s, g) => s + (g.target_mrr || 0), 0);
+  const chartData = [{ name: "MRR", fechado: wonMrr, meta: targetMrr }];
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtMonth = (d: string) => new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+  const monthLabel = filterMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-  const chartData = [
-    { name: "MRR", fechado: wonMrr, meta: targetMrr },
-  ];
+  const statusLabel: Record<string, string> = { provisioned: "Provisionado", paid: "Pago", reversed: "Estornado" };
 
-  const fmt = (v: number) =>
-    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const buildExportRows = () =>
+    filtered.map((c) => ({
+      cliente: c.opportunity?.name || "—",
+      empresa: c.opportunity?.company || "—",
+      plano: c.product?.name || "—",
+      mrr: c.opportunity?.estimated_mrr || 0,
+      comissao: c.commission_amount,
+      tipo: c.type,
+      status: c.status,
+      dataVenda: new Date(c.sale_date).toLocaleDateString("pt-BR"),
+      mesGeracao: fmtMonth(c.sale_date),
+      mesPagamento: fmtMonth(c.payment_month),
+    }));
 
-  const statusLabel: Record<string, string> = {
-    provisioned: "Provisionado",
-    paid: "Pago",
-    reversed: "Estornado",
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
-  }
+  if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
 
   return (
     <div className="space-y-6">
@@ -111,12 +117,10 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading }: Pr
         </Card>
       </div>
 
-      {/* Chart MRR vs Meta */}
+      {/* Chart */}
       {targetMrr > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">MRR Fechado vs Meta</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-sm font-medium">MRR Fechado vs Meta</CardTitle></CardHeader>
           <CardContent>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -137,8 +141,19 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading }: Pr
 
       {/* Extrato */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <CardTitle className="text-sm font-medium">Extrato de Comissões</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <CommissionMonthFilter currentMonth={filterMonth} onMonthChange={setFilterMonth} />
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={() => exportCommissionsPDF(buildExportRows(), "Comissões", monthLabel)} disabled={filtered.length === 0}>
+                <FileText className="h-4 w-4 mr-1" /> PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => exportCommissionsXLSX(buildExportRows(), "Comissões", monthLabel)} disabled={filtered.length === 0}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -146,29 +161,35 @@ export function SellerCommissionView({ commissions, goals, wonMrr, loading }: Pr
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Data Venda</TableHead>
+                <TableHead>Mês Geração MRR</TableHead>
                 <TableHead>Plano</TableHead>
+                <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Comissão</TableHead>
-                <TableHead>Data Crédito</TableHead>
+                <TableHead>Mês Pagamento</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {commissions.length === 0 && (
+              {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    Nenhuma comissão registrada
-                  </TableCell>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma comissão neste mês</TableCell>
                 </TableRow>
               )}
-              {commissions.map((c) => (
+              {filtered.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.opportunity?.name || "—"}</TableCell>
                   <TableCell>{new Date(c.sale_date).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{fmtMonth(c.sale_date)}</TableCell>
                   <TableCell>{c.product?.name || "—"}</TableCell>
+                  <TableCell className="text-right">{fmt(c.opportunity?.estimated_mrr || 0)}</TableCell>
                   <TableCell className={`text-right font-medium ${c.type === "clawback" ? "text-destructive" : ""}`}>
                     {c.type === "clawback" ? "-" : ""}{fmt(Math.abs(c.commission_amount))}
                   </TableCell>
-                  <TableCell>{new Date(c.payment_month).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-normal">
+                      {fmtMonth(c.payment_month)}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={c.status === "paid" ? "default" : c.status === "reversed" ? "destructive" : "secondary"}>
                       {statusLabel[c.status] || c.status}

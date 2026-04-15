@@ -1,8 +1,12 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ORIGIN_LABELS } from "@/lib/constants";
-import { TrendingUp, AlertTriangle } from "lucide-react";
+import { TrendingUp, AlertTriangle, FileText, FileSpreadsheet } from "lucide-react";
+import { CommissionMonthFilter } from "./CommissionMonthFilter";
+import { exportCommissionsPDF, exportCommissionsXLSX } from "@/lib/commissionExport";
 
 interface Commission {
   id: string;
@@ -10,8 +14,10 @@ interface Commission {
   commission_amount: number;
   type: string;
   status: string;
+  sale_date: string;
   payment_month: string;
-  opportunity?: { name: string; origin: string; estimated_mrr: number | null };
+  opportunity?: { name: string; company: string | null; origin: string; estimated_mrr: number | null };
+  product?: { name: string } | null;
 }
 
 interface Profile {
@@ -28,11 +34,18 @@ interface Props {
 
 export function AdminCommissionView({ commissions, profiles, loading }: Props) {
   const now = new Date();
+  const [filterMonth, setFilterMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
+
+  const filtered = useMemo(() => {
+    return commissions.filter((c) => {
+      const sd = new Date(c.sale_date);
+      return sd.getFullYear() === filterMonth.getFullYear() && sd.getMonth() === filterMonth.getMonth();
+    });
+  }, [commissions, filterMonth]);
 
   const { provM1, provM2, channelRanking, sellerTotals } = useMemo(() => {
     const m1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const m2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-
     let pm1 = 0, pm2 = 0;
     const channels: Record<string, { commission: number; mrr: number }> = {};
     const sellers: Record<string, { earned: number; clawback: number }> = {};
@@ -43,39 +56,54 @@ export function AdminCommissionView({ commissions, profiles, loading }: Props) {
         if (pm.getFullYear() === m1.getFullYear() && pm.getMonth() === m1.getMonth()) pm1 += c.commission_amount;
         if (pm.getFullYear() === m2.getFullYear() && pm.getMonth() === m2.getMonth()) pm2 += c.commission_amount;
       }
-
       const origin = c.opportunity?.origin || "outros";
       if (!channels[origin]) channels[origin] = { commission: 0, mrr: 0 };
       if (c.type === "earned") {
         channels[origin].commission += c.commission_amount;
         channels[origin].mrr += c.opportunity?.estimated_mrr || 0;
       }
-
       if (!sellers[c.seller_id]) sellers[c.seller_id] = { earned: 0, clawback: 0 };
       if (c.type === "earned") sellers[c.seller_id].earned += c.commission_amount;
       else sellers[c.seller_id].clawback += c.commission_amount;
     }
 
-    const channelRanking = Object.entries(channels)
-      .map(([k, v]) => ({ origin: k, ...v }))
-      .sort((a, b) => b.mrr - a.mrr);
-
-    const sellerTotals = Object.entries(sellers)
-      .map(([id, v]) => {
+    return {
+      provM1: pm1, provM2: pm2,
+      channelRanking: Object.entries(channels).map(([k, v]) => ({ origin: k, ...v })).sort((a, b) => b.mrr - a.mrr),
+      sellerTotals: Object.entries(sellers).map(([id, v]) => {
         const p = profiles.find((p) => p.user_id === id);
         return { id, name: p?.full_name || p?.email || id, ...v, net: v.earned - v.clawback };
-      })
-      .sort((a, b) => b.net - a.net);
-
-    return { provM1: pm1, provM2: pm2, channelRanking, sellerTotals };
+      }).sort((a, b) => b.net - a.net),
+    };
   }, [commissions, profiles]);
 
-  const fmt = (v: number) =>
-    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtMonth = (d: string) => new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+  const monthLabel = filterMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
-  }
+  const statusLabel: Record<string, string> = { provisioned: "Provisionado", paid: "Pago", reversed: "Estornado" };
+
+  const getSellerName = (id: string) => {
+    const p = profiles.find((p) => p.user_id === id);
+    return p?.full_name || p?.email || id;
+  };
+
+  const buildExportRows = () =>
+    filtered.map((c) => ({
+      cliente: c.opportunity?.name || "—",
+      empresa: c.opportunity?.company || "—",
+      vendedor: getSellerName(c.seller_id),
+      plano: c.product?.name || "—",
+      mrr: c.opportunity?.estimated_mrr || 0,
+      comissao: c.commission_amount,
+      tipo: c.type,
+      status: c.status,
+      dataVenda: new Date(c.sale_date).toLocaleDateString("pt-BR"),
+      mesGeracao: fmtMonth(c.sale_date),
+      mesPagamento: fmtMonth(c.payment_month),
+    }));
+
+  if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
 
   return (
     <div className="space-y-6">
@@ -128,9 +156,7 @@ export function AdminCommissionView({ commissions, profiles, loading }: Props) {
                 </TableRow>
               ))}
               {channelRanking.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem dados</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -162,10 +188,69 @@ export function AdminCommissionView({ commissions, profiles, loading }: Props) {
                 </TableRow>
               ))}
               {sellerTotals.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem dados</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
               )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Extrato Detalhado */}
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <CardTitle className="text-sm font-medium">Extrato Detalhado</CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <CommissionMonthFilter currentMonth={filterMonth} onMonthChange={setFilterMonth} />
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={() => exportCommissionsPDF(buildExportRows(), "Comissões Gerencial", monthLabel)} disabled={filtered.length === 0}>
+                <FileText className="h-4 w-4 mr-1" /> PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => exportCommissionsXLSX(buildExportRows(), "Comissões Gerencial", monthLabel)} disabled={filtered.length === 0}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vendedor</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Data Venda</TableHead>
+                <TableHead>Mês Geração MRR</TableHead>
+                <TableHead>Plano</TableHead>
+                <TableHead className="text-right">MRR</TableHead>
+                <TableHead className="text-right">Comissão</TableHead>
+                <TableHead>Mês Pagamento</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 && (
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhuma comissão neste mês</TableCell></TableRow>
+              )}
+              {filtered.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{getSellerName(c.seller_id)}</TableCell>
+                  <TableCell>{c.opportunity?.name || "—"}</TableCell>
+                  <TableCell>{new Date(c.sale_date).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{fmtMonth(c.sale_date)}</TableCell>
+                  <TableCell>{c.product?.name || "—"}</TableCell>
+                  <TableCell className="text-right">{fmt(c.opportunity?.estimated_mrr || 0)}</TableCell>
+                  <TableCell className={`text-right font-medium ${c.type === "clawback" ? "text-destructive" : ""}`}>
+                    {c.type === "clawback" ? "-" : ""}{fmt(Math.abs(c.commission_amount))}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-normal">{fmtMonth(c.payment_month)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={c.status === "paid" ? "default" : c.status === "reversed" ? "destructive" : "secondary"}>
+                      {statusLabel[c.status] || c.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>
