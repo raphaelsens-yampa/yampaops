@@ -4,27 +4,70 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { FUNNEL_TRANSITIONS, SAAS_BENCHMARKS } from "@/lib/constants";
 
+interface StageGoals {
+  target_prospeccoes: number;
+  target_respostas: number;
+  target_agendamentos: number;
+  target_comparecimentos: number;
+  target_conversoes: number;
+  target_taxa_resposta: number | null;
+  target_taxa_agendamento: number | null;
+  target_taxa_comparecimento: number | null;
+  target_taxa_conversao: number | null;
+}
+
 interface ConversionRatesProps {
   actualRates: Record<string, number | null>;
   stageCounts: Record<string, number>;
+  stageGoals: StageGoals;
 }
 
-export function ConversionRates({ actualRates, stageCounts }: ConversionRatesProps) {
+const GOAL_VOLUME_MAP: Record<string, keyof StageGoals> = {
+  prospeccao_resposta: "target_prospeccoes",
+  resposta_agendamento: "target_respostas",
+  agendamento_comparecimento: "target_agendamentos",
+  comparecimento_conversao: "target_comparecimentos",
+};
+
+const GOAL_REALIZED_MAP: Record<string, keyof StageGoals> = {
+  prospeccao_resposta: "target_respostas",
+  resposta_agendamento: "target_agendamentos",
+  agendamento_comparecimento: "target_comparecimentos",
+  comparecimento_conversao: "target_conversoes",
+};
+
+const GOAL_RATE_MAP: Record<string, keyof StageGoals> = {
+  prospeccao_resposta: "target_taxa_resposta",
+  resposta_agendamento: "target_taxa_agendamento",
+  agendamento_comparecimento: "target_taxa_comparecimento",
+  comparecimento_conversao: "target_taxa_conversao",
+};
+
+// Map transition keys to the "realized" stage count from leads
+const REALIZED_COUNT_MAP: Record<string, string> = {
+  prospeccao_resposta: "contato_realizado",
+  resposta_agendamento: "diagnostico",
+  agendamento_comparecimento: "proposta_enviada",
+  comparecimento_conversao: "fechado_won",
+};
+
+export function ConversionRates({ actualRates, stageCounts, stageGoals }: ConversionRatesProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-heading text-lg">Taxas de Conversão por Etapa</CardTitle>
-        <CardDescription>Realizado vs. Benchmark SaaS de mercado</CardDescription>
+        <CardDescription>Realizado vs. Meta e Benchmark SaaS de mercado</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Transição</TableHead>
-              <TableHead className="text-center">Volume (De)</TableHead>
-              <TableHead className="text-center">Volume (Para)</TableHead>
+              <TableHead className="text-center">Meta</TableHead>
+              <TableHead className="text-center">Realizado</TableHead>
               <TableHead className="text-center">Taxa Atual</TableHead>
-              <TableHead className="text-center">Benchmark SaaS</TableHead>
+              <TableHead className="text-center">Meta %</TableHead>
+              <TableHead className="text-center text-muted-foreground/50">Benchmark SaaS</TableHead>
               <TableHead className="text-center">Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -32,15 +75,28 @@ export function ConversionRates({ actualRates, stageCounts }: ConversionRatesPro
             {FUNNEL_TRANSITIONS.map((t) => {
               const benchmark = SAAS_BENCHMARKS[t.benchmarkKey];
               const actual = actualRates[t.key];
-              const fromCount = stageCounts[t.from] ?? 0;
-              const toCount = stageCounts[t.to] ?? 0;
-              const hasData = actual !== null && fromCount > 0;
 
+              // Meta = target volume for the "from" stage
+              const metaKey = GOAL_VOLUME_MAP[t.key];
+              const metaValue = Number(stageGoals[metaKey] ?? 0);
+
+              // Realizado = cumulative count that reached the "to" stage
+              const realizedStage = REALIZED_COUNT_MAP[t.key];
+              const realizedValue = stageCounts[realizedStage] ?? 0;
+
+              // Meta % = target conversion rate
+              const rateKey = GOAL_RATE_MAP[t.key];
+              const targetRate = stageGoals[rateKey] as number | null;
+
+              const hasData = actual !== null && realizedValue > 0;
+
+              // Compare against target rate if set, otherwise benchmark
+              const compareRate = targetRate ?? benchmark;
               let statusIcon = <Minus className="h-4 w-4 text-muted-foreground" />;
               let statusBadge = <Badge variant="secondary">Sem dados</Badge>;
 
               if (hasData && actual !== null) {
-                const diff = actual - benchmark;
+                const diff = actual - compareRate;
                 if (diff >= 0.02) {
                   statusIcon = <ArrowUp className="h-4 w-4 text-green-500" />;
                   statusBadge = <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Acima</Badge>;
@@ -55,8 +111,12 @@ export function ConversionRates({ actualRates, stageCounts }: ConversionRatesPro
               return (
                 <TableRow key={t.key}>
                   <TableCell className="font-medium">{t.label}</TableCell>
-                  <TableCell className="text-center">{fromCount}</TableCell>
-                  <TableCell className="text-center">{toCount}</TableCell>
+                  <TableCell className="text-center font-semibold">
+                    {metaValue > 0 ? metaValue : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-center font-semibold">
+                    {realizedValue}
+                  </TableCell>
                   <TableCell className="text-center">
                     {hasData ? (
                       <span className="font-semibold">{(actual! * 100).toFixed(1)}%</span>
@@ -64,7 +124,14 @@ export function ConversionRates({ actualRates, stageCounts }: ConversionRatesPro
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center text-muted-foreground">
+                  <TableCell className="text-center">
+                    {targetRate !== null && targetRate !== undefined ? (
+                      <span className="font-semibold">{(targetRate * 100).toFixed(0)}%</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground/40">
                     {(benchmark * 100).toFixed(0)}%
                   </TableCell>
                   <TableCell className="text-center flex items-center justify-center gap-1">

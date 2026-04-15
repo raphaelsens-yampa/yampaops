@@ -56,8 +56,17 @@ export type Database = {
           id: string
           period_end: string
           period_start: string
+          target_agendamentos: number | null
+          target_comparecimentos: number | null
+          target_conversoes: number | null
           target_deals: number | null
           target_mrr: number | null
+          target_prospeccoes: number | null
+          target_respostas: number | null
+          target_taxa_agendamento: number | null
+          target_taxa_comparecimento: number | null
+          target_taxa_conversao: number | null
+          target_taxa_resposta: number | null
           target_tpv: number | null
           updated_at: string
           user_id: string | null
@@ -68,8 +77,17 @@ export type Database = {
           id?: string
           period_end: string
           period_start: string
+          target_agendamentos?: number | null
+          target_comparecimentos?: number | null
+          target_conversoes?: number | null
           target_deals?: number | null
           target_mrr?: number | null
+          target_prospeccoes?: number | null
+          target_respostas?: number | null
+          target_taxa_agendamento?: number | null
+          target_taxa_comparecimento?: number | null
+          target_taxa_conversao?: number | null
+          target_taxa_resposta?: number | null
           target_tpv?: number | null
           updated_at?: string
           user_id?: string | null
@@ -80,8 +98,17 @@ export type Database = {
           id?: string
           period_end?: string
           period_start?: string
+          target_agendamentos?: number | null
+          target_comparecimentos?: number | null
+          target_conversoes?: number | null
           target_deals?: number | null
           target_mrr?: number | null
+          target_prospeccoes?: number | null
+          target_respostas?: number | null
+          target_taxa_agendamento?: number | null
+          target_taxa_comparecimento?: number | null
+          target_taxa_conversao?: number | null
+          target_taxa_resposta?: number | null
           target_tpv?: number | null
           updated_at?: string
           user_id?: string | null
