@@ -31,7 +31,7 @@ interface Props {
   filterMonth: Date;
 }
 
-const CHART_COLORS = ["hsl(152, 60%, 42%)", "hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)"];
+const CHART_COLORS = ["hsl(193, 99%, 44%)", "hsl(220, 70%, 50%)", "hsl(264, 90%, 40%)", "hsl(152, 60%, 42%)"];
 
 export function SellerCommissionView({ commissions, goalsByScope, wonMrr, loading, filterMonth }: Props) {
   const now = new Date();
