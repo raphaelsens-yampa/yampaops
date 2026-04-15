@@ -69,9 +69,14 @@ export default function AdminDashboard() {
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
+  // Filter leads by selected pipeline for the funnel
+  const pipelineLeads = selectedPipelineId
+    ? leads.filter(l => l.pipeline_id === selectedPipelineId)
+    : leads;
+
   const funnelData: Record<string, { count: number; mrr: number }> = {};
   stageOrder.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
-  leads.forEach(l => {
+  pipelineLeads.forEach(l => {
     if (funnelData[l.stage]) {
       funnelData[l.stage].count++;
       funnelData[l.stage].mrr += l.estimated_mrr || 0;
