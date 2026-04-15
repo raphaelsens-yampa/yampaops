@@ -130,7 +130,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PipelineFunnel data={funnelData} />
+          <PipelineFunnel data={funnelData} stageOrder={stageOrder} stageLabels={stageLabels} />
           <GoalsProgress goals={goalsProgress} />
         </div>
 
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Leaderboard sellers={Array.from(sellerMap.values())} />
-          <BottleneckAlerts leads={stagnant} />
+          <BottleneckAlerts leads={stagnant} stageLabels={stageLabels} />
         </div>
       </div>
     </Layout>

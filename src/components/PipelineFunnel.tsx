@@ -7,11 +7,7 @@ interface Props {
 }
 
 export function PipelineFunnel({ data, stageOrder, stageLabels }: Props) {
-  const stages = stageOrder.filter(s => {
-    const d = data[s];
-    // Include all stages that exist in the data map (skip "perdido" type stages by checking data existence)
-    return true;
-  });
+  const stages = stageOrder;
   const maxCount = Math.max(...stages.map(s => data[s]?.count || 0), 1);
 
   return (
