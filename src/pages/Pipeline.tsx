@@ -34,6 +34,7 @@ export default function PipelinePage() {
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
+  const [editingOpp, setEditingOpp] = useState<any | null>(null);
 
   const loadPipelines = useCallback(async () => {
     const { data } = await supabase.from("pipelines").select("*").order("is_default", { ascending: false }).order("name");
