@@ -9,11 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS } from "@/lib/constants";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type GoalScope = "company" | "team" | "user" | "channel" | "campaign";
@@ -34,6 +33,7 @@ export default function GoalsPage() {
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [filterScope, setFilterScope] = useState<string>("all");
 
   // Form state
@@ -77,14 +77,38 @@ export default function GoalsPage() {
     setGProspeccoes(""); setGRespostas(""); setGAgendamentos("");
     setGComparecimentos(""); setGConversoes("");
     setGTaxaResposta(""); setGTaxaAgendamento(""); setGTaxaComparecimento(""); setGTaxaConversao("");
+    setEditingGoal(null);
   }
 
-  async function createGoal() {
-    if (!gStart || !gEnd) return;
+  function openEditDialog(goal: any) {
+    setEditingGoal(goal);
+    setGScope(goal.scope || "company");
+    setGChannel(goal.channel || "all");
+    setGUser(goal.user_id || "none");
+    setGTeam(goal.team_id || "none");
+    setGCampaign(goal.campaign || "");
+    setGStart(goal.period_start || "");
+    setGEnd(goal.period_end || "");
+    setGMrr(goal.target_mrr?.toString() || "");
+    setGDeals(goal.target_deals?.toString() || "");
+    setGArpa(goal.target_tpv?.toString() || "");
+    setGProspeccoes(goal.target_prospeccoes?.toString() || "");
+    setGRespostas(goal.target_respostas?.toString() || "");
+    setGAgendamentos(goal.target_agendamentos?.toString() || "");
+    setGComparecimentos(goal.target_comparecimentos?.toString() || "");
+    setGConversoes(goal.target_conversoes?.toString() || "");
+    setGTaxaResposta(goal.target_taxa_resposta ? (goal.target_taxa_resposta * 100).toString() : "");
+    setGTaxaAgendamento(goal.target_taxa_agendamento ? (goal.target_taxa_agendamento * 100).toString() : "");
+    setGTaxaComparecimento(goal.target_taxa_comparecimento ? (goal.target_taxa_comparecimento * 100).toString() : "");
+    setGTaxaConversao(goal.target_taxa_conversao ? (goal.target_taxa_conversao * 100).toString() : "");
+    setOpen(true);
+  }
+
+  function buildPayload() {
     const parseRate = (v: string) => v ? parseFloat(v) / 100 : null;
-    const { error } = await supabase.from("goals").insert({
+    return {
       scope: gScope,
-      channel: gScope === "channel" ? (gChannel === "all" ? null : gChannel as any) : (gChannel === "all" ? null : gChannel as any),
+      channel: gChannel === "all" ? null : gChannel as any,
       user_id: gScope === "user" ? (gUser === "none" ? null : gUser) : null,
       team_id: gScope === "team" ? (gTeam === "none" ? null : gTeam) : null,
       campaign: gScope === "campaign" ? gCampaign || null : null,
@@ -101,11 +125,25 @@ export default function GoalsPage() {
       target_taxa_agendamento: parseRate(gTaxaAgendamento),
       target_taxa_comparecimento: parseRate(gTaxaComparecimento),
       target_taxa_conversao: parseRate(gTaxaConversao),
-    });
+    };
+  }
+
+  async function saveGoal() {
+    if (!gStart || !gEnd) return;
+    const payload = buildPayload();
+
+    let error;
+    if (editingGoal) {
+      ({ error } = await supabase.from("goals").update(payload).eq("id", editingGoal.id));
+    } else {
+      ({ error } = await supabase.from("goals").insert(payload));
+    }
+
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setOpen(false);
     resetForm();
     loadData();
+    toast({ title: editingGoal ? "Meta atualizada" : "Meta criada" });
   }
 
   async function deleteGoal(id: string) {
@@ -116,6 +154,91 @@ export default function GoalsPage() {
   const filteredGoals = filterScope === "all" ? goals : goals.filter(g => g.scope === filterScope);
 
   if (loading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
+
+  const formContent = (
+    <div className="space-y-4">
+      <div>
+        <Label className="text-sm font-semibold">Escopo da Meta</Label>
+        <Select value={gScope} onValueChange={v => setGScope(v as GoalScope)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {gScope === "channel" && (
+        <Select value={gChannel} onValueChange={setGChannel}>
+          <SelectTrigger><SelectValue placeholder="Canal" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os canais</SelectItem>
+            {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
+
+      {gScope === "user" && (
+        <Select value={gUser} onValueChange={setGUser}>
+          <SelectTrigger><SelectValue placeholder="Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Selecione</SelectItem>
+            {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
+
+      {gScope === "team" && (
+        <Select value={gTeam} onValueChange={setGTeam}>
+          <SelectTrigger><SelectValue placeholder="Equipe" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Selecione</SelectItem>
+            {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
+
+      {gScope === "campaign" && (
+        <Input placeholder="Nome da campanha" value={gCampaign} onChange={e => setGCampaign(e.target.value)} />
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <div><Label>Início</Label><Input type="date" value={gStart} onChange={e => setGStart(e.target.value)} /></div>
+        <div><Label>Fim</Label><Input type="date" value={gEnd} onChange={e => setGEnd(e.target.value)} /></div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Metas de resultado</Label>
+        <Input type="number" placeholder="MRR Alvo (R$)" value={gMrr} onChange={e => setGMrr(e.target.value)} />
+        <Input type="number" placeholder="Qtd Deals" value={gDeals} onChange={e => setGDeals(e.target.value)} />
+        <Input type="number" placeholder="ARPA Alvo (R$)" value={gArpa} onChange={e => setGArpa(e.target.value)} />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Volume por etapa do funil</Label>
+        <Input type="number" placeholder="Prospecções" value={gProspeccoes} onChange={e => setGProspeccoes(e.target.value)} />
+        <Input type="number" placeholder="Respostas" value={gRespostas} onChange={e => setGRespostas(e.target.value)} />
+        <Input type="number" placeholder="Agendamentos" value={gAgendamentos} onChange={e => setGAgendamentos(e.target.value)} />
+        <Input type="number" placeholder="Comparecimentos" value={gComparecimentos} onChange={e => setGComparecimentos(e.target.value)} />
+        <Input type="number" placeholder="Conversões" value={gConversoes} onChange={e => setGConversoes(e.target.value)} />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Meta de conversão por etapa (%)</Label>
+        <Input type="number" placeholder="Prospecção → Resposta (%)" value={gTaxaResposta} onChange={e => setGTaxaResposta(e.target.value)} />
+        <Input type="number" placeholder="Resposta → Agendamento (%)" value={gTaxaAgendamento} onChange={e => setGTaxaAgendamento(e.target.value)} />
+        <Input type="number" placeholder="Agendamento → Comparecimento (%)" value={gTaxaComparecimento} onChange={e => setGTaxaComparecimento(e.target.value)} />
+        <Input type="number" placeholder="Comparecimento → Conversão (%)" value={gTaxaConversao} onChange={e => setGTaxaConversao(e.target.value)} />
+      </div>
+
+      <Button onClick={saveGoal} className="w-full">
+        {editingGoal ? "Salvar Alterações" : "Criar Meta"}
+      </Button>
+    </div>
+  );
 
   return (
     <Layout>
@@ -134,87 +257,8 @@ export default function GoalsPage() {
               <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
                 <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
                 <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>Nova Meta</DialogTitle></DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-semibold">Escopo da Meta</Label>
-                      <Select value={gScope} onValueChange={v => setGScope(v as GoalScope)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {gScope === "channel" && (
-                      <Select value={gChannel} onValueChange={setGChannel}>
-                        <SelectTrigger><SelectValue placeholder="Canal" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os canais</SelectItem>
-                          {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {gScope === "user" && (
-                      <Select value={gUser} onValueChange={setGUser}>
-                        <SelectTrigger><SelectValue placeholder="Vendedor" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Selecione</SelectItem>
-                          {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {gScope === "team" && (
-                      <Select value={gTeam} onValueChange={setGTeam}>
-                        <SelectTrigger><SelectValue placeholder="Equipe" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Selecione</SelectItem>
-                          {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {gScope === "campaign" && (
-                      <Input placeholder="Nome da campanha" value={gCampaign} onChange={e => setGCampaign(e.target.value)} />
-                    )}
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><Label>Início</Label><Input type="date" value={gStart} onChange={e => setGStart(e.target.value)} /></div>
-                      <div><Label>Fim</Label><Input type="date" value={gEnd} onChange={e => setGEnd(e.target.value)} /></div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Metas de resultado</Label>
-                      <Input type="number" placeholder="MRR Alvo (R$)" value={gMrr} onChange={e => setGMrr(e.target.value)} />
-                      <Input type="number" placeholder="Qtd Deals" value={gDeals} onChange={e => setGDeals(e.target.value)} />
-                      <Input type="number" placeholder="ARPA Alvo (R$)" value={gArpa} onChange={e => setGArpa(e.target.value)} />
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Volume por etapa do funil</Label>
-                      <Input type="number" placeholder="Prospecções" value={gProspeccoes} onChange={e => setGProspeccoes(e.target.value)} />
-                      <Input type="number" placeholder="Respostas" value={gRespostas} onChange={e => setGRespostas(e.target.value)} />
-                      <Input type="number" placeholder="Agendamentos" value={gAgendamentos} onChange={e => setGAgendamentos(e.target.value)} />
-                      <Input type="number" placeholder="Comparecimentos" value={gComparecimentos} onChange={e => setGComparecimentos(e.target.value)} />
-                      <Input type="number" placeholder="Conversões" value={gConversoes} onChange={e => setGConversoes(e.target.value)} />
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Meta de conversão por etapa (%)</Label>
-                      <Input type="number" placeholder="Prospecção → Resposta (%)" value={gTaxaResposta} onChange={e => setGTaxaResposta(e.target.value)} />
-                      <Input type="number" placeholder="Resposta → Agendamento (%)" value={gTaxaAgendamento} onChange={e => setGTaxaAgendamento(e.target.value)} />
-                      <Input type="number" placeholder="Agendamento → Comparecimento (%)" value={gTaxaComparecimento} onChange={e => setGTaxaComparecimento(e.target.value)} />
-                      <Input type="number" placeholder="Comparecimento → Conversão (%)" value={gTaxaConversao} onChange={e => setGTaxaConversao(e.target.value)} />
-                    </div>
-
-                    <Button onClick={createGoal} className="w-full">Criar Meta</Button>
-                  </div>
+                  <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
+                  {formContent}
                 </DialogContent>
               </Dialog>
             )}
@@ -247,7 +291,7 @@ export default function GoalsPage() {
                   <TableHead className="text-right">MRR Alvo</TableHead>
                   <TableHead className="text-right">Deals</TableHead>
                   <TableHead className="text-right">ARPA</TableHead>
-                  {role === "admin" && <TableHead></TableHead>}
+                  {role === "admin" && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -270,10 +314,15 @@ export default function GoalsPage() {
                       <TableCell className="text-right">{g.target_deals || 0}</TableCell>
                       <TableCell className="text-right">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</TableCell>
                       {role === "admin" && (
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => deleteGoal(g.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(g)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => deleteGoal(g.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
