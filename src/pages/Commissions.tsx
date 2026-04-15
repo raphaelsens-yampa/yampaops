@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,12 @@ import { DollarSign, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
+export interface GoalsByScope {
+  company: number;
+  team: number;
+  individual: number;
+}
+
 export default function Commissions() {
   const { session, role } = useAuth();
   const isAdmin = role === "admin";
@@ -19,16 +25,12 @@ export default function Commissions() {
   const [filterMonth, setFilterMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const [commissions, setCommissions] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [goals, setGoals] = useState<any[]>([]);
+  const [goalsByScope, setGoalsByScope] = useState<GoalsByScope>({ company: 0, team: 0, individual: 0 });
   const [wonMrr, setWonMrr] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchBaseData = useCallback(async () => {
     if (!userId) return;
-    fetchData();
-  }, [userId, isAdmin]);
-
-  const fetchData = async () => {
     setLoading(true);
 
     let query = supabase
@@ -36,9 +38,7 @@ export default function Commissions() {
       .select("*, opportunity:opportunities(name, company, estimated_mrr, origin), product:commission_products(name)")
       .order("sale_date", { ascending: false });
 
-    if (!isAdmin) {
-      query = query.eq("seller_id", userId!);
-    }
+    if (!isAdmin) query = query.eq("seller_id", userId);
 
     const { data: commData } = await query;
     setCommissions(commData || []);
@@ -48,14 +48,34 @@ export default function Commissions() {
       setProfiles(profData || []);
     }
 
-    const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-    let goalsQuery = supabase.from("goals").select("target_mrr").lte("period_start", periodStart).gte("period_end", periodStart);
-    if (!isAdmin) goalsQuery = goalsQuery.eq("user_id", userId!);
-    const { data: goalsData } = await goalsQuery;
-    setGoals(goalsData || []);
+    setLoading(false);
+  }, [userId, isAdmin]);
 
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+  // Fetch goals & wonMrr based on filterMonth
+  const fetchMonthData = useCallback(async () => {
+    if (!userId) return;
+
+    const periodStr = `${filterMonth.getFullYear()}-${String(filterMonth.getMonth() + 1).padStart(2, "0")}-01`;
+
+    // Goals by scope
+    const { data: allGoals } = await supabase
+      .from("goals")
+      .select("target_mrr, scope, user_id")
+      .lte("period_start", periodStr)
+      .gte("period_end", periodStr);
+
+    const goals = allGoals || [];
+    const companyMrr = goals.filter((g) => g.scope === "company").reduce((s, g) => s + (g.target_mrr || 0), 0);
+    const teamMrr = goals.filter((g) => g.scope === "team").reduce((s, g) => s + (g.target_mrr || 0), 0);
+    const individualMrr = goals
+      .filter((g) => g.scope === "individual" && (isAdmin || g.user_id === userId))
+      .reduce((s, g) => s + (g.target_mrr || 0), 0);
+
+    setGoalsByScope({ company: companyMrr, team: teamMrr, individual: individualMrr });
+
+    // Won MRR for the filtered month
+    const monthStart = new Date(filterMonth.getFullYear(), filterMonth.getMonth(), 1).toISOString();
+    const monthEnd = new Date(filterMonth.getFullYear(), filterMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
     const { data: wonStages } = await supabase.from("pipeline_stages").select("slug").eq("is_won", true);
     const wonSlugs = (wonStages || []).map((s) => s.slug);
 
@@ -69,10 +89,13 @@ export default function Commissions() {
       if (!isAdmin) mrrQuery = mrrQuery.eq("consultant_id", userId!);
       const { data: mrrData } = await mrrQuery;
       setWonMrr((mrrData || []).reduce((s, o) => s + (o.estimated_mrr || 0), 0));
+    } else {
+      setWonMrr(0);
     }
+  }, [userId, isAdmin, filterMonth]);
 
-    setLoading(false);
-  };
+  useEffect(() => { fetchBaseData(); }, [fetchBaseData]);
+  useEffect(() => { fetchMonthData(); }, [fetchMonthData]);
 
   return (
     <Layout>
@@ -103,7 +126,7 @@ export default function Commissions() {
             <TabsContent value="seller">
               <SellerCommissionView
                 commissions={commissions.filter((c) => c.seller_id === userId)}
-                goals={goals}
+                goalsByScope={goalsByScope}
                 wonMrr={wonMrr}
                 loading={loading}
                 filterMonth={filterMonth}
@@ -114,7 +137,7 @@ export default function Commissions() {
             </TabsContent>
           </Tabs>
         ) : (
-          <SellerCommissionView commissions={commissions} goals={goals} wonMrr={wonMrr} loading={loading} filterMonth={filterMonth} />
+          <SellerCommissionView commissions={commissions} goalsByScope={goalsByScope} wonMrr={wonMrr} loading={loading} filterMonth={filterMonth} />
         )}
       </div>
     </Layout>
