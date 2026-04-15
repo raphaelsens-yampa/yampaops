@@ -1,11 +1,10 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { TrendingUp, AlertTriangle, FileText, FileSpreadsheet } from "lucide-react";
-import { CommissionMonthFilter } from "./CommissionMonthFilter";
 import { exportCommissionsPDF, exportCommissionsXLSX } from "@/lib/commissionExport";
 
 interface Commission {
@@ -30,11 +29,11 @@ interface Props {
   commissions: Commission[];
   profiles: Profile[];
   loading: boolean;
+  filterMonth: Date;
 }
 
-export function AdminCommissionView({ commissions, profiles, loading }: Props) {
+export function AdminCommissionView({ commissions, profiles, loading, filterMonth }: Props) {
   const now = new Date();
-  const [filterMonth, setFilterMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
 
   const filtered = useMemo(() => {
     return commissions.filter((c) => {
