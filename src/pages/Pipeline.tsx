@@ -45,58 +45,12 @@ export default function PipelinePage() {
           <div className="flex items-center gap-2">
             {role === "admin" && (
               <>
-                <Dialog open={newOppOpen} onOpenChange={setNewOppOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Oportunidade</Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                    <DialogHeader><DialogTitle>Nova Oportunidade</DialogTitle></DialogHeader>
-                    <div className="space-y-3">
-                      <div><Label>Nome do Contato *</Label><Input value={oppName} onChange={e => setOppName(e.target.value)} placeholder="Nome" /></div>
-                      <div><Label>Título da Oportunidade</Label><Input value={oppTitle} onChange={e => setOppTitle(e.target.value)} placeholder="Ex: Upsell Premium" /></div>
-                      <div><Label>Empresa</Label><Input value={oppCompany} onChange={e => setOppCompany(e.target.value)} /></div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label>Canal</Label>
-                          <Select value={oppOrigin} onValueChange={setOppOrigin}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div><Label>Sub-origem</Label><Input value={oppSubOrigin} onChange={e => setOppSubOrigin(e.target.value)} placeholder="Opcional" /></div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div><Label>MRR Estimado</Label><Input type="number" value={oppMrr} onChange={e => setOppMrr(e.target.value)} /></div>
-                        <div><Label>TPV Estimado</Label><Input type="number" value={oppTpv} onChange={e => setOppTpv(e.target.value)} /></div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div><Label>Probabilidade (%)</Label><Input type="number" value={oppProbability} onChange={e => setOppProbability(e.target.value)} /></div>
-                        <div><Label>Data Fechamento Est.</Label><Input type="date" value={oppCloseDate} onChange={e => setOppCloseDate(e.target.value)} /></div>
-                      </div>
-                      <div>
-                        <Label>Vendedor Responsável</Label>
-                        <Select value={oppConsultant} onValueChange={setOppConsultant}>
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.email}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Etapa Inicial</Label>
-                        <Select value={oppStage || stageOrder[0]} onValueChange={setOppStage}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {stageOrder.map(s => <SelectItem key={s} value={s}>{stageLabels[s] || s}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={createOpportunity} className="w-full">Criar Oportunidade</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <NewOpportunityDialog
+                  profiles={profiles}
+                  stageOrder={stageOrder}
+                  stageLabels={stageLabels}
+                  onCreated={loadData}
+                />
                 <Dialog open={manageOpen} onOpenChange={setManageOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
