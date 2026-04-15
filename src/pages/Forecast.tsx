@@ -4,7 +4,7 @@ import { ConversionRates } from "@/components/forecast/ConversionRates";
 import { GapToGoal } from "@/components/forecast/GapToGoal";
 import { ScenarioAnalysis } from "@/components/forecast/ScenarioAnalysis";
 import { supabase } from "@/integrations/supabase/client";
-import { FUNNEL_TRANSITIONS } from "@/lib/constants";
+import { usePipelineStages } from "@/hooks/usePipelineStages";
 
 interface StageGoals {
   target_prospeccoes: number;
@@ -25,6 +25,13 @@ const DEFAULT_STAGE_GOALS: StageGoals = {
   target_taxa_comparecimento: null, target_taxa_conversao: null,
 };
 
+export interface DynamicTransition {
+  key: string;
+  label: string;
+  fromSlug: string;
+  toSlug: string;
+}
+
 export default function Forecast() {
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [actualRates, setActualRates] = useState<Record<string, number | null>>({});
@@ -36,7 +43,41 @@ export default function Forecast() {
   const [stageGoals, setStageGoals] = useState<StageGoals>(DEFAULT_STAGE_GOALS);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchData(); }, []);
+  const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
+
+  // Build dynamic transitions from consecutive active stages (excluding won/lost)
+  const activeStageOrder = stageOrder.filter(
+    (slug) => slug !== wonStage?.slug && slug !== lostStage?.slug
+  );
+
+  const transitions: DynamicTransition[] = [];
+  // Add transitions between active stages
+  for (let i = 0; i < activeStageOrder.length - 1; i++) {
+    const fromSlug = activeStageOrder[i];
+    const toSlug = activeStageOrder[i + 1];
+    transitions.push({
+      key: `${fromSlug}_to_${toSlug}`,
+      label: `${stageLabels[fromSlug] || fromSlug} → ${stageLabels[toSlug] || toSlug}`,
+      fromSlug,
+      toSlug,
+    });
+  }
+  // Add final transition: last active stage → won stage
+  if (activeStageOrder.length > 0 && wonStage) {
+    const lastActive = activeStageOrder[activeStageOrder.length - 1];
+    transitions.push({
+      key: `${lastActive}_to_${wonStage.slug}`,
+      label: `${stageLabels[lastActive] || lastActive} → ${stageLabels[wonStage.slug] || wonStage.slug}`,
+      fromSlug: lastActive,
+      toSlug: wonStage.slug,
+    });
+  }
+
+  useEffect(() => {
+    if (!stagesLoading && stages.length > 0) {
+      fetchData();
+    }
+  }, [stagesLoading, stages]);
 
   async function fetchData() {
     try {
@@ -56,9 +97,11 @@ export default function Forecast() {
       let wonCount = 0;
       let wonMrr = 0;
 
+      const wonSlug = wonStage?.slug;
+
       leads.forEach((l: any) => {
         counts[l.stage] = (counts[l.stage] || 0) + 1;
-        if (l.stage === "fechado_won") {
+        if (wonSlug && l.stage === wonSlug) {
           wonCount++;
           wonMrr += Number(l.estimated_mrr ?? 0);
         }
@@ -86,28 +129,27 @@ export default function Forecast() {
       });
       setStageGoals(aggregated);
 
-      const stageOrder: string[] = [
-        "novo_lead", "contato_realizado", "diagnostico",
-        "proposta_enviada", "negociacao", "fechado_won",
-      ];
+      // Build cumulative counts for rate calculation
+      // Order: from last active stage backwards, accumulating
+      const allSlugsInOrder = [...activeStageOrder];
+      if (wonSlug) allSlugsInOrder.push(wonSlug);
 
       const cumulative: Record<string, number> = {};
       let runningTotal = 0;
-      for (let i = stageOrder.length - 1; i >= 0; i--) {
-        runningTotal += counts[stageOrder[i]] || 0;
-        cumulative[stageOrder[i]] = runningTotal;
+      for (let i = allSlugsInOrder.length - 1; i >= 0; i--) {
+        runningTotal += counts[allSlugsInOrder[i]] || 0;
+        cumulative[allSlugsInOrder[i]] = runningTotal;
       }
-      cumulative["novo_lead"] = (cumulative["novo_lead"] || 0) + (counts["perdido"] || 0);
+      // Include lost in the first stage cumulative
+      if (lostStage && allSlugsInOrder.length > 0) {
+        cumulative[allSlugsInOrder[0]] = (cumulative[allSlugsInOrder[0]] || 0) + (counts[lostStage.slug] || 0);
+      }
 
       const rates: Record<string, number | null> = {};
-      FUNNEL_TRANSITIONS.forEach((t) => {
-        const fromCum = cumulative[t.from] ?? 0;
-        const toCum = cumulative[t.to] ?? 0;
-        if (fromCum === 0) {
-          rates[t.key] = null;
-        } else {
-          rates[t.key] = toCum / fromCum;
-        }
+      transitions.forEach((t) => {
+        const fromCum = cumulative[t.fromSlug] ?? 0;
+        const toCum = cumulative[t.toSlug] ?? 0;
+        rates[t.key] = fromCum === 0 ? null : toCum / fromCum;
       });
       setActualRates(rates);
     } catch (err) {
@@ -117,7 +159,7 @@ export default function Forecast() {
     }
   }
 
-  if (loading) {
+  if (loading || stagesLoading) {
     return (
       <Layout>
         <div className="p-6 flex items-center justify-center min-h-[60vh]">
@@ -137,7 +179,13 @@ export default function Forecast() {
           </p>
         </div>
 
-        <ConversionRates actualRates={actualRates} stageCounts={stageCounts} stageGoals={stageGoals} />
+        <ConversionRates
+          actualRates={actualRates}
+          stageCounts={stageCounts}
+          stageGoals={stageGoals}
+          transitions={transitions}
+          stageLabels={stageLabels}
+        />
 
         <GapToGoal
           targetDeals={targetDeals}
@@ -146,12 +194,17 @@ export default function Forecast() {
           currentMrr={currentMrr}
           actualRates={actualRates}
           stageCounts={stageCounts}
+          transitions={transitions}
+          stageLabels={stageLabels}
+          wonSlug={wonStage?.slug}
         />
 
         <ScenarioAnalysis
           actualRates={actualRates}
           stageCounts={stageCounts}
           sellerCount={sellerCount}
+          transitions={transitions}
+          stageLabels={stageLabels}
         />
       </div>
     </Layout>
