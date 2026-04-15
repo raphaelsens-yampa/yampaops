@@ -8,6 +8,7 @@ import { BottleneckAlerts } from "@/components/BottleneckAlerts";
 import { Leaderboard } from "@/components/Leaderboard";
 import { GoalsProgress } from "@/components/GoalsProgress";
 import { STAGE_ORDER, STAGE_WEIGHTS, ACTIVE_STAGES } from "@/lib/constants";
+import { RevenueProjection } from "@/components/RevenueProjection";
 import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -132,6 +133,8 @@ export default function AdminDashboard() {
           <PipelineFunnel data={funnelData} />
           <GoalsProgress goals={goalsProgress} />
         </div>
+
+        <RevenueProjection leads={leads} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Leaderboard sellers={Array.from(sellerMap.values())} />
