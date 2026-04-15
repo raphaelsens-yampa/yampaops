@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,27 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface StripePrice {
+  id: string;
+  price_id: string;
+  price_name: string;
+  product_name: string;
+  plan_name: string;
+  mrr: number;
+  commission_product_id: string | null;
+}
+
+interface CommissionProduct {
+  id: string;
+  periodicity: string;
+}
 
 interface EditOpportunityDialogProps {
   opportunity: any | null;
@@ -47,9 +65,22 @@ export function EditOpportunityDialog({
   const [cancellationDate, setCancellationDate] = useState("");
   const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
 
+  // Price ID state
+  const [stripePrices, setStripePrices] = useState<StripePrice[]>([]);
+  const [commissionProducts, setCommissionProducts] = useState<CommissionProduct[]>([]);
+  const [selectedStripePriceId, setSelectedStripePriceId] = useState("");
+  const [pricePopoverOpen, setPricePopoverOpen] = useState(false);
+  const [priceSearch, setPriceSearch] = useState("");
+
   useEffect(() => {
-    supabase.from("commission_products").select("id, name").order("name").then(({ data }) => {
-      setProducts(data || []);
+    Promise.all([
+      supabase.from("commission_products").select("id, name").order("name"),
+      supabase.from("stripe_prices").select("id, price_id, price_name, product_name, plan_name, mrr, commission_product_id").order("price_name"),
+      supabase.from("commission_products").select("id, periodicity"),
+    ]).then(([{ data: prodData }, { data: spData }, { data: cpData }]) => {
+      setProducts(prodData || []);
+      setStripePrices((spData as StripePrice[]) || []);
+      setCommissionProducts((cpData as CommissionProduct[]) || []);
     });
   }, []);
 
@@ -72,11 +103,66 @@ export function EditOpportunityDialog({
       setBillingType(opportunity.billing_type || "monthly");
       setIsActive(opportunity.is_active !== false);
       setCancellationDate(opportunity.cancellation_date || "");
+      // We don't store stripe_price_id on opportunity yet, so reset
+      setSelectedStripePriceId("");
     }
   }, [opportunity]);
 
+  const selectedStripePrice = useMemo(
+    () => stripePrices.find((sp) => sp.id === selectedStripePriceId),
+    [stripePrices, selectedStripePriceId]
+  );
+
+  const filteredPrices = useMemo(() => {
+    if (!priceSearch) return stripePrices;
+    const q = priceSearch.toLowerCase();
+    return stripePrices.filter(
+      (sp) =>
+        sp.price_id.toLowerCase().includes(q) ||
+        sp.price_name.toLowerCase().includes(q)
+    );
+  }, [stripePrices, priceSearch]);
+
+  const periodicityToBillingType = (periodicity: string) => {
+    const map: Record<string, string> = {
+      "Mensal": "monthly",
+      "Anual": "annual",
+      "Trimestral": "quarterly",
+      "Semestral": "semiannual",
+      "Avulso": "one_time",
+      "Vitalício": "lifetime",
+    };
+    return map[periodicity] || "monthly";
+  };
+
+  const handleSelectStripePrice = (spId: string) => {
+    setSelectedStripePriceId(spId);
+    setPricePopoverOpen(false);
+    const sp = stripePrices.find((p) => p.id === spId);
+    if (sp) {
+      // Auto-fill MRR
+      setMrr(sp.mrr.toString());
+      // Auto-fill product
+      if (sp.commission_product_id) {
+        setProductId(sp.commission_product_id);
+        // Auto-fill billing type from product periodicity
+        const cp = commissionProducts.find((c) => c.id === sp.commission_product_id);
+        if (cp) {
+          setBillingType(periodicityToBillingType(cp.periodicity));
+        }
+      }
+    }
+  };
+
+  const isWonStage = stageOrder.length > 0 && stage === "fechado_won";
+
   const handleSave = async () => {
     if (!opportunity) return;
+    // Validate Price ID required for Won
+    if (isWonStage && !selectedStripePriceId) {
+      toast({ title: "Price ID obrigatório", description: "Selecione um Price ID para marcar como Won.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.from("opportunities").update({
       title: title || null,
@@ -171,6 +257,82 @@ export function EditOpportunityDialog({
             </div>
           </div>
 
+          {/* Price ID / Price Name selector */}
+          <div className="rounded-lg border p-3 space-y-2">
+            <Label className="font-semibold">
+              Price ID / Price Name
+              {isWonStage && <span className="text-destructive ml-1">*</span>}
+            </Label>
+            <Popover open={pricePopoverOpen} onOpenChange={setPricePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  {selectedStripePrice
+                    ? `${selectedStripePrice.price_id} — ${selectedStripePrice.price_name || selectedStripePrice.product_name}`
+                    : "Buscar por Price ID ou Price Name..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[460px] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Pesquisar Price ID ou Price Name..."
+                    value={priceSearch}
+                    onValueChange={setPriceSearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>Nenhum Price ID encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredPrices.map((sp) => (
+                        <CommandItem
+                          key={sp.id}
+                          value={sp.id}
+                          onSelect={() => handleSelectStripePrice(sp.id)}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", selectedStripePriceId === sp.id ? "opacity-100" : "opacity-0")} />
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs">{sp.price_id}</span>
+                            <span className="text-xs text-muted-foreground">{sp.price_name || sp.product_name} — {sp.plan_name}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {isWonStage && !selectedStripePriceId && (
+              <p className="text-xs text-destructive">Obrigatório para oportunidades Won.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Produto</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar produto" /></SelectTrigger>
+                <SelectContent>
+                  {products.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo de Cobrança</Label>
+              <Select value={billingType} onValueChange={setBillingType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                  <SelectItem value="annual">Anual</SelectItem>
+                  <SelectItem value="quarterly">Trimestral</SelectItem>
+                  <SelectItem value="semiannual">Semestral</SelectItem>
+                  <SelectItem value="one_time">Avulso</SelectItem>
+                  <SelectItem value="lifetime">Vitalício</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label>MRR (R$)</Label>
@@ -207,30 +369,6 @@ export function EditOpportunityDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Produto</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar produto" /></SelectTrigger>
-                <SelectContent>
-                  {products.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Tipo de Cobrança</Label>
-              <Select value={billingType} onValueChange={setBillingType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Mensal</SelectItem>
-                  <SelectItem value="annual">Anual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">
