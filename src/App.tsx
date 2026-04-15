@@ -13,6 +13,7 @@ import Pipeline from "./pages/Pipeline";
 import Team from "./pages/Team";
 import Import from "./pages/Import";
 import Forecast from "./pages/Forecast";
+import UsersPage from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ function AppRoutes() {
         <Route path="/goals" element={<Goals />} />
         <Route path="/team" element={<Team />} />
         <Route path="/import" element={<Import />} />
+        <Route path="/users" element={<UsersPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     );
