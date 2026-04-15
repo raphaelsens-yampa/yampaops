@@ -1,109 +1,86 @@
 
-# Yampa — SaaS Sales Performance & Projection Manager
 
-## Overview
-A comprehensive sales CRM for a fintech SaaS, featuring multi-channel pipeline management, seller productivity tracking, and revenue forecasting. Two views: **Admin Dashboard** (gerencial) and **Seller View** (vendedor). Colors: Azul (#01B8E0), Roxo (#2D094C), Branco (#FAFAFA). Typography: Sora headings, Manrope body. Light/dark mode.
+# Forecast & Análise de Cenário — Plano de Implementação
 
----
+## Resumo
 
-## Phase 1: Database & Auth Setup
-
-### Authentication (Lovable Cloud)
-- Email/password auth with login/signup pages
-- User roles table: `admin` and `seller` roles
-- Profile table with `full_name`, `avatar_url`, `role`
-- RLS policies scoping sellers to their own data, admins to everything
-
-### Database Schema
-- **leads** — `id`, `name`, `company`, `origin` (enum: freetrial, cursos, outbound, campanhas, base), `consultant_id` (FK profiles), `stage` (enum: novo_lead, contato_realizado, diagnostico, proposta_enviada, negociacao, fechado_won, perdido), `estimated_mrr`, `estimated_tpv`, `take_rate`, `attribution_model` (first_click/last_click), `created_at`, `last_interaction_at`, `notes`
-- **activities** — `id`, `lead_id` (FK), `user_id` (FK), `type` (enum: mensagem_enviada, resposta_recebida, call_realizada, reuniao_executada), `notes`, `created_at`
-- **goals** — `id`, `user_id` (FK, nullable for channel-level goals), `channel` (origin enum), `period_start`, `period_end`, `target_mrr`, `target_deals`, `target_tpv`
-- RLS: sellers see only their leads/activities; admins see all
+Criar uma nova página **Forecast** acessível via sidebar (admin), com três seções principais inspiradas nos prints: **Taxas de Conversão por Etapa**, **Quanto Você Precisa para Bater a Meta**, e **Análise de Cenário com Recomendações Inteligentes**.
 
 ---
 
-## Phase 2: Admin Dashboard
+## O que será construído
 
-### Top Metrics Bar
-- Total Pipeline MRR, Closed Won MRR (month), Conversion Rate, Sales Velocity (avg cycle days), Active Leads count
+### 1. Nova página `src/pages/Forecast.tsx`
 
-### Pipeline Funnel Chart
-- Visual funnel showing lead count and value per stage
-- Filter by channel (origin) and date range
-- Conversion % between each stage pair
+Página completa com três blocos:
 
-### Goals vs Actual
-- Progress bars showing MRR achieved vs target, by channel and overall
-- Gap to Goal calculation with probability estimate based on current pipeline weighted by stage
+**Bloco A — Taxas de Conversão por Etapa**
+- Tabela visual mostrando cada transição do funil:
+  - Prospecções → Respostas
+  - Respostas → Agendamento
+  - Agendamento → Reunião Confirmada
+  - Reunião Confirmada → Comparecimento (usar `reuniao_executada` como proxy)
+  - Comparecimento → Conversão (fechado_won)
+- Duas colunas por linha: **Taxa Atual** (calculada dos dados reais) e **Benchmark SaaS** (defaults do mercado)
+- Quando não há dados suficientes, usa apenas o benchmark. Quando há dados, mostra ambos com indicador visual (verde se acima do bench, vermelho se abaixo)
+- Campo editável para o admin ajustar os benchmarks
 
-### Leaderboard
-- Table ranking sellers by: deals closed, MRR won, contacts made, meetings booked
-- Sparkline for weekly trend
+**Bloco B — Quanto Você Precisa para Bater a Meta**
+(inspirado no print 1)
+- Cards mostrando:
+  - MQLs SDR necessários: atual → necessário
+  - MQLs Seller necessários: atual → necessário
+  - Total leads tráfego (base+novos): atual → necessário
+- Cálculo reverso: pega a meta de MRR/deals, aplica as taxas de conversão de trás pra frente para calcular quantos leads são necessários em cada etapa do topo de funil
 
-### Bottleneck Alerts
-- List of leads stagnated >48h in any stage, with seller name and days stuck
-- Color-coded urgency
+**Bloco C — Análise de Cenário & Recomendações**
+(inspirado no print 2)
+- Aproveitamento de capacidade: barra mostrando SDR X/Y MQLs, Seller X/Y, Closer X/Y calls
+- Identifica o gargalo principal (etapa com pior conversão relativa ao benchmark)
+- Gera recomendações automáticas baseadas em regras:
+  - Se taxa de resposta está baixa → "Revise a cadência de prospecção ou invista em aquisição de leads mais qualificados"
+  - Se agendamento está baixo → "Melhore o script de abordagem ou contrate mais SDRs"
+  - Se comparecimento está baixo → "Implemente confirmações automáticas e lembretes"
+  - Se conversão está baixa → "Revise a proposta comercial ou treine closers"
+  - Se capacidade SDR está no limite → "Contrate mais um SDR"
+  - Se há leads sobrando → "Oportunidade: aumente leads sem precisar contratar"
 
-### Sales Velocity by Channel
-- Average cycle time (days) per channel, shown as bar chart
-- Highlights channels that are slower than average
+### 2. Benchmarks SaaS padrão (`src/lib/constants.ts`)
 
----
+Adicionar constantes de benchmark de mercado SaaS:
 
-## Phase 3: Seller View
+```
+SAAS_BENCHMARKS = {
+  prospeccao_resposta: 0.10,      // 10% outbound, 25% inbound
+  resposta_agendamento: 0.25,     // 25%
+  agendamento_comparecimento: 0.70, // 70%
+  comparecimento_conversao: 0.30,  // 30%
+}
+```
 
-### Kanban Board
-- Drag-and-drop columns for each pipeline stage
-- Cards show lead name, company, MRR, days in stage
-- Quick actions: change stage, add note, log activity
+Mapeamento dos stages do DB para essas transições:
+- novo_lead → contato_realizado = Prospecção → Resposta
+- contato_realizado → diagnostico = Resposta → Agendamento
+- diagnostico → proposta_enviada = Agendamento → Comparecimento
+- proposta_enviada/negociacao → fechado_won = Comparecimento → Conversão
 
-### Daily Checklist
-- Auto-generated list of leads needing follow-up (no interaction in 24h+)
-- Checkbox to mark as contacted, which logs an activity
+### 3. Componentes novos
 
-### Quick Input
-- Inline status change and note-adding from the kanban card
-- Activity logging modal (type + notes)
+- `src/components/forecast/ConversionRates.tsx` — tabela de taxas por etapa (atual vs bench)
+- `src/components/forecast/GapToGoal.tsx` — cards "quanto falta" com cálculo reverso
+- `src/components/forecast/ScenarioAnalysis.tsx` — capacidade + recomendações inteligentes
 
-### Personal Goals Widget
-- My MRR target vs closed, deals target vs closed
-- Gap to Goal with simple projection
+### 4. Rota e sidebar
 
----
-
-## Phase 4: Forecasting Module
-
-### Gap to Goal Calculator
-- Per seller and per channel
-- Weighted pipeline: each stage has a probability weight (e.g., Proposta = 50%, Negociação = 75%)
-- Shows: target − closed = gap, weighted pipeline value, likelihood of hitting goal
-
-### Revenue Projection
-- Combines software MRR + estimated TPV × take rate for total projected revenue
-- Monthly projection chart
-
----
-
-## Phase 5: Data Management
-
-### CSV Import
-- Upload CSV (Metabase export), map columns to lead fields
-- Preview and confirm before importing
-- Duplicate detection by company + name
-
-### Manual Override
-- Edit any lead field directly (for CRM sync gaps)
-- Override log showing what was changed and when
-
-### Export
-- Export filtered lead data and closing reports as CSV
-- Date range and channel filters
+- Adicionar rota `/forecast` no `App.tsx` (admin only)
+- Adicionar item "Forecast" no sidebar com ícone `TrendingUp`
 
 ---
 
-## Design System
-- **Colors**: Primary Azul (#01B8E0), Secondary Roxo (#2D094C), Background light (#FAFAFA) / dark mode
-- **Typography**: Sora for headings, Manrope for body
-- **Layout**: Sidebar navigation (Dashboard style) with collapsible menu
-- **Components**: shadcn/ui with custom theme tokens
-- Dark/light mode toggle in header
+## Detalhes técnicos
+
+- Dados calculados a partir das tabelas existentes (`leads`, `activities`, `goals`, `profiles`) — sem novas tabelas
+- Taxas reais: contagem de leads que avançaram de stage X para stage Y no período atual
+- Cálculo reverso do Gap to Goal: `meta_deals / taxa_conversao / taxa_comparecimento / taxa_agendamento / taxa_resposta = leads_necessarios_topo`
+- Recomendações são rule-based: compara cada taxa atual com o benchmark e identifica o maior desvio como gargalo principal
+
