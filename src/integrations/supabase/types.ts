@@ -95,6 +95,120 @@ export type Database = {
           },
         ]
       }
+      commission_products: {
+        Row: {
+          annual_multiplier: number
+          created_at: string
+          id: string
+          monthly_multiplier: number
+          name: string
+          setup_commission: number
+          subscription_commission: number
+          updated_at: string
+        }
+        Insert: {
+          annual_multiplier?: number
+          created_at?: string
+          id?: string
+          monthly_multiplier?: number
+          name: string
+          setup_commission?: number
+          subscription_commission?: number
+          updated_at?: string
+        }
+        Update: {
+          annual_multiplier?: number
+          created_at?: string
+          id?: string
+          monthly_multiplier?: number
+          name?: string
+          setup_commission?: number
+          subscription_commission?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commission_settings: {
+        Row: {
+          created_at: string
+          guarantee_months: number
+          id: string
+          payment_day: number
+          t_plus_months: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          guarantee_months?: number
+          id?: string
+          payment_day?: number
+          t_plus_months?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          guarantee_months?: number
+          id?: string
+          payment_day?: number
+          t_plus_months?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commissions: {
+        Row: {
+          commission_amount: number
+          created_at: string
+          id: string
+          opportunity_id: string
+          payment_month: string
+          product_id: string | null
+          sale_date: string
+          seller_id: string
+          status: Database["public"]["Enums"]["commission_status"]
+          type: Database["public"]["Enums"]["commission_type"]
+        }
+        Insert: {
+          commission_amount?: number
+          created_at?: string
+          id?: string
+          opportunity_id: string
+          payment_month: string
+          product_id?: string | null
+          sale_date: string
+          seller_id: string
+          status?: Database["public"]["Enums"]["commission_status"]
+          type?: Database["public"]["Enums"]["commission_type"]
+        }
+        Update: {
+          commission_amount?: number
+          created_at?: string
+          id?: string
+          opportunity_id?: string
+          payment_month?: string
+          product_id?: string | null
+          sale_date?: string
+          seller_id?: string
+          status?: Database["public"]["Enums"]["commission_status"]
+          type?: Database["public"]["Enums"]["commission_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "commission_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           company: string | null
@@ -220,6 +334,8 @@ export type Database = {
       opportunities: {
         Row: {
           attribution: Database["public"]["Enums"]["attribution_model"] | null
+          billing_type: string
+          cancellation_date: string | null
           company: string | null
           consultant_id: string | null
           contact_id: string | null
@@ -228,6 +344,7 @@ export type Database = {
           estimated_mrr: number | null
           estimated_tpv: number | null
           id: string
+          is_active: boolean
           last_interaction_at: string | null
           loss_reason: string | null
           name: string
@@ -235,6 +352,7 @@ export type Database = {
           origin: Database["public"]["Enums"]["lead_origin"]
           pipeline_id: string | null
           probability: number | null
+          product_id: string | null
           stage: string
           sub_origin: string | null
           take_rate: number | null
@@ -243,6 +361,8 @@ export type Database = {
         }
         Insert: {
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
+          billing_type?: string
+          cancellation_date?: string | null
           company?: string | null
           consultant_id?: string | null
           contact_id?: string | null
@@ -251,6 +371,7 @@ export type Database = {
           estimated_mrr?: number | null
           estimated_tpv?: number | null
           id?: string
+          is_active?: boolean
           last_interaction_at?: string | null
           loss_reason?: string | null
           name: string
@@ -258,6 +379,7 @@ export type Database = {
           origin?: Database["public"]["Enums"]["lead_origin"]
           pipeline_id?: string | null
           probability?: number | null
+          product_id?: string | null
           stage?: string
           sub_origin?: string | null
           take_rate?: number | null
@@ -266,6 +388,8 @@ export type Database = {
         }
         Update: {
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
+          billing_type?: string
+          cancellation_date?: string | null
           company?: string | null
           consultant_id?: string | null
           contact_id?: string | null
@@ -274,6 +398,7 @@ export type Database = {
           estimated_mrr?: number | null
           estimated_tpv?: number | null
           id?: string
+          is_active?: boolean
           last_interaction_at?: string | null
           loss_reason?: string | null
           name?: string
@@ -281,6 +406,7 @@ export type Database = {
           origin?: Database["public"]["Enums"]["lead_origin"]
           pipeline_id?: string | null
           probability?: number | null
+          product_id?: string | null
           stage?: string
           sub_origin?: string | null
           take_rate?: number | null
@@ -300,6 +426,13 @@ export type Database = {
             columns: ["pipeline_id"]
             isOneToOne: false
             referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "commission_products"
             referencedColumns: ["id"]
           },
         ]
@@ -540,6 +673,8 @@ export type Database = {
         | "proposta"
       app_role: "admin" | "seller"
       attribution_model: "first_click" | "last_click"
+      commission_status: "provisioned" | "paid" | "reversed"
+      commission_type: "earned" | "clawback"
       lead_origin:
         | "freetrial"
         | "cursos"
@@ -693,6 +828,8 @@ export const Constants = {
       ],
       app_role: ["admin", "seller"],
       attribution_model: ["first_click", "last_click"],
+      commission_status: ["provisioned", "paid", "reversed"],
+      commission_type: ["earned", "clawback"],
       lead_origin: [
         "freetrial",
         "cursos",
