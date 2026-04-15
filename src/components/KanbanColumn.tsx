@@ -3,13 +3,13 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { KanbanCard } from "./KanbanCard";
 import type { Database } from "@/integrations/supabase/types";
 
-type Lead = Database["public"]["Tables"]["leads"]["Row"];
+type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
 interface KanbanColumnProps {
   stage: string;
   stageName: string;
   stageColor?: string;
-  leads: Lead[];
+  leads: Opportunity[];
   activityOpen: string | null;
   setActivityOpen: (id: string | null) => void;
   activityType: string;

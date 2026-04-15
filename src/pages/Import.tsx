@@ -39,7 +39,6 @@ export default function ImportPage() {
         return row;
       });
       setCsvData(rows);
-      // Auto-map
       const autoMap: Record<string, string> = {};
       hdrs.forEach(h => {
         const lower = h.toLowerCase();
@@ -75,21 +74,21 @@ export default function ImportPage() {
       return lead;
     }).filter(r => r.name);
 
-    const { error } = await supabase.from("leads").insert(rows);
+    const { error } = await supabase.from("opportunities").insert(rows);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); }
-    else { toast({ title: "Importado!", description: `${rows.length} leads importados.` }); setCsvData([]); }
+    else { toast({ title: "Importado!", description: `${rows.length} oportunidades importadas.` }); setCsvData([]); }
     setImporting(false);
   }
 
   async function exportCSV() {
-    const { data } = await supabase.from("leads").select("*");
+    const { data } = await supabase.from("opportunities").select("*");
     if (!data || data.length === 0) { toast({ title: "Sem dados" }); return; }
     const hdrs = Object.keys(data[0]);
     const csv = [hdrs.join(","), ...data.map(r => hdrs.map(h => `"${(r as any)[h] ?? ""}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "leads_export.csv"; a.click();
+    a.href = url; a.download = "opportunities_export.csv"; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -147,7 +146,7 @@ export default function ImportPage() {
                 )}
 
                 <Button onClick={doImport} disabled={importing} className="w-full">
-                  <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : `Importar ${csvData.length} leads`}
+                  <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando..." : `Importar ${csvData.length} oportunidades`}
                 </Button>
               </>
             )}

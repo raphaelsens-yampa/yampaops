@@ -9,10 +9,10 @@ import { MessageSquare } from "lucide-react";
 import { ACTIVITY_LABELS } from "@/lib/constants";
 import type { Database } from "@/integrations/supabase/types";
 
-type Lead = Database["public"]["Tables"]["leads"]["Row"];
+type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
 interface KanbanCardProps {
-  lead: Lead;
+  lead: Opportunity;
   activityOpen: string | null;
   setActivityOpen: (id: string | null) => void;
   activityType: string;
@@ -47,7 +47,7 @@ export function KanbanCard({
       <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
         <CardContent className="p-3 space-y-2">
           <div>
-            <p className="font-medium text-sm">{lead.name}</p>
+            <p className="font-medium text-sm">{lead.title || lead.name}</p>
             {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
           </div>
           <div className="flex items-center justify-between text-xs">

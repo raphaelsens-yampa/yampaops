@@ -7,24 +7,76 @@ import { ORIGIN_LABELS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Settings, Plus } from "lucide-react";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { StageManager } from "@/components/StageManager";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PipelinePage() {
   const { user, role } = useAuth();
+  const { toast } = useToast();
   const { stages, stageOrder, stageLabels, stageColors, loading: stagesLoading, refetch } = usePipelineStages();
   const [leads, setLeads] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
+  const [newOppOpen, setNewOppOpen] = useState(false);
+
+  // New opportunity form
+  const [oppName, setOppName] = useState("");
+  const [oppTitle, setOppTitle] = useState("");
+  const [oppCompany, setOppCompany] = useState("");
+  const [oppOrigin, setOppOrigin] = useState("freetrial");
+  const [oppSubOrigin, setOppSubOrigin] = useState("");
+  const [oppMrr, setOppMrr] = useState("");
+  const [oppTpv, setOppTpv] = useState("");
+  const [oppProbability, setOppProbability] = useState("");
+  const [oppCloseDate, setOppCloseDate] = useState("");
+  const [oppConsultant, setOppConsultant] = useState("");
+  const [oppStage, setOppStage] = useState("");
 
   useEffect(() => {
-    supabase.from("leads").select("*, profiles:consultant_id(full_name)").then(({ data }) => {
-      setLeads(data || []);
+    Promise.all([
+      supabase.from("opportunities").select("*, profiles:consultant_id(full_name)"),
+      supabase.from("profiles").select("*"),
+    ]).then(([leadsRes, profsRes]) => {
+      setLeads(leadsRes.data || []);
+      setProfiles(profsRes.data || []);
       setLoading(false);
     });
   }, []);
+
+  async function createOpportunity() {
+    if (!oppName) return;
+    const { error } = await supabase.from("opportunities").insert({
+      name: oppName,
+      title: oppTitle || null,
+      company: oppCompany || null,
+      origin: oppOrigin as any,
+      sub_origin: oppSubOrigin || null,
+      estimated_mrr: parseFloat(oppMrr) || 0,
+      estimated_tpv: parseFloat(oppTpv) || 0,
+      probability: parseFloat(oppProbability) || 0,
+      estimated_close_date: oppCloseDate || null,
+      consultant_id: oppConsultant || null,
+      stage: oppStage || stageOrder[0] || "novo_lead",
+    });
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Oportunidade criada" });
+    setNewOppOpen(false);
+    setOppName(""); setOppTitle(""); setOppCompany(""); setOppSubOrigin("");
+    setOppMrr(""); setOppTpv(""); setOppProbability(""); setOppCloseDate("");
+    setOppConsultant(""); setOppStage("");
+    // reload
+    const { data } = await supabase.from("opportunities").select("*, profiles:consultant_id(full_name)");
+    setLeads(data || []);
+  }
 
   const filtered = filter === "all" ? leads : leads.filter(l => l.origin === filter);
 
@@ -37,19 +89,71 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-heading font-bold">Pipeline</h1>
           <div className="flex items-center gap-2">
             {role === "admin" && (
-              <Dialog open={manageOpen} onOpenChange={setManageOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4 mr-1" /> Gerenciar Etapas
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Gerenciar Etapas do Pipeline</DialogTitle>
-                  </DialogHeader>
-                  <StageManager stages={stages} onUpdate={refetch} />
-                </DialogContent>
-              </Dialog>
+              <>
+                <Dialog open={newOppOpen} onOpenChange={setNewOppOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Oportunidade</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>Nova Oportunidade</DialogTitle></DialogHeader>
+                    <div className="space-y-3">
+                      <div><Label>Nome do Contato *</Label><Input value={oppName} onChange={e => setOppName(e.target.value)} placeholder="Nome" /></div>
+                      <div><Label>Título da Oportunidade</Label><Input value={oppTitle} onChange={e => setOppTitle(e.target.value)} placeholder="Ex: Upsell Premium" /></div>
+                      <div><Label>Empresa</Label><Input value={oppCompany} onChange={e => setOppCompany(e.target.value)} /></div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label>Canal</Label>
+                          <Select value={oppOrigin} onValueChange={setOppOrigin}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div><Label>Sub-origem</Label><Input value={oppSubOrigin} onChange={e => setOppSubOrigin(e.target.value)} placeholder="Opcional" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><Label>MRR Estimado</Label><Input type="number" value={oppMrr} onChange={e => setOppMrr(e.target.value)} /></div>
+                        <div><Label>TPV Estimado</Label><Input type="number" value={oppTpv} onChange={e => setOppTpv(e.target.value)} /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><Label>Probabilidade (%)</Label><Input type="number" value={oppProbability} onChange={e => setOppProbability(e.target.value)} /></div>
+                        <div><Label>Data Fechamento Est.</Label><Input type="date" value={oppCloseDate} onChange={e => setOppCloseDate(e.target.value)} /></div>
+                      </div>
+                      <div>
+                        <Label>Vendedor Responsável</Label>
+                        <Select value={oppConsultant} onValueChange={setOppConsultant}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.email}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Etapa Inicial</Label>
+                        <Select value={oppStage || stageOrder[0]} onValueChange={setOppStage}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {stageOrder.map(s => <SelectItem key={s} value={s}>{stageLabels[s] || s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={createOpportunity} className="w-full">Criar Oportunidade</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4 mr-1" /> Gerenciar Etapas
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader><DialogTitle>Gerenciar Etapas do Pipeline</DialogTitle></DialogHeader>
+                    <StageManager stages={stages} onUpdate={refetch} />
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -73,13 +177,13 @@ export default function PipelinePage() {
                     {color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />}
                     <h3 className="text-sm font-heading font-semibold">{stageLabels[stage] || stage}</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground">{stageLeads.length} leads · R$ {stageMRR.toLocaleString("pt-BR")}</p>
+                  <p className="text-xs text-muted-foreground">{stageLeads.length} oportunidades · R$ {stageMRR.toLocaleString("pt-BR")}</p>
                 </div>
                 <div className="space-y-2 bg-muted/30 rounded-lg p-2 min-h-[100px]">
                   {stageLeads.map(lead => (
                     <Card key={lead.id}>
                       <CardContent className="p-3">
-                        <p className="font-medium text-sm">{lead.name}</p>
+                        <p className="font-medium text-sm">{lead.title || lead.name}</p>
                         {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
                         <div className="flex items-center justify-between mt-1 text-xs">
                           <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
