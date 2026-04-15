@@ -6,12 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
+const PERIODICITIES = ["Avulso", "Mensal", "Trimestral", "Semestral", "Anual", "Vitalício"];
+
 interface Product {
   id: string;
+  product_id: string | null;
   name: string;
+  plan_name: string;
+  periodicity: string;
   plan_value: number;
   plan_mrr: number;
   commission_percent: number;
@@ -25,7 +31,10 @@ export function ProductPricingTable() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
-  const [form, setForm] = useState({ name: "", plan_value: "", plan_mrr: "", commission_percent: "10" });
+  const [form, setForm] = useState({
+    product_id: "", name: "", plan_name: "", periodicity: "Mensal",
+    plan_value: "", plan_mrr: "", commission_percent: "10",
+  });
 
   const fetchProducts = async () => {
     const { data } = await supabase.from("commission_products").select("*").order("name");
@@ -37,14 +46,17 @@ export function ProductPricingTable() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", plan_value: "", plan_mrr: "", commission_percent: "10" });
+    setForm({ product_id: "", name: "", plan_name: "", periodicity: "Mensal", plan_value: "", plan_mrr: "", commission_percent: "10" });
     setDialogOpen(true);
   };
 
   const openEdit = (p: Product) => {
     setEditing(p);
     setForm({
+      product_id: p.product_id || "",
       name: p.name,
+      plan_name: p.plan_name,
+      periodicity: p.periodicity,
       plan_value: p.plan_value.toString(),
       plan_mrr: p.plan_mrr.toString(),
       commission_percent: p.commission_percent.toString(),
@@ -56,7 +68,10 @@ export function ProductPricingTable() {
     if (!form.name) return;
     setSaving(true);
     const payload = {
+      product_id: form.product_id || null,
       name: form.name,
+      plan_name: form.plan_name,
+      periodicity: form.periodicity,
       plan_value: Number(form.plan_value) || 0,
       plan_mrr: Number(form.plan_mrr) || 0,
       commission_percent: Number(form.commission_percent) || 0,
@@ -103,22 +118,43 @@ export function ProductPricingTable() {
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <Label>Nome do Produto</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Label>Product ID</Label>
+                <Input value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} placeholder="Ex: prod_sucesso_mensal" />
               </div>
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Produto</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: +Sucesso" />
+                </div>
+                <div>
+                  <Label>Plano</Label>
+                  <Input value={form.plan_name} onChange={(e) => setForm({ ...form, plan_name: e.target.value })} placeholder="Ex: Premium" />
+                </div>
+              </div>
+              <div>
+                <Label>Periodicidade</Label>
+                <Select value={form.periodicity} onValueChange={(v) => setForm({ ...form, periodicity: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PERIODICITIES.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label>Valor do Plano (R$)</Label>
                   <Input type="number" value={form.plan_value} onChange={(e) => setForm({ ...form, plan_value: e.target.value })} />
                 </div>
                 <div>
-                  <Label>MRR do Plano (R$)</Label>
+                  <Label>MRR (R$)</Label>
                   <Input type="number" value={form.plan_mrr} onChange={(e) => setForm({ ...form, plan_mrr: e.target.value })} />
                 </div>
-              </div>
-              <div>
-                <Label>Comissão (% do primeiro MRR)</Label>
-                <Input type="number" step="0.1" value={form.commission_percent} onChange={(e) => setForm({ ...form, commission_percent: e.target.value })} />
+                <div>
+                  <Label>Comissão (%)</Label>
+                  <Input type="number" step="0.1" value={form.commission_percent} onChange={(e) => setForm({ ...form, commission_percent: e.target.value })} />
+                </div>
               </div>
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
@@ -135,8 +171,11 @@ export function ProductPricingTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Product ID</TableHead>
                 <TableHead>Produto</TableHead>
-                <TableHead className="text-right">Valor do Plano</TableHead>
+                <TableHead>Plano</TableHead>
+                <TableHead>Periodicidade</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Comissão (%)</TableHead>
                 <TableHead className="w-20" />
@@ -145,7 +184,10 @@ export function ProductPricingTable() {
             <TableBody>
               {products.map((p) => (
                 <TableRow key={p.id}>
+                  <TableCell className="font-mono text-xs">{p.product_id || "—"}</TableCell>
                   <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>{p.plan_name || "—"}</TableCell>
+                  <TableCell>{p.periodicity}</TableCell>
                   <TableCell className="text-right">{fmt(p.plan_value)}</TableCell>
                   <TableCell className="text-right">{fmt(p.plan_mrr)}</TableCell>
                   <TableCell className="text-right">{p.commission_percent}%</TableCell>

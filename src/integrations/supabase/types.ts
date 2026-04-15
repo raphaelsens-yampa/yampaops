@@ -101,8 +101,11 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          periodicity: string
           plan_mrr: number
+          plan_name: string
           plan_value: number
+          product_id: string | null
           updated_at: string
         }
         Insert: {
@@ -110,8 +113,11 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          periodicity?: string
           plan_mrr?: number
+          plan_name?: string
           plan_value?: number
+          product_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -119,8 +125,11 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          periodicity?: string
           plan_mrr?: number
+          plan_name?: string
           plan_value?: number
+          product_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -588,39 +597,39 @@ export type Database = {
       stripe_prices: {
         Row: {
           area: string | null
+          commission_product_id: string | null
           commission_value: number
           created_at: string
           id: string
           mrr: number
           plan_name: string
           price_id: string
-          product_id: string | null
           product_name: string
           seller_id: string | null
           updated_at: string
         }
         Insert: {
           area?: string | null
+          commission_product_id?: string | null
           commission_value?: number
           created_at?: string
           id?: string
           mrr?: number
           plan_name: string
           price_id: string
-          product_id?: string | null
           product_name: string
           seller_id?: string | null
           updated_at?: string
         }
         Update: {
           area?: string | null
+          commission_product_id?: string | null
           commission_value?: number
           created_at?: string
           id?: string
           mrr?: number
           plan_name?: string
           price_id?: string
-          product_id?: string | null
           product_name?: string
           seller_id?: string | null
           updated_at?: string
@@ -628,7 +637,7 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "stripe_prices_product_id_fkey"
-            columns: ["product_id"]
+            columns: ["commission_product_id"]
             isOneToOne: false
             referencedRelation: "commission_products"
             referencedColumns: ["id"]
