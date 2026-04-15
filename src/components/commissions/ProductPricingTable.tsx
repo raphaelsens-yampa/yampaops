@@ -119,16 +119,16 @@ export function ProductPricingTable() {
             <div className="space-y-3">
               <div>
                 <Label>Product ID</Label>
-                <Input value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} placeholder="Ex: prod_sucesso_mensal" />
+                <Input type="number" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} placeholder="Ex: 123" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Produto</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: +Sucesso" />
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: YampaFin" />
                 </div>
                 <div>
                   <Label>Plano</Label>
-                  <Input value={form.plan_name} onChange={(e) => setForm({ ...form, plan_name: e.target.value })} placeholder="Ex: Premium" />
+                  <Input value={form.plan_name} onChange={(e) => setForm({ ...form, plan_name: e.target.value })} placeholder="Ex: +Controle" />
                 </div>
               </div>
               <div>
