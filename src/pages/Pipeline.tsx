@@ -169,8 +169,9 @@ export default function PipelinePage() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
+                                onDoubleClick={() => setEditingOpp(lead)}
                               >
-                                <Card className={`transition-shadow ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : ""}`}>
+                                <Card className={`transition-shadow cursor-grab active:cursor-grabbing ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : "hover:shadow-md"}`}>
                                   <CardContent className="p-3">
                                     <p className="font-medium text-sm">{lead.title || lead.name}</p>
                                     {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
