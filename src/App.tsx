@@ -12,6 +12,8 @@ import Goals from "./pages/Goals";
 import Pipeline from "./pages/Pipeline";
 import Team from "./pages/Team";
 import Contacts from "./pages/Contacts";
+import Commissions from "./pages/Commissions";
+import CommissionSettings from "./pages/CommissionSettings";
 import Forecast from "./pages/Forecast";
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
