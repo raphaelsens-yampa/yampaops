@@ -1,0 +1,1 @@
+ALTER TABLE public.stripe_prices ADD COLUMN price_name text NOT NULL DEFAULT '';
