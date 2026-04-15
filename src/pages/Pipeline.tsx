@@ -14,6 +14,7 @@ import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
 import { PipelineManager } from "@/components/PipelineManager";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
+import { EditOpportunityDialog } from "@/components/EditOpportunityDialog";
 
 interface Pipeline {
   id: string;
@@ -33,6 +34,7 @@ export default function PipelinePage() {
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
+  const [editingOpp, setEditingOpp] = useState<any | null>(null);
 
   const loadPipelines = useCallback(async () => {
     const { data } = await supabase.from("pipelines").select("*").order("is_default", { ascending: false }).order("name");
@@ -167,8 +169,9 @@ export default function PipelinePage() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
+                                onDoubleClick={() => setEditingOpp(lead)}
                               >
-                                <Card className={`transition-shadow ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : ""}`}>
+                                <Card className={`transition-shadow cursor-grab active:cursor-grabbing ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : "hover:shadow-md"}`}>
                                   <CardContent className="p-3">
                                     <p className="font-medium text-sm">{lead.title || lead.name}</p>
                                     {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
@@ -191,6 +194,16 @@ export default function PipelinePage() {
             })}
           </div>
         </DragDropContext>
+
+        <EditOpportunityDialog
+          opportunity={editingOpp}
+          open={!!editingOpp}
+          onOpenChange={(open) => { if (!open) setEditingOpp(null); }}
+          stageOrder={stageOrder}
+          stageLabels={stageLabels}
+          profiles={profiles}
+          onUpdated={loadData}
+        />
       </div>
     </Layout>
   );
