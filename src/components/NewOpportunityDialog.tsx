@@ -319,6 +319,25 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Categoria de Meta</Label>
+            <Select value={oppCategory || "none"} onValueChange={(v) => setOppCategory(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {(["sales","cs","campaign","financial"] as const).map(area => {
+                  const items = categories.filter(c => c.area === area);
+                  if (!items.length) return null;
+                  return (
+                    <div key={area}>
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                      {items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </div>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
           <Button onClick={handleCreate} className="w-full" disabled={!selectedContact && !showNewContact}>
             Criar Oportunidade
           </Button>
