@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { AREA_LABELS, formatMetric, type CategoryArea, type GoalCategory } from "@/lib/goalCategories";
 
 export interface CategoryRow {
@@ -58,7 +58,9 @@ export function GoalsBreakdownByCategory({ rows }: Props) {
                         <span className="text-xs text-muted-foreground">/ {formatMetric(target, category.metric_type)}</span>
                       </div>
                       <div className="space-y-1">
-                        <Progress value={Math.min(pct, 100)} className="h-2" indicatorClassName={statusColor(pct)} />
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                          <div className={cn("h-full transition-all", statusColor(pct))} style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
                         <p className="text-xs text-muted-foreground text-right">{pct.toFixed(0)}% atingido</p>
                       </div>
                     </CardContent>
