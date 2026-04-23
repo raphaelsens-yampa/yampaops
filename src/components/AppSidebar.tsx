@@ -151,6 +151,7 @@ export function AppSidebar() {
       adminOnly: true,
       items: [
         { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug, adminOnly: true, rightSlot: "ac-status" },
+        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, adminOnly: true },
         { title: "Auditoria", url: "/integrations/audit", icon: Activity, adminOnly: true },
       ],
     },
