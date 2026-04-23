@@ -179,6 +179,26 @@ export default function GoalsPage() {
         </Select>
       </div>
 
+      <div>
+        <Label className="text-sm font-semibold">Categoria</Label>
+        <Select value={gCategory} onValueChange={setGCategory}>
+          <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Sem categoria</SelectItem>
+            {(["sales","cs","campaign","financial"] as const).map(area => {
+              const items = categories.filter(c => c.area === area);
+              if (!items.length) return null;
+              return (
+                <div key={area}>
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                  {items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </div>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
       {gScope === "channel" && (
         <Select value={gChannel} onValueChange={setGChannel}>
           <SelectTrigger><SelectValue placeholder="Canal" /></SelectTrigger>
