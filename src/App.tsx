@@ -54,6 +54,7 @@ function AppRoutes() {
         <Route path="/commissions/settings" element={<CommissionSettings />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/imports" element={<Imports />} />
+        <Route path="/link-builder" element={<LinkBuilder />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
