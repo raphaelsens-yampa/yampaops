@@ -204,6 +204,71 @@ export function GoalsTracking() {
 
   const wonForChart = wonInPeriod.map((o) => ({ date: new Date(o.updated_at), mrr: Number(o.estimated_mrr) || 0 }));
 
+  // Breakdown por categoria
+  const categoryRows: CategoryRow[] = useMemo(() => {
+    const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
+
+    // Won opportunities in scope (sem filtrar por categoria — para breakdown)
+    const wonScope = opportunities.filter((o) => {
+      if (!isWonOpp(o)) return false;
+      if (o.consultant_id && !sellerIds.has(o.consultant_id)) return false;
+      if (!o.consultant_id && sellerFilter !== "all") return false;
+      const d = o.updated_at ? new Date(o.updated_at) : null;
+      if (!d) return false;
+      return d >= start && d <= end;
+    });
+
+    const monthBiz = businessDaysInRange(monthStart, monthEnd) || 1;
+
+    const proratedTarget = (monthly: number) => {
+      if (granularity === "month") return monthly;
+      if (granularity === "day") return isWeekend(anchorDate) ? 0 : monthly / monthBiz;
+      return (monthly / monthBiz) * businessDaysInRange(start, end);
+    };
+
+    return categories.map((cat) => {
+      const matchingGoals = goals.filter((g) => {
+        if (g.category_id !== cat.id) return false;
+        const gs = new Date(g.period_start); const ge = new Date(g.period_end);
+        if (!(gs <= monthEnd && ge >= monthStart)) return false;
+        if (sellerFilter !== "all") return g.scope === "user" && g.user_id === sellerFilter;
+        if (teamFilter !== "all") return (g.scope === "team" && g.team_id === teamFilter) || (g.scope === "user" && sellerIds.has(g.user_id));
+        return true;
+      });
+      const monthlyTargetCat = matchingGoals.reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
+      const target = proratedTarget(monthlyTargetCat);
+
+      let realizedCat = 0;
+      if (cat.slug === FINANCIAL_SLUGS.LTV) {
+        const wonAll = wonScope;
+        const avgMrr = wonAll.length ? wonAll.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0) / wonAll.length : 0;
+        const churn = (financeSettings?.avg_churn_rate || 0) / 100;
+        realizedCat = churn > 0 ? avgMrr / churn : 0;
+      } else if (cat.slug === FINANCIAL_SLUGS.CAC) {
+        const campaignCat = categories.find((c) => c.slug === FINANCIAL_SLUGS.CAMPANHA_MRR);
+        const conversions = campaignCat ? wonScope.filter((o) => o.category_id === campaignCat.id).length : 0;
+        const cost = financeSettings?.avg_campaign_cost || 0;
+        realizedCat = conversions > 0 ? cost / conversions : 0;
+      } else if (cat.slug === FINANCIAL_SLUGS.LTV_CAC) {
+        const wonAll = wonScope;
+        const avgMrr = wonAll.length ? wonAll.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0) / wonAll.length : 0;
+        const churn = (financeSettings?.avg_churn_rate || 0) / 100;
+        const ltv = churn > 0 ? avgMrr / churn : 0;
+        const campaignCat = categories.find((c) => c.slug === FINANCIAL_SLUGS.CAMPANHA_MRR);
+        const conversions = campaignCat ? wonScope.filter((o) => o.category_id === campaignCat.id).length : 0;
+        const cost = financeSettings?.avg_campaign_cost || 0;
+        const cac = conversions > 0 ? cost / conversions : 0;
+        realizedCat = cac > 0 ? ltv / cac : 0;
+      } else if (cat.metric_type === "count") {
+        realizedCat = wonScope.filter((o) => o.category_id === cat.id).length;
+      } else {
+        realizedCat = wonScope.filter((o) => o.category_id === cat.id).reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
+      }
+
+      return { category: cat, target, realized: realizedCat };
+    }).filter((r) => r.target > 0 || r.realized > 0);
+  }, [categories, goals, opportunities, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs]);
+
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
   return (
