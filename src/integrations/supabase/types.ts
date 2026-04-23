@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ac_pipeline_selection: {
+        Row: {
+          ac_pipeline_id: string
+          ac_pipeline_title: string
+          created_at: string
+          deals_count: number | null
+          is_selected: boolean
+          last_synced_at: string | null
+          local_pipeline_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ac_pipeline_id: string
+          ac_pipeline_title: string
+          created_at?: string
+          deals_count?: number | null
+          is_selected?: boolean
+          last_synced_at?: string | null
+          local_pipeline_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ac_pipeline_id?: string
+          ac_pipeline_title?: string
+          created_at?: string
+          deals_count?: number | null
+          is_selected?: boolean
+          last_synced_at?: string | null
+          local_pipeline_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       access_levels: {
         Row: {
           created_at: string
@@ -46,6 +79,7 @@ export type Database = {
       }
       activities: {
         Row: {
+          ac_id: string | null
           created_at: string
           id: string
           lead_id: string
@@ -57,6 +91,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ac_id?: string | null
           created_at?: string
           id?: string
           lead_id: string
@@ -68,6 +103,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ac_id?: string | null
           created_at?: string
           id?: string
           lead_id?: string
@@ -258,6 +294,7 @@ export type Database = {
       }
       contacts: {
         Row: {
+          ac_id: string | null
           company: string | null
           created_at: string
           created_by: string | null
@@ -270,6 +307,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ac_id?: string | null
           company?: string | null
           created_at?: string
           created_by?: string | null
@@ -282,6 +320,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ac_id?: string | null
           company?: string | null
           created_at?: string
           created_by?: string | null
@@ -444,8 +483,72 @@ export type Database = {
           },
         ]
       }
+      integration_settings: {
+        Row: {
+          ac_account_url: string | null
+          ac_webhook_secret: string | null
+          created_at: string
+          id: string
+          last_full_sync_at: string | null
+          sync_log: Json | null
+          sync_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          ac_account_url?: string | null
+          ac_webhook_secret?: string | null
+          created_at?: string
+          id?: string
+          last_full_sync_at?: string | null
+          sync_log?: Json | null
+          sync_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ac_account_url?: string | null
+          ac_webhook_secret?: string | null
+          created_at?: string
+          id?: string
+          last_full_sync_at?: string | null
+          sync_log?: Json | null
+          sync_status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      integration_sync_errors: {
+        Row: {
+          ac_id: string | null
+          created_at: string
+          entity_type: string
+          error_message: string
+          id: string
+          payload: Json | null
+          resolved: boolean
+        }
+        Insert: {
+          ac_id?: string | null
+          created_at?: string
+          entity_type: string
+          error_message: string
+          id?: string
+          payload?: Json | null
+          resolved?: boolean
+        }
+        Update: {
+          ac_id?: string | null
+          created_at?: string
+          entity_type?: string
+          error_message?: string
+          id?: string
+          payload?: Json | null
+          resolved?: boolean
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
+          ac_id: string | null
           attribution: Database["public"]["Enums"]["attribution_model"] | null
           billing_type: string
           cancellation_date: string | null
@@ -474,6 +577,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ac_id?: string | null
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           billing_type?: string
           cancellation_date?: string | null
@@ -502,6 +606,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ac_id?: string | null
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           billing_type?: string
           cancellation_date?: string | null
@@ -555,6 +660,7 @@ export type Database = {
       }
       pipeline_stages: {
         Row: {
+          ac_id: string | null
           color: string | null
           created_at: string
           id: string
@@ -567,6 +673,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ac_id?: string | null
           color?: string | null
           created_at?: string
           id?: string
@@ -579,6 +686,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ac_id?: string | null
           color?: string | null
           created_at?: string
           id?: string
@@ -602,6 +710,7 @@ export type Database = {
       }
       pipelines: {
         Row: {
+          ac_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -610,6 +719,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ac_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -618,6 +728,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ac_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
