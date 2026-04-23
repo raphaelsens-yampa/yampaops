@@ -66,6 +66,7 @@ function AppRoutes() {
       <Route path="/" element={<SellerKanban />} />
       <Route path="/goals" element={<Goals />} />
       <Route path="/commissions" element={<Commissions />} />
+      <Route path="/link-builder" element={<LinkBuilder />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
