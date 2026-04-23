@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload,
+  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload, Link2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
