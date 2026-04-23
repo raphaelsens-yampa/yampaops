@@ -116,7 +116,7 @@ export function AppSidebar() {
     },
     {
       key: "vendas",
-      label: "Vendas",
+      label: "Operações",
       items: [
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
