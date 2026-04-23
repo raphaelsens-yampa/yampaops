@@ -11,32 +11,40 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
-const adminItems = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Pipeline", url: "/pipeline", icon: Kanban },
-  { title: "Forecast", url: "/forecast", icon: TrendingUp },
-  { title: "Metas", url: "/goals", icon: Target },
-  { title: "Equipe", url: "/team", icon: Users },
-  { title: "Contatos", url: "/contacts", icon: Contact },
-  { title: "Comissões", url: "/commissions", icon: DollarSign },
-  { title: "Importação", url: "/imports", icon: Upload },
-  { title: "Usuários", url: "/users", icon: ShieldCheck },
+type NavItem = { title: string; url: string; icon: any; area?: string };
+
+// Itens "core" liberados a todos os autenticados (não dependem de permissão)
+const coreItems: NavItem[] = [
+  { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
 ];
 
-const sellerItems = [
-  { title: "Meu Pipeline", url: "/", icon: Kanban },
-  { title: "Minhas Metas", url: "/goals", icon: Target },
-  { title: "Comissões", url: "/commissions", icon: DollarSign },
+// Itens controlados pelo Nível de Acesso (área → menu)
+const guardedItems: NavItem[] = [
+  { title: "Dashboard", url: "/", icon: BarChart3, area: "dashboard" },
+  { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
+  { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
+  { title: "Metas", url: "/goals", icon: Target, area: "goals" },
+  { title: "Equipe", url: "/team", icon: Users, area: "team" },
+  { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
+  { title: "Importação", url: "/imports", icon: Upload, area: "import" },
+  { title: "Usuários", url: "/users", icon: ShieldCheck, area: "users" },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { role, profile, signOut } = useAuth();
+  const { role, profile, signOut, canView, accessLevelName } = useAuth();
   const { theme, toggle } = useTheme();
 
-  const items = role === "admin" ? adminItems : sellerItems;
+  // Admin sempre vê tudo; demais filtram por permissão de visualização
+  const visibleGuarded = guardedItems.filter((it) =>
+    role === "admin" ? true : canView(it.area as any),
+  );
+  // Seller sem dashboard liberada → mostra "Meu Pipeline" como home
+  const items: NavItem[] = [...visibleGuarded, ...coreItems.filter((it) =>
+    role === "admin" ? true : canView(it.area as any),
+  )];
 
   return (
     <Sidebar collapsible="icon">
@@ -50,7 +58,7 @@ export function AppSidebar() {
               <span className="font-heading font-bold text-lg text-sidebar-foreground">Yampa</span>
             )}
           </div>
-          <SidebarGroupLabel>{role === "admin" ? "Gerencial" : "Vendedor"}</SidebarGroupLabel>
+          <SidebarGroupLabel>{accessLevelName || (role === "admin" ? "Gerencial" : "Vendedor")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
