@@ -834,6 +834,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       activity_type:
