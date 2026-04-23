@@ -20,6 +20,7 @@ import ProfilePage from "./pages/Profile";
 import Imports from "./pages/Imports";
 import LinkBuilder from "./pages/LinkBuilder";
 import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
+import IntegrationAudit from "./pages/IntegrationAudit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ function AppRoutes() {
         <Route path="/imports" element={<Imports />} />
         <Route path="/link-builder" element={<LinkBuilder />} />
         <Route path="/integrations/active-campaign" element={<ActiveCampaignIntegration />} />
+        <Route path="/integrations/audit" element={<IntegrationAudit />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
