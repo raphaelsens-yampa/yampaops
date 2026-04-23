@@ -247,96 +247,110 @@ export default function GoalsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold">Metas</h1>
-          <div className="flex items-center gap-2">
-            <Select value={filterScope} onValueChange={setFilterScope}>
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os escopos</SelectItem>
-                {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {role === "admin" && (
-              <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
-                  {formContent}
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
         </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {Object.entries(SCOPE_LABELS).map(([key, label]) => {
-            const count = goals.filter(g => g.scope === key).length;
-            return (
-              <Card key={key} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilterScope(key)}>
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold">{count}</p>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        <Tabs defaultValue="tracking" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
+            <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Escopo</TableHead>
-                  <TableHead>Detalhes</TableHead>
-                  <TableHead>Período</TableHead>
-                  <TableHead className="text-right">MRR Alvo</TableHead>
-                  <TableHead className="text-right">Deals</TableHead>
-                  <TableHead className="text-right">ARPA</TableHead>
-                  {role === "admin" && <TableHead className="text-right">Ações</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredGoals.map(g => {
-                  const prof = profiles.find(p => p.user_id === g.user_id);
-                  const team = teams.find(t => t.id === g.team_id);
-                  let details = "—";
-                  if (g.scope === "user") details = prof?.full_name || "—";
-                  else if (g.scope === "team") details = team?.name || "—";
-                  else if (g.scope === "channel") details = g.channel ? (ORIGIN_LABELS[g.channel] || g.channel) : "Todos";
-                  else if (g.scope === "campaign") details = g.campaign || "—";
-                  else details = "Toda empresa";
+          <TabsContent value="tracking" className="space-y-6">
+            <GoalsTracking />
+          </TabsContent>
 
-                  return (
-                    <TableRow key={g.id}>
-                      <TableCell><Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || g.scope || "Empresa"}</Badge></TableCell>
-                      <TableCell className="text-sm">{details}</TableCell>
-                      <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
-                      <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
-                      <TableCell className="text-right">{g.target_deals || 0}</TableCell>
-                      <TableCell className="text-right">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</TableCell>
-                      {role === "admin" && (
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(g)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteGoal(g.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+          <TabsContent value="setup" className="space-y-6">
+            <div className="flex items-center justify-end gap-2">
+              <Select value={filterScope} onValueChange={setFilterScope}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os escopos</SelectItem>
+                  {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {role === "admin" && (
+                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+                  <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
+                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
+                    {formContent}
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {Object.entries(SCOPE_LABELS).map(([key, label]) => {
+                const count = goals.filter(g => g.scope === key).length;
+                return (
+                  <Card key={key} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilterScope(key)}>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold">{count}</p>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Escopo</TableHead>
+                      <TableHead>Detalhes</TableHead>
+                      <TableHead>Período</TableHead>
+                      <TableHead className="text-right">MRR Alvo</TableHead>
+                      <TableHead className="text-right">Deals</TableHead>
+                      <TableHead className="text-right">ARPA</TableHead>
+                      {role === "admin" && <TableHead className="text-right">Ações</TableHead>}
                     </TableRow>
-                  );
-                })}
-                {filteredGoals.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma meta</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredGoals.map(g => {
+                      const prof = profiles.find(p => p.user_id === g.user_id);
+                      const team = teams.find(t => t.id === g.team_id);
+                      let details = "—";
+                      if (g.scope === "user") details = prof?.full_name || "—";
+                      else if (g.scope === "team") details = team?.name || "—";
+                      else if (g.scope === "channel") details = g.channel ? (ORIGIN_LABELS[g.channel] || g.channel) : "Todos";
+                      else if (g.scope === "campaign") details = g.campaign || "—";
+                      else details = "Toda empresa";
+
+                      return (
+                        <TableRow key={g.id}>
+                          <TableCell><Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || g.scope || "Empresa"}</Badge></TableCell>
+                          <TableCell className="text-sm">{details}</TableCell>
+                          <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
+                          <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
+                          <TableCell className="text-right">{g.target_deals || 0}</TableCell>
+                          <TableCell className="text-right">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</TableCell>
+                          {role === "admin" && (
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(g)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => deleteGoal(g.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                    {filteredGoals.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma meta</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
