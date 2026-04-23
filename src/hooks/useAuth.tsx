@@ -100,26 +100,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissions(level.permissions as Permissions);
       setAccessLevelName(level.name ?? null);
     } else {
-      // Fallback: admin vê tudo, seller só pipeline/goals/commissions
-      setPermissions(
-        resolvedRole === "admin"
-          ? {
-              dashboard: { view: true, create: true, edit: true },
-              pipeline: { view: true, create: true, edit: true },
-              forecast: { view: true, create: true, edit: true },
-              goals: { view: true, create: true, edit: true },
-              team: { view: true, create: true, edit: true },
-              import: { view: true, create: true, edit: true },
-              users: { view: true, create: true, edit: true },
-              contacts: { view: true, create: true, edit: true },
-              commissions: { view: true, create: true, edit: true },
-            }
-          : {
-              pipeline: { view: true, create: true, edit: true },
-              goals: { view: true, create: false, edit: false },
-              commissions: { view: true, create: false, edit: false },
-            },
-      );
+      // Fallback: admin vê e gerencia tudo; tático vê tudo mas não cria/edita amplo;
+      // seller só pipeline/goals/commissions
+      if (resolvedRole === "admin") {
+        setPermissions({
+          dashboard: { view: true, create: true, edit: true },
+          pipeline: { view: true, create: true, edit: true },
+          forecast: { view: true, create: true, edit: true },
+          goals: { view: true, create: true, edit: true },
+          team: { view: true, create: true, edit: true },
+          import: { view: true, create: true, edit: true },
+          users: { view: true, create: true, edit: true },
+          contacts: { view: true, create: true, edit: true },
+          commissions: { view: true, create: true, edit: true },
+        });
+      } else if (resolvedRole === "tatico") {
+        setPermissions({
+          dashboard: { view: true, create: false, edit: false },
+          pipeline: { view: true, create: true, edit: true },
+          forecast: { view: true, create: false, edit: false },
+          goals: { view: true, create: false, edit: false },
+          team: { view: true, create: false, edit: false },
+          contacts: { view: true, create: true, edit: true },
+          commissions: { view: true, create: false, edit: false },
+        });
+      } else {
+        setPermissions({
+          pipeline: { view: true, create: true, edit: true },
+          goals: { view: true, create: false, edit: false },
+          commissions: { view: true, create: false, edit: false },
+        });
+      }
       setAccessLevelName(null);
     }
     setLoading(false);

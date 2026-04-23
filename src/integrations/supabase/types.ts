@@ -834,6 +834,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       activity_type:
@@ -843,7 +844,7 @@ export type Database = {
         | "reuniao_executada"
         | "whatsapp"
         | "proposta"
-      app_role: "admin" | "seller"
+      app_role: "admin" | "seller" | "tatico"
       attribution_model: "first_click" | "last_click"
       commission_status: "provisioned" | "paid" | "reversed"
       commission_type: "earned" | "clawback"
@@ -998,7 +999,7 @@ export const Constants = {
         "whatsapp",
         "proposta",
       ],
-      app_role: ["admin", "seller"],
+      app_role: ["admin", "seller", "tatico"],
       attribution_model: ["first_click", "last_click"],
       commission_status: ["provisioned", "paid", "reversed"],
       commission_type: ["earned", "clawback"],

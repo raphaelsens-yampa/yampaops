@@ -40,7 +40,7 @@ function AppRoutes() {
 
   if (!session) return <Auth />;
 
-  if (role === "admin") {
+  if (role === "admin" || role === "tatico") {
     return (
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
