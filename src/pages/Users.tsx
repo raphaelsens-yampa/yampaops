@@ -268,22 +268,18 @@ export default function UsersPage() {
               <Label>Papel Base</Label>
               <Select
                 value={newRole}
-                onValueChange={(v) => {
-                  // Papéis base "tático" mapeiam para o role 'seller' (acesso de leitura);
-                  // Admin é o único que mapeia para 'admin' no enum app_role.
-                  setNewRole(v === "admin" ? "admin" : "seller");
-                }}
+                onValueChange={(v) => setNewRole(v as AppRole)}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin — controle de sistema</SelectItem>
-                  <SelectItem value="seller">Seller — vendedor padrão</SelectItem>
-                  <SelectItem value="tatico">Tático — painel e operações</SelectItem>
+                  <SelectItem value="admin">Admin — controle total do sistema</SelectItem>
+                  <SelectItem value="tatico">Tático — vê todos os dados, sem gerenciar</SelectItem>
+                  <SelectItem value="seller">Seller — vê apenas suas próprias oportunidades</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Define o acesso base. As permissões finas vêm do Nível de Acesso abaixo.</p>
+              <p className="text-xs text-muted-foreground">Define o acesso base aos dados (RLS). As permissões finas de UI vêm do Nível de Acesso abaixo.</p>
             </div>
             <div className="space-y-2">
               <Label>Nível de Acesso</Label>
