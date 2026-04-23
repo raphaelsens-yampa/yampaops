@@ -18,6 +18,7 @@ import Forecast from "./pages/Forecast";
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
 import Imports from "./pages/Imports";
+import LinkBuilder from "./pages/LinkBuilder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
