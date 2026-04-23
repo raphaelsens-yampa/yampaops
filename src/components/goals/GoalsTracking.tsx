@@ -280,38 +280,57 @@ export function GoalsTracking() {
         onAnchorChange={setAnchorDate}
       />
 
-      {(isAdmin || sellersInScope.length > 1) && (
-        <Card>
-          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {isAdmin && (
-              <div>
-                <Label className="text-xs">Equipe</Label>
-                <Select value={teamFilter} onValueChange={(v) => { setTeamFilter(v); setSellerFilter("all"); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as equipes</SelectItem>
-                    {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+      <Card>
+        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {isAdmin && (
             <div>
-              <Label className="text-xs">Vendedor</Label>
-              <Select value={sellerFilter} onValueChange={setSellerFilter} disabled={!isAdmin && profiles.length <= 1}>
+              <Label className="text-xs">Equipe</Label>
+              <Select value={teamFilter} onValueChange={(v) => { setTeamFilter(v); setSellerFilter("all"); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os vendedores</SelectItem>
-                  {sellersInScope.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
+                  <SelectItem value="all">Todas as equipes</SelectItem>
+                  {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          <div>
+            <Label className="text-xs">Vendedor</Label>
+            <Select value={sellerFilter} onValueChange={setSellerFilter} disabled={!isAdmin && profiles.length <= 1}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os vendedores</SelectItem>
+                {sellersInScope.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Categoria</Label>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as categorias</SelectItem>
+                {(["sales","cs","campaign","financial"] as const).map(area => {
+                  const items = categories.filter(c => c.area === area);
+                  if (!items.length) return null;
+                  return (
+                    <div key={area}>
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                      {items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </div>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       <GoalKpiCards realized={realized} target={periodTarget} pace={pace} daysElapsed={daysElapsed} totalDays={totalDays} />
 
       <GoalProgressChart start={start} end={end} target={periodTarget} won={wonForChart} />
+
+      <GoalsBreakdownByCategory rows={categoryRows} />
 
       <SellerRankingTable rows={sellerRows} />
 
