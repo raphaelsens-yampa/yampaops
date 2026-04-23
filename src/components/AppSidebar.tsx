@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload,
+  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload, Link2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -16,6 +16,7 @@ type NavItem = { title: string; url: string; icon: any; area?: string };
 // Itens "core" liberados a todos os autenticados (não dependem de permissão)
 const coreItems: NavItem[] = [
   { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
+  { title: "Gerador de Links de Ofertas YampaFin", url: "/link-builder", icon: Link2 },
 ];
 
 // Itens controlados pelo Nível de Acesso (área → menu)
@@ -42,8 +43,9 @@ export function AppSidebar() {
     role === "admin" ? true : canView(it.area as any),
   );
   // Seller sem dashboard liberada → mostra "Meu Pipeline" como home
+  // Itens sem `area` definida são liberados a todos
   const items: NavItem[] = [...visibleGuarded, ...coreItems.filter((it) =>
-    role === "admin" ? true : canView(it.area as any),
+    !it.area || role === "admin" ? true : canView(it.area as any),
   )];
 
   return (

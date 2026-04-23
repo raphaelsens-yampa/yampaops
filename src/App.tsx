@@ -18,6 +18,7 @@ import Forecast from "./pages/Forecast";
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
 import Imports from "./pages/Imports";
+import LinkBuilder from "./pages/LinkBuilder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="/commissions/settings" element={<CommissionSettings />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/imports" element={<Imports />} />
+        <Route path="/link-builder" element={<LinkBuilder />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -64,6 +66,7 @@ function AppRoutes() {
       <Route path="/" element={<SellerKanban />} />
       <Route path="/goals" element={<Goals />} />
       <Route path="/commissions" element={<Commissions />} />
+      <Route path="/link-builder" element={<LinkBuilder />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
