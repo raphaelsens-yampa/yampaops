@@ -17,6 +17,7 @@ import CommissionSettings from "./pages/CommissionSettings";
 import Forecast from "./pages/Forecast";
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
+import Imports from "./pages/Imports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/commissions" element={<Commissions />} />
         <Route path="/commissions/settings" element={<CommissionSettings />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/imports" element={<Imports />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
