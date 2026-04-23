@@ -52,7 +52,7 @@ export default function PipelinePage() {
   const loadData = useCallback(async () => {
     if (!currentPipelineId) return;
     const [leadsRes, profsRes] = await Promise.all([
-      supabase.from("opportunities").select("*, contacts:contact_id(name, company)").eq("pipeline_id", currentPipelineId),
+      supabase.from("opportunities").select("*, contacts:contact_id(name, company, email)").eq("pipeline_id", currentPipelineId),
       supabase.from("profiles").select("*"),
     ]);
     setLeads(leadsRes.data || []);
