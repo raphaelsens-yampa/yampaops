@@ -94,11 +94,12 @@ export function GoalsTracking() {
       if (!isWonOpp(o)) return false;
       if (o.consultant_id && !sellerIds.has(o.consultant_id)) return false;
       if (!o.consultant_id && sellerFilter !== "all") return false;
+      if (categoryFilter !== "all" && o.category_id !== categoryFilter) return false;
       const d = o.updated_at ? new Date(o.updated_at) : null;
       if (!d) return false;
       return d >= start && d <= end;
     });
-  }, [opportunities, sellersInScope, start, end, sellerFilter, wonStageIds, wonStageSlugs]);
+  }, [opportunities, sellersInScope, start, end, sellerFilter, categoryFilter, wonStageIds, wonStageSlugs]);
 
   const realized = wonInPeriod.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
 
