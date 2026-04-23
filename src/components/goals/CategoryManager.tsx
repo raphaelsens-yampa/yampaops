@@ -1,0 +1,150 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Trash2, Lock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { AREA_LABELS, METRIC_TYPE_LABELS, type CategoryArea, type MetricType, type GoalCategory } from "@/lib/goalCategories";
+
+export function CategoryManager() {
+  const { toast } = useToast();
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [area, setArea] = useState<CategoryArea>("sales");
+  const [metricType, setMetricType] = useState<MetricType>("mrr");
+  const [description, setDescription] = useState("");
+
+  async function load() {
+    const { data } = await supabase.from("goal_categories").select("*").order("area").order("name");
+    setCategories((data as GoalCategory[]) || []);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function slugify(s: string) {
+    return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  }
+
+  async function createCategory() {
+    if (!name.trim()) return;
+    const { error } = await supabase.from("goal_categories").insert({
+      name: name.trim(),
+      slug: slugify(name) + "_" + Date.now().toString(36),
+      area,
+      metric_type: metricType,
+      description: description || null,
+      is_system: false,
+      is_active: true,
+    });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Categoria criada" });
+    setOpen(false);
+    setName(""); setDescription(""); setArea("sales"); setMetricType("mrr");
+    load();
+  }
+
+  async function toggleActive(c: GoalCategory) {
+    const { error } = await supabase.from("goal_categories").update({ is_active: !c.is_active }).eq("id", c.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    load();
+  }
+
+  async function deleteCategory(c: GoalCategory) {
+    if (c.is_system) return;
+    if (!confirm(`Excluir categoria "${c.name}"?`)) return;
+    const { error } = await supabase.from("goal_categories").delete().eq("id", c.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    load();
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="text-lg">Categorias de Meta</CardTitle>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Categoria</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Nova Categoria</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Nome</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Expansão Enterprise" />
+              </div>
+              <div>
+                <Label>Área</Label>
+                <Select value={area} onValueChange={(v) => setArea(v as CategoryArea)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(AREA_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Tipo de Métrica</Label>
+                <Select value={metricType} onValueChange={(v) => setMetricType(v as MetricType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(METRIC_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Descrição (opcional)</Label>
+                <Input value={description} onChange={e => setDescription(e.target.value)} />
+              </div>
+              <Button onClick={createCategory} className="w-full">Criar</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Área</TableHead>
+              <TableHead>Métrica</TableHead>
+              <TableHead className="text-center">Ativa</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {categories.map(c => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium flex items-center gap-2">
+                  {c.is_system && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {c.name}
+                </TableCell>
+                <TableCell><Badge variant="outline">{AREA_LABELS[c.area]}</Badge></TableCell>
+                <TableCell className="text-sm text-muted-foreground">{METRIC_TYPE_LABELS[c.metric_type]}</TableCell>
+                <TableCell className="text-center">
+                  <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c)} />
+                </TableCell>
+                <TableCell className="text-right">
+                  {!c.is_system && (
+                    <Button variant="ghost" size="icon" onClick={() => deleteCategory(c)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+            {categories.length === 0 && (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}

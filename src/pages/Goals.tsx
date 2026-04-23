@@ -16,6 +16,9 @@ import { Plus, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GoalsTracking } from "@/components/goals/GoalsTracking";
+import { CategoryManager } from "@/components/goals/CategoryManager";
+import { FinanceSettings } from "@/components/goals/FinanceSettings";
+import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 type GoalScope = "company" | "team" | "user" | "channel" | "campaign";
 
@@ -33,10 +36,12 @@ export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [filterScope, setFilterScope] = useState<string>("all");
+  const [gCategory, setGCategory] = useState<string>("none");
 
   // Form state
   const [gScope, setGScope] = useState<GoalScope>("company");
@@ -62,14 +67,16 @@ export default function GoalsPage() {
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
-    const [goalsRes, profsRes, teamsRes] = await Promise.all([
+    const [goalsRes, profsRes, teamsRes, catsRes] = await Promise.all([
       role === "admin" ? supabase.from("goals").select("*") : supabase.from("goals").select("*").eq("user_id", user!.id),
       supabase.from("profiles").select("*"),
       supabase.from("teams").select("*"),
+      supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
     ]);
     setGoals(goalsRes.data || []);
     setProfiles(profsRes.data || []);
     setTeams(teamsRes.data || []);
+    setCategories((catsRes.data as GoalCategory[]) || []);
     setLoading(false);
   }
 
@@ -79,6 +86,7 @@ export default function GoalsPage() {
     setGProspeccoes(""); setGRespostas(""); setGAgendamentos("");
     setGComparecimentos(""); setGConversoes("");
     setGTaxaResposta(""); setGTaxaAgendamento(""); setGTaxaComparecimento(""); setGTaxaConversao("");
+    setGCategory("none");
     setEditingGoal(null);
   }
 
@@ -103,6 +111,7 @@ export default function GoalsPage() {
     setGTaxaAgendamento(goal.target_taxa_agendamento ? (goal.target_taxa_agendamento * 100).toString() : "");
     setGTaxaComparecimento(goal.target_taxa_comparecimento ? (goal.target_taxa_comparecimento * 100).toString() : "");
     setGTaxaConversao(goal.target_taxa_conversao ? (goal.target_taxa_conversao * 100).toString() : "");
+    setGCategory(goal.category_id || "none");
     setOpen(true);
   }
 
@@ -127,6 +136,7 @@ export default function GoalsPage() {
       target_taxa_agendamento: parseRate(gTaxaAgendamento),
       target_taxa_comparecimento: parseRate(gTaxaComparecimento),
       target_taxa_conversao: parseRate(gTaxaConversao),
+      category_id: gCategory === "none" ? null : gCategory,
     };
   }
 
@@ -165,6 +175,26 @@ export default function GoalsPage() {
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-sm font-semibold">Categoria</Label>
+        <Select value={gCategory} onValueChange={setGCategory}>
+          <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Sem categoria</SelectItem>
+            {(["sales","cs","campaign","financial"] as const).map(area => {
+              const items = categories.filter(c => c.area === area);
+              if (!items.length) return null;
+              return (
+                <div key={area}>
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                  {items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </div>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -253,11 +283,25 @@ export default function GoalsPage() {
           <TabsList>
             <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
             <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
+            {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
+            {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="tracking" className="space-y-6">
             <GoalsTracking />
           </TabsContent>
+
+          {role === "admin" && (
+            <TabsContent value="categories" className="space-y-6">
+              <CategoryManager />
+            </TabsContent>
+          )}
+
+          {role === "admin" && (
+            <TabsContent value="finance" className="space-y-6">
+              <FinanceSettings />
+            </TabsContent>
+          )}
 
           <TabsContent value="setup" className="space-y-6">
             <div className="flex items-center justify-end gap-2">
@@ -300,6 +344,7 @@ export default function GoalsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Escopo</TableHead>
+                      <TableHead>Categoria</TableHead>
                       <TableHead>Detalhes</TableHead>
                       <TableHead>Período</TableHead>
                       <TableHead className="text-right">MRR Alvo</TableHead>
@@ -319,9 +364,11 @@ export default function GoalsPage() {
                       else if (g.scope === "campaign") details = g.campaign || "—";
                       else details = "Toda empresa";
 
+                      const cat = categories.find(c => c.id === g.category_id);
                       return (
                         <TableRow key={g.id}>
                           <TableCell><Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || g.scope || "Empresa"}</Badge></TableCell>
+                          <TableCell className="text-sm">{cat ? cat.name : "—"}</TableCell>
                           <TableCell className="text-sm">{details}</TableCell>
                           <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
                           <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
@@ -343,7 +390,7 @@ export default function GoalsPage() {
                       );
                     })}
                     {filteredGoals.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma meta</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Nenhuma meta</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

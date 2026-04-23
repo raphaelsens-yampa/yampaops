@@ -13,6 +13,7 @@ import { ORIGIN_LABELS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 interface StripePrice {
   id: string;
@@ -64,6 +65,8 @@ export function EditOpportunityDialog({
   const [isActive, setIsActive] = useState(true);
   const [cancellationDate, setCancellationDate] = useState("");
   const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
 
   // Price ID state
   const [stripePrices, setStripePrices] = useState<StripePrice[]>([]);
@@ -77,10 +80,12 @@ export function EditOpportunityDialog({
       supabase.from("commission_products").select("id, name").order("name"),
       supabase.from("stripe_prices").select("id, price_id, price_name, product_name, plan_name, mrr, commission_product_id").order("price_name"),
       supabase.from("commission_products").select("id, periodicity"),
-    ]).then(([{ data: prodData }, { data: spData }, { data: cpData }]) => {
+      supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
+    ]).then(([{ data: prodData }, { data: spData }, { data: cpData }, { data: catData }]) => {
       setProducts(prodData || []);
       setStripePrices((spData as StripePrice[]) || []);
       setCommissionProducts((cpData as CommissionProduct[]) || []);
+      setCategories((catData as GoalCategory[]) || []);
     });
   }, []);
 
@@ -103,6 +108,7 @@ export function EditOpportunityDialog({
       setBillingType(opportunity.billing_type || "monthly");
       setIsActive(opportunity.is_active !== false);
       setCancellationDate(opportunity.cancellation_date || "");
+      setCategoryId(opportunity.category_id || "");
       // We don't store stripe_price_id on opportunity yet, so reset
       setSelectedStripePriceId("");
     }
@@ -182,6 +188,7 @@ export function EditOpportunityDialog({
       billing_type: billingType,
       is_active: isActive,
       cancellation_date: cancellationDate || null,
+      category_id: categoryId || null,
     }).eq("id", opportunity.id);
 
     setSaving(false);
@@ -331,6 +338,26 @@ export function EditOpportunityDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label>Categoria de Meta</Label>
+            <Select value={categoryId || "none"} onValueChange={(v) => setCategoryId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {(["sales","cs","campaign","financial"] as const).map(area => {
+                  const items = categories.filter(c => c.area === area);
+                  if (!items.length) return null;
+                  return (
+                    <div key={area}>
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                      {items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </div>
+                  );
+                })}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-3 gap-3">

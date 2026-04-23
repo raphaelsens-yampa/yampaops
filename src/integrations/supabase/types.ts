@@ -295,9 +295,73 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_settings: {
+        Row: {
+          avg_campaign_cost: number
+          avg_churn_rate: number
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_campaign_cost?: number
+          avg_churn_rate?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_campaign_cost?: number
+          avg_churn_rate?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      goal_categories: {
+        Row: {
+          area: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          metric_type: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          metric_type?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          metric_type?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           campaign: string | null
+          category_id: string | null
           channel: Database["public"]["Enums"]["lead_origin"] | null
           created_at: string
           id: string
@@ -322,6 +386,7 @@ export type Database = {
         }
         Insert: {
           campaign?: string | null
+          category_id?: string | null
           channel?: Database["public"]["Enums"]["lead_origin"] | null
           created_at?: string
           id?: string
@@ -346,6 +411,7 @@ export type Database = {
         }
         Update: {
           campaign?: string | null
+          category_id?: string | null
           channel?: Database["public"]["Enums"]["lead_origin"] | null
           created_at?: string
           id?: string
@@ -383,6 +449,7 @@ export type Database = {
           attribution: Database["public"]["Enums"]["attribution_model"] | null
           billing_type: string
           cancellation_date: string | null
+          category_id: string | null
           company: string | null
           consultant_id: string | null
           contact_id: string | null
@@ -410,6 +477,7 @@ export type Database = {
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           billing_type?: string
           cancellation_date?: string | null
+          category_id?: string | null
           company?: string | null
           consultant_id?: string | null
           contact_id?: string | null
@@ -437,6 +505,7 @@ export type Database = {
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           billing_type?: string
           cancellation_date?: string | null
+          category_id?: string | null
           company?: string | null
           consultant_id?: string | null
           contact_id?: string | null

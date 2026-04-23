@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { Plus, Search, UserPlus, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 interface NewOpportunityDialogProps {
   profiles: any[];
@@ -47,6 +48,13 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
   const [oppCloseDate, setOppCloseDate] = useState("");
   const [oppConsultant, setOppConsultant] = useState("");
   const [oppStage, setOppStage] = useState("");
+  const [oppCategory, setOppCategory] = useState("");
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
+
+  useEffect(() => {
+    supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name")
+      .then(({ data }) => setCategories((data as GoalCategory[]) || []));
+  }, []);
 
   const searchContacts = useCallback(async (query: string) => {
     if (query.length < 2) {
@@ -87,7 +95,7 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
     setNewContactName(""); setNewContactEmail(""); setNewContactPhone(""); setNewContactCompany("");
     setOppTitle(""); setOppOrigin("freetrial"); setOppSubOrigin("");
     setOppMrr(""); setOppTpv(""); setOppProbability(""); setOppCloseDate("");
-    setOppConsultant(""); setOppStage("");
+    setOppConsultant(""); setOppStage(""); setOppCategory("");
   }
 
   function selectContact(contact: any) {
@@ -145,6 +153,7 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
       estimated_close_date: oppCloseDate || null,
       consultant_id: oppConsultant || null,
       stage: oppStage || stageOrder[0] || "novo_lead",
+      category_id: oppCategory || null,
       ...(pipelineId ? { pipeline_id: pipelineId } : {}),
     });
 
@@ -307,6 +316,25 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {stageOrder.map(s => <SelectItem key={s} value={s}>{stageLabels[s] || s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Categoria de Meta</Label>
+            <Select value={oppCategory || "none"} onValueChange={(v) => setOppCategory(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {(["sales","cs","campaign","financial"] as const).map(area => {
+                  const items = categories.filter(c => c.area === area);
+                  if (!items.length) return null;
+                  return (
+                    <div key={area}>
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                      {items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </div>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
