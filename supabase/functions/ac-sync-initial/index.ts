@@ -76,12 +76,22 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
   const { data: localStages } = await service.from("pipeline_stages").select("id, ac_id, slug").eq("pipeline_id", localPipelineId);
   const stageBySlug = new Map((localStages || []).map((s: any) => [s.ac_id, s.slug]));
 
-  // 3. Fetch deals (paginated, capped to avoid edge timeout)
-  const MAX_DEALS_PER_RUN = 200;
+  // 3. Fetch deals (paginated). Background tasks can run for several minutes.
+  // We process up to 1500 deals per run and skip ones already synced (resume).
+  const MAX_DEALS_PER_RUN = 1500;
   let offset = 0;
   const limit = 100;
   const dealIds: string[] = [];
   let truncated = false;
+  let skipped = 0;
+
+  // Preload set of already-synced AC deal ids for this pipeline (resume support)
+  const { data: existingOpps } = await service
+    .from("opportunities")
+    .select("ac_id")
+    .eq("pipeline_id", localPipelineId)
+    .not("ac_id", "is", null);
+  const alreadySynced = new Set((existingOpps || []).map((o: any) => o.ac_id));
 
   outer: while (true) {
     let dealsRes: any;
@@ -96,6 +106,10 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
     const contactsMap = new Map(includedContacts.map((c: any) => [c.id, c]));
 
     for (const d of deals) {
+      if (alreadySynced.has(String(d.id))) {
+        skipped++;
+        continue;
+      }
       if (dealsCount >= MAX_DEALS_PER_RUN) {
         truncated = true;
         break outer;

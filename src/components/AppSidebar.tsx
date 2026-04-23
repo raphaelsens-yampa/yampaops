@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload, Link2, Plug,
+  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -50,7 +50,10 @@ export function AppSidebar() {
 
   // Itens admin-only (integrações)
   const adminOnly: NavItem[] = role === "admin"
-    ? [{ title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug }]
+    ? [
+        { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug },
+        { title: "Auditoria", url: "/integrations/audit", icon: Activity },
+      ]
     : [];
 
   return (
