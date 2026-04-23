@@ -1,5 +1,5 @@
 import {
-  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload, Link2,
+  BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp, ShieldCheck, User, DollarSign, Upload, Link2, Plug,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -48,6 +48,11 @@ export function AppSidebar() {
     !it.area || role === "admin" ? true : canView(it.area as any),
   )];
 
+  // Itens admin-only (integrações)
+  const adminOnly: NavItem[] = role === "admin"
+    ? [{ title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug }]
+    : [];
+
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -76,6 +81,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {adminOnly.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Integrações</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminOnly.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className={`space-y-2 ${collapsed ? 'items-center px-0 py-3' : 'p-3'}`}>
         {!collapsed && profile?.full_name && (
