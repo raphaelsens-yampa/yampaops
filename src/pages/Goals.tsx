@@ -283,11 +283,25 @@ export default function GoalsPage() {
           <TabsList>
             <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
             <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
+            {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
+            {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="tracking" className="space-y-6">
             <GoalsTracking />
           </TabsContent>
+
+          {role === "admin" && (
+            <TabsContent value="categories" className="space-y-6">
+              <CategoryManager />
+            </TabsContent>
+          )}
+
+          {role === "admin" && (
+            <TabsContent value="finance" className="space-y-6">
+              <FinanceSettings />
+            </TabsContent>
+          )}
 
           <TabsContent value="setup" className="space-y-6">
             <div className="flex items-center justify-end gap-2">
