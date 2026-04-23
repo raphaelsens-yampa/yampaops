@@ -1,102 +1,64 @@
 
 
-# Motor de Comissionamento e Projeção Financeira
+## Painel de Acompanhamento de Metas (Mensal/Semanal/Diária)
 
-## Visão Geral
-Criar um módulo completo de comissões com regra T+2, clawback, tabela de produtos/preços e dashboards para vendedor e admin.
+Criar uma nova aba **"Acompanhamento"** dentro da página de Metas (`/goals`), separada da aba atual de cadastro. Esse painel mostra o progresso da equipe em três janelas temporais — **Diária, Semanal e Mensal** — comparando realizado vs. meta, com ranking individual por vendedor e agregação por equipe.
 
----
+### Estrutura da tela
 
-## 1. Novas Tabelas (Migration)
+```text
+/goals
+├── Tab: Cadastro de Metas    (tela atual)
+└── Tab: Acompanhamento        (NOVA)
+    ├── [Filtros: Período (Dia/Semana/Mês) | Data | Equipe | Vendedor]
+    ├── [Cards de KPI agregados]
+    │     MRR Realizado | Meta do Período | % Atingido | Pace (ritmo)
+    ├── [Gráfico: Realizado vs. Meta acumulado no período]
+    ├── [Tabela: Ranking por Vendedor]
+    │     Vendedor | Meta | Realizado | % | Gap | Status
+    └── [Tabela: Por Equipe]  (apenas admin)
+          Equipe | Meta consolidada | Realizado | % | Top performer
+```
 
-**`commission_products`** — Tabela de produtos e suas comissões:
-- `id`, `name` (ex: "+Sucesso", "+Lucro", "+Controle", "BPO Junior"...)
-- `subscription_commission` (decimal), `setup_commission` (decimal)
-- `annual_multiplier` (decimal, default 1.0), `monthly_multiplier` (decimal, default 1.0)
-- `created_at`, `updated_at`
+### Lógica de cálculo
 
-**`commission_settings`** — Parâmetros globais (single row):
-- `id`, `guarantee_months` (int, default 3), `payment_day` (int, default 10), `t_plus_months` (int, default 2)
-- `created_at`, `updated_at`
+| Janela | Período considerado | Meta usada |
+|---|---|---|
+| **Diária** | Hoje (00:00 → 23:59) | Meta mensal ÷ dias úteis do mês |
+| **Semanal** | Semana atual (seg → dom) | Meta mensal ÷ semanas do mês × dias úteis na semana |
+| **Mensal** | Mês selecionado | Meta cadastrada com `period_start`/`period_end` cobrindo o mês |
 
-**`commissions`** — Lançamentos individuais de comissão:
-- `id`, `opportunity_id` (FK), `seller_id` (FK profiles.user_id), `product_id` (FK commission_products)
-- `sale_date` (date), `payment_month` (date — mês de pagamento calculado T+2)
-- `commission_amount` (decimal), `type` (enum: 'earned' | 'clawback')
-- `status` (enum: 'provisioned' | 'paid' | 'reversed')
-- `created_at`
+**Realizado** = soma de `estimated_mrr` de oportunidades em estágios `is_won = true`, filtradas por `updated_at` dentro da janela.
 
-**Alteração em `opportunities`**:
-- Adicionar `is_active` (boolean, default true)
-- Adicionar `cancellation_date` (date, nullable)
-- Adicionar `product_id` (uuid, FK commission_products, nullable)
-- Adicionar `billing_type` (text: 'monthly' | 'annual', default 'monthly')
+**Pace** = (Realizado ÷ dias decorridos) × dias totais do período, indicando se está no ritmo para bater a meta.
 
-RLS: Admins ALL, Sellers SELECT own (by seller_id).
+**Status** colorido: verde (≥100%), amarelo (70–99%), vermelho (<70%).
 
----
+### Filtros e navegação
 
-## 2. Lógica de Negócio
+- Seletor de granularidade (Dia / Semana / Mês) com botões de navegação ◀ ▶ para o período anterior/próximo.
+- Filtro por equipe (apenas admin) — busca em `team_members` para resolver vendedores da equipe.
+- Filtro por vendedor individual.
+- Vendedor (não-admin) vê apenas seus próprios dados.
 
-**Geração de comissão**: Ao marcar oportunidade como Won, o sistema cria registro em `commissions` com:
-- `payment_month` = mês da venda + T+2
-- `commission_amount` = valor do produto × multiplicador (anual/mensal)
-- `status` = 'provisioned'
+### Detalhes técnicos
 
-**Clawback**: Ao marcar `is_active = false` em uma oportunidade:
-- Se `cancellation_date` < `sale_date + guarantee_months`, gera lançamento com `type = 'clawback'` e valor negativo no próximo ciclo de pagamento.
+**Arquivos a criar:**
+- `src/pages/Goals.tsx` — refatorar para usar `Tabs` (cadastro + acompanhamento)
+- `src/components/goals/GoalsTracking.tsx` — container do painel novo
+- `src/components/goals/PeriodNavigator.tsx` — seletor Dia/Semana/Mês + navegação
+- `src/components/goals/GoalKpiCards.tsx` — 4 cards de KPI
+- `src/components/goals/SellerRankingTable.tsx` — ranking por vendedor
+- `src/components/goals/TeamRankingTable.tsx` — agregação por equipe (admin)
+- `src/components/goals/GoalProgressChart.tsx` — gráfico de linha (Recharts) Realizado vs. Meta linear
 
----
+**Queries Supabase:**
+- `goals` filtrando por `scope` (company / team / user) e período sobreposto à janela
+- `opportunities` join com `pipeline_stages` (`is_won = true`), filtrando `updated_at` na janela
+- `profiles` + `team_members` + `teams` para nomes e agregação de equipe
+- RLS já existente garante que sellers veem apenas o que lhes pertence
 
-## 3. Novos Componentes e Páginas
+**Bibliotecas:** somente as já instaladas — `recharts`, `date-fns`, `lucide-react`, componentes shadcn (`Tabs`, `Card`, `Table`, `Select`, `Button`, `Badge`, `Progress`).
 
-**`src/pages/Commissions.tsx`** — Página principal com tabs:
-
-**Tab "Visão Vendedor"** (seller vê só o seu):
-- Card "Saldo Provisionado" (soma comissões provisioned)
-- Card "Próximo Recebimento" (soma do próximo mês de pagamento)
-- Gráfico de barras: MRR Fechado vs Meta
-- Tabela extrato: Cliente | Data Venda | Plano | Comissão | Data Crédito
-
-**Tab "Visão Admin"** (apenas admin):
-- Card "Provisão Total" (desembolso M+1 e M+2)
-- Ranking de Canais (origin) por comissão gerada e MRR
-- Tabela de todos os vendedores com totais
-
-**`src/pages/CommissionSettings.tsx`** (admin only):
-- CRUD de `commission_products` (tabela de preços)
-- Edição de `commission_settings` (meses garantia, T+, dia pagamento)
-
----
-
-## 4. Rotas e Sidebar
-
-- Adicionar "Comissões" na sidebar (ícone `DollarSign`), visível para admin e seller
-- Admin: rota `/commissions` e `/commissions/settings`
-- Seller: rota `/commissions` (apenas visão própria)
-
----
-
-## 5. Arquivos Afetados
-
-| Ação | Arquivo |
-|------|---------|
-| Criar | `supabase/migrations/..._commissions.sql` |
-| Criar | `src/pages/Commissions.tsx` |
-| Criar | `src/pages/CommissionSettings.tsx` |
-| Criar | `src/components/commissions/SellerCommissionView.tsx` |
-| Criar | `src/components/commissions/AdminCommissionView.tsx` |
-| Criar | `src/components/commissions/ProductPricingTable.tsx` |
-| Editar | `src/components/AppSidebar.tsx` (novo item) |
-| Editar | `src/App.tsx` (novas rotas) |
-| Editar | `src/components/EditOpportunityDialog.tsx` (campos is_active, product, billing_type) |
-
----
-
-## Detalhes Técnicos
-
-- Enums criados via SQL: `commission_type` ('earned', 'clawback'), `commission_status` ('provisioned', 'paid', 'reversed')
-- Cálculo T+2 feito no frontend ao criar comissão, armazenando `payment_month` diretamente
-- Seed de `commission_products` com os valores da tabela de referência (+Sucesso, +Lucro, +Controle, BPO)
-- Seed de `commission_settings` com defaults (3 meses garantia, dia 10, T+2)
+**Sem alterações de schema** — todas as informações necessárias já existem.
 
