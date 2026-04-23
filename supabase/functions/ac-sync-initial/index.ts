@@ -136,7 +136,7 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
           pipeline_id: localPipelineId,
           stage: stageSlug,
           estimated_mrr: d.value ? Number(d.value) / 100 : 0,
-          origin: "outbound",
+          origin: "freetrial",
         }, { onConflict: "ac_id" });
 
         if (dErr) {
