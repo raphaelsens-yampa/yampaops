@@ -344,6 +344,7 @@ export default function GoalsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Escopo</TableHead>
+                      <TableHead>Categoria</TableHead>
                       <TableHead>Detalhes</TableHead>
                       <TableHead>Período</TableHead>
                       <TableHead className="text-right">MRR Alvo</TableHead>
@@ -363,9 +364,11 @@ export default function GoalsPage() {
                       else if (g.scope === "campaign") details = g.campaign || "—";
                       else details = "Toda empresa";
 
+                      const cat = categories.find(c => c.id === g.category_id);
                       return (
                         <TableRow key={g.id}>
                           <TableCell><Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || g.scope || "Empresa"}</Badge></TableCell>
+                          <TableCell className="text-sm">{cat ? cat.name : "—"}</TableCell>
                           <TableCell className="text-sm">{details}</TableCell>
                           <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
                           <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
@@ -387,7 +390,7 @@ export default function GoalsPage() {
                       );
                     })}
                     {filteredGoals.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhuma meta</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Nenhuma meta</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
