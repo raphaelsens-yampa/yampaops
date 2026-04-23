@@ -80,7 +80,7 @@ export default function IntegrationAudit() {
   const statusBadge = (s: string | null | undefined) => {
     if (s === "running")
       return (
-        <Badge className="bg-amber-500/15 text-amber-600 hover:bg-amber-500/20 border-amber-500/30">
+        <Badge variant="outline" className="border-primary/40 text-primary">
           <Clock className="h-3 w-3 mr-1 animate-pulse" /> Em execução
         </Badge>
       );
@@ -91,7 +91,7 @@ export default function IntegrationAudit() {
         </Badge>
       );
     return (
-      <Badge className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/30">
+      <Badge variant="secondary">
         <CheckCircle2 className="h-3 w-3 mr-1" /> Ocioso
       </Badge>
     );
@@ -221,7 +221,7 @@ export default function IntegrationAudit() {
                         ) : r.truncated ? (
                           <Badge variant="outline" className="text-xs">Parcial</Badge>
                         ) : (
-                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-xs">OK</Badge>
+                          <Badge variant="secondary" className="text-xs">OK</Badge>
                         )}
                       </TableCell>
                     </TableRow>
