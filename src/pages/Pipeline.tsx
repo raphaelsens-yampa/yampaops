@@ -15,6 +15,9 @@ import { PipelineManager } from "@/components/PipelineManager";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
 import { EditOpportunityDialog } from "@/components/EditOpportunityDialog";
+import { StripePendingActions } from "@/components/StripePendingActions";
+
+const PENDING_STRIPE = "pendencias_stripe";
 
 interface Pipeline {
   id: string;
@@ -61,11 +64,21 @@ export default function PipelinePage() {
   useEffect(() => { if (currentPipelineId) { setLoading(true); loadData(); refetch(); } }, [currentPipelineId]);
 
   const handleDragEnd = async (result: DropResult) => {
-    const { draggableId, destination } = result;
+    const { draggableId, destination, source } = result;
     if (!destination) return;
     const newStage = destination.droppableId;
     const lead = leads.find(l => l.id === draggableId);
     if (!lead || lead.stage === newStage) return;
+
+    // Block manual drag in/out of Pendências Stripe — must use Aprovar/Rejeitar buttons
+    if (source.droppableId === PENDING_STRIPE || newStage === PENDING_STRIPE) {
+      toast({
+        title: "Use os botões",
+        description: "Itens em Pendências Stripe só saem via Aprovar ou Rejeitar.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Optimistic update
     setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, stage: newStage } : l));
@@ -162,8 +175,11 @@ export default function PipelinePage() {
                         {...provided.droppableProps}
                         className={`space-y-2 rounded-lg p-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
                       >
-                        {stageLeads.map((lead, index) => (
-                          <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                        {stageLeads.map((lead, index) => {
+                          const isPending = lead.stage === PENDING_STRIPE;
+                          const wonStage = stages.find((s) => s.is_won)?.slug || "ganho";
+                          return (
+                          <Draggable key={lead.id} draggableId={lead.id} index={index} isDragDisabled={isPending}>
                             {(provided, snapshot) => (
                               <div
                                 ref={provided.innerRef}
@@ -171,20 +187,32 @@ export default function PipelinePage() {
                                 {...provided.dragHandleProps}
                                 onDoubleClick={() => setEditingOpp(lead)}
                               >
-                                <Card className={`transition-shadow cursor-grab active:cursor-grabbing ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : "hover:shadow-md"}`}>
-                                  <CardContent className="p-3">
+                                <Card className={`transition-shadow ${isPending ? "border-warning/60 bg-warning/5 cursor-default" : "cursor-grab active:cursor-grabbing"} ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : "hover:shadow-md"}`}>
+                                  <CardContent className="p-3 space-y-1">
                                     <p className="font-medium text-sm">{lead.title || lead.name}</p>
                                     {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
                                     <div className="flex items-center justify-between mt-1 text-xs">
                                       <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
                                       <span className="text-muted-foreground">{ORIGIN_LABELS[lead.origin] || lead.origin}</span>
                                     </div>
+                                    {isPending && (
+                                      <StripePendingActions
+                                        opportunityId={lead.id}
+                                        stripeEmail={(lead as any).contacts?.email || (lead as any).contact?.email}
+                                        stripePriceId={(lead as any).stripe_price_id}
+                                        stripeMrr={lead.estimated_mrr}
+                                        pendingSince={(lead as any).stripe_pending_since}
+                                        wonSlug={wonStage}
+                                        onChanged={loadData}
+                                      />
+                                    )}
                                   </CardContent>
                                 </Card>
                               </div>
                             )}
                           </Draggable>
-                        ))}
+                          );
+                        })}
                         {provided.placeholder}
                       </div>
                     )}
