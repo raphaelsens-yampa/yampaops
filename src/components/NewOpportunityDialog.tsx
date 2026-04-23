@@ -95,7 +95,7 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
     setNewContactName(""); setNewContactEmail(""); setNewContactPhone(""); setNewContactCompany("");
     setOppTitle(""); setOppOrigin("freetrial"); setOppSubOrigin("");
     setOppMrr(""); setOppTpv(""); setOppProbability(""); setOppCloseDate("");
-    setOppConsultant(""); setOppStage("");
+    setOppConsultant(""); setOppStage(""); setOppCategory("");
   }
 
   function selectContact(contact: any) {
