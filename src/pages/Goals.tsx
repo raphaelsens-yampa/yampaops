@@ -86,6 +86,7 @@ export default function GoalsPage() {
     setGProspeccoes(""); setGRespostas(""); setGAgendamentos("");
     setGComparecimentos(""); setGConversoes("");
     setGTaxaResposta(""); setGTaxaAgendamento(""); setGTaxaComparecimento(""); setGTaxaConversao("");
+    setGCategory("none");
     setEditingGoal(null);
   }
 
@@ -110,6 +111,7 @@ export default function GoalsPage() {
     setGTaxaAgendamento(goal.target_taxa_agendamento ? (goal.target_taxa_agendamento * 100).toString() : "");
     setGTaxaComparecimento(goal.target_taxa_comparecimento ? (goal.target_taxa_comparecimento * 100).toString() : "");
     setGTaxaConversao(goal.target_taxa_conversao ? (goal.target_taxa_conversao * 100).toString() : "");
+    setGCategory(goal.category_id || "none");
     setOpen(true);
   }
 
@@ -134,6 +136,7 @@ export default function GoalsPage() {
       target_taxa_agendamento: parseRate(gTaxaAgendamento),
       target_taxa_comparecimento: parseRate(gTaxaComparecimento),
       target_taxa_conversao: parseRate(gTaxaConversao),
+      category_id: gCategory === "none" ? null : gCategory,
     };
   }
 
