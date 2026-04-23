@@ -1,64 +1,95 @@
 
 
-## Painel de Acompanhamento de Metas (Mensal/Semanal/Diária)
+## Quebra de Metas por Categoria (Sales / CS / Campanhas / Financeiro)
 
-Criar uma nova aba **"Acompanhamento"** dentro da página de Metas (`/goals`), separada da aba atual de cadastro. Esse painel mostra o progresso da equipe em três janelas temporais — **Diária, Semanal e Mensal** — comparando realizado vs. meta, com ranking individual por vendedor e agregação por equipe.
+Adicionar **categorias de meta** ao sistema, permitindo cadastrar e acompanhar metas específicas como New MRR, Recuperados, Upsell, Retenção, Recuperação de Churn, Downsell, Campanha MRR, LTV e CAC. O Acompanhamento ganha um filtro/agrupamento por categoria.
 
-### Estrutura da tela
+### 1. Schema (novas tabelas)
+
+**`goal_categories`** — lista mista (sistema + customizadas):
+- `id`, `name`, `slug`, `area` (`sales` | `cs` | `campaign` | `financial`), `metric_type` (`mrr` | `count` | `ratio` | `currency`), `is_system` (boolean), `is_active`, `description`
+- Seed inicial com as 8 categorias pré-definidas, marcadas `is_system = true` (não podem ser excluídas, só desativadas)
+
+**`finance_settings`** — configuração para cálculo de LTV/CAC:
+- `id`, `avg_churn_rate` (numeric), `avg_campaign_cost` (numeric), `updated_at`
+- Singleton (uma linha por organização)
+
+**Alterações em tabelas existentes:**
+- `goals` ← novo campo `category_id` (uuid, nullable, FK lógica para `goal_categories`)
+- `opportunities` ← novo campo `category_id` (uuid, nullable) — vendedor marca na criação/edição da oportunidade
+
+RLS: admin gerencia categorias e finance_settings; autenticados leem.
+
+### 2. Cadastro de Metas (`/goals` aba "Cadastro")
+
+- No formulário de Nova/Editar Meta, adicionar **Select "Categoria"** agrupado por área:
+  - **Sales**: New MRR, Recuperados, Upsell
+  - **CS**: Retenção (Pré-churn), Recuperação (Churn), Downsell
+  - **Campanhas**: Campanha MRR
+  - **Financeiro**: LTV, CAC, LTV/CAC
+- Nova subaba **"Categorias"** dentro de Cadastro (admin only):
+  - Tabela CRUD de categorias customizadas
+  - Botão "+ Nova Categoria" → modal com nome, área, tipo de métrica
+  - Categorias `is_system` aparecem como read-only (toggle ativo/inativo apenas)
+
+### 3. Configurações Financeiras
+
+Card adicional na aba Cadastro (admin only):
+- Inputs: **Churn médio (%)**, **Custo médio de campanha (R$)**
+- Salva em `finance_settings`
+- Usado para calcular LTV (MRR médio ÷ churn) e CAC (custo ÷ conversões)
+
+### 4. Marcação em Oportunidades
+
+- `EditOpportunityDialog` e `NewOpportunityDialog` ganham campo **"Categoria"** (Select com todas as categorias ativas)
+- Quando vendedor fecha a oportunidade (Won), o `category_id` define a qual meta ela contribui
+
+### 5. Acompanhamento (`/goals` aba "Acompanhamento")
+
+**Novo filtro "Categoria"** no topo:
+- Padrão: "Todas as categorias" (comportamento atual)
+- Selecionar categoria filtra: realizado, gráfico, ranking e KPIs apenas por aquela categoria
+
+**Nova seção "Acompanhamento por Categoria"** (`GoalsBreakdownByCategory.tsx`):
+- Cards agrupados por área (Sales / CS / Campanhas / Financeiro)
+- Cada card mostra: nome da categoria, meta, realizado, %, status colorido
+- Categorias **financeiras** (LTV, CAC, LTV/CAC) calculadas automaticamente:
+  - **LTV** = (MRR médio das oportunidades won) ÷ `avg_churn_rate`
+  - **CAC** = `avg_campaign_cost` ÷ (conversões da categoria "Campanha MRR" no período)
+  - **LTV/CAC** = LTV ÷ CAC
+
+### 6. Estrutura de arquivos
+
+**Novos:**
+- `src/lib/goalCategories.ts` — seed das 8 categorias do sistema, helpers de área
+- `src/components/goals/CategoryManager.tsx` — CRUD de categorias customizadas
+- `src/components/goals/FinanceSettings.tsx` — config de churn/CAC
+- `src/components/goals/GoalsBreakdownByCategory.tsx` — cards de progresso por categoria
+- Migração SQL: `goal_categories`, `finance_settings`, `goals.category_id`, `opportunities.category_id` + seed
+
+**Editados:**
+- `src/pages/Goals.tsx` — formulário com Select de categoria, subaba "Categorias", card de finanças
+- `src/components/goals/GoalsTracking.tsx` — filtro de categoria + render do breakdown
+- `src/components/EditOpportunityDialog.tsx` e `NewOpportunityDialog.tsx` — campo categoria
+- `src/integrations/supabase/types.ts` (auto-regenerado pela migração)
+
+### 7. Bibliotecas
+
+Sem novas dependências — apenas componentes shadcn (`Tabs`, `Card`, `Select`, `Table`, `Badge`, `Progress`).
+
+### Resumo do fluxo
 
 ```text
-/goals
-├── Tab: Cadastro de Metas    (tela atual)
-└── Tab: Acompanhamento        (NOVA)
-    ├── [Filtros: Período (Dia/Semana/Mês) | Data | Equipe | Vendedor]
-    ├── [Cards de KPI agregados]
-    │     MRR Realizado | Meta do Período | % Atingido | Pace (ritmo)
-    ├── [Gráfico: Realizado vs. Meta acumulado no período]
-    ├── [Tabela: Ranking por Vendedor]
-    │     Vendedor | Meta | Realizado | % | Gap | Status
-    └── [Tabela: Por Equipe]  (apenas admin)
-          Equipe | Meta consolidada | Realizado | % | Top performer
+Admin cadastra categorias → Admin cria meta (escopo + categoria + valores)
+       ↓
+Vendedor cria/edita oportunidade marcando a categoria
+       ↓
+Ao fechar (Won) → realizado é somado na categoria correspondente
+       ↓
+Acompanhamento mostra:
+  - Visão geral (todas categorias)
+  - Filtro por categoria específica
+  - Breakdown agrupado por área (Sales / CS / Campanhas / Financeiro)
+  - LTV e CAC calculados automaticamente via finance_settings
 ```
-
-### Lógica de cálculo
-
-| Janela | Período considerado | Meta usada |
-|---|---|---|
-| **Diária** | Hoje (00:00 → 23:59) | Meta mensal ÷ dias úteis do mês |
-| **Semanal** | Semana atual (seg → dom) | Meta mensal ÷ semanas do mês × dias úteis na semana |
-| **Mensal** | Mês selecionado | Meta cadastrada com `period_start`/`period_end` cobrindo o mês |
-
-**Realizado** = soma de `estimated_mrr` de oportunidades em estágios `is_won = true`, filtradas por `updated_at` dentro da janela.
-
-**Pace** = (Realizado ÷ dias decorridos) × dias totais do período, indicando se está no ritmo para bater a meta.
-
-**Status** colorido: verde (≥100%), amarelo (70–99%), vermelho (<70%).
-
-### Filtros e navegação
-
-- Seletor de granularidade (Dia / Semana / Mês) com botões de navegação ◀ ▶ para o período anterior/próximo.
-- Filtro por equipe (apenas admin) — busca em `team_members` para resolver vendedores da equipe.
-- Filtro por vendedor individual.
-- Vendedor (não-admin) vê apenas seus próprios dados.
-
-### Detalhes técnicos
-
-**Arquivos a criar:**
-- `src/pages/Goals.tsx` — refatorar para usar `Tabs` (cadastro + acompanhamento)
-- `src/components/goals/GoalsTracking.tsx` — container do painel novo
-- `src/components/goals/PeriodNavigator.tsx` — seletor Dia/Semana/Mês + navegação
-- `src/components/goals/GoalKpiCards.tsx` — 4 cards de KPI
-- `src/components/goals/SellerRankingTable.tsx` — ranking por vendedor
-- `src/components/goals/TeamRankingTable.tsx` — agregação por equipe (admin)
-- `src/components/goals/GoalProgressChart.tsx` — gráfico de linha (Recharts) Realizado vs. Meta linear
-
-**Queries Supabase:**
-- `goals` filtrando por `scope` (company / team / user) e período sobreposto à janela
-- `opportunities` join com `pipeline_stages` (`is_won = true`), filtrando `updated_at` na janela
-- `profiles` + `team_members` + `teams` para nomes e agregação de equipe
-- RLS já existente garante que sellers veem apenas o que lhes pertence
-
-**Bibliotecas:** somente as já instaladas — `recharts`, `date-fns`, `lucide-react`, componentes shadcn (`Tabs`, `Card`, `Table`, `Select`, `Button`, `Badge`, `Progress`).
-
-**Sem alterações de schema** — todas as informações necessárias já existem.
 
