@@ -13,6 +13,8 @@ import {
   startOfMonth, endOfMonth, eachDayOfInterval, isWeekend,
   differenceInCalendarDays, isAfter, startOfDay,
 } from "date-fns";
+import { GoalsBreakdownByCategory, type CategoryRow } from "./GoalsBreakdownByCategory";
+import { AREA_LABELS, FINANCIAL_SLUGS, type GoalCategory } from "@/lib/goalCategories";
 
 function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
@@ -26,12 +28,15 @@ export function GoalsTracking() {
   const [anchorDate, setAnchorDate] = useState<Date>(new Date());
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const [profiles, setProfiles] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
+  const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
   const [wonStageSlugs, setWonStageSlugs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
