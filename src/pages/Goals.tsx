@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GoalsTracking } from "@/components/goals/GoalsTracking";
 
 type GoalScope = "company" | "team" | "user" | "channel" | "campaign";
 
