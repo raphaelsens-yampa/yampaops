@@ -16,7 +16,7 @@ type NavItem = { title: string; url: string; icon: any; area?: string };
 // Itens "core" liberados a todos os autenticados (não dependem de permissão)
 const coreItems: NavItem[] = [
   { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
-  { title: "Gerador de Links de Ofertas YampaFin", url: "/link-builder", icon: Link2 },
+  { title: "Gerador de Ofertas YampaFin", url: "/link-builder", icon: Link2 },
 ];
 
 // Itens controlados pelo Nível de Acesso (área → menu)
