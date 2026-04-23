@@ -129,11 +129,13 @@ export default function ActiveCampaignIntegration() {
     try {
       const { data, error } = await supabase.functions.invoke("ac-sync-initial");
       if (error) throw error;
-      const t = data?.totals || {};
-      toast.success(`Sync concluído: ${t.dealsCount || 0} deals · ${t.contactsCount || 0} contatos · ${t.activitiesCount || 0} atividades`);
-      await loadAll();
+      toast.success(data?.message || "Sincronização iniciada em segundo plano");
+      // Poll for status updates
+      setTimeout(() => loadAll(), 5000);
+      setTimeout(() => loadAll(), 30000);
+      setTimeout(() => loadAll(), 90000);
     } catch (e: any) {
-      toast.error(e.message || "Erro na sincronização");
+      toast.error(e.message || "Erro ao iniciar sincronização");
     } finally {
       setSyncing(false);
     }

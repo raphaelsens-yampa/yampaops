@@ -77,7 +77,7 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
   const stageBySlug = new Map((localStages || []).map((s: any) => [s.ac_id, s.slug]));
 
   // 3. Fetch deals (paginated, capped to avoid edge timeout)
-  const MAX_DEALS_PER_RUN = 500;
+  const MAX_DEALS_PER_RUN = 200;
   let offset = 0;
   const limit = 100;
   const dealIds: string[] = [];
@@ -188,31 +188,42 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, message: "Nenhum pipeline selecionado", results: [] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const results: any[] = [];
-    const totals = { stagesCount: 0, dealsCount: 0, contactsCount: 0, activitiesCount: 0 };
+    // Run sync in background so HTTP doesn't time out (150s limit)
+    const backgroundWork = (async () => {
+      const results: any[] = [];
+      const totals = { stagesCount: 0, dealsCount: 0, contactsCount: 0, activitiesCount: 0 };
 
-    for (const sel of selected) {
-      try {
-        const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title);
-        results.push({ pipeline: sel.ac_pipeline_title, ...r });
-        totals.stagesCount += r.stagesCount;
-        totals.dealsCount += r.dealsCount;
-        totals.contactsCount += r.contactsCount;
-        totals.activitiesCount += r.activitiesCount;
-      } catch (e) {
-        const msg = errorMessage(e);
-        await logError("pipeline", sel.ac_pipeline_id, msg, sel);
-        results.push({ pipeline: sel.ac_pipeline_title, error: msg });
+      for (const sel of selected) {
+        try {
+          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title);
+          results.push({ pipeline: sel.ac_pipeline_title, ...r });
+          totals.stagesCount += r.stagesCount;
+          totals.dealsCount += r.dealsCount;
+          totals.contactsCount += r.contactsCount;
+          totals.activitiesCount += r.activitiesCount;
+        } catch (e) {
+          const msg = errorMessage(e);
+          await logError("pipeline", sel.ac_pipeline_id, msg, sel);
+          results.push({ pipeline: sel.ac_pipeline_title, error: msg });
+        }
       }
-    }
 
-    await service.from("integration_settings").update({
-      sync_status: "idle",
-      last_full_sync_at: new Date().toISOString(),
-      sync_log: { results, totals, ranAt: new Date().toISOString() },
-    }).neq("id", "00000000-0000-0000-0000-000000000000");
+      await service.from("integration_settings").update({
+        sync_status: "idle",
+        last_full_sync_at: new Date().toISOString(),
+        sync_log: { results, totals, ranAt: new Date().toISOString() },
+      }).neq("id", "00000000-0000-0000-0000-000000000000");
+    })();
 
-    return new Response(JSON.stringify({ ok: true, results, totals }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(backgroundWork);
+    else backgroundWork.catch((e) => console.error("bg sync error", e));
+
+    return new Response(JSON.stringify({
+      ok: true,
+      message: "Sincronização iniciada em segundo plano. Acompanhe o status na página em alguns minutos.",
+      pipelines: selected.length,
+    }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     await service.from("integration_settings").update({ sync_status: "error" }).neq("id", "00000000-0000-0000-0000-000000000000");
