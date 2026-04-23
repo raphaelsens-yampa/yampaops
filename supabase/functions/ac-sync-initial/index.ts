@@ -12,19 +12,30 @@ const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABA
 
 // Throttle: AC limit is 5 req/s
 async function acFetch(path: string): Promise<any> {
-  const res = await fetch(`${AC_API_URL}${path}`, {
-    headers: { "Api-Token": AC_API_KEY, "Accept": "application/json" },
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`AC ${path} -> ${res.status}: ${txt.slice(0, 200)}`);
+  try {
+    const res = await fetch(`${AC_API_URL}${path}`, {
+      headers: { "Api-Token": AC_API_KEY, "Accept": "application/json" },
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`AC ${path} -> ${res.status}: ${txt.slice(0, 200)}`);
+    }
+    await new Promise((r) => setTimeout(r, 220)); // ~4.5 req/s
+    return await res.json();
+  } catch (e) {
+    if (e instanceof Error) throw e;
+    throw new Error(`AC fetch failed: ${String(e)}`);
   }
-  await new Promise((r) => setTimeout(r, 220)); // ~4.5 req/s
-  return res.json();
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message + (e.stack ? ` | ${e.stack.split("\n")[1] || ""}` : "");
+  if (typeof e === "string") return e;
+  try { return JSON.stringify(e); } catch { return String(e); }
 }
 
 async function logError(entity_type: string, ac_id: string | null, error_message: string, payload: any) {
-  await service.from("integration_sync_errors").insert({ entity_type, ac_id, error_message, payload });
+  await service.from("integration_sync_errors").insert({ entity_type, ac_id, error_message: error_message || "Unknown (empty)", payload });
 }
 
 async function findUserByEmail(email: string | null | undefined): Promise<string | null> {
