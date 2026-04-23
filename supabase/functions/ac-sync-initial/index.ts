@@ -106,6 +106,10 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
     const contactsMap = new Map(includedContacts.map((c: any) => [c.id, c]));
 
     for (const d of deals) {
+      if (alreadySynced.has(String(d.id))) {
+        skipped++;
+        continue;
+      }
       if (dealsCount >= MAX_DEALS_PER_RUN) {
         truncated = true;
         break outer;
