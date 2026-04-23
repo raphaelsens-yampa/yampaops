@@ -359,6 +359,8 @@ export function EditOpportunityDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label>MRR (R$)</Label>
               <Input type="number" value={mrr} onChange={e => setMrr(e.target.value)} />
