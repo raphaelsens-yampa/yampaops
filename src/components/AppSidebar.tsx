@@ -43,8 +43,9 @@ export function AppSidebar() {
     role === "admin" ? true : canView(it.area as any),
   );
   // Seller sem dashboard liberada → mostra "Meu Pipeline" como home
+  // Itens sem `area` definida são liberados a todos
   const items: NavItem[] = [...visibleGuarded, ...coreItems.filter((it) =>
-    role === "admin" ? true : canView(it.area as any),
+    !it.area || role === "admin" ? true : canView(it.area as any),
   )];
 
   return (
