@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { Plus, Search, UserPlus, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 interface NewOpportunityDialogProps {
   profiles: any[];
@@ -47,6 +48,13 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
   const [oppCloseDate, setOppCloseDate] = useState("");
   const [oppConsultant, setOppConsultant] = useState("");
   const [oppStage, setOppStage] = useState("");
+  const [oppCategory, setOppCategory] = useState("");
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
+
+  useEffect(() => {
+    supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name")
+      .then(({ data }) => setCategories((data as GoalCategory[]) || []));
+  }, []);
 
   const searchContacts = useCallback(async (query: string) => {
     if (query.length < 2) {
