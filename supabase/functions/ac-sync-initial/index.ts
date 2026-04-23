@@ -77,7 +77,7 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
   const stageBySlug = new Map((localStages || []).map((s: any) => [s.ac_id, s.slug]));
 
   // 3. Fetch deals (paginated, capped to avoid edge timeout)
-  const MAX_DEALS_PER_RUN = 500;
+  const MAX_DEALS_PER_RUN = 200;
   let offset = 0;
   const limit = 100;
   const dealIds: string[] = [];
