@@ -209,8 +209,8 @@ export default function UsersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                              {u.role === "admin" ? "Admin" : "Seller"}
+                            <Badge variant={u.role === "admin" ? "default" : u.role === "tatico" ? "outline" : "secondary"}>
+                              {u.role === "admin" ? "Admin" : u.role === "tatico" ? "Tático" : "Seller"}
                             </Badge>
                           </TableCell>
                           <TableCell>
