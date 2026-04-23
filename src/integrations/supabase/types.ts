@@ -568,9 +568,14 @@ export type Database = {
           notes: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
           pipeline_id: string | null
+          previous_stage: string | null
           probability: number | null
           product_id: string | null
           stage: string
+          stripe_customer_id: string | null
+          stripe_pending_since: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
           sub_origin: string | null
           take_rate: number | null
           title: string | null
@@ -597,9 +602,14 @@ export type Database = {
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
           pipeline_id?: string | null
+          previous_stage?: string | null
           probability?: number | null
           product_id?: string | null
           stage?: string
+          stripe_customer_id?: string | null
+          stripe_pending_since?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           sub_origin?: string | null
           take_rate?: number | null
           title?: string | null
@@ -626,9 +636,14 @@ export type Database = {
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
           pipeline_id?: string | null
+          previous_stage?: string | null
           probability?: number | null
           product_id?: string | null
           stage?: string
+          stripe_customer_id?: string | null
+          stripe_pending_since?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           sub_origin?: string | null
           take_rate?: number | null
           title?: string | null
@@ -771,6 +786,36 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_events: {
+        Row: {
+          event_type: string
+          id: string
+          matched_opportunity_id: string | null
+          payload: Json
+          processed_at: string
+          result: string | null
+          stripe_event_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          matched_opportunity_id?: string | null
+          payload?: Json
+          processed_at?: string
+          result?: string | null
+          stripe_event_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          matched_opportunity_id?: string | null
+          payload?: Json
+          processed_at?: string
+          result?: string | null
+          stripe_event_id?: string
         }
         Relationships: []
       }
