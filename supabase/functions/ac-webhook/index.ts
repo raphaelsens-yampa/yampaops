@@ -110,7 +110,7 @@ async function processDeal(payload: any) {
     pipeline_id: localPipelineId,
     stage: stageSlug,
     estimated_mrr: deal.value ? Number(deal.value) / 100 : 0,
-    origin: "outbound",
+    origin: "freetrial",
   }, { onConflict: "ac_id" });
 
   if (error) {
