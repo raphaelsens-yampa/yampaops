@@ -36,10 +36,12 @@ export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
+  const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [filterScope, setFilterScope] = useState<string>("all");
+  const [gCategory, setGCategory] = useState<string>("none");
 
   // Form state
   const [gScope, setGScope] = useState<GoalScope>("company");
