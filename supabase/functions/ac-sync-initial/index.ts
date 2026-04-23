@@ -12,19 +12,30 @@ const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABA
 
 // Throttle: AC limit is 5 req/s
 async function acFetch(path: string): Promise<any> {
-  const res = await fetch(`${AC_API_URL}${path}`, {
-    headers: { "Api-Token": AC_API_KEY, "Accept": "application/json" },
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`AC ${path} -> ${res.status}: ${txt.slice(0, 200)}`);
+  try {
+    const res = await fetch(`${AC_API_URL}${path}`, {
+      headers: { "Api-Token": AC_API_KEY, "Accept": "application/json" },
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`AC ${path} -> ${res.status}: ${txt.slice(0, 200)}`);
+    }
+    await new Promise((r) => setTimeout(r, 220)); // ~4.5 req/s
+    return await res.json();
+  } catch (e) {
+    if (e instanceof Error) throw e;
+    throw new Error(`AC fetch failed: ${String(e)}`);
   }
-  await new Promise((r) => setTimeout(r, 220)); // ~4.5 req/s
-  return res.json();
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message + (e.stack ? ` | ${e.stack.split("\n")[1] || ""}` : "");
+  if (typeof e === "string") return e;
+  try { return JSON.stringify(e); } catch { return String(e); }
 }
 
 async function logError(entity_type: string, ac_id: string | null, error_message: string, payload: any) {
-  await service.from("integration_sync_errors").insert({ entity_type, ac_id, error_message, payload });
+  await service.from("integration_sync_errors").insert({ entity_type, ac_id, error_message: error_message || "Unknown (empty)", payload });
 }
 
 async function findUserByEmail(email: string | null | undefined): Promise<string | null> {
@@ -65,18 +76,30 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
   const { data: localStages } = await service.from("pipeline_stages").select("id, ac_id, slug").eq("pipeline_id", localPipelineId);
   const stageBySlug = new Map((localStages || []).map((s: any) => [s.ac_id, s.slug]));
 
-  // 3. Fetch deals (paginated)
+  // 3. Fetch deals (paginated, capped to avoid edge timeout)
+  const MAX_DEALS_PER_RUN = 500;
   let offset = 0;
   const limit = 100;
   const dealIds: string[] = [];
+  let truncated = false;
 
-  while (true) {
-    const dealsRes = await acFetch(`/api/3/deals?filters[group]=${acPipelineId}&limit=${limit}&offset=${offset}&include=contact`);
+  outer: while (true) {
+    let dealsRes: any;
+    try {
+      dealsRes = await acFetch(`/api/3/deals?filters[group]=${acPipelineId}&limit=${limit}&offset=${offset}&include=contact`);
+    } catch (e) {
+      await logError("deal_page", acPipelineId, errorMessage(e), { offset, limit });
+      break;
+    }
     const deals = dealsRes.deals || [];
     const includedContacts = dealsRes.contacts || [];
     const contactsMap = new Map(includedContacts.map((c: any) => [c.id, c]));
 
     for (const d of deals) {
+      if (dealsCount >= MAX_DEALS_PER_RUN) {
+        truncated = true;
+        break outer;
+      }
       try {
         // 3a. Sync contact first
         let localContactId: string | null = null;
@@ -98,19 +121,8 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
           }
         }
 
-        // 3b. Map owner to consultant_id
+        // 3b. Map owner to consultant_id (skip the extra AC fetch — too expensive on big pipelines)
         const consultantId = await findUserByEmail(d.ownerEmail || d.owner_email);
-        if (d.owner && !consultantId) {
-          // Try fetching user from AC
-          try {
-            const u = await acFetch(`/api/3/users/${d.owner}`);
-            const ownerEmail = u.user?.email;
-            const cid = await findUserByEmail(ownerEmail);
-            if (!cid && ownerEmail) {
-              await logError("deal_owner", String(d.id), `Owner ${ownerEmail} not found in profiles`, { dealId: d.id, email: ownerEmail });
-            }
-          } catch (_) { /* ignore */ }
-        }
 
         const stageSlug = stageBySlug.get(String(d.stage)) ?? "novo_lead";
 
@@ -134,7 +146,7 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
           dealIds.push(String(d.id));
         }
       } catch (e) {
-        await logError("deal", String(d.id), e instanceof Error ? e.message : "Unknown", d);
+        await logError("deal", String(d.id), errorMessage(e), d);
       }
     }
 
@@ -142,36 +154,14 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
     offset += limit;
   }
 
-  // 4. Sync notes for these deals (best effort, limited to first 50 deals to avoid huge syncs)
-  for (const acDealId of dealIds.slice(0, 50)) {
-    try {
-      const notesRes = await acFetch(`/api/3/deals/${acDealId}/dealNotes?limit=20`);
-      const notes = notesRes.dealNotes || [];
-      const { data: opp } = await service.from("opportunities").select("id, consultant_id").eq("ac_id", acDealId).maybeSingle();
-      if (!opp) continue;
-
-      for (const n of notes) {
-        await service.from("activities").upsert({
-          ac_id: `note-${n.id}`,
-          lead_id: opp.id,
-          opportunity_id: opp.id,
-          user_id: opp.consultant_id || (await service.from("profiles").select("user_id").limit(1).single()).data?.user_id,
-          type: "mensagem_enviada",
-          notes: n.note || "",
-        }, { onConflict: "ac_id" });
-        activitiesCount++;
-      }
-    } catch (e) {
-      await logError("notes", acDealId, e instanceof Error ? e.message : "Unknown", { dealId: acDealId });
-    }
-  }
+  // 4. Notes sync skipped on initial pull (too expensive on big pipelines, comes via webhook)
 
   await service.from("ac_pipeline_selection").update({
     local_pipeline_id: localPipelineId,
     last_synced_at: new Date().toISOString(),
   }).eq("ac_pipeline_id", acPipelineId);
 
-  return { stagesCount, dealsCount, contactsCount, activitiesCount };
+  return { stagesCount, dealsCount, contactsCount, activitiesCount, truncated };
 }
 
 Deno.serve(async (req) => {
@@ -199,7 +189,7 @@ Deno.serve(async (req) => {
     }
 
     const results: any[] = [];
-    let totals = { stagesCount: 0, dealsCount: 0, contactsCount: 0, activitiesCount: 0 };
+    const totals = { stagesCount: 0, dealsCount: 0, contactsCount: 0, activitiesCount: 0 };
 
     for (const sel of selected) {
       try {
@@ -210,7 +200,7 @@ Deno.serve(async (req) => {
         totals.contactsCount += r.contactsCount;
         totals.activitiesCount += r.activitiesCount;
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Unknown";
+        const msg = errorMessage(e);
         await logError("pipeline", sel.ac_pipeline_id, msg, sel);
         results.push({ pipeline: sel.ac_pipeline_title, error: msg });
       }

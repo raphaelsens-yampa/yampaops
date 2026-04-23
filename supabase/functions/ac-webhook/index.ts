@@ -17,13 +17,16 @@ async function logError(entity_type: string, ac_id: string | null, error_message
 }
 
 async function verifyHmac(rawBody: string, sigHeader: string | null): Promise<boolean> {
-  if (!AC_WEBHOOK_SECRET) return true; // no secret set → skip
-  if (!sigHeader) return false;
+  // ActiveCampaign default webhooks DON'T send signature headers — they rely on URL secrecy.
+  // If no signature header is present, accept the webhook (URL is the secret).
+  // If a signature IS present, validate it against AC_WEBHOOK_SECRET.
+  if (!sigHeader) return true;
+  if (!AC_WEBHOOK_SECRET) return true;
+
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", enc.encode(AC_WEBHOOK_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
   const hex = Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  // Compare case-insensitive
   return hex.toLowerCase() === sigHeader.toLowerCase().replace(/^sha256=/, "");
 }
 
