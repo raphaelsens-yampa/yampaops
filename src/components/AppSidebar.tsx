@@ -125,7 +125,7 @@ export function AppSidebar() {
     },
     {
       key: "comercial",
-      label: "Comercial",
+      label: "Administrativo",
       items: [
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
