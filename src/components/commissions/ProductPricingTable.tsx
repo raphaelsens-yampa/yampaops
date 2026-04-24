@@ -199,6 +199,7 @@ export function ProductPricingTable() {
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Comissão (%)</TableHead>
+                <TableHead>Base</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -212,6 +213,11 @@ export function ProductPricingTable() {
                   <TableCell className="text-right">{fmt(p.plan_value)}</TableCell>
                   <TableCell className="text-right">{fmt(p.plan_mrr)}</TableCell>
                   <TableCell className="text-right">{p.commission_percent}%</TableCell>
+                  <TableCell>
+                    <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                      {p.commission_base === "value" ? "Valor" : "MRR"}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
