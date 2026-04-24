@@ -160,7 +160,7 @@ export default function PipelinePage() {
               const stageMRR = stageLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
               const color = stageColors[stage];
               return (
-                <div key={stage} className="min-w-[260px] flex-shrink-0">
+                <div key={stage} className="min-w-[260px] flex-shrink-0 flex flex-col h-full">
                   <div className="mb-2 px-1">
                     <div className="flex items-center gap-2">
                       {color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />}
@@ -174,7 +174,7 @@ export default function PipelinePage() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`space-y-2 rounded-lg p-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
+                        className={`space-y-2 rounded-lg p-2 min-h-[120px] flex-1 overflow-y-auto transition-colors ${snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
                       >
                         {stageLeads.map((lead, index) => {
                           const isPending = lead.stage === PENDING_STRIPE;
