@@ -337,6 +337,12 @@ async function handleMessageCreated(payload: any) {
     opportunityId: ctx.opportunityId,
     userId,
   });
+
+  // Tag "Mensagem respondida" only on incoming (cliente respondeu)
+  if (activityType === "resposta_recebida") {
+    await applyTagForEvent(ctx.opportunityId, "message_replied");
+  }
+
   await bumpOpportunityInteraction(ctx.opportunityId);
   return result;
 }
