@@ -60,17 +60,18 @@ export default function AdminDashboard() {
   const wonSlug = wonStage?.slug || "fechado_won";
   const lostSlug = lostStage?.slug || "perdido";
 
-  const activeLeads = leads.filter(l => l.stage !== wonSlug && l.stage !== lostSlug);
-  const wonLeads = leads.filter(l => l.stage === wonSlug);
+  // Use converted_at as the canonical "won" indicator across all pipelines
+  const activeLeads = leads.filter(l => !l.converted_at && l.stage !== lostSlug && l.stage !== "perdido");
+  const wonLeads = leads.filter(l => l.converted_at);
   const totalPipelineMRR = activeLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
   const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
-  const totalLeads = leads.filter(l => l.stage !== lostSlug).length;
+  const totalLeads = leads.filter(l => l.stage !== lostSlug && l.stage !== "perdido").length;
   const convRate = totalLeads > 0 ? ((wonLeads.length / totalLeads) * 100).toFixed(1) : "0";
 
   const wonDays = wonLeads.map(l => {
     const created = new Date(l.created_at).getTime();
-    const updated = new Date(l.updated_at).getTime();
-    return (updated - created) / (1000 * 60 * 60 * 24);
+    const wonAt = new Date(l.converted_at || l.updated_at).getTime();
+    return (wonAt - created) / (1000 * 60 * 60 * 24);
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
