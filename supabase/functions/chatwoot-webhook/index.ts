@@ -387,11 +387,16 @@ async function handleConversationUpdated(payload: any) {
     }
   }
 
+  // Always apply tag based on which event came in
+  if (payload.event === "conversation_status_changed") {
+    await applyTagForEvent(ctx.opportunityId, "conversation_status_changed");
+  } else {
+    await applyTagForEvent(ctx.opportunityId, "conversation_updated");
+  }
+
   await bumpOpportunityInteraction(ctx.opportunityId);
   return { ok: true };
 }
-
-Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   if (req.method !== "POST") {
