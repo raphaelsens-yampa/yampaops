@@ -80,6 +80,8 @@ export type Database = {
       activities: {
         Row: {
           ac_id: string | null
+          chatwoot_conversation_id: number | null
+          chatwoot_message_id: number | null
           created_at: string
           id: string
           lead_id: string
@@ -92,6 +94,8 @@ export type Database = {
         }
         Insert: {
           ac_id?: string | null
+          chatwoot_conversation_id?: number | null
+          chatwoot_message_id?: number | null
           created_at?: string
           id?: string
           lead_id: string
@@ -104,6 +108,8 @@ export type Database = {
         }
         Update: {
           ac_id?: string | null
+          chatwoot_conversation_id?: number | null
+          chatwoot_message_id?: number | null
           created_at?: string
           id?: string
           lead_id?: string
@@ -130,6 +136,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      chatwoot_conversations: {
+        Row: {
+          chatwoot_account_id: number
+          chatwoot_conversation_id: number
+          chatwoot_inbox_id: number | null
+          contact_email: string | null
+          contact_id: string | null
+          contact_phone: string | null
+          created_at: string
+          last_message_at: string | null
+          opportunity_id: string | null
+          status: string
+          tabulacao_atendimento: string | null
+          updated_at: string
+        }
+        Insert: {
+          chatwoot_account_id: number
+          chatwoot_conversation_id: number
+          chatwoot_inbox_id?: number | null
+          contact_email?: string | null
+          contact_id?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          last_message_at?: string | null
+          opportunity_id?: string | null
+          status?: string
+          tabulacao_atendimento?: string | null
+          updated_at?: string
+        }
+        Update: {
+          chatwoot_account_id?: number
+          chatwoot_conversation_id?: number
+          chatwoot_inbox_id?: number | null
+          contact_email?: string | null
+          contact_id?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          last_message_at?: string | null
+          opportunity_id?: string | null
+          status?: string
+          tabulacao_atendimento?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       commission_products: {
         Row: {
@@ -487,6 +538,10 @@ export type Database = {
         Row: {
           ac_account_url: string | null
           ac_webhook_secret: string | null
+          chatwoot_account_id: number | null
+          chatwoot_base_url: string | null
+          chatwoot_last_event_at: string | null
+          chatwoot_webhook_secret: string | null
           created_at: string
           id: string
           last_full_sync_at: string | null
@@ -497,6 +552,10 @@ export type Database = {
         Insert: {
           ac_account_url?: string | null
           ac_webhook_secret?: string | null
+          chatwoot_account_id?: number | null
+          chatwoot_base_url?: string | null
+          chatwoot_last_event_at?: string | null
+          chatwoot_webhook_secret?: string | null
           created_at?: string
           id?: string
           last_full_sync_at?: string | null
@@ -507,6 +566,10 @@ export type Database = {
         Update: {
           ac_account_url?: string | null
           ac_webhook_secret?: string | null
+          chatwoot_account_id?: number | null
+          chatwoot_base_url?: string | null
+          chatwoot_last_event_at?: string | null
+          chatwoot_webhook_secret?: string | null
           created_at?: string
           id?: string
           last_full_sync_at?: string | null
@@ -1000,6 +1063,7 @@ export type Database = {
         | "reuniao_executada"
         | "whatsapp"
         | "proposta"
+        | "chatwoot_status_change"
       app_role: "admin" | "seller" | "tatico"
       attribution_model: "first_click" | "last_click"
       commission_status: "provisioned" | "paid" | "reversed"
@@ -1154,6 +1218,7 @@ export const Constants = {
         "reuniao_executada",
         "whatsapp",
         "proposta",
+        "chatwoot_status_change",
       ],
       app_role: ["admin", "seller", "tatico"],
       attribution_model: ["first_click", "last_click"],
