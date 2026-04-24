@@ -98,7 +98,7 @@ export default function PipelinePage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="flex flex-col h-[calc(100vh-3.5rem-3rem)] gap-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-heading font-bold">
