@@ -16,6 +16,9 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { useToast } from "@/hooks/use-toast";
 import { EditOpportunityDialog } from "@/components/EditOpportunityDialog";
 import { StripePendingActions } from "@/components/StripePendingActions";
+import { useOpportunityTags, useTags } from "@/hooks/useTags";
+import { TagChip } from "@/components/tags/TagChip";
+import { format } from "date-fns";
 
 const PENDING_STRIPE = "pendencias_stripe";
 
