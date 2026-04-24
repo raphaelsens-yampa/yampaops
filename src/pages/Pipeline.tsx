@@ -98,7 +98,7 @@ export default function PipelinePage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="flex flex-col h-[calc(100vh-3.5rem-3rem)] gap-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-heading font-bold">
@@ -153,13 +153,14 @@ export default function PipelinePage() {
         </div>
 
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-4 pb-2 items-start h-full">
             {stageOrder.map(stage => {
               const stageLeads = filtered.filter(l => l.stage === stage);
               const stageMRR = stageLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
               const color = stageColors[stage];
               return (
-                <div key={stage} className="min-w-[260px] flex-shrink-0">
+                <div key={stage} className="min-w-[260px] flex-shrink-0 flex flex-col h-full">
                   <div className="mb-2 px-1">
                     <div className="flex items-center gap-2">
                       {color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />}
@@ -173,7 +174,7 @@ export default function PipelinePage() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`space-y-2 rounded-lg p-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
+                        className={`space-y-2 rounded-lg p-2 min-h-[120px] flex-1 overflow-y-auto transition-colors ${snapshot.isDraggingOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
                       >
                         {stageLeads.map((lead, index) => {
                           const isPending = lead.stage === PENDING_STRIPE;
@@ -220,6 +221,7 @@ export default function PipelinePage() {
                 </div>
               );
             })}
+            </div>
           </div>
         </DragDropContext>
 
