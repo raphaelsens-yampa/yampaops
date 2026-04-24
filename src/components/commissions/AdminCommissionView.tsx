@@ -79,7 +79,7 @@ export function AdminCommissionView({ commissions, profiles, loading, filterMont
         return { id, name: p?.full_name || p?.email || id, ...v, net: v.earned - v.clawback };
       }).sort((a, b) => b.net - a.net),
     };
-  }, [filtered, profiles, filterMonth]);
+  }, [filtered, commissions, profiles, filterMonth]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtMonth = (d: string) => new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
