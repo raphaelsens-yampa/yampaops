@@ -63,6 +63,7 @@ export function ProductPricingTable() {
       plan_value: p.plan_value.toString(),
       plan_mrr: p.plan_mrr.toString(),
       commission_percent: p.commission_percent.toString(),
+      commission_base: (p.commission_base as CommissionBase) || "mrr",
     });
     setDialogOpen(true);
   };
