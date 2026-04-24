@@ -319,9 +319,9 @@ export function ProductPricingTable() {
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">Carregando...</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative max-h-[600px] overflow-auto rounded-md border border-border">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
                 <TableRow>
                   <TableHead>Product ID</TableHead>
                   <TableHead>Produto</TableHead>
@@ -329,8 +329,9 @@ export function ProductPricingTable() {
                   <TableHead>Periodicidade</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-right">MRR</TableHead>
-                  <TableHead className="text-right">% Com.</TableHead>
                   <TableHead>Base</TableHead>
+                  <TableHead className="text-right">% Com.</TableHead>
+                  <TableHead className="text-right">$ Com.</TableHead>
                   <TableHead>Stripe Price ID</TableHead>
                   <TableHead>Price Name</TableHead>
                   <TableHead>Área</TableHead>
@@ -339,7 +340,10 @@ export function ProductPricingTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((p) => (
+                {filteredProducts.map((p) => {
+                  const baseAmount = p.commission_base === "value" ? p.plan_value : p.plan_mrr;
+                  const commissionAmount = (baseAmount * p.commission_percent) / 100;
+                  return (
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-xs">{p.product_id || "—"}</TableCell>
                     <TableCell className="font-medium">{p.name}</TableCell>
@@ -347,12 +351,13 @@ export function ProductPricingTable() {
                     <TableCell>{p.periodicity}</TableCell>
                     <TableCell className="text-right">{fmt(p.plan_value)}</TableCell>
                     <TableCell className="text-right">{fmt(p.plan_mrr)}</TableCell>
-                    <TableCell className="text-right">{p.commission_percent}%</TableCell>
                     <TableCell>
                       <span className="text-xs px-2 py-0.5 rounded bg-muted">
                         {p.commission_base === "value" ? "Valor" : "MRR"}
                       </span>
                     </TableCell>
+                    <TableCell className="text-right">{p.commission_percent}%</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(commissionAmount)}</TableCell>
                     <TableCell className="font-mono text-xs">{p.stripe_price_id || "—"}</TableCell>
                     <TableCell>{p.price_name || "—"}</TableCell>
                     <TableCell>{p.area || "—"}</TableCell>
@@ -368,10 +373,11 @@ export function ProductPricingTable() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {filteredProducts.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={14} className="text-center text-muted-foreground py-6">
                       {search ? "Nenhum produto encontrado." : "Nenhum produto cadastrado."}
                     </TableCell>
                   </TableRow>

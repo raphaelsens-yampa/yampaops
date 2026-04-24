@@ -91,9 +91,9 @@ export default function CommissionSettings() {
           </CardContent>
         </Card>
 
-        <ProductPricingTable />
-        
         <CommissionTriggersTable />
+
+        <ProductPricingTable />
       </div>
     </Layout>
   );
