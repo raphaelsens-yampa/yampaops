@@ -24,7 +24,7 @@ type NavItem = {
   icon: any;
   area?: CrmAreaKey;
   adminOnly?: boolean;
-  rightSlot?: "ac-status";
+  rightSlot?: "ac-status" | "stripe-status";
 };
 
 type Group = {
@@ -80,6 +80,36 @@ function ACStatusDot() {
       : data?.last_full_sync_at
       ? "Sincronização ativa"
       : "Nunca sincronizado";
+
+  return (
+    <span
+      title={title}
+      className={cn("ml-auto h-2 w-2 rounded-full shrink-0", cls)}
+      aria-label={title}
+    />
+  );
+}
+
+function StripeStatusDot() {
+  const { data } = useQuery({
+    queryKey: ["stripe-sidebar-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stripe-test-connection");
+      if (error) return { ok: false } as { ok: boolean; webhook_secret_configured?: boolean };
+      return data as { ok: boolean; webhook_secret_configured?: boolean };
+    },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  const ok = !!data?.ok;
+  const cls = ok ? "bg-success" : "bg-destructive";
+  const title = ok
+    ? data?.webhook_secret_configured
+      ? "Stripe conectado e webhook validado"
+      : "Stripe conectado (webhook sem validação)"
+    : "Stripe desconectado";
 
   return (
     <span
@@ -151,7 +181,7 @@ export function AppSidebar() {
       adminOnly: true,
       items: [
         { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug, adminOnly: true, rightSlot: "ac-status" },
-        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, adminOnly: true },
+        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, adminOnly: true, rightSlot: "stripe-status" },
         { title: "Auditoria", url: "/integrations/audit", icon: Activity, adminOnly: true },
       ],
     },
@@ -195,6 +225,7 @@ export function AppSidebar() {
           <item.icon className="h-4 w-4" />
           <span>{item.title}</span>
           {!collapsed && item.rightSlot === "ac-status" && <ACStatusDot />}
+          {!collapsed && item.rightSlot === "stripe-status" && <StripeStatusDot />}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
