@@ -18,6 +18,12 @@ import { TagPicker } from "@/components/tags/TagPicker";
 import { useOpportunityTags } from "@/hooks/useTags";
 import { format } from "date-fns";
 
+function OpportunityTagSection({ opportunityId }: { opportunityId: string }) {
+  const { data: tagMap = {} } = useOpportunityTags([opportunityId]);
+  const selectedIds = tagMap[opportunityId] || [];
+  return <TagPicker opportunityId={opportunityId} selectedTagIds={selectedIds} />;
+}
+
 interface StripePrice {
   id: string;
   price_id: string;
