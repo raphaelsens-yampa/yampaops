@@ -21,6 +21,7 @@ import Imports from "./pages/Imports";
 import LinkBuilder from "./pages/LinkBuilder";
 import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
 import StripeIntegration from "./pages/StripeIntegration";
+import ChatwootIntegration from "./pages/ChatwootIntegration";
 import IntegrationAudit from "./pages/IntegrationAudit";
 import NotFound from "./pages/NotFound";
 
@@ -60,6 +61,7 @@ function AppRoutes() {
         <Route path="/link-builder" element={<LinkBuilder />} />
         <Route path="/integrations/active-campaign" element={<ActiveCampaignIntegration />} />
         <Route path="/integrations/stripe" element={<StripeIntegration />} />
+        <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
         <Route path="/integrations/audit" element={<IntegrationAudit />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />

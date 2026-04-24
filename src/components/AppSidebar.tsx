@@ -1,6 +1,6 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
-  ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown,
+  ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ type NavItem = {
   icon: any;
   area?: CrmAreaKey;
   adminOnly?: boolean;
-  rightSlot?: "ac-status" | "stripe-status";
+  rightSlot?: "ac-status" | "stripe-status" | "chatwoot-status";
 };
 
 type Group = {
@@ -120,6 +120,45 @@ function StripeStatusDot() {
   );
 }
 
+function ChatwootStatusDot() {
+  const { data } = useQuery({
+    queryKey: ["chatwoot-sidebar-status"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("integration_settings")
+        .select("chatwoot_last_event_at, chatwoot_base_url")
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const lastEvent = data?.chatwoot_last_event_at ? new Date(data.chatwoot_last_event_at).getTime() : 0;
+  const recent = lastEvent && Date.now() - lastEvent < 24 * 60 * 60 * 1000;
+  const configured = !!data?.chatwoot_base_url;
+
+  const cls = recent
+    ? "bg-success"
+    : configured
+    ? "bg-sidebar-foreground/30"
+    : "bg-destructive";
+
+  const title = recent
+    ? `Último evento: ${new Date(lastEvent).toLocaleString("pt-BR")}`
+    : configured
+    ? "Configurado, sem eventos recentes"
+    : "Não configurado";
+
+  return (
+    <span
+      title={title}
+      className={cn("ml-auto h-2 w-2 rounded-full shrink-0", cls)}
+      aria-label={title}
+    />
+  );
+}
+
 const NAV_ACTIVE = "bg-sidebar-accent text-sidebar-primary font-medium border-l-2 border-sidebar-primary";
 const NAV_BASE = "hover:bg-sidebar-accent/50 border-l-2 border-transparent";
 
@@ -182,6 +221,7 @@ export function AppSidebar() {
       items: [
         { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug, adminOnly: true, rightSlot: "ac-status" },
         { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, adminOnly: true, rightSlot: "stripe-status" },
+        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, adminOnly: true, rightSlot: "chatwoot-status" },
         { title: "Auditoria", url: "/integrations/audit", icon: Activity, adminOnly: true },
       ],
     },
@@ -226,6 +266,7 @@ export function AppSidebar() {
           <span>{item.title}</span>
           {!collapsed && item.rightSlot === "ac-status" && <ACStatusDot />}
           {!collapsed && item.rightSlot === "stripe-status" && <StripeStatusDot />}
+          {!collapsed && item.rightSlot === "chatwoot-status" && <ChatwootStatusDot />}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
