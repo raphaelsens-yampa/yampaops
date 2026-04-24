@@ -63,24 +63,29 @@ export function StripePricesTable() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const recalc = (mrr: string, pct: string) => {
-    if (!mrr || !pct) return "0";
-    return ((Number(mrr) * Number(pct)) / 100).toFixed(2);
+  // Calcula valor da comissão considerando a base do produto selecionado
+  const computeCommission = (mrr: string, pct: string, prod?: CommissionProduct) => {
+    const p = Number(pct) || 0;
+    if (!p) return "0";
+    const baseAmount = prod?.commission_base === "value"
+      ? (prod.plan_value || 0)
+      : (Number(mrr) || prod?.plan_mrr || 0);
+    return ((baseAmount * p) / 100).toFixed(2);
   };
 
   const handleMrrChange = (mrr: string) => {
-    setForm((f) => ({ ...f, mrr, commission_value: recalc(mrr, f.commission_percent) }));
+    setForm((f) => ({ ...f, mrr, commission_value: computeCommission(mrr, f.commission_percent, selectedProduct) }));
   };
 
   const handlePercentChange = (pct: string) => {
-    setForm((f) => ({ ...f, commission_percent: pct, commission_value: recalc(f.mrr, pct) }));
+    setForm((f) => ({ ...f, commission_percent: pct, commission_value: computeCommission(f.mrr, pct, selectedProduct) }));
   };
 
   const handleProductChange = (cpId: string) => {
     const prod = products.find((p) => p.id === cpId);
     const mrr = prod ? prod.plan_mrr.toString() : form.mrr;
     const pct = prod ? prod.commission_percent.toString() : form.commission_percent;
-    const cv = recalc(mrr, pct);
+    const cv = computeCommission(mrr, pct, prod);
     setForm({ ...form, commission_product_id: cpId, mrr, commission_percent: pct, commission_value: cv });
   };
 
