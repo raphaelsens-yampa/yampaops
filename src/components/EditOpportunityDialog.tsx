@@ -14,6 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
+import { TagPicker } from "@/components/tags/TagPicker";
+import { useOpportunityTags } from "@/hooks/useTags";
+import { format } from "date-fns";
 
 interface StripePrice {
   id: string;
@@ -64,6 +67,7 @@ export function EditOpportunityDialog({
   const [billingType, setBillingType] = useState("monthly");
   const [isActive, setIsActive] = useState(true);
   const [cancellationDate, setCancellationDate] = useState("");
+  const [opportunityCreatedAt, setOpportunityCreatedAt] = useState("");
   const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<GoalCategory[]>([]);
@@ -108,6 +112,9 @@ export function EditOpportunityDialog({
       setBillingType(opportunity.billing_type || "monthly");
       setIsActive(opportunity.is_active !== false);
       setCancellationDate(opportunity.cancellation_date || "");
+      // opportunity_created_at: format as YYYY-MM-DD for date input
+      const oppCreated = opportunity.opportunity_created_at || opportunity.created_at;
+      setOpportunityCreatedAt(oppCreated ? new Date(oppCreated).toISOString().slice(0, 10) : "");
       setCategoryId(opportunity.category_id || "");
       // We don't store stripe_price_id on opportunity yet, so reset
       setSelectedStripePriceId("");
