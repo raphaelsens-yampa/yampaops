@@ -153,8 +153,8 @@ export default function PipelinePage() {
         </div>
 
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-4 pb-2 items-start">
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-4 pb-2 items-start h-full">
             {stageOrder.map(stage => {
               const stageLeads = filtered.filter(l => l.stage === stage);
               const stageMRR = stageLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
