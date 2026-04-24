@@ -15,6 +15,12 @@ import { SafraSelector } from "@/components/SafraSelector";
 
 function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
 function endOfMonth(d: Date) { const x = startOfMonth(d); x.setMonth(x.getMonth()+1); return x; }
+// Compare dates by month using UTC parts to avoid timezone shifts (e.g. 2026-03-01 00:00 UTC reads as Feb 28 in BR -3)
+function sameMonthUTC(dateStr: string | Date | null | undefined, ref: Date) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  return d.getUTCFullYear() === ref.getFullYear() && d.getUTCMonth() === ref.getMonth();
+}
 
 export default function AdminDashboard() {
   const { user } = useAuth();
