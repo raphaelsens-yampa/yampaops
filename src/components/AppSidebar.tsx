@@ -24,7 +24,7 @@ type NavItem = {
   icon: any;
   area?: CrmAreaKey;
   adminOnly?: boolean;
-  rightSlot?: "ac-status";
+  rightSlot?: "ac-status" | "stripe-status";
 };
 
 type Group = {
