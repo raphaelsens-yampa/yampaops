@@ -8,6 +8,8 @@ interface Props {
   pipelines?: { id: string; name: string }[];
   selectedPipelineId?: string;
   onPipelineChange?: (id: string) => void;
+  rightSlot?: React.ReactNode;
+  subtitle?: string;
 }
 
 const FUNNEL_COLORS = [
@@ -24,7 +26,7 @@ const FUNNEL_COLORS = [
 
 export function PipelineFunnel({
   data, stageOrder, stageLabels,
-  pipelines, selectedPipelineId, onPipelineChange,
+  pipelines, selectedPipelineId, onPipelineChange, rightSlot, subtitle,
 }: Props) {
   const stages = stageOrder;
   const maxCount = Math.max(...stages.map(s => data[s]?.count || 0), 1);
