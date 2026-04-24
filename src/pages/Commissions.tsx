@@ -120,7 +120,7 @@ export default function Commissions() {
 
         {isAdmin ? (
           <Tabs defaultValue="seller">
-            <TabsList>
+            <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
               <TabsTrigger value="seller">Minha Visão</TabsTrigger>
               <TabsTrigger value="admin">Visão Gerencial</TabsTrigger>
             </TabsList>
