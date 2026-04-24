@@ -23,6 +23,8 @@ import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
 import StripeIntegration from "./pages/StripeIntegration";
 import ChatwootIntegration from "./pages/ChatwootIntegration";
 import IntegrationAudit from "./pages/IntegrationAudit";
+import Reports from "./pages/Reports";
+import TagsSettings from "./pages/TagsSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +65,8 @@ function AppRoutes() {
         <Route path="/integrations/stripe" element={<StripeIntegration />} />
         <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
         <Route path="/integrations/audit" element={<IntegrationAudit />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/settings/tags" element={<TagsSettings />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

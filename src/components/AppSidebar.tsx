@@ -1,6 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
+  FileBarChart, Tag,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -181,6 +182,7 @@ export function AppSidebar() {
           ? { title: "Meu Pipeline", url: "/", icon: Kanban }
           : { title: "Dashboard", url: "/", icon: BarChart3, area: "dashboard" },
         { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
+        { title: "Relatórios", url: "/reports", icon: FileBarChart },
       ],
     },
     {
@@ -210,6 +212,7 @@ export function AppSidebar() {
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
         { title: "Importação", url: "/imports", icon: Upload, area: "import" },
+        { title: "Tags", url: "/settings/tags", icon: Tag, adminOnly: true },
       ],
     },
     {
