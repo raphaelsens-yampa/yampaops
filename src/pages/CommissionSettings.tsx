@@ -92,7 +92,7 @@ export default function CommissionSettings() {
         </Card>
 
         <ProductPricingTable />
-        <StripePricesTable />
+        
         <CommissionTriggersTable />
       </div>
     </Layout>
