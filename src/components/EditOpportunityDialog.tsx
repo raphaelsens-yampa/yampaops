@@ -88,12 +88,26 @@ export function EditOpportunityDialog({
   useEffect(() => {
     Promise.all([
       supabase.from("commission_products").select("id, name").order("name"),
-      supabase.from("stripe_prices").select("id, price_id, price_name, product_name, plan_name, mrr, commission_product_id").order("price_name"),
+      supabase
+        .from("commission_products")
+        .select("id, stripe_price_id, price_name, name, plan_name, plan_mrr")
+        .not("stripe_price_id", "is", null)
+        .order("price_name"),
       supabase.from("commission_products").select("id, periodicity"),
       supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
     ]).then(([{ data: prodData }, { data: spData }, { data: cpData }, { data: catData }]) => {
       setProducts(prodData || []);
-      setStripePrices((spData as StripePrice[]) || []);
+      // Adapta o formato unificado para a interface StripePrice usada na UI
+      const adapted: StripePrice[] = (spData || []).map((row: any) => ({
+        id: row.id,
+        price_id: row.stripe_price_id,
+        price_name: row.price_name || "",
+        product_name: row.name || "",
+        plan_name: row.plan_name || "",
+        mrr: row.plan_mrr || 0,
+        commission_product_id: row.id, // mesma linha agora é o produto
+      }));
+      setStripePrices(adapted);
       setCommissionProducts((cpData as CommissionProduct[]) || []);
       setCategories((catData as GoalCategory[]) || []);
     });
