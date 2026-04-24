@@ -348,11 +348,14 @@ export function ProductPricingTable() {
                     <TableCell>{p.periodicity}</TableCell>
                     <TableCell className="text-right">{fmt(p.plan_value)}</TableCell>
                     <TableCell className="text-right">{fmt(p.plan_mrr)}</TableCell>
-                    <TableCell className="text-right">{p.commission_percent}%</TableCell>
                     <TableCell>
                       <span className="text-xs px-2 py-0.5 rounded bg-muted">
                         {p.commission_base === "value" ? "Valor" : "MRR"}
                       </span>
+                    </TableCell>
+                    <TableCell className="text-right">{p.commission_percent}%</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {fmt(((p.commission_base === "value" ? p.plan_value : p.plan_mrr) * p.commission_percent) / 100)}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{p.stripe_price_id || "—"}</TableCell>
                     <TableCell>{p.price_name || "—"}</TableCell>
