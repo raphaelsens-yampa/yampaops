@@ -166,6 +166,8 @@ export default function AdminDashboard() {
             pipelines={pipelines}
             selectedPipelineId={selectedPipelineId}
             onPipelineChange={setSelectedPipelineId}
+            subtitle={`Safra: ${safra.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
+            rightSlot={<SafraSelector value={safra} onChange={setSafra} />}
           />
           <GoalsProgress goals={goalsProgress} />
         </div>
