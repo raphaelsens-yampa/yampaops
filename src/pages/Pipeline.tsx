@@ -95,15 +95,15 @@ export default function PipelinePage() {
 
   const filtered = filter === "all" ? leads : leads.filter(l => l.origin === filter);
 
-  if (loading || stagesLoading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
-
-  const currentPipeline = pipelines.find(p => p.id === currentPipelineId);
-
-  // Tags lookup for visible cards
+  // Tags lookup for visible cards (hooks must be called before any early return)
   const leadIds = leads.map((l) => l.id);
   const { data: tagMap = {} } = useOpportunityTags(leadIds);
   const { data: allTags = [] } = useTags();
   const tagsById = new Map(allTags.map((t) => [t.id, t]));
+
+  if (loading || stagesLoading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
+
+  const currentPipeline = pipelines.find(p => p.id === currentPipelineId);
 
   return (
     <Layout>
