@@ -197,20 +197,29 @@ export function StripePricesTable() {
               </div>
 
               {selectedProduct && (
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Produto</Label>
-                    <Input value={selectedProduct.name} readOnly className="bg-muted" />
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Produto</Label>
+                      <Input value={selectedProduct.name} readOnly className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Plano</Label>
+                      <Input value={selectedProduct.plan_name} readOnly className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Periodicidade</Label>
+                      <Input value={selectedProduct.periodicity} readOnly className="bg-muted" />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Plano</Label>
-                    <Input value={selectedProduct.plan_name} readOnly className="bg-muted" />
+                  <div className="rounded-md border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+                    Base de cálculo deste produto: <strong className="text-foreground">
+                      {selectedProduct.commission_base === "value"
+                        ? `Valor do Plano (R$ ${selectedProduct.plan_value.toFixed(2)}) — 1º recebimento`
+                        : `MRR (R$ ${selectedProduct.plan_mrr.toFixed(2)})`}
+                    </strong>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Periodicidade</Label>
-                    <Input value={selectedProduct.periodicity} readOnly className="bg-muted" />
-                  </div>
-                </div>
+                </>
               )}
 
               <div className="grid grid-cols-2 gap-3">
