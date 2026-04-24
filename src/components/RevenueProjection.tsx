@@ -7,10 +7,10 @@ interface Props {
 }
 
 export function RevenueProjection({ leads }: Props) {
-  const activeLeads = leads.filter(l => !["fechado_won", "perdido"].includes(l.stage));
-  const wonLeads = leads.filter(l => l.stage === "fechado_won");
+  const activeLeads = leads.filter(l => !l.converted_at && !["fechado_won", "perdido", "ganho"].includes(l.stage));
+  const wonLeads = leads.filter(l => l.converted_at || l.stage === "fechado_won" || l.stage === "ganho");
 
-  // Group by month (created_at) for projection
+  // Group by month (converted_at) for projection
   const months: Record<string, { mrr_closed: number; arpa_closed: number; mrr_projected: number; arpa_projected: number }> = {};
 
   const getMonthKey = (d: string) => {
@@ -33,7 +33,9 @@ export function RevenueProjection({ leads }: Props) {
   }
 
   wonLeads.forEach(l => {
-    const key = getMonthKey(l.updated_at);
+    const dateRef = l.converted_at || l.updated_at;
+    if (!dateRef) return;
+    const key = getMonthKey(dateRef);
     if (months[key]) {
       months[key].mrr_closed += l.estimated_mrr || 0;
       months[key].arpa_closed += (l.estimated_tpv || 0) * (l.take_rate || 0) / 100;

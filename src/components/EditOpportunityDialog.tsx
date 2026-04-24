@@ -84,6 +84,7 @@ export function EditOpportunityDialog({
   const [selectedStripePriceId, setSelectedStripePriceId] = useState("");
   const [pricePopoverOpen, setPricePopoverOpen] = useState(false);
   const [priceSearch, setPriceSearch] = useState("");
+  const [wonSlugs, setWonSlugs] = useState<Set<string>>(new Set(["fechado_won", "ganho"]));
 
   useEffect(() => {
     Promise.all([
@@ -110,6 +111,11 @@ export function EditOpportunityDialog({
       setStripePrices(adapted);
       setCommissionProducts((cpData as CommissionProduct[]) || []);
       setCategories((catData as GoalCategory[]) || []);
+    });
+    supabase.from("pipeline_stages").select("slug, is_won").eq("is_won", true).then(({ data }) => {
+      if (data && data.length > 0) {
+        setWonSlugs(new Set(data.map((s: any) => s.slug)));
+      }
     });
   }, []);
 
@@ -187,7 +193,7 @@ export function EditOpportunityDialog({
     }
   };
 
-  const isWonStage = stageOrder.length > 0 && stage === "fechado_won";
+  const isWonStage = stageOrder.length > 0 && wonSlugs.has(stage);
 
   const handleSave = async () => {
     if (!opportunity) return;
