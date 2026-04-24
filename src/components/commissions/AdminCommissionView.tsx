@@ -49,12 +49,17 @@ export function AdminCommissionView({ commissions, profiles, loading, filterMont
     const channels: Record<string, { commission: number; mrr: number }> = {};
     const sellers: Record<string, { earned: number; clawback: number }> = {};
 
-    for (const c of filtered) {
-      const pm = new Date(c.payment_month);
+    // Provisão olha TODAS as comissões (não só do mês selecionado), filtrando pelo payment_month
+    // M+1 = desembolsos do próximo mês; M+2 = desembolsos em 2 meses
+    for (const c of commissions) {
       if (c.status === "provisioned") {
-        if (pm.getFullYear() === m1.getFullYear() && pm.getMonth() === m1.getMonth()) pm1 += c.commission_amount;
-        if (pm.getFullYear() === m2.getFullYear() && pm.getMonth() === m2.getMonth()) pm2 += c.commission_amount;
+        const pm = new Date(c.payment_month);
+        if (pm.getUTCFullYear() === m1.getFullYear() && pm.getUTCMonth() === m1.getMonth()) pm1 += c.commission_amount;
+        if (pm.getUTCFullYear() === m2.getFullYear() && pm.getUTCMonth() === m2.getMonth()) pm2 += c.commission_amount;
       }
+    }
+
+    for (const c of filtered) {
       const origin = c.opportunity?.origin || "outros";
       if (!channels[origin]) channels[origin] = { commission: 0, mrr: 0 };
       if (c.type === "earned") {
@@ -74,7 +79,7 @@ export function AdminCommissionView({ commissions, profiles, loading, filterMont
         return { id, name: p?.full_name || p?.email || id, ...v, net: v.earned - v.clawback };
       }).sort((a, b) => b.net - a.net),
     };
-  }, [filtered, profiles, filterMonth]);
+  }, [filtered, commissions, profiles, filterMonth]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtMonth = (d: string) => new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
