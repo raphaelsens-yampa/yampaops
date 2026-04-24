@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2, Search } from "lucide-react";
 
-const PERIODICITIES = ["Avulso", "Mensal", "Trimestral", "Semestral", "Anual", "Vitalício"];
+const PERIODICITIES = ["Avulso", "Mensal", "Trimestral", "Semestral", "Anual", "Anual Parcelado", "Vitalício"];
 
 type CommissionBase = "value" | "mrr";
 
