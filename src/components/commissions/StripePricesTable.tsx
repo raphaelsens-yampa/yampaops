@@ -29,6 +29,7 @@ interface Profile { user_id: string; full_name: string | null; email: string | n
 interface CommissionProduct {
   id: string; product_id: string | null; name: string; plan_name: string;
   periodicity: string; commission_percent: number; plan_mrr: number;
+  plan_value: number; commission_base: "value" | "mrr";
 }
 
 export function StripePricesTable() {
@@ -52,7 +53,7 @@ export function StripePricesTable() {
     const [{ data: priceData }, { data: profData }, { data: prodData }] = await Promise.all([
       supabase.from("stripe_prices").select("*").order("product_name"),
       supabase.from("profiles").select("user_id, full_name, email"),
-      supabase.from("commission_products").select("id, product_id, name, plan_name, periodicity, commission_percent, plan_mrr").order("name"),
+      supabase.from("commission_products").select("id, product_id, name, plan_name, periodicity, commission_percent, plan_mrr, plan_value, commission_base").order("name"),
     ]);
     setPrices((priceData as StripePrice[]) || []);
     setProfiles(profData || []);
@@ -62,24 +63,29 @@ export function StripePricesTable() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const recalc = (mrr: string, pct: string) => {
-    if (!mrr || !pct) return "0";
-    return ((Number(mrr) * Number(pct)) / 100).toFixed(2);
+  // Calcula valor da comissão considerando a base do produto selecionado
+  const computeCommission = (mrr: string, pct: string, prod?: CommissionProduct) => {
+    const p = Number(pct) || 0;
+    if (!p) return "0";
+    const baseAmount = prod?.commission_base === "value"
+      ? (prod.plan_value || 0)
+      : (Number(mrr) || prod?.plan_mrr || 0);
+    return ((baseAmount * p) / 100).toFixed(2);
   };
 
   const handleMrrChange = (mrr: string) => {
-    setForm((f) => ({ ...f, mrr, commission_value: recalc(mrr, f.commission_percent) }));
+    setForm((f) => ({ ...f, mrr, commission_value: computeCommission(mrr, f.commission_percent, selectedProduct) }));
   };
 
   const handlePercentChange = (pct: string) => {
-    setForm((f) => ({ ...f, commission_percent: pct, commission_value: recalc(f.mrr, pct) }));
+    setForm((f) => ({ ...f, commission_percent: pct, commission_value: computeCommission(f.mrr, pct, selectedProduct) }));
   };
 
   const handleProductChange = (cpId: string) => {
     const prod = products.find((p) => p.id === cpId);
     const mrr = prod ? prod.plan_mrr.toString() : form.mrr;
     const pct = prod ? prod.commission_percent.toString() : form.commission_percent;
-    const cv = recalc(mrr, pct);
+    const cv = computeCommission(mrr, pct, prod);
     setForm({ ...form, commission_product_id: cpId, mrr, commission_percent: pct, commission_value: cv });
   };
 
@@ -191,20 +197,29 @@ export function StripePricesTable() {
               </div>
 
               {selectedProduct && (
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Produto</Label>
-                    <Input value={selectedProduct.name} readOnly className="bg-muted" />
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Produto</Label>
+                      <Input value={selectedProduct.name} readOnly className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Plano</Label>
+                      <Input value={selectedProduct.plan_name} readOnly className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Periodicidade</Label>
+                      <Input value={selectedProduct.periodicity} readOnly className="bg-muted" />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Plano</Label>
-                    <Input value={selectedProduct.plan_name} readOnly className="bg-muted" />
+                  <div className="rounded-md border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+                    Base de cálculo deste produto: <strong className="text-foreground">
+                      {selectedProduct.commission_base === "value"
+                        ? `Valor do Plano (R$ ${selectedProduct.plan_value.toFixed(2)}) — 1º recebimento`
+                        : `MRR (R$ ${selectedProduct.plan_mrr.toFixed(2)})`}
+                    </strong>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Periodicidade</Label>
-                    <Input value={selectedProduct.periodicity} readOnly className="bg-muted" />
-                  </div>
-                </div>
+                </>
               )}
 
               <div className="grid grid-cols-2 gap-3">

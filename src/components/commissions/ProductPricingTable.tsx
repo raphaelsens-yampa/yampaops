@@ -12,6 +12,8 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
 const PERIODICITIES = ["Avulso", "Mensal", "Trimestral", "Semestral", "Anual", "Vitalício"];
 
+type CommissionBase = "value" | "mrr";
+
 interface Product {
   id: string;
   product_id: string | null;
@@ -21,6 +23,7 @@ interface Product {
   plan_value: number;
   plan_mrr: number;
   commission_percent: number;
+  commission_base: CommissionBase;
 }
 
 export function ProductPricingTable() {
@@ -33,7 +36,7 @@ export function ProductPricingTable() {
 
   const [form, setForm] = useState({
     product_id: "", name: "", plan_name: "", periodicity: "Mensal",
-    plan_value: "", plan_mrr: "", commission_percent: "10",
+    plan_value: "", plan_mrr: "", commission_percent: "10", commission_base: "mrr" as CommissionBase,
   });
 
   const fetchProducts = async () => {
@@ -46,7 +49,7 @@ export function ProductPricingTable() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ product_id: "", name: "", plan_name: "", periodicity: "Mensal", plan_value: "", plan_mrr: "", commission_percent: "10" });
+    setForm({ product_id: "", name: "", plan_name: "", periodicity: "Mensal", plan_value: "", plan_mrr: "", commission_percent: "10", commission_base: "mrr" });
     setDialogOpen(true);
   };
 
@@ -60,6 +63,7 @@ export function ProductPricingTable() {
       plan_value: p.plan_value.toString(),
       plan_mrr: p.plan_mrr.toString(),
       commission_percent: p.commission_percent.toString(),
+      commission_base: (p.commission_base as CommissionBase) || "mrr",
     });
     setDialogOpen(true);
   };
@@ -75,6 +79,7 @@ export function ProductPricingTable() {
       plan_value: Number(form.plan_value) || 0,
       plan_mrr: Number(form.plan_mrr) || 0,
       commission_percent: Number(form.commission_percent) || 0,
+      commission_base: form.commission_base,
     };
 
     const { error } = editing
@@ -156,6 +161,22 @@ export function ProductPricingTable() {
                   <Input type="number" step="0.1" value={form.commission_percent} onChange={(e) => setForm({ ...form, commission_percent: e.target.value })} />
                 </div>
               </div>
+              <div>
+                <Label>Base de Cálculo da Comissão</Label>
+                <Select
+                  value={form.commission_base}
+                  onValueChange={(v: CommissionBase) => setForm({ ...form, commission_base: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mrr">Sobre o MRR</SelectItem>
+                    <SelectItem value="value">Sobre o Valor do Plano (1º recebimento)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Define se o % de comissão é aplicado sobre o MRR ou sobre o valor cheio do primeiro recebimento.
+                </p>
+              </div>
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                 {editing ? "Salvar" : "Criar"}
@@ -178,6 +199,7 @@ export function ProductPricingTable() {
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="text-right">MRR</TableHead>
                 <TableHead className="text-right">Comissão (%)</TableHead>
+                <TableHead>Base</TableHead>
                 <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -191,6 +213,11 @@ export function ProductPricingTable() {
                   <TableCell className="text-right">{fmt(p.plan_value)}</TableCell>
                   <TableCell className="text-right">{fmt(p.plan_mrr)}</TableCell>
                   <TableCell className="text-right">{p.commission_percent}%</TableCell>
+                  <TableCell>
+                    <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                      {p.commission_base === "value" ? "Valor" : "MRR"}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
