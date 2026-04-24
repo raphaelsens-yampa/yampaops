@@ -112,6 +112,11 @@ export function EditOpportunityDialog({
       setCommissionProducts((cpData as CommissionProduct[]) || []);
       setCategories((catData as GoalCategory[]) || []);
     });
+    supabase.from("pipeline_stages").select("slug, is_won").eq("is_won", true).then(({ data }) => {
+      if (data && data.length > 0) {
+        setWonSlugs(new Set(data.map((s: any) => s.slug)));
+      }
+    });
   }, []);
 
   useEffect(() => {
