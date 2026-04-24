@@ -161,6 +161,22 @@ export function ProductPricingTable() {
                   <Input type="number" step="0.1" value={form.commission_percent} onChange={(e) => setForm({ ...form, commission_percent: e.target.value })} />
                 </div>
               </div>
+              <div>
+                <Label>Base de Cálculo da Comissão</Label>
+                <Select
+                  value={form.commission_base}
+                  onValueChange={(v: CommissionBase) => setForm({ ...form, commission_base: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mrr">Sobre o MRR</SelectItem>
+                    <SelectItem value="value">Sobre o Valor do Plano (1º recebimento)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Define se o % de comissão é aplicado sobre o MRR ou sobre o valor cheio do primeiro recebimento.
+                </p>
+              </div>
               <Button onClick={handleSave} disabled={saving} className="w-full">
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                 {editing ? "Salvar" : "Criar"}
