@@ -170,11 +170,11 @@ export function ProductPricingTable() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="mrr">Sobre o MRR</SelectItem>
-                    <SelectItem value="value">Sobre o Valor do Plano (1º recebimento)</SelectItem>
+                    <SelectItem value="value">Sobre o Valor do Plano</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Define se o % de comissão é aplicado sobre o MRR ou sobre o valor cheio do primeiro recebimento.
+                  A comissão é sempre paga sobre a primeira ocorrência. Escolha se o % incide sobre o MRR ou sobre o Valor do Plano.
                 </p>
               </div>
               <Button onClick={handleSave} disabled={saving} className="w-full">
