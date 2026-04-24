@@ -188,6 +188,42 @@ async function bumpOpportunityInteraction(opportunityId: string | null) {
     .eq("id", opportunityId);
 }
 
+// =====================================================
+// Tag automation by Chatwoot event
+// =====================================================
+const TAG_SLUG_BY_EVENT: Record<string, string> = {
+  conversation_created: "chatwoot-conversation-created",
+  conversation_updated: "chatwoot-conversation-updated",
+  conversation_status_changed: "chatwoot-conversation-closed",
+  message_replied: "chatwoot-message-replied", // virtual key for incoming message
+};
+
+const tagIdCache = new Map<string, string | null>();
+
+async function resolveTagId(slug: string): Promise<string | null> {
+  if (tagIdCache.has(slug)) return tagIdCache.get(slug) ?? null;
+  const { data } = await service.from("tags").select("id").eq("slug", slug).maybeSingle();
+  const id = data?.id ?? null;
+  tagIdCache.set(slug, id);
+  return id;
+}
+
+async function applyTagForEvent(opportunityId: string | null, virtualEvent: string) {
+  if (!opportunityId) return;
+  const slug = TAG_SLUG_BY_EVENT[virtualEvent];
+  if (!slug) return;
+  const tagId = await resolveTagId(slug);
+  if (!tagId) return;
+
+  const { error } = await service.from("opportunity_tags").upsert(
+    { opportunity_id: opportunityId, tag_id: tagId },
+    { onConflict: "opportunity_id,tag_id", ignoreDuplicates: true },
+  );
+  if (error) {
+    await logError("chatwoot_tag", `${opportunityId}/${slug}`, error.message, { opportunityId, slug });
+  }
+}
+
 async function bumpLastEvent() {
   const { data: settings } = await service
     .from("integration_settings")
@@ -267,6 +303,7 @@ async function handleConversationCreated(payload: any) {
     opportunityId: ctx.opportunityId,
     userId,
   });
+  await applyTagForEvent(ctx.opportunityId, "conversation_created");
   await bumpOpportunityInteraction(ctx.opportunityId);
   return { ok: true };
 }
@@ -300,6 +337,12 @@ async function handleMessageCreated(payload: any) {
     opportunityId: ctx.opportunityId,
     userId,
   });
+
+  // Tag "Mensagem respondida" only on incoming (cliente respondeu)
+  if (activityType === "resposta_recebida") {
+    await applyTagForEvent(ctx.opportunityId, "message_replied");
+  }
+
   await bumpOpportunityInteraction(ctx.opportunityId);
   return result;
 }
@@ -342,6 +385,13 @@ async function handleConversationUpdated(payload: any) {
         userId,
       });
     }
+  }
+
+  // Always apply tag based on which event came in
+  if (payload.event === "conversation_status_changed") {
+    await applyTagForEvent(ctx.opportunityId, "conversation_status_changed");
+  } else {
+    await applyTagForEvent(ctx.opportunityId, "conversation_updated");
   }
 
   await bumpOpportunityInteraction(ctx.opportunityId);

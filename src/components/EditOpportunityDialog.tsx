@@ -14,6 +14,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
+import { TagPicker } from "@/components/tags/TagPicker";
+import { useOpportunityTags } from "@/hooks/useTags";
+import { format } from "date-fns";
+
+function OpportunityTagSection({ opportunityId }: { opportunityId: string }) {
+  const { data: tagMap = {} } = useOpportunityTags([opportunityId]);
+  const selectedIds = tagMap[opportunityId] || [];
+  return <TagPicker opportunityId={opportunityId} selectedTagIds={selectedIds} />;
+}
 
 interface StripePrice {
   id: string;
@@ -64,6 +73,7 @@ export function EditOpportunityDialog({
   const [billingType, setBillingType] = useState("monthly");
   const [isActive, setIsActive] = useState(true);
   const [cancellationDate, setCancellationDate] = useState("");
+  const [opportunityCreatedAt, setOpportunityCreatedAt] = useState("");
   const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<GoalCategory[]>([]);
@@ -108,6 +118,9 @@ export function EditOpportunityDialog({
       setBillingType(opportunity.billing_type || "monthly");
       setIsActive(opportunity.is_active !== false);
       setCancellationDate(opportunity.cancellation_date || "");
+      // opportunity_created_at: format as YYYY-MM-DD for date input
+      const oppCreated = opportunity.opportunity_created_at || opportunity.created_at;
+      setOpportunityCreatedAt(oppCreated ? new Date(oppCreated).toISOString().slice(0, 10) : "");
       setCategoryId(opportunity.category_id || "");
       // We don't store stripe_price_id on opportunity yet, so reset
       setSelectedStripePriceId("");
@@ -189,6 +202,7 @@ export function EditOpportunityDialog({
       is_active: isActive,
       cancellation_date: cancellationDate || null,
       category_id: categoryId || null,
+      opportunity_created_at: opportunityCreatedAt ? new Date(opportunityCreatedAt + "T00:00:00").toISOString() : null,
     }).eq("id", opportunity.id);
 
     setSaving(false);
@@ -384,6 +398,48 @@ export function EditOpportunityDialog({
               <Label>Sub-origem</Label>
               <Input value={subOrigin} onChange={e => setSubOrigin(e.target.value)} placeholder="Ex: campanha X" />
             </div>
+          </div>
+
+          {/* Bloco de Datas */}
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/20">
+            <Label className="font-semibold">Datas</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Criação</Label>
+                <Input
+                  type="date"
+                  value={opportunityCreatedAt}
+                  onChange={(e) => setOpportunityCreatedAt(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Conversão</Label>
+                <Input
+                  type="text"
+                  readOnly
+                  value={opportunity?.converted_at ? format(new Date(opportunity.converted_at), "dd/MM/yyyy") : "—"}
+                  className="bg-muted/50 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Encerramento</Label>
+                <Input
+                  type="text"
+                  readOnly
+                  value={opportunity?.closed_at ? format(new Date(opportunity.closed_at), "dd/MM/yyyy") : "—"}
+                  className="bg-muted/50 cursor-not-allowed"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Conversão e Encerramento são preenchidos automaticamente quando a oportunidade entra em uma etapa de ganho ou perda.
+            </p>
+          </div>
+
+          {/* Bloco de Tags */}
+          <div className="rounded-lg border p-3 space-y-2">
+            <Label className="font-semibold">Tags</Label>
+            <OpportunityTagSection opportunityId={opportunity!.id} />
           </div>
 
           <div>

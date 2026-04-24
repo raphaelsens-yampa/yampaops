@@ -11,6 +11,10 @@ import { STAGE_WEIGHTS } from "@/lib/constants";
 import { RevenueProjection } from "@/components/RevenueProjection";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
+import { SafraSelector } from "@/components/SafraSelector";
+
+function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
+function endOfMonth(d: Date) { const x = startOfMonth(d); x.setMonth(x.getMonth()+1); return x; }
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -21,6 +25,7 @@ export default function AdminDashboard() {
   const [activities, setActivities] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [safra, setSafra] = useState<Date>(startOfMonth(new Date()));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,10 +74,16 @@ export default function AdminDashboard() {
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
-  // Filter leads by selected pipeline for the funnel
-  const pipelineLeads = selectedPipelineId
+  // Filter leads by selected pipeline AND by safra (opportunity_created_at month)
+  const safraStart = startOfMonth(safra).getTime();
+  const safraEnd = endOfMonth(safra).getTime();
+  const pipelineLeads = (selectedPipelineId
     ? leads.filter(l => l.pipeline_id === selectedPipelineId)
-    : leads;
+    : leads
+  ).filter((l: any) => {
+    const ts = new Date(l.opportunity_created_at || l.created_at).getTime();
+    return ts >= safraStart && ts < safraEnd;
+  });
 
   const funnelData: Record<string, { count: number; mrr: number }> = {};
   stageOrder.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
@@ -155,6 +166,8 @@ export default function AdminDashboard() {
             pipelines={pipelines}
             selectedPipelineId={selectedPipelineId}
             onPipelineChange={setSelectedPipelineId}
+            subtitle={`Safra: ${safra.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
+            rightSlot={<SafraSelector value={safra} onChange={setSafra} />}
           />
           <GoalsProgress goals={goalsProgress} />
         </div>

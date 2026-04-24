@@ -8,6 +8,8 @@ interface Props {
   pipelines?: { id: string; name: string }[];
   selectedPipelineId?: string;
   onPipelineChange?: (id: string) => void;
+  rightSlot?: React.ReactNode;
+  subtitle?: string;
 }
 
 const FUNNEL_COLORS = [
@@ -24,7 +26,7 @@ const FUNNEL_COLORS = [
 
 export function PipelineFunnel({
   data, stageOrder, stageLabels,
-  pipelines, selectedPipelineId, onPipelineChange,
+  pipelines, selectedPipelineId, onPipelineChange, rightSlot, subtitle,
 }: Props) {
   const stages = stageOrder;
   const maxCount = Math.max(...stages.map(s => data[s]?.count || 0), 1);
@@ -32,20 +34,26 @@ export function PipelineFunnel({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-        <CardTitle className="text-lg">Funil de Pipeline</CardTitle>
-        {pipelines && pipelines.length > 0 && onPipelineChange && (
-          <Select value={selectedPipelineId || "all"} onValueChange={onPipelineChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Pipeline" />
-            </SelectTrigger>
-            <SelectContent>
-              {pipelines.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+      <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3 flex-wrap">
+        <div>
+          <CardTitle className="text-lg">Funil de Pipeline</CardTitle>
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {rightSlot}
+          {pipelines && pipelines.length > 0 && onPipelineChange && (
+            <Select value={selectedPipelineId || "all"} onValueChange={onPipelineChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Pipeline" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-0 pb-6">
         {stages.map((stage, i) => {

@@ -616,9 +616,11 @@ export type Database = {
           billing_type: string
           cancellation_date: string | null
           category_id: string | null
+          closed_at: string | null
           company: string | null
           consultant_id: string | null
           contact_id: string | null
+          converted_at: string | null
           created_at: string
           estimated_close_date: string | null
           estimated_mrr: number | null
@@ -629,6 +631,7 @@ export type Database = {
           loss_reason: string | null
           name: string
           notes: string | null
+          opportunity_created_at: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
           pipeline_id: string | null
           previous_stage: string | null
@@ -650,9 +653,11 @@ export type Database = {
           billing_type?: string
           cancellation_date?: string | null
           category_id?: string | null
+          closed_at?: string | null
           company?: string | null
           consultant_id?: string | null
           contact_id?: string | null
+          converted_at?: string | null
           created_at?: string
           estimated_close_date?: string | null
           estimated_mrr?: number | null
@@ -663,6 +668,7 @@ export type Database = {
           loss_reason?: string | null
           name: string
           notes?: string | null
+          opportunity_created_at?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
           pipeline_id?: string | null
           previous_stage?: string | null
@@ -684,9 +690,11 @@ export type Database = {
           billing_type?: string
           cancellation_date?: string | null
           category_id?: string | null
+          closed_at?: string | null
           company?: string | null
           consultant_id?: string | null
           contact_id?: string | null
+          converted_at?: string | null
           created_at?: string
           estimated_close_date?: string | null
           estimated_mrr?: number | null
@@ -697,6 +705,7 @@ export type Database = {
           loss_reason?: string | null
           name?: string
           notes?: string | null
+          opportunity_created_at?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
           pipeline_id?: string | null
           previous_stage?: string | null
@@ -732,6 +741,42 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "commission_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_tags: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          opportunity_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          opportunity_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          opportunity_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_tags_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
             referencedColumns: ["id"]
           },
         ]
@@ -937,6 +982,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tags: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       team_members: {
         Row: {
