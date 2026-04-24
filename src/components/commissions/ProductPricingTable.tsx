@@ -36,7 +36,7 @@ export function ProductPricingTable() {
 
   const [form, setForm] = useState({
     product_id: "", name: "", plan_name: "", periodicity: "Mensal",
-    plan_value: "", plan_mrr: "", commission_percent: "10",
+    plan_value: "", plan_mrr: "", commission_percent: "10", commission_base: "mrr" as CommissionBase,
   });
 
   const fetchProducts = async () => {
