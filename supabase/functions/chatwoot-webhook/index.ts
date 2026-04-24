@@ -397,6 +397,8 @@ async function handleConversationUpdated(payload: any) {
   await bumpOpportunityInteraction(ctx.opportunityId);
   return { ok: true };
 }
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   if (req.method !== "POST") {
