@@ -90,6 +90,36 @@ function ACStatusDot() {
   );
 }
 
+function StripeStatusDot() {
+  const { data } = useQuery({
+    queryKey: ["stripe-sidebar-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stripe-test-connection");
+      if (error) return { ok: false } as { ok: boolean; webhook_secret_configured?: boolean };
+      return data as { ok: boolean; webhook_secret_configured?: boolean };
+    },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  const ok = !!data?.ok;
+  const cls = ok ? "bg-success" : "bg-destructive";
+  const title = ok
+    ? data?.webhook_secret_configured
+      ? "Stripe conectado e webhook validado"
+      : "Stripe conectado (webhook sem validação)"
+    : "Stripe desconectado";
+
+  return (
+    <span
+      title={title}
+      className={cn("ml-auto h-2 w-2 rounded-full shrink-0", cls)}
+      aria-label={title}
+    />
+  );
+}
+
 const NAV_ACTIVE = "bg-sidebar-accent text-sidebar-primary font-medium border-l-2 border-sidebar-primary";
 const NAV_BASE = "hover:bg-sidebar-accent/50 border-l-2 border-transparent";
 
