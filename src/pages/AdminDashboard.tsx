@@ -60,24 +60,36 @@ export default function AdminDashboard() {
   const wonSlug = wonStage?.slug || "fechado_won";
   const lostSlug = lostStage?.slug || "perdido";
 
-  // Use converted_at as the canonical "won" indicator across all pipelines
-  const activeLeads = leads.filter(l => !l.converted_at && l.stage !== lostSlug && l.stage !== "perdido");
-  const wonLeads = leads.filter(l => l.converted_at);
+  // Safra range (selected month)
+  const safraStart = startOfMonth(safra).getTime();
+  const safraEnd = endOfMonth(safra).getTime();
+  const inSafra = (ts: number) => ts >= safraStart && ts < safraEnd;
+
+  // Active = open opportunities created in safra month
+  const activeLeads = leads.filter(l => {
+    if (l.converted_at || l.stage === lostSlug || l.stage === "perdido") return false;
+    const ts = new Date(l.opportunity_created_at || l.created_at).getTime();
+    return inSafra(ts);
+  });
+  // Won = closed in safra month (by converted_at)
+  const wonLeads = leads.filter(l => l.converted_at && inSafra(new Date(l.converted_at).getTime()));
   const totalPipelineMRR = activeLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
   const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
-  const totalLeads = leads.filter(l => l.stage !== lostSlug && l.stage !== "perdido").length;
-  const convRate = totalLeads > 0 ? ((wonLeads.length / totalLeads) * 100).toFixed(1) : "0";
+  const totalSafraLeads = leads.filter(l => {
+    if (l.stage === lostSlug || l.stage === "perdido") return false;
+    const ts = new Date(l.opportunity_created_at || l.created_at).getTime();
+    return inSafra(ts);
+  }).length;
+  const convRate = totalSafraLeads > 0 ? ((wonLeads.length / totalSafraLeads) * 100).toFixed(1) : "0";
 
   const wonDays = wonLeads.map(l => {
-    const created = new Date(l.created_at).getTime();
+    const created = new Date(l.opportunity_created_at || l.created_at).getTime();
     const wonAt = new Date(l.converted_at || l.updated_at).getTime();
     return (wonAt - created) / (1000 * 60 * 60 * 24);
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
   // Filter leads by selected pipeline AND by safra (opportunity_created_at month)
-  const safraStart = startOfMonth(safra).getTime();
-  const safraEnd = endOfMonth(safra).getTime();
   const pipelineLeads = (selectedPipelineId
     ? leads.filter(l => l.pipeline_id === selectedPipelineId)
     : leads
@@ -149,11 +161,17 @@ export default function AdminDashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-heading font-bold">Dashboard</h1>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h1 className="text-2xl font-heading font-bold">Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Safra:</span>
+            <SafraSelector value={safra} onChange={setSafra} />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <MetricCard title="Pipeline MRR" value={`R$ ${totalPipelineMRR.toLocaleString("pt-BR")}`} icon={<DollarSign className="h-5 w-5" />} />
-          <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<TrendingUp className="h-5 w-5" />} />
+          <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<TrendingUp className="h-5 w-5" />} subtitle={safra.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} />
           <MetricCard title="Conversão" value={`${convRate}%`} icon={<BarChart3 className="h-5 w-5" />} />
           <MetricCard title="Vel. Média" value={`${avgVelocity}d`} icon={<Zap className="h-5 w-5" />} subtitle="dias até fechar" />
           <MetricCard title="Oportunidades" value={activeLeads.length} icon={<Users className="h-5 w-5" />} />
@@ -168,7 +186,6 @@ export default function AdminDashboard() {
             selectedPipelineId={selectedPipelineId}
             onPipelineChange={setSelectedPipelineId}
             subtitle={`Safra: ${safra.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
-            rightSlot={<SafraSelector value={safra} onChange={setSafra} />}
           />
           <GoalsProgress goals={goalsProgress} />
         </div>
