@@ -84,8 +84,8 @@ export default function Commissions() {
         .from("opportunities")
         .select("estimated_mrr")
         .in("stage", wonSlugs)
-        .gte("updated_at", monthStart)
-        .lte("updated_at", monthEnd);
+        .gte("converted_at", monthStart)
+        .lte("converted_at", monthEnd);
       if (!isAdmin) mrrQuery = mrrQuery.eq("consultant_id", userId!);
       const { data: mrrData } = await mrrQuery;
       setWonMrr((mrrData || []).reduce((s, o) => s + (o.estimated_mrr || 0), 0));
