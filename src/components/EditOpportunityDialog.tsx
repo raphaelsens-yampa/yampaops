@@ -196,6 +196,7 @@ export function EditOpportunityDialog({
       is_active: isActive,
       cancellation_date: cancellationDate || null,
       category_id: categoryId || null,
+      opportunity_created_at: opportunityCreatedAt ? new Date(opportunityCreatedAt + "T00:00:00").toISOString() : null,
     }).eq("id", opportunity.id);
 
     setSaving(false);
