@@ -221,6 +221,7 @@ export default function PipelinePage() {
                 </div>
               );
             })}
+            </div>
           </div>
         </DragDropContext>
 
