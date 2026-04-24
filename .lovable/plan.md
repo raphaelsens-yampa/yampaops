@@ -1,129 +1,154 @@
 
 
-# Integração ActiveCampaign → Yampa CRM (com seleção de Pipelines)
+# Integração Chatwoot → Yampa CRM
 
-Sincronização **one-way** AC → Yampa, **filtrada por Pipelines selecionados** no Yampa. Só vêm para cá os deals dos pipelines escolhidos, e os contatos/atividades vinculados a esses deals.
+Sincronização **one-way** Chatwoot → Yampa via webhook. Toda conversa criada/respondida vira atividade no deal+contato correspondente, com matching por **email (1º) ou telefone (2º)**.
 
 ## Fluxo
 
 ```text
-1. Admin abre /integrations/active-campaign
-2. Conecta com a API do AC (URL + Key)
-3. Sistema lista TODOS os pipelines do AC
-4. Admin marca quais quer sincronizar (checkbox)
-5. Salva seleção → roda sync inicial só dos pipelines marcados
-6. Webhook filtra eventos: só processa se deal pertence a pipeline selecionado
+Chatwoot                             Yampa
+┌─────────────────┐                  ┌──────────────────────────────┐
+│ Conversation    │                  │                              │
+│  - id           │   webhook       │  match contato/deal          │
+│  - status       │ ───────────────►│  por email → senão telefone │
+│  - contact:     │                  │                              │
+│     email/phone │                  │  ┌────────────────────────┐  │
+│  - custom_attrs │                  │  │ activity (deal+contato)│  │
+│    tabulacao_*  │                  │  │ tipo: mensagem_enviada │  │
+└─────────────────┘                  │  │  ou resposta_recebida  │  │
+       │                             │  │ notes: id+status+tab   │  │
+       │ message_created             │  └────────────────────────┘  │
+       │ (incoming/outgoing) ────────┤                              │
+       │                             │  ┌────────────────────────┐  │
+       │ conversation_updated ───────┤  │ chatwoot_conversations │  │
+       │ (status, custom attrs)      │  │  estado atual sincado  │  │
+       │                             │  └────────────────────────┘  │
 ```
 
+## Eventos do Chatwoot que vamos escutar
+
+| Evento Chatwoot | O que faz no Yampa |
+|---|---|
+| `conversation_created` | Cria/atualiza linha em `chatwoot_conversations` + atividade `mensagem_enviada` no deal/contato |
+| `message_created` (outgoing, agent) | Atividade `mensagem_enviada` no deal/contato |
+| `message_created` (incoming, contact) | Atividade `resposta_recebida` no deal/contato |
+| `conversation_updated` | Atualiza `status` e `tabulacao_atendimento` em `chatwoot_conversations`; registra atividade de mudança no histórico |
+| `conversation_status_changed` | Atualiza `status` e registra mudança |
+
+## Lógica de matching (chave: email → telefone)
+
 ```text
-ActiveCampaign              Yampa
- ┌───────────┐              ┌─────────────────────────┐
- │ Pipeline A│ ✓ marcado ─► │ pipelines (ac_id=A)     │
- │ Pipeline B│ ✓ marcado ─► │ pipelines (ac_id=B)     │
- │ Pipeline C│ ✗ ignorado   │ (não sincroniza)        │
- │ Pipeline D│ ✗ ignorado   │                         │
- └───────────┘              └─────────────────────────┘
-       │                              ▲
-       │ Deal X (em A) ───────────────┤ ✓ entra
-       │ Deal Y (em C) ───────────────┤ ✗ ignorado
-       │ Contact do Deal X ───────────┘ ✓ entra
-       │ Contact do Deal Y              ✗ ignorado
+1. Extrai email e phone do payload (conversation.meta.sender)
+2. Normaliza phone (só dígitos, com DDI)
+3. Busca contato:
+   a) WHERE email ILIKE :email → match
+   b) senão WHERE regexp_replace(phone,'\D','','g') = :phone_digits → match
+   c) senão → cria contato novo (name = sender.name, email, phone)
+4. Busca deal aberto vinculado: opportunities WHERE contact_id = X AND is_active = true
+   - Se houver 1 → registra atividade nele
+   - Se houver vários → registra no mais recente (last_interaction_at)
+   - Se não houver → registra só no contato (atividade sem opportunity_id)
+5. Atualiza opportunities.last_interaction_at = now()
 ```
 
 ## Mudanças no banco
 
-Colunas `ac_id` (text, unique nullable) em: `contacts`, `opportunities`, `pipelines`, `pipeline_stages`, `activities`.
+**Nova tabela `chatwoot_conversations`** (estado atual de cada conversa):
+- `chatwoot_conversation_id` (bigint, PK)
+- `chatwoot_account_id` (bigint)
+- `chatwoot_inbox_id` (bigint, nullable)
+- `status` (text) — `open`, `resolved`, `pending`, `snoozed`
+- `tabulacao_atendimento` (text, nullable)
+- `contact_id` (uuid, FK lógica → `contacts.id`, nullable)
+- `opportunity_id` (uuid, FK lógica → `opportunities.id`, nullable)
+- `contact_email`, `contact_phone` (texto guardado para auditoria)
+- `last_message_at`, `created_at`, `updated_at`
 
-Nova tabela `integration_settings` (singleton, admin only):
-- `ac_account_url`, `ac_webhook_secret`
-- `last_full_sync_at`, `sync_status`, `sync_log` (jsonb)
+**Extensão de `activities`**:
+- Coluna `chatwoot_conversation_id` (bigint, nullable, indexada) para rastrear origem
+- Coluna `chatwoot_message_id` (bigint, nullable, unique parcial) para idempotência
 
-Nova tabela `ac_pipeline_selection`:
-- `ac_pipeline_id` (text, PK) — ID do pipeline no AC
-- `ac_pipeline_title` (text) — para exibir
-- `is_selected` (boolean) — admin marca/desmarca
-- `local_pipeline_id` (uuid, FK lógica → `pipelines.id`) — vinculado quando sincronizado
-- `last_synced_at` (timestamp)
+**Novo enum value** em `activity_type`:
+- `'chatwoot_status_change'` (para registrar mudanças de status/tabulação)
 
-Nova tabela `integration_sync_errors`:
-- `entity_type`, `ac_id`, `error_message`, `payload` (jsonb), `created_at`
+**Tabela `integration_settings`** (já existe) — adicionar colunas:
+- `chatwoot_base_url` (text)
+- `chatwoot_account_id` (bigint)
+- `chatwoot_webhook_secret` (text, nullable — Chatwoot padrão é por URL)
+- `chatwoot_last_event_at` (timestamptz)
 
-RLS: tudo restrito a admin.
+RLS: tabelas novas restritas a admin (manage) + tatico/admin (view), seguindo padrão das outras integrações.
 
 ## Edge functions
 
-| Função | Tipo | Função |
+| Função | Tipo | O que faz |
 |---|---|---|
-| `ac-test-connection` | privada | Pinga `/api/3/users/me`, valida credenciais |
-| `ac-list-pipelines` | privada | Busca todos pipelines do AC e popula `ac_pipeline_selection` |
-| `ac-sync-initial` | privada | Para cada pipeline marcado: sincroniza stages → deals → contacts dos deals → notes dos deals |
-| `ac-webhook` | pública (`verify_jwt=false`) | Recebe webhook, valida HMAC, **filtra por pipeline selecionado**, faz upsert |
+| `chatwoot-test-connection` | privada | Pinga `GET /api/v1/accounts/{id}/profile/` com token; valida credenciais e retorna nome da conta |
+| `chatwoot-webhook` | pública (`verify_jwt=false`) | Recebe webhook, opcional HMAC, faz match por email→phone, upsert em `chatwoot_conversations`, cria activities |
 
-**Lógica de filtro no webhook**:
-- Evento de `deal_*`: lê `pipeline` do payload, ignora se não está em `ac_pipeline_selection.is_selected = true`
-- Evento de `contact_*`: ignora a menos que o contact já exista no Yampa (foi importado por algum deal)
-- Evento de `note_*`/`task_*`: só processa se vinculado a deal já existente no Yampa
+**Idempotência**: `activities.chatwoot_message_id` evita duplicar a mesma mensagem se Chatwoot reentregar o webhook.
 
-Mapeamento:
-- AC `pipeline` → `pipelines` (só os marcados)
-- AC `dealStage` → `pipeline_stages` (do pipeline pai)
-- AC `deal` → `opportunities` (title, value→`estimated_mrr`, owner email→`consultant_id`)
-- AC `contact` → `contacts` (apenas os referenciados pelos deals importados)
-- AC `note`/`dealTask` → `activities`
+**Como cada activity fica registrada**:
+- `notes` = `Chatwoot #<conv_id> · status: <status> · tabulação: <tab>\n\n<conteúdo da mensagem>`
+- `type` = `mensagem_enviada` | `resposta_recebida` | `chatwoot_status_change`
+- `lead_id`/`opportunity_id` = deal matched (ou null se só contato)
+- `chatwoot_conversation_id` + `chatwoot_message_id` populados
 
-User mapping: e-mail do AC owner → `profiles.email` → `profiles.user_id`. Sem match: registra em `integration_sync_errors`.
+## Tela `/integrations/chatwoot`
 
-## Tela `/integrations/active-campaign`
-
-Apenas admin. Layout em 4 seções:
+Apenas admin. Layout em 4 seções (mesmo padrão do AC):
 
 **1. Credenciais**
-- URL da conta AC + status da conexão
+- Input "URL base do Chatwoot" (ex: `https://app.chatwoot.com`)
+- Input "Account ID"
+- Status: "Conectado como X" / "Falhou"
 - Botão "Testar conexão"
 
-**2. Seleção de Pipelines** (centro do plano)
-- Após conexão OK, botão "Buscar pipelines do ActiveCampaign"
-- Tabela com todos os pipelines AC: checkbox + nome + total de deals + status (sincronizado/pendente)
-- Botão "Salvar seleção"
+**2. Webhook**
+- Mostra a URL: `https://wdtdpyibiroufejijsmw.supabase.co/functions/v1/chatwoot-webhook` com botão copiar
+- Instruções: "Em Chatwoot → Settings → Integrations → Webhooks → Add. Eventos: `conversation_created`, `conversation_updated`, `conversation_status_changed`, `message_created`"
 
-**3. Sincronização**
-- Botão "Sincronizar agora" (roda `ac-sync-initial` só dos pipelines marcados)
-- Barra de progresso por pipeline
-- Última sincronização: data + contadores (X pipelines, Y deals, Z contatos, W atividades)
+**3. Atributo personalizado**
+- Aviso explicando que o atributo `tabulacao_atendimento` deve existir como **Conversation Custom Attribute** no Chatwoot. Link para o doc oficial.
 
-**4. Erros recentes**
-- Tabela de `integration_sync_errors` com botão "tentar novamente"
+**4. Eventos recentes & erros**
+- Últimas 20 conversas em `chatwoot_conversations` (id, status, tabulação, contato, deal vinculado, última msg)
+- Erros recentes de `integration_sync_errors` filtrando `entity_type LIKE 'chatwoot_%'`
 
-Item no menu lateral (admin only): **Integrações → ActiveCampaign**.
+## Sidebar
 
-## Secrets necessárias
+Novo item em **Integrações → Chatwoot** (admin only) com `MessageCircle` icon e `StatusDot` (verde se `chatwoot_last_event_at` < 24h, cinza se nunca, vermelho se test_connection falhou).
 
-Pediremos após aprovação:
-- `AC_API_URL` — ex: `https://yampa.api-us1.com`
-- `AC_API_KEY` — Settings → Developer no AC
-- `AC_WEBHOOK_SECRET` — para validar HMAC
+## Visualização no deal/contato
 
-## Configuração no AC (você faz, eu te guio)
+As atividades já aparecem no histórico atual do deal (em `KanbanCard` e `EditOpportunityDialog`). Vamos:
+- Adicionar ícone/badge `Chatwoot` quando `chatwoot_conversation_id` estiver presente
+- No tooltip da activity, mostrar "Conv #X · status · tabulação"
 
-Após o deploy, mostro a URL do webhook na tela. Você cola no AC em **Settings → Webhooks**, eventos: `contact_add`, `contact_update`, `deal_add`, `deal_update`, `deal_pipeline_add`, `deal_stage_add`, `deal_note_add`, `deal_task_add`.
+## Secrets necessários
+
+Após aprovação, vou pedir:
+- `CHATWOOT_API_TOKEN` — Profile → Access Token (escopo Account)
+- `CHATWOOT_WEBHOOK_SECRET` — opcional; só se você quiser validar HMAC (Chatwoot não envia por padrão)
+
+`CHATWOOT_BASE_URL` e `CHATWOOT_ACCOUNT_ID` ficam em `integration_settings` (não-secretos, configuráveis pela tela).
 
 ## Limitações
 
-- **One-way**: edições no Yampa não voltam pro AC.
-- **Pipeline novo no AC**: não é sincronizado automaticamente — admin precisa abrir a tela e marcar.
-- **Despseleção**: desmarcar um pipeline **não apaga** dados já importados; só para de receber novidades. Botão extra "Remover dados deste pipeline" disponível.
-- **Comissões**: trigger `generate_commission_on_won` só dispara se deal vier mapeado a um vendedor válido por e-mail.
-- **Rate limit AC**: 5 req/s — sync respeita com throttle.
+- **One-way**: ações no Yampa não voltam para o Chatwoot (não envia mensagem, não muda status).
+- **Matching**: se o contato no Chatwoot não tem email **nem** telefone que bate com Yampa, criamos um contato novo (sem deal vinculado).
+- **Tabulação**: depende do atributo `tabulacao_atendimento` existir como Custom Attribute de Conversa no Chatwoot. Se não existir, fica null.
+- **Mensagens em massa**: cada mensagem vira 1 activity. Conversas longas geram muitas linhas — aceitável para histórico, mas considerar se virar problema.
+- **Reentrega**: duplicatas da mesma `message_id` são ignoradas via unique index.
 
 ## Plano de implementação
 
-1. Migration: `ac_id` nas 5 tabelas + criar `integration_settings`, `ac_pipeline_selection`, `integration_sync_errors` com RLS admin-only.
-2. Pedir os 3 secrets.
-3. Edge `ac-test-connection`.
-4. Edge `ac-list-pipelines`.
-5. Edge `ac-sync-initial` (paginada, filtra por pipelines marcados).
-6. Edge `ac-webhook` (público, HMAC, filtro por pipeline).
-7. Página `/integrations/active-campaign` com as 4 seções.
-8. Item no `AppSidebar` (admin only).
-9. Mostrar URL do webhook na tela com botão "copiar".
+1. Migration: criar `chatwoot_conversations`, estender `activities` (chatwoot_conversation_id, chatwoot_message_id), estender `integration_settings`, adicionar enum `chatwoot_status_change`. RLS admin.
+2. Pedir os 1-2 secrets.
+3. Edge `chatwoot-test-connection`.
+4. Edge `chatwoot-webhook` (público, matching email→phone, upsert + activities idempotentes).
+5. Página `/integrations/chatwoot` com as 4 seções.
+6. Adicionar rota em `App.tsx` e item em `AppSidebar` (admin only) com `StatusDot`.
+7. Atualizar `KanbanCard`/`EditOpportunityDialog` para mostrar badge Chatwoot nas activities vindas dele.
 
