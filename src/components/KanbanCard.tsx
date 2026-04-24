@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare } from "lucide-react";
 import { ACTIVITY_LABELS } from "@/lib/constants";
+import { useOpportunityTags, useTags } from "@/hooks/useTags";
+import { TagChip } from "@/components/tags/TagChip";
+import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
@@ -42,6 +45,15 @@ export function KanbanCard({
     (Date.now() - new Date(lead.last_interaction_at || lead.created_at).getTime()) / (1000 * 60 * 60 * 24)
   );
 
+  const { data: tagMap = {} } = useOpportunityTags([lead.id]);
+  const { data: allTags = [] } = useTags();
+  const tagsById = new Map(allTags.map((t) => [t.id, t]));
+  const tagIds = (tagMap as Record<string, string[]>)[lead.id] || [];
+  const visibleTags = tagIds.slice(0, 3).map((id) => tagsById.get(id)).filter(Boolean);
+  const extraTags = tagIds.length - visibleTags.length;
+
+  const oppCreatedRaw = (lead as any).opportunity_created_at || lead.created_at;
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
@@ -50,9 +62,22 @@ export function KanbanCard({
             <p className="font-medium text-sm">{lead.title || lead.name}</p>
             {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
           </div>
+          {visibleTags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {visibleTags.map((t) => (
+                <TagChip key={t!.id} tag={t!} size="xs" />
+              ))}
+              {extraTags > 0 && (
+                <span className="text-[10px] text-muted-foreground self-center">+{extraTags}</span>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between text-xs">
             <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
             <span className={daysSince >= 2 ? "text-destructive" : "text-muted-foreground"}>{daysSince}d</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            Criado em {format(new Date(oppCreatedRaw), "dd/MM/yyyy")}
           </div>
           <Dialog open={activityOpen === lead.id} onOpenChange={(open) => setActivityOpen(open ? lead.id : null)}>
             <DialogTrigger asChild>
