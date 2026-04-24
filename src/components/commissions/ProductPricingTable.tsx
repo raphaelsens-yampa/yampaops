@@ -12,6 +12,8 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
 const PERIODICITIES = ["Avulso", "Mensal", "Trimestral", "Semestral", "Anual", "Vitalício"];
 
+type CommissionBase = "value" | "mrr";
+
 interface Product {
   id: string;
   product_id: string | null;
@@ -21,6 +23,7 @@ interface Product {
   plan_value: number;
   plan_mrr: number;
   commission_percent: number;
+  commission_base: CommissionBase;
 }
 
 export function ProductPricingTable() {
