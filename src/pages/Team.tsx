@@ -107,10 +107,11 @@ export default function TeamPage() {
   }
 
   // Sales velocity chart
-  const wonLeads = leads.filter(l => l.stage === "fechado_won");
+  const wonLeads = leads.filter(l => l.converted_at || l.stage === "fechado_won" || l.stage === "ganho");
   const velocityByChannel: Record<string, { total: number; count: number }> = {};
   wonLeads.forEach(l => {
-    const days = (new Date(l.updated_at).getTime() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    const wonAt = l.converted_at || l.updated_at;
+    const days = (new Date(wonAt).getTime() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24);
     if (!velocityByChannel[l.origin]) velocityByChannel[l.origin] = { total: 0, count: 0 };
     velocityByChannel[l.origin].total += days;
     velocityByChannel[l.origin].count++;
@@ -299,7 +300,7 @@ export default function TeamPage() {
                     {profiles.map(p => {
                       const userRole = roles.find(r => r.user_id === p.user_id);
                       const userLeads = leads.filter(l => l.consultant_id === p.user_id);
-                      const userWon = userLeads.filter(l => l.stage === "fechado_won");
+                      const userWon = userLeads.filter(l => l.converted_at || l.stage === "fechado_won" || l.stage === "ganho");
                       const userActs = activities.filter(a => a.user_id === p.user_id);
                       return (
                         <TableRow key={p.id}>

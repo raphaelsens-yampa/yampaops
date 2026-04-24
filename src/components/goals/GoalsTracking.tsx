@@ -48,7 +48,7 @@ export function GoalsTracking() {
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
         supabase.from("goals").select("*"),
-        supabase.from("opportunities").select("id, consultant_id, estimated_mrr, stage, updated_at, category_id"),
+        supabase.from("opportunities").select("id, consultant_id, estimated_mrr, stage, updated_at, converted_at, category_id"),
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
