@@ -99,6 +99,12 @@ export default function PipelinePage() {
 
   const currentPipeline = pipelines.find(p => p.id === currentPipelineId);
 
+  // Tags lookup for visible cards
+  const leadIds = leads.map((l) => l.id);
+  const { data: tagMap = {} } = useOpportunityTags(leadIds);
+  const { data: allTags = [] } = useTags();
+  const tagsById = new Map(allTags.map((t) => [t.id, t]));
+
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-3.5rem-3rem)] gap-4">
