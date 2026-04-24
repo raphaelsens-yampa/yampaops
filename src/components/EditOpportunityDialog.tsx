@@ -394,6 +394,48 @@ export function EditOpportunityDialog({
             </div>
           </div>
 
+          {/* Bloco de Datas */}
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/20">
+            <Label className="font-semibold">Datas</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Criação</Label>
+                <Input
+                  type="date"
+                  value={opportunityCreatedAt}
+                  onChange={(e) => setOpportunityCreatedAt(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Conversão</Label>
+                <Input
+                  type="text"
+                  readOnly
+                  value={opportunity?.converted_at ? format(new Date(opportunity.converted_at), "dd/MM/yyyy") : "—"}
+                  className="bg-muted/50 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Encerramento</Label>
+                <Input
+                  type="text"
+                  readOnly
+                  value={opportunity?.closed_at ? format(new Date(opportunity.closed_at), "dd/MM/yyyy") : "—"}
+                  className="bg-muted/50 cursor-not-allowed"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Conversão e Encerramento são preenchidos automaticamente quando a oportunidade entra em uma etapa de ganho ou perda.
+            </p>
+          </div>
+
+          {/* Bloco de Tags */}
+          <div className="rounded-lg border p-3 space-y-2">
+            <Label className="font-semibold">Tags</Label>
+            <OpportunityTagSection opportunityId={opportunity!.id} />
+          </div>
+
           <div>
             <Label>Consultor</Label>
             <Select value={consultantId} onValueChange={setConsultantId}>
