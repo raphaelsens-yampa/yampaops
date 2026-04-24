@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Settings } from "lucide-react";
 import { ProductPricingTable } from "@/components/commissions/ProductPricingTable";
-import { StripePricesTable } from "@/components/commissions/StripePricesTable";
 import { CommissionTriggersTable } from "@/components/commissions/CommissionTriggersTable";
 
 export default function CommissionSettings() {
@@ -93,7 +92,7 @@ export default function CommissionSettings() {
         </Card>
 
         <ProductPricingTable />
-        <StripePricesTable />
+        
         <CommissionTriggersTable />
       </div>
     </Layout>

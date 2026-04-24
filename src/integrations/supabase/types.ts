@@ -184,6 +184,7 @@ export type Database = {
       }
       commission_products: {
         Row: {
+          area: string | null
           commission_base: string
           commission_percent: number
           created_at: string
@@ -193,10 +194,14 @@ export type Database = {
           plan_mrr: number
           plan_name: string
           plan_value: number
+          price_name: string | null
           product_id: string | null
+          seller_id: string | null
+          stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
+          area?: string | null
           commission_base?: string
           commission_percent?: number
           created_at?: string
@@ -206,10 +211,14 @@ export type Database = {
           plan_mrr?: number
           plan_name?: string
           plan_value?: number
+          price_name?: string | null
           product_id?: string | null
+          seller_id?: string | null
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
+          area?: string | null
           commission_base?: string
           commission_percent?: number
           created_at?: string
@@ -219,7 +228,10 @@ export type Database = {
           plan_mrr?: number
           plan_name?: string
           plan_value?: number
+          price_name?: string | null
           product_id?: string | null
+          seller_id?: string | null
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Relationships: []
