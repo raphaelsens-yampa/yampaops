@@ -53,7 +53,7 @@ export function StripePricesTable() {
     const [{ data: priceData }, { data: profData }, { data: prodData }] = await Promise.all([
       supabase.from("stripe_prices").select("*").order("product_name"),
       supabase.from("profiles").select("user_id, full_name, email"),
-      supabase.from("commission_products").select("id, product_id, name, plan_name, periodicity, commission_percent, plan_mrr").order("name"),
+      supabase.from("commission_products").select("id, product_id, name, plan_name, periodicity, commission_percent, plan_mrr, plan_value, commission_base").order("name"),
     ]);
     setPrices((priceData as StripePrice[]) || []);
     setProfiles(profData || []);
