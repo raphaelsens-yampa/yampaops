@@ -161,11 +161,17 @@ export default function AdminDashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-heading font-bold">Dashboard</h1>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h1 className="text-2xl font-heading font-bold">Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Safra:</span>
+            <SafraSelector value={safra} onChange={setSafra} />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <MetricCard title="Pipeline MRR" value={`R$ ${totalPipelineMRR.toLocaleString("pt-BR")}`} icon={<DollarSign className="h-5 w-5" />} />
-          <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<TrendingUp className="h-5 w-5" />} />
+          <MetricCard title="MRR Fechado" value={`R$ ${closedMRR.toLocaleString("pt-BR")}`} icon={<TrendingUp className="h-5 w-5" />} subtitle={safra.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} />
           <MetricCard title="Conversão" value={`${convRate}%`} icon={<BarChart3 className="h-5 w-5" />} />
           <MetricCard title="Vel. Média" value={`${avgVelocity}d`} icon={<Zap className="h-5 w-5" />} subtitle="dias até fechar" />
           <MetricCard title="Oportunidades" value={activeLeads.length} icon={<Users className="h-5 w-5" />} />
@@ -180,7 +186,6 @@ export default function AdminDashboard() {
             selectedPipelineId={selectedPipelineId}
             onPipelineChange={setSelectedPipelineId}
             subtitle={`Safra: ${safra.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
-            rightSlot={<SafraSelector value={safra} onChange={setSafra} />}
           />
           <GoalsProgress goals={goalsProgress} />
         </div>
