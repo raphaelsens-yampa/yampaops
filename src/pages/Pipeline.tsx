@@ -198,12 +198,34 @@ export default function PipelinePage() {
                                 onDoubleClick={() => setEditingOpp(lead)}
                               >
                                 <Card className={`transition-shadow ${isPending ? "border-warning/60 bg-warning/5 cursor-default" : "cursor-grab active:cursor-grabbing"} ${snapshot.isDragging ? "shadow-lg ring-2 ring-primary/40" : "hover:shadow-md"}`}>
-                                  <CardContent className="p-3 space-y-1">
+                                  <CardContent className="p-3 space-y-1.5">
                                     <p className="font-medium text-sm">{lead.title || lead.name}</p>
                                     {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
                                     <div className="flex items-center justify-between mt-1 text-xs">
                                       <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
                                       <span className="text-muted-foreground">{ORIGIN_LABELS[lead.origin] || lead.origin}</span>
+                                    </div>
+                                    {(() => {
+                                      const ids = (tagMap as Record<string, string[]>)[lead.id] || [];
+                                      const visible = ids.slice(0, 3).map((id) => tagsById.get(id)).filter(Boolean);
+                                      const extra = ids.length - visible.length;
+                                      if (visible.length === 0) return null;
+                                      return (
+                                        <div className="flex flex-wrap gap-1 pt-0.5">
+                                          {visible.map((t) => (
+                                            <TagChip key={t!.id} tag={t!} size="xs" />
+                                          ))}
+                                          {extra > 0 && (
+                                            <span className="text-[10px] text-muted-foreground self-center">+{extra}</span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+                                      <span>Criado: {format(new Date((lead as any).opportunity_created_at || lead.created_at), "dd/MM")}</span>
+                                      {(lead as any).converted_at && (
+                                        <span className="text-success">✓ {format(new Date((lead as any).converted_at), "dd/MM")}</span>
+                                      )}
                                     </div>
                                     {isPending && (
                                       <StripePendingActions
