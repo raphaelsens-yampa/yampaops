@@ -49,7 +49,7 @@ export function ProductPricingTable() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ product_id: "", name: "", plan_name: "", periodicity: "Mensal", plan_value: "", plan_mrr: "", commission_percent: "10" });
+    setForm({ product_id: "", name: "", plan_name: "", periodicity: "Mensal", plan_value: "", plan_mrr: "", commission_percent: "10", commission_base: "mrr" });
     setDialogOpen(true);
   };
 
