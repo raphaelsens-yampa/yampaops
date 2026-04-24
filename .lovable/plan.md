@@ -1,154 +1,125 @@
+# Plano: Datas, Funil por Safra, Relatórios e Tags
 
+Quatro mudanças, do menor para o maior impacto.
 
-# Integração Chatwoot → Yampa CRM
+---
 
-Sincronização **one-way** Chatwoot → Yampa via webhook. Toda conversa criada/respondida vira atividade no deal+contato correspondente, com matching por **email (1º) ou telefone (2º)**.
+## 1. Datas na oportunidade
 
-## Fluxo
+Hoje só temos `created_at`, `updated_at` e `estimated_close_date`. Vamos formalizar três datas de negócio:
 
-```text
-Chatwoot                             Yampa
-┌─────────────────┐                  ┌──────────────────────────────┐
-│ Conversation    │                  │                              │
-│  - id           │   webhook       │  match contato/deal          │
-│  - status       │ ───────────────►│  por email → senão telefone │
-│  - contact:     │                  │                              │
-│     email/phone │                  │  ┌────────────────────────┐  │
-│  - custom_attrs │                  │  │ activity (deal+contato)│  │
-│    tabulacao_*  │                  │  │ tipo: mensagem_enviada │  │
-└─────────────────┘                  │  │  ou resposta_recebida  │  │
-       │                             │  │ notes: id+status+tab   │  │
-       │ message_created             │  └────────────────────────┘  │
-       │ (incoming/outgoing) ────────┤                              │
-       │                             │  ┌────────────────────────┐  │
-       │ conversation_updated ───────┤  │ chatwoot_conversations │  │
-       │ (status, custom attrs)      │  │  estado atual sincado  │  │
-       │                             │  └────────────────────────┘  │
-```
-
-## Eventos do Chatwoot que vamos escutar
-
-| Evento Chatwoot | O que faz no Yampa |
-|---|---|
-| `conversation_created` | Cria/atualiza linha em `chatwoot_conversations` + atividade `mensagem_enviada` no deal/contato |
-| `message_created` (outgoing, agent) | Atividade `mensagem_enviada` no deal/contato |
-| `message_created` (incoming, contact) | Atividade `resposta_recebida` no deal/contato |
-| `conversation_updated` | Atualiza `status` e `tabulacao_atendimento` em `chatwoot_conversations`; registra atividade de mudança no histórico |
-| `conversation_status_changed` | Atualiza `status` e registra mudança |
-
-## Lógica de matching (chave: email → telefone)
-
-```text
-1. Extrai email e phone do payload (conversation.meta.sender)
-2. Normaliza phone (só dígitos, com DDI)
-3. Busca contato:
-   a) WHERE email ILIKE :email → match
-   b) senão WHERE regexp_replace(phone,'\D','','g') = :phone_digits → match
-   c) senão → cria contato novo (name = sender.name, email, phone)
-4. Busca deal aberto vinculado: opportunities WHERE contact_id = X AND is_active = true
-   - Se houver 1 → registra atividade nele
-   - Se houver vários → registra no mais recente (last_interaction_at)
-   - Se não houver → registra só no contato (atividade sem opportunity_id)
-5. Atualiza opportunities.last_interaction_at = now()
-```
-
-## Mudanças no banco
-
-**Nova tabela `chatwoot_conversations`** (estado atual de cada conversa):
-- `chatwoot_conversation_id` (bigint, PK)
-- `chatwoot_account_id` (bigint)
-- `chatwoot_inbox_id` (bigint, nullable)
-- `status` (text) — `open`, `resolved`, `pending`, `snoozed`
-- `tabulacao_atendimento` (text, nullable)
-- `contact_id` (uuid, FK lógica → `contacts.id`, nullable)
-- `opportunity_id` (uuid, FK lógica → `opportunities.id`, nullable)
-- `contact_email`, `contact_phone` (texto guardado para auditoria)
-- `last_message_at`, `created_at`, `updated_at`
-
-**Extensão de `activities`**:
-- Coluna `chatwoot_conversation_id` (bigint, nullable, indexada) para rastrear origem
-- Coluna `chatwoot_message_id` (bigint, nullable, unique parcial) para idempotência
-
-**Novo enum value** em `activity_type`:
-- `'chatwoot_status_change'` (para registrar mudanças de status/tabulação)
-
-**Tabela `integration_settings`** (já existe) — adicionar colunas:
-- `chatwoot_base_url` (text)
-- `chatwoot_account_id` (bigint)
-- `chatwoot_webhook_secret` (text, nullable — Chatwoot padrão é por URL)
-- `chatwoot_last_event_at` (timestamptz)
-
-RLS: tabelas novas restritas a admin (manage) + tatico/admin (view), seguindo padrão das outras integrações.
-
-## Edge functions
-
-| Função | Tipo | O que faz |
+| Campo | Significado | Como é populado |
 |---|---|---|
-| `chatwoot-test-connection` | privada | Pinga `GET /api/v1/accounts/{id}/profile/` com token; valida credenciais e retorna nome da conta |
-| `chatwoot-webhook` | pública (`verify_jwt=false`) | Recebe webhook, opcional HMAC, faz match por email→phone, upsert em `chatwoot_conversations`, cria activities |
+| `opportunity_created_at` | Data de criação do deal (negócio) | Default `now()` na criação. Editável pelo admin. |
+| `closed_at` | Data de encerramento (won OU lost) | Preenchida automaticamente por trigger quando a etapa muda para `is_won=true` ou `is_lost=true`. Limpa se sair dessas etapas. |
+| `converted_at` | Data da conversão (virou won) | Preenchida automaticamente por trigger quando entra numa etapa `is_won=true`. |
 
-**Idempotência**: `activities.chatwoot_message_id` evita duplicar a mesma mensagem se Chatwoot reentregar o webhook.
+Para deals já existentes, faremos backfill:
+- `opportunity_created_at` ← `created_at`
+- `converted_at` ← `updated_at` se a etapa atual for won
+- `closed_at` ← `updated_at` se a etapa atual for won ou lost
 
-**Como cada activity fica registrada**:
-- `notes` = `Chatwoot #<conv_id> · status: <status> · tabulação: <tab>\n\n<conteúdo da mensagem>`
-- `type` = `mensagem_enviada` | `resposta_recebida` | `chatwoot_status_change`
-- `lead_id`/`opportunity_id` = deal matched (ou null se só contato)
-- `chatwoot_conversation_id` + `chatwoot_message_id` populados
+**Onde aparece na UI:**
+- `EditOpportunityDialog`: nova seção "Datas" com 3 campos. `opportunity_created_at` editável; `converted_at` e `closed_at` somente leitura (com nota "preenchido automaticamente ao mover para etapa de ganho/perda").
+- `KanbanCard` (cards do pipeline): badge pequeno com data de criação no rodapé.
 
-## Tela `/integrations/chatwoot`
+---
 
-Apenas admin. Layout em 4 seções (mesmo padrão do AC):
+## 2. Funil de Pipeline filtrado por safra (mês de criação)
 
-**1. Credenciais**
-- Input "URL base do Chatwoot" (ex: `https://app.chatwoot.com`)
-- Input "Account ID"
-- Status: "Conectado como X" / "Falhou"
-- Botão "Testar conexão"
+No Dashboard (`AdminDashboard.tsx`), o componente `PipelineFunnel` passa a receber um filtro de **safra mensal**.
 
-**2. Webhook**
-- Mostra a URL: `https://wdtdpyibiroufejijsmw.supabase.co/functions/v1/chatwoot-webhook` com botão copiar
-- Instruções: "Em Chatwoot → Settings → Integrations → Webhooks → Add. Eventos: `conversation_created`, `conversation_updated`, `conversation_status_changed`, `message_created`"
+- Novo seletor de mês ao lado do seletor de pipeline (formato "Abril 2026" com setas ← →).
+- Default: **mês vigente**.
+- Filtra `leads` por `opportunity_created_at` (com fallback para `created_at`) dentro do intervalo `[início_do_mês, fim_do_mês]` antes de calcular `funnelData`.
+- Label do card muda para: "Funil de Pipeline · Safra de {mês}".
 
-**3. Atributo personalizado**
-- Aviso explicando que o atributo `tabulacao_atendimento` deve existir como **Conversation Custom Attribute** no Chatwoot. Link para o doc oficial.
+---
 
-**4. Eventos recentes & erros**
-- Últimas 20 conversas em `chatwoot_conversations` (id, status, tabulação, contato, deal vinculado, última msg)
-- Erros recentes de `integration_sync_errors` filtrando `entity_type LIKE 'chatwoot_%'`
+## 3. Sistema de Tags
 
-## Sidebar
+### Schema novo
+- `tags` — `id`, `name` (unique), `slug`, `color`, `is_system` (bool, protege as tags do Chatwoot de serem deletadas), `created_at`. RLS: admin gerencia, autenticado lê.
+- `opportunity_tags` — `opportunity_id`, `tag_id`, `created_at`, `created_by`. PK composta. RLS: admin gerencia, vendedor pode adicionar/remover nas suas oportunidades, todos com acesso ao deal podem ler.
 
-Novo item em **Integrações → Chatwoot** (admin only) com `MessageCircle` icon e `StatusDot` (verde se `chatwoot_last_event_at` < 24h, cinza se nunca, vermelho se test_connection falhou).
+### Seed das 4 tags do Chatwoot (`is_system=true`)
+- "Conversa criada" (azul)
+- "Conversa atualizada" (cinza)
+- "Conversa finalizada" (verde)
+- "Mensagem respondida" (roxo)
 
-## Visualização no deal/contato
+### UI de gerenciamento
+Nova página `/settings/tags` (admin) com lista, criar/editar/excluir (excluir bloqueado em system). Item no sidebar dentro de "Gestão" → "Tags".
 
-As atividades já aparecem no histórico atual do deal (em `KanbanCard` e `EditOpportunityDialog`). Vamos:
-- Adicionar ícone/badge `Chatwoot` quando `chatwoot_conversation_id` estiver presente
-- No tooltip da activity, mostrar "Conv #X · status · tabulação"
+### UI nas oportunidades
+- `EditOpportunityDialog`: seção "Tags" com chips coloridos + popover de busca para adicionar/remover.
+- `KanbanCard`: até 3 chips de tag (resto vira "+N"). Tags do Chatwoot ficam visíveis aqui — atende o pedido de "ver eventos do Chatwoot no card".
 
-## Secrets necessários
+### Auto-tag pelo webhook do Chatwoot
+Atualizar `chatwoot-webhook/index.ts`. Quando há `opportunityId` resolvido, mapear evento → tag e fazer `upsert` em `opportunity_tags` (idempotente):
 
-Após aprovação, vou pedir:
-- `CHATWOOT_API_TOKEN` — Profile → Access Token (escopo Account)
-- `CHATWOOT_WEBHOOK_SECRET` — opcional; só se você quiser validar HMAC (Chatwoot não envia por padrão)
+| Evento Chatwoot | Tag aplicada |
+|---|---|
+| `conversation_created` | "Conversa criada" |
+| `conversation_updated` | "Conversa atualizada" |
+| `conversation_status_changed` | "Conversa finalizada" |
+| `message_created` (incoming, do cliente) | "Mensagem respondida" |
 
-`CHATWOOT_BASE_URL` e `CHATWOOT_ACCOUNT_ID` ficam em `integration_settings` (não-secretos, configuráveis pela tela).
+`message_created` outgoing (do agente) **não** aplica tag — continua só gerando activity.
 
-## Limitações
+---
 
-- **One-way**: ações no Yampa não voltam para o Chatwoot (não envia mensagem, não muda status).
-- **Matching**: se o contato no Chatwoot não tem email **nem** telefone que bate com Yampa, criamos um contato novo (sem deal vinculado).
-- **Tabulação**: depende do atributo `tabulacao_atendimento` existir como Custom Attribute de Conversa no Chatwoot. Se não existir, fica null.
-- **Mensagens em massa**: cada mensagem vira 1 activity. Conversas longas geram muitas linhas — aceitável para histórico, mas considerar se virar problema.
-- **Reentrega**: duplicatas da mesma `message_id` são ignoradas via unique index.
+## 4. Seção de Relatórios
 
-## Plano de implementação
+Nova rota `/reports` com sub-rotas. Item no sidebar em **Visão Geral** → "Relatórios" (ícone `FileBarChart`).
 
-1. Migration: criar `chatwoot_conversations`, estender `activities` (chatwoot_conversation_id, chatwoot_message_id), estender `integration_settings`, adicionar enum `chatwoot_status_change`. RLS admin.
-2. Pedir os 1-2 secrets.
-3. Edge `chatwoot-test-connection`.
-4. Edge `chatwoot-webhook` (público, matching email→phone, upsert + activities idempotentes).
-5. Página `/integrations/chatwoot` com as 4 seções.
-6. Adicionar rota em `App.tsx` e item em `AppSidebar` (admin only) com `StatusDot`.
-7. Atualizar `KanbanCard`/`EditOpportunityDialog` para mostrar badge Chatwoot nas activities vindas dele.
+Layout: página com tabs no topo. Filtros globais (período + pipeline + canal) num topo sticky.
 
+### 4 relatórios
+
+**a) Oportunidades** (`/reports/opportunities`)
+Tabela completa de deals com filtros (etapa, canal, vendedor, tag, intervalo de criação). Colunas: título, contato, empresa, etapa, MRR, vendedor, criação, conversão, encerramento, tags. Botão Exportar CSV.
+
+**b) Conversões** (`/reports/conversions`)
+- Funil de conversão por safra (reusa `PipelineFunnel`).
+- Tabela: vendedor → criados, ganhos, perdidos, taxa conversão %, ticket médio MRR, ciclo médio (dias entre criação e conversão).
+- Gráfico de barras: conversão por canal de origem.
+
+**c) Performance** (`/reports/performance`)
+- Ranking de vendedores: deals criados, deals ganhos, MRR ganho, atividades, taxa conversão.
+- Velocidade média por etapa (dias parados em cada etapa antes de avançar) — calculado de `activities` + transições.
+- Top motivos de perda (agrupa `loss_reason`).
+
+**d) Por Tags** (`/reports/tags`)
+- Cards por tag: nº de oportunidades, MRR total ativo, MRR ganho, taxa de conversão.
+- Tabela cruzada: tag × etapa (matriz de contagem).
+- Foco prático: ver impacto das tags do Chatwoot ("oportunidades com tag Mensagem respondida convertem X% mais").
+
+Exportação CSV em todas as 4.
+
+---
+
+## Mudanças técnicas (resumo)
+
+**Migrações SQL:**
+1. `ALTER TABLE opportunities ADD COLUMN opportunity_created_at, closed_at, converted_at` + backfill.
+2. Trigger `set_opportunity_dates_on_stage_change()` em `opportunities` (BEFORE UPDATE).
+3. `CREATE TABLE tags`, `CREATE TABLE opportunity_tags` + RLS.
+4. Seed das 4 tags do Chatwoot.
+
+**Edge function:**
+- `chatwoot-webhook/index.ts`: nova função `applyTagForEvent(opportunityId, eventName, messageType)` chamada nos handlers.
+
+**Frontend:**
+- `EditOpportunityDialog.tsx`: seção Datas + seção Tags.
+- `NewOpportunityDialog.tsx`: campo opcional de Tags na criação.
+- `KanbanCard.tsx`: chips de tag + data de criação.
+- `PipelineFunnel.tsx`: aceitar prop de período (label).
+- `AdminDashboard.tsx`: estado `selectedSafra`, seletor de mês, filtragem.
+- Novo: `src/pages/Reports.tsx` (com tabs) + 4 sub-componentes em `src/components/reports/`.
+- Novo: `src/pages/TagsSettings.tsx` para gerenciar tags.
+- Novo: `src/hooks/useTags.ts`.
+- `App.tsx`: rotas `/reports`, `/reports/*`, `/settings/tags`.
+- `AppSidebar.tsx`: item "Relatórios" e "Tags".
+
+**Sem mudanças:** schema de `chatwoot_conversations`, `activities`, `contacts`, lógica de comissões.
