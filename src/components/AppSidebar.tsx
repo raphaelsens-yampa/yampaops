@@ -225,6 +225,7 @@ export function AppSidebar() {
           <item.icon className="h-4 w-4" />
           <span>{item.title}</span>
           {!collapsed && item.rightSlot === "ac-status" && <ACStatusDot />}
+          {!collapsed && item.rightSlot === "stripe-status" && <StripeStatusDot />}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
