@@ -141,13 +141,13 @@ function ChatwootStatusDot() {
   const cls = recent
     ? "bg-success"
     : configured
-    ? "bg-sidebar-foreground/30"
+    ? "bg-warning"
     : "bg-destructive";
 
   const title = recent
     ? `Último evento: ${new Date(lastEvent).toLocaleString("pt-BR")}`
     : configured
-    ? "Configurado, sem eventos recentes"
+    ? "Configurado, aguardando eventos do webhook"
     : "Não configurado";
 
   return (
