@@ -329,8 +329,9 @@ export function ProductPricingTable() {
                   <TableHead>Periodicidade</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-right">MRR</TableHead>
-                  <TableHead className="text-right">% Com.</TableHead>
                   <TableHead>Base</TableHead>
+                  <TableHead className="text-right">% Com.</TableHead>
+                  <TableHead className="text-right">$ Com.</TableHead>
                   <TableHead>Stripe Price ID</TableHead>
                   <TableHead>Price Name</TableHead>
                   <TableHead>Área</TableHead>
