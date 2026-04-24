@@ -99,18 +99,19 @@ export default function Commissions() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            <h1 className="font-heading text-2xl font-bold">Comissões</h1>
+            <DollarSign className="h-5 w-5 shrink-0" />
+            <h1 className="font-heading text-xl sm:text-2xl font-bold">Comissões</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-wrap">
             <CommissionMonthFilter currentMonth={filterMonth} onMonthChange={setFilterMonth} />
             {isAdmin && (
               <Link to="/commissions/settings">
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-1" /> Configurações
+                <Button variant="outline" size="sm" className="shrink-0">
+                  <Settings className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Configurações</span>
                 </Button>
               </Link>
             )}
