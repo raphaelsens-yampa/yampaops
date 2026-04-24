@@ -303,6 +303,7 @@ async function handleConversationCreated(payload: any) {
     opportunityId: ctx.opportunityId,
     userId,
   });
+  await applyTagForEvent(ctx.opportunityId, "conversation_created");
   await bumpOpportunityInteraction(ctx.opportunityId);
   return { ok: true };
 }
