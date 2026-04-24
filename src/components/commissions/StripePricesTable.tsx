@@ -215,7 +215,7 @@ export function StripePricesTable() {
                   <div className="rounded-md border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
                     Base de cálculo deste produto: <strong className="text-foreground">
                       {selectedProduct.commission_base === "value"
-                        ? `Valor do Plano (R$ ${selectedProduct.plan_value.toFixed(2)}) — 1º recebimento`
+                        ? `Valor do Plano (R$ ${selectedProduct.plan_value.toFixed(2)})`
                         : `MRR (R$ ${selectedProduct.plan_mrr.toFixed(2)})`}
                     </strong>
                   </div>
