@@ -66,25 +66,21 @@ export default function AdminDashboard() {
   const wonSlug = wonStage?.slug || "fechado_won";
   const lostSlug = lostStage?.slug || "perdido";
 
-  // Safra range (selected month)
-  const safraStart = startOfMonth(safra).getTime();
-  const safraEnd = endOfMonth(safra).getTime();
-  const inSafra = (ts: number) => ts >= safraStart && ts < safraEnd;
+  // Safra month (compared in UTC to avoid timezone offset issues)
+  const inSafra = (dateStr: string | Date | null | undefined) => sameMonthUTC(dateStr, safra);
 
   // Active = open opportunities created in safra month
   const activeLeads = leads.filter(l => {
     if (l.converted_at || l.stage === lostSlug || l.stage === "perdido") return false;
-    const ts = new Date(l.opportunity_created_at || l.created_at).getTime();
-    return inSafra(ts);
+    return inSafra(l.opportunity_created_at || l.created_at);
   });
   // Won = closed in safra month (by converted_at)
-  const wonLeads = leads.filter(l => l.converted_at && inSafra(new Date(l.converted_at).getTime()));
+  const wonLeads = leads.filter(l => l.converted_at && inSafra(l.converted_at));
   const totalPipelineMRR = activeLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
   const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
   const totalSafraLeads = leads.filter(l => {
     if (l.stage === lostSlug || l.stage === "perdido") return false;
-    const ts = new Date(l.opportunity_created_at || l.created_at).getTime();
-    return inSafra(ts);
+    return inSafra(l.opportunity_created_at || l.created_at);
   }).length;
   const convRate = totalSafraLeads > 0 ? ((wonLeads.length / totalSafraLeads) * 100).toFixed(1) : "0";
 
@@ -95,14 +91,11 @@ export default function AdminDashboard() {
   });
   const avgVelocity = wonDays.length > 0 ? (wonDays.reduce((a, b) => a + b, 0) / wonDays.length).toFixed(1) : "—";
 
-  // Filter leads by selected pipeline AND by safra (opportunity_created_at month)
+  // Funnel = leads in selected pipeline created in safra month
   const pipelineLeads = (selectedPipelineId
     ? leads.filter(l => l.pipeline_id === selectedPipelineId)
     : leads
-  ).filter((l: any) => {
-    const ts = new Date(l.opportunity_created_at || l.created_at).getTime();
-    return ts >= safraStart && ts < safraEnd;
-  });
+  ).filter((l: any) => inSafra(l.opportunity_created_at || l.created_at));
 
   const funnelData: Record<string, { count: number; mrr: number }> = {};
   stageOrder.forEach(s => { funnelData[s] = { count: 0, mrr: 0 }; });
