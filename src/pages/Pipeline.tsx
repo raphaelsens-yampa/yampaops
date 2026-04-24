@@ -7,7 +7,8 @@ import { ORIGIN_LABELS } from "@/lib/constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Search, Settings, X } from "lucide-react";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { StageManager } from "@/components/StageManager";
 import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
@@ -38,6 +39,7 @@ export default function PipelinePage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const [search, setSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any | null>(null);
@@ -93,7 +95,17 @@ export default function PipelinePage() {
     }
   };
 
-  const filtered = filter === "all" ? leads : leads.filter(l => l.origin === filter);
+  const byChannel = filter === "all" ? leads : leads.filter(l => l.origin === filter);
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? byChannel.filter((l: any) => {
+        const fields = [
+          l.title, l.name, l.company,
+          l.contacts?.name, l.contacts?.company, l.contacts?.email,
+        ];
+        return fields.some((f) => typeof f === "string" && f.toLowerCase().includes(q));
+      })
+    : byChannel;
 
   // Tags lookup for visible cards (hooks must be called before any early return)
   const leadIds = leads.map((l) => l.id);
@@ -158,6 +170,25 @@ export default function PipelinePage() {
                 {Object.entries(ORIGIN_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
+            <div className="relative w-56">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar oportunidade..."
+                className="pl-8 pr-8 h-9"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
