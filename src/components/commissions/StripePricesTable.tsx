@@ -29,6 +29,7 @@ interface Profile { user_id: string; full_name: string | null; email: string | n
 interface CommissionProduct {
   id: string; product_id: string | null; name: string; plan_name: string;
   periodicity: string; commission_percent: number; plan_mrr: number;
+  plan_value: number; commission_base: "value" | "mrr";
 }
 
 export function StripePricesTable() {
