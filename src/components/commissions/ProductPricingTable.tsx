@@ -79,6 +79,7 @@ export function ProductPricingTable() {
       plan_value: Number(form.plan_value) || 0,
       plan_mrr: Number(form.plan_mrr) || 0,
       commission_percent: Number(form.commission_percent) || 0,
+      commission_base: form.commission_base,
     };
 
     const { error } = editing
