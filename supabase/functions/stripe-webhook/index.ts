@@ -217,10 +217,23 @@ Deno.serve(async (req) => {
     registered_at: firstContact?.created_at ?? new Date().toISOString(),
     converted_at: new Date().toISOString(),
   };
+  // Idempotência: se já existe conversão para essa subscription, não regravar (não é nova)
+  let conversionExists = false;
   if (subscriptionId) {
-    await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" });
-  } else {
-    await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    const { data: existing } = await supabase
+      .from("stripe_conversions")
+      .select("id")
+      .eq("stripe_subscription_id", subscriptionId)
+      .maybeSingle();
+    conversionExists = !!existing;
+  }
+
+  if (!conversionExists) {
+    if (subscriptionId) {
+      await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" });
+    } else {
+      await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    }
   }
 
   if (contactIds.length === 0) {
