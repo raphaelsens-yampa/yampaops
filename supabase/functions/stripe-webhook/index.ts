@@ -85,6 +85,17 @@ Deno.serve(async (req) => {
     return ok({ ok: true, ignored: event.type });
   }
 
+  // Filtro: ignorar cobranças recorrentes — só processar criação de assinatura nova
+  if (event.type === "invoice.paid") {
+    const billingReason = (event.data.object as any)?.billing_reason;
+    if (billingReason !== "subscription_create") {
+      await supabase.from("stripe_events")
+        .update({ result: `ignored_recurring:${billingReason || "unknown"}` })
+        .eq("stripe_event_id", event.id);
+      return ok({ ok: true, ignored: "recurring", billing_reason: billingReason });
+    }
+  }
+
   // Extract email + customer + subscription + price
   let email: string | null = null;
   let customerId: string | null = null;
@@ -108,6 +119,7 @@ Deno.serve(async (req) => {
       subscriptionId = obj.id;
       priceId = obj.items?.data?.[0]?.price?.id || null;
     } else if (event.type === "invoice.paid") {
+      // Aqui só chega se billing_reason === 'subscription_create'
       email = obj.customer_email || null;
       customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id || null;
       subscriptionId = typeof obj.subscription === "string" ? obj.subscription : obj.subscription?.id || null;
@@ -205,10 +217,23 @@ Deno.serve(async (req) => {
     registered_at: firstContact?.created_at ?? new Date().toISOString(),
     converted_at: new Date().toISOString(),
   };
+  // Idempotência: se já existe conversão para essa subscription, não regravar (não é nova)
+  let conversionExists = false;
   if (subscriptionId) {
-    await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" });
-  } else {
-    await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    const { data: existing } = await supabase
+      .from("stripe_conversions")
+      .select("id")
+      .eq("stripe_subscription_id", subscriptionId)
+      .maybeSingle();
+    conversionExists = !!existing;
+  }
+
+  if (!conversionExists) {
+    if (subscriptionId) {
+      await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" });
+    } else {
+      await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    }
   }
 
   if (contactIds.length === 0) {
