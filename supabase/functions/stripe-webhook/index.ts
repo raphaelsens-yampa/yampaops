@@ -145,13 +145,71 @@ Deno.serve(async (req) => {
 
   const normEmail = email.trim().toLowerCase();
 
+  // ─── Resolver área + MRR + nomes pelo price_id (para painel de Conversões por Área) ───
+  let convArea: string = "desconhecida";
+  let convProductName: string | null = null;
+  let convPlanName: string | null = null;
+  let convMrr = 0;
+  if (priceId) {
+    const { data: cp } = await supabase
+      .from("commission_products")
+      .select("area, name, plan_name, plan_mrr")
+      .eq("stripe_price_id", priceId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (cp) {
+      convArea = cp.area || "desconhecida";
+      convProductName = cp.name || null;
+      convPlanName = cp.plan_name || null;
+      convMrr = Number(cp.plan_mrr || 0);
+    } else {
+      const { data: sp } = await supabase
+        .from("stripe_prices")
+        .select("area, product_name, plan_name, mrr")
+        .eq("price_id", priceId)
+        .limit(1)
+        .maybeSingle();
+      if (sp) {
+        convArea = sp.area || "desconhecida";
+        convProductName = sp.product_name || null;
+        convPlanName = sp.plan_name || null;
+        convMrr = Number(sp.mrr || 0);
+      }
+    }
+  }
+
   // Find an active deal in the default pipeline whose contact has this email
   const { data: contacts } = await supabase
     .from("contacts")
-    .select("id")
+    .select("id, created_at")
     .ilike("email", normEmail);
 
   const contactIds = (contacts || []).map((c) => c.id);
+  const firstContact = (contacts || []).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )[0] || null;
+
+  // Persistir conversão (independente de match) — upsert por subscription_id ou event_id
+  const conversionRow = {
+    stripe_event_id: event.id,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscriptionId,
+    stripe_price_id: priceId,
+    customer_email: normEmail,
+    area: convArea,
+    product_name: convProductName,
+    plan_name: convPlanName,
+    mrr: convMrr,
+    matched_contact_id: firstContact?.id ?? null,
+    registered_at: firstContact?.created_at ?? new Date().toISOString(),
+    converted_at: new Date().toISOString(),
+  };
+  if (subscriptionId) {
+    await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" });
+  } else {
+    await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+  }
 
   if (contactIds.length === 0) {
     await supabase.from("integration_sync_errors").insert({
