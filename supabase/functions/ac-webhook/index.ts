@@ -92,11 +92,16 @@ async function processDeal(payload: any) {
     if (stage) stageSlug = stage.slug;
   }
 
-  // Sync contact if present
+  // Sync contact if present — lookup by ac_id OR email to avoid duplicates
   let localContactId: string | null = null;
   if (deal.contact) {
     const { data: existing } = await service.from("contacts").select("id").eq("ac_id", String(deal.contact)).maybeSingle();
     if (existing) localContactId = existing.id;
+    else if (deal.contact_email || deal.contactEmail) {
+      const email = String(deal.contact_email || deal.contactEmail).toLowerCase().trim();
+      const { data: byEmail } = await service.from("contacts").select("id").ilike("email", email).maybeSingle();
+      if (byEmail) localContactId = byEmail.id;
+    }
   }
 
   const consultantId = await findUserByEmail(deal.owner_email || deal.ownerEmail);
