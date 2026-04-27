@@ -1,57 +1,109 @@
-## Unificação: Catálogo de Produtos & Comissões
+## Objetivo
 
-Hoje temos duas tabelas no painel **Configurações de Comissão** com muita sobreposição:
+Hoje o webhook Stripe só persiste a conversão quando o email **bate** com um contato e existe deal ativo no pipeline padrão. Conversões de áreas **CX, Marketing, Produto, YampaFin** (e até vendas Comercial sem deal antes) ficam apenas em `stripe_events`/`integration_sync_errors` e não aparecem em lugar nenhum.
 
-| Coluna | commission_products | stripe_prices |
-|---|---|---|
-| Product ID (numérico) | ✓ | — |
-| Produto / Plano / Periodicidade | ✓ | ✓ (duplicado) |
-| Valor do Plano | ✓ | — |
-| MRR | ✓ | ✓ (duplicado) |
-| % Comissão | ✓ | ✓ (override) |
-| Base de cálculo (Valor/MRR) | ✓ | — |
-| **Stripe Price ID** | — | ✓ |
-| **Price Name** | — | ✓ |
-| **Área / Vendedor** | — | ✓ |
+Vamos:
+1. Persistir **toda conversão** Stripe numa tabela própria (`stripe_conversions`), classificada por área via `price_id`.
+2. Criar página **"Conversões por Área"** (admin) com gráfico, tabela, exportação e filtros de período + safra.
 
-A intenção real é: **cada Price ID do Stripe é uma variante do produto** (mesmo plano, mesma comissão, só muda o vendedor/área/price_id). Faz sentido manter **uma única tabela** onde cada linha é uma "oferta vendável" completa.
+---
 
-### Nova estrutura proposta
+## 1. Banco de dados (migration)
 
-Uma única tabela **Catálogo de Produtos** (`commission_products` expandida) com as colunas:
+Nova tabela `stripe_conversions` (uma linha por assinatura/conversão paga, idempotente por `stripe_subscription_id` ou, na ausência, `stripe_event_id`):
 
-```text
-Product ID | Produto | Plano | Periodicidade | Valor | MRR | % Comissão | Base | Stripe Price ID | Price Name | Área | Vendedor
+```
+stripe_conversions
+- id uuid pk
+- stripe_event_id text         -- evento original (idempotência)
+- stripe_customer_id text
+- stripe_subscription_id text  -- preferencial p/ dedup
+- stripe_price_id text
+- customer_email text
+- area text                    -- CX | Marketing | Produto | YampaFin | Sales | desconhecida
+- product_name text            -- de commission_products / stripe_prices
+- plan_name text
+- mrr numeric default 0
+- matched_opportunity_id uuid  -- se deu match com deal
+- matched_contact_id uuid
+- registered_at timestamptz    -- "safra": data de cadastro do contato (contacts.created_at) — fallback: data do evento
+- converted_at timestamptz     -- timestamp do evento Stripe
+- created_at timestamptz default now()
+- UNIQUE (stripe_subscription_id) WHERE stripe_subscription_id is not null
+- UNIQUE (stripe_event_id)      -- fallback de dedup
 ```
 
-A tabela `stripe_prices` será **descontinuada** — seus dados serão migrados para `commission_products` (1 linha já existe e bate 1:1 com 1 produto, então a migração é direta).
+RLS: admin/tatico podem ler tudo; só webhook (service role) escreve.
 
-### O que muda no banco
+Índices: `(area)`, `(converted_at)`, `(registered_at)`, `(matched_opportunity_id)`.
 
-- Adicionar em `commission_products`: `stripe_price_id`, `price_name`, `area`, `seller_id`
-- Adicionar índice único parcial em `stripe_price_id` (quando não-nulo)
-- Migrar 1 registro existente de `stripe_prices` → `commission_products` (merge no produto correspondente)
-- Atualizar o trigger `generate_commission_on_won` para buscar tudo em `commission_products` (via `stripe_price_id` quando a oportunidade vier do Stripe, ou via `product_id` no fallback) — com a regra de comissão única por oportunidade já existente preservada
-- Manter `stripe_prices` por enquanto como deprecated (não removida) para não quebrar histórico, mas sem uso novo
+**Backfill**: rodar SQL que percorre `stripe_events` (todos os 197 já recebidos) e popula `stripe_conversions` extraindo `email`, `customer`, `price_id`, `subscription_id`, `created` do `payload`, resolvendo área/MRR via `commission_products` ou `stripe_prices`. Para `registered_at`, lookup em `contacts.created_at` por email (se não existir, usa `converted_at`).
 
-### O que muda na UI
+---
 
-- **Remover** o componente `StripePricesTable` da página `/commissions/settings`
-- **Renomear** `ProductPricingTable` → `ProductCatalogTable` com:
-  - Formulário expandido: campos Stripe (Price ID, Price Name, Área, Vendedor) em uma seção opcional "Integração Stripe"
-  - Tabela com colunas combinadas e busca por Product ID, Price ID ou nome
-- Atualizar `EditOpportunityDialog.tsx` (linha 91) para buscar Price IDs direto de `commission_products` em vez de `stripe_prices`
+## 2. Edge Function `stripe-webhook`
 
-### Nada muda para o usuário em termos de comportamento
+Após extrair email/customer/subscription/price, **antes** dos branches atuais de "no_contact_match"/"no_deal_match":
 
-- Cálculo de comissão continua igual (Valor ou MRR × %, primeira ocorrência)
-- Página de Comissões (`/commissions`) continua mostrando os dados normalmente
-- Webhook do Stripe continua resolvendo o produto pelo `stripe_price_id`
+- Resolver área + MRR + product_name pelo `price_id`:
+  - 1º `commission_products` (por `stripe_price_id`)
+  - 2º `stripe_prices` (por `price_id`)
+- `upsert` em `stripe_conversions` por `stripe_subscription_id` (ou `stripe_event_id`).
+- Continuar o fluxo atual (match de deal etc.) — quando der match, atualizar `matched_opportunity_id`/`matched_contact_id` na linha de conversão.
 
-### Detalhes técnicos
+Resultado: todas as conversões pagas ficam registradas, independente de match.
 
-- Migração SQL: `ALTER TABLE commission_products ADD COLUMN stripe_price_id text, price_name text, area text, seller_id uuid` + `CREATE UNIQUE INDEX ... ON commission_products(stripe_price_id) WHERE stripe_price_id IS NOT NULL` + `INSERT/UPDATE` para fundir os 1 registro de stripe_prices.
-- Atualizar trigger `generate_commission_on_won` para fazer lookup único em `commission_products` por `stripe_price_id` ou `id`.
-- Remover import e uso de `StripePricesTable` em `CommissionSettings.tsx`.
-- Excluir arquivo `src/components/commissions/StripePricesTable.tsx`.
-- Em `EditOpportunityDialog.tsx`, trocar a query `stripe_prices` por uma query única em `commission_products` selecionando os campos equivalentes.
+---
+
+## 3. Frontend — nova página `/insights/conversions`
+
+Rota admin/tatico (sidebar grupo **Visão Geral** → "Conversões por Área", ícone `PieChart`).
+
+Layout:
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ Conversões por Área                            [Exportar ▾] │
+│ Filtros: [Período conversão ▾]  [Safra cadastro ▾]  [Áreas ▾]│
+├──────────────────────────────────────────────────────────────┤
+│ KPIs: Total conversões | MRR total | Tickets médios | Áreas │
+├──────────────────────────────────────────────────────────────┤
+│ ┌─ Donut: % por área ─┐   ┌─ Barras: MRR por área ──────┐   │
+│ │                     │   │                             │   │
+│ └─────────────────────┘   └─────────────────────────────┘   │
+│ ┌─ Linha: conversões/MRR no tempo (por área) ───────────┐   │
+│ └────────────────────────────────────────────────────────┘   │
+├──────────────────────────────────────────────────────────────┤
+│ Tabela: data | área | produto | plano | email | MRR | match │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Filtros**:
+- **Período de conversão**: `converted_at` entre datas (presets: este mês, últimos 30/90 dias, custom).
+- **Safra**: `registered_at` entre datas (data de cadastro do contato — quando o lead nasceu).
+- **Áreas**: multi-select (CX, Marketing, Produto, YampaFin, Sales, desconhecida).
+
+**Gráficos** (recharts, padrão do projeto): Donut por área, Bar por área (MRR), Line temporal (conversões + MRR, séries por área).
+
+**Tabela** (shadcn `Table`): paginada, ordenável, com badge de área, indicador "Match com deal? sim/não".
+
+**Exportação** (`src/lib/`): CSV e XLSX (xlsx + file-saver, já no projeto) e PDF (jsPDF + autoTable, já no projeto), seguindo o mesmo padrão de `commissionExport.ts`.
+
+---
+
+## 4. Detalhes técnicos
+
+- Hook `useStripeConversions(filters)` → react-query, monta query Supabase com `.gte/.lte` e `.in('area', ...)`.
+- Cores por área via tokens HSL existentes; mapping `{ Sales, CX, Marketing, Produto, YampaFin, desconhecida }`.
+- Sidebar: novo item em "Visão Geral" (admin/tatico).
+- Sem alterações no fluxo de `stripe_events`/`integration_sync_errors` (continuam como auditoria).
+
+---
+
+## Entregas
+
+1. Migration: tabela `stripe_conversions` + RLS + índices.
+2. Backfill SQL dos eventos já processados.
+3. Webhook atualizado para popular `stripe_conversions` sempre.
+4. Página `/insights/conversions` com gráficos + tabela + filtros + exportação (CSV/XLSX/PDF).
+5. Item de sidebar e rota.

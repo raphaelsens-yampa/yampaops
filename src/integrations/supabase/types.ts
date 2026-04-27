@@ -912,6 +912,63 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_conversions: {
+        Row: {
+          area: string
+          converted_at: string
+          created_at: string
+          customer_email: string | null
+          id: string
+          matched_contact_id: string | null
+          matched_opportunity_id: string | null
+          mrr: number
+          plan_name: string | null
+          product_name: string | null
+          registered_at: string | null
+          stripe_customer_id: string | null
+          stripe_event_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          area?: string
+          converted_at?: string
+          created_at?: string
+          customer_email?: string | null
+          id?: string
+          matched_contact_id?: string | null
+          matched_opportunity_id?: string | null
+          mrr?: number
+          plan_name?: string | null
+          product_name?: string | null
+          registered_at?: string | null
+          stripe_customer_id?: string | null
+          stripe_event_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          converted_at?: string
+          created_at?: string
+          customer_email?: string | null
+          id?: string
+          matched_contact_id?: string | null
+          matched_opportunity_id?: string | null
+          mrr?: number
+          plan_name?: string | null
+          product_name?: string | null
+          registered_at?: string | null
+          stripe_customer_id?: string | null
+          stripe_event_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stripe_events: {
         Row: {
           event_type: string

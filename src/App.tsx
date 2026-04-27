@@ -24,6 +24,7 @@ import StripeIntegration from "./pages/StripeIntegration";
 import ChatwootIntegration from "./pages/ChatwootIntegration";
 import IntegrationAudit from "./pages/IntegrationAudit";
 import Reports from "./pages/Reports";
+import StripeConversions from "./pages/StripeConversions";
 import TagsSettings from "./pages/TagsSettings";
 import NotFound from "./pages/NotFound";
 
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
         <Route path="/integrations/audit" element={<IntegrationAudit />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/insights/conversions" element={<StripeConversions />} />
         <Route path="/settings/tags" element={<TagsSettings />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />

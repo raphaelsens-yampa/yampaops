@@ -1,7 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
-  FileBarChart, Tag,
+  FileBarChart, Tag, PieChart,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -183,6 +183,7 @@ export function AppSidebar() {
           : { title: "Dashboard", url: "/", icon: BarChart3, area: "dashboard" },
         { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
         { title: "Relatórios", url: "/reports", icon: FileBarChart },
+        { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart },
       ],
     },
     {
