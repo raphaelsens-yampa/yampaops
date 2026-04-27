@@ -251,32 +251,8 @@ Deno.serve(async (req) => {
     return ok({ ok: true, warning: "no_deal_match" });
   }
 
-  // Resolve MRR from price_id (commission_products is the source of truth)
-  let resolvedMrr: number | null = null;
-  if (priceId) {
-    const { data: prod } = await supabase
-      .from("commission_products")
-      .select("plan_mrr")
-      .eq("stripe_price_id", priceId)
-      .not("plan_mrr", "is", null)
-      .gt("plan_mrr", 0)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (prod?.plan_mrr) {
-      resolvedMrr = Number(prod.plan_mrr);
-    } else {
-      // Fallback: stripe_prices table
-      const { data: sp } = await supabase
-        .from("stripe_prices")
-        .select("mrr")
-        .eq("price_id", priceId)
-        .gt("mrr", 0)
-        .limit(1)
-        .maybeSingle();
-      if (sp?.mrr) resolvedMrr = Number(sp.mrr);
-    }
-  }
+  // MRR já resolvido em convMrr (via commission_products / stripe_prices)
+  const resolvedMrr: number | null = convMrr > 0 ? convMrr : null;
 
   // Build update payload — only override estimated_mrr if currently empty
   const updatePayload: Record<string, unknown> = {
@@ -303,6 +279,17 @@ Deno.serve(async (req) => {
       .update({ result: "update_failed", matched_opportunity_id: deal.id })
       .eq("stripe_event_id", event.id);
     return ok({ ok: true, error: "update_failed" });
+  }
+
+  // Atualiza matched_opportunity_id na conversão
+  if (subscriptionId) {
+    await supabase.from("stripe_conversions")
+      .update({ matched_opportunity_id: deal.id })
+      .eq("stripe_subscription_id", subscriptionId);
+  } else {
+    await supabase.from("stripe_conversions")
+      .update({ matched_opportunity_id: deal.id })
+      .eq("stripe_event_id", event.id);
   }
 
   await supabase.from("stripe_events")
