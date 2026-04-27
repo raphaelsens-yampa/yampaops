@@ -92,11 +92,16 @@ async function processDeal(payload: any) {
     if (stage) stageSlug = stage.slug;
   }
 
-  // Sync contact if present
+  // Sync contact if present — lookup by ac_id OR email to avoid duplicates
   let localContactId: string | null = null;
   if (deal.contact) {
     const { data: existing } = await service.from("contacts").select("id").eq("ac_id", String(deal.contact)).maybeSingle();
     if (existing) localContactId = existing.id;
+    else if (deal.contact_email || deal.contactEmail) {
+      const email = String(deal.contact_email || deal.contactEmail).toLowerCase().trim();
+      const { data: byEmail } = await service.from("contacts").select("id").ilike("email", email).maybeSingle();
+      if (byEmail) localContactId = byEmail.id;
+    }
   }
 
   const consultantId = await findUserByEmail(deal.owner_email || deal.ownerEmail);
@@ -123,22 +128,42 @@ async function processDeal(payload: any) {
 async function processContact(payload: any) {
   const contact = payload.contact || payload;
   const acContactId = String(contact.id);
-  // Only update if already exists in Yampa
-  const { data: existing } = await service.from("contacts").select("id").eq("ac_id", acContactId).maybeSingle();
-  if (!existing) return { skipped: true, reason: "contact_not_imported" };
+  const email = contact.email ? String(contact.email).toLowerCase().trim() : null;
+  const fullName = [contact.first_name || contact.firstName, contact.last_name || contact.lastName].filter(Boolean).join(" ") || email || `Contact ${acContactId}`;
 
-  const fullName = [contact.first_name || contact.firstName, contact.last_name || contact.lastName].filter(Boolean).join(" ") || contact.email || `Contact ${acContactId}`;
-  const { error } = await service.from("contacts").update({
+  // Lookup by ac_id first, then by email — avoid creating duplicates
+  let { data: existing } = await service.from("contacts").select("id, ac_id").eq("ac_id", acContactId).maybeSingle();
+  if (!existing && email) {
+    const { data: byEmail } = await service.from("contacts").select("id, ac_id").ilike("email", email).maybeSingle();
+    if (byEmail) existing = byEmail;
+  }
+
+  if (existing) {
+    const { error } = await service.from("contacts").update({
+      ac_id: acContactId,
+      name: fullName,
+      email,
+      phone: contact.phone || null,
+    }).eq("id", existing.id);
+    if (error) {
+      await logError("contact", acContactId, error.message, contact);
+      return { error: error.message };
+    }
+    return { ok: true, updated: existing.id };
+  }
+
+  // Create new only when no match by ac_id or email
+  const { error } = await service.from("contacts").insert({
+    ac_id: acContactId,
     name: fullName,
-    email: contact.email || null,
+    email,
     phone: contact.phone || null,
-  }).eq("ac_id", acContactId);
-
+  });
   if (error) {
     await logError("contact", acContactId, error.message, contact);
     return { error: error.message };
   }
-  return { ok: true };
+  return { ok: true, created: true };
 }
 
 async function processNote(payload: any) {

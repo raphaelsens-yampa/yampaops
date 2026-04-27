@@ -115,23 +115,39 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
         break outer;
       }
       try {
-        // 3a. Sync contact first
+        // 3a. Sync contact first — lookup by ac_id OR email to avoid duplicates
         let localContactId: string | null = null;
         const acContactId = d.contact;
         if (acContactId && contactsMap.has(acContactId)) {
           const c: any = contactsMap.get(acContactId);
-          const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || `Contact ${c.id}`;
-          const { data: cRow, error: cErr } = await service.from("contacts").upsert({
-            ac_id: String(c.id),
-            name: fullName,
-            email: c.email || null,
-            phone: c.phone || null,
-          }, { onConflict: "ac_id" }).select("id").single();
-          if (cErr) {
-            await logError("contact", String(c.id), cErr.message, c);
+          const email = c.email ? String(c.email).toLowerCase().trim() : null;
+          const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ") || email || `Contact ${c.id}`;
+
+          // Find by ac_id first, then by email
+          let { data: existingContact } = await service.from("contacts").select("id").eq("ac_id", String(c.id)).maybeSingle();
+          if (!existingContact && email) {
+            const { data: byEmail } = await service.from("contacts").select("id").ilike("email", email).maybeSingle();
+            if (byEmail) existingContact = byEmail;
+          }
+
+          if (existingContact) {
+            const { error: cErr } = await service.from("contacts").update({
+              ac_id: String(c.id),
+              name: fullName,
+              email,
+              phone: c.phone || null,
+            }).eq("id", existingContact.id);
+            if (cErr) await logError("contact", String(c.id), cErr.message, c);
+            else { localContactId = existingContact.id; contactsCount++; }
           } else {
-            localContactId = cRow.id;
-            contactsCount++;
+            const { data: cRow, error: cErr } = await service.from("contacts").insert({
+              ac_id: String(c.id),
+              name: fullName,
+              email,
+              phone: c.phone || null,
+            }).select("id").single();
+            if (cErr) await logError("contact", String(c.id), cErr.message, c);
+            else { localContactId = cRow.id; contactsCount++; }
           }
         }
 
