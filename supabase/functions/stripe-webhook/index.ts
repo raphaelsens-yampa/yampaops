@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
   // Find active deal in default pipeline, skip already won/lost
   const { data: deal } = await supabase
     .from("opportunities")
-    .select("id, stage")
+    .select("id, stage, estimated_mrr")
     .eq("pipeline_id", DEFAULT_PIPELINE_ID)
     .eq("is_active", true)
     .in("contact_id", contactIds)
