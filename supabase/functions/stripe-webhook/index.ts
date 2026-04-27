@@ -193,17 +193,50 @@ Deno.serve(async (req) => {
     return ok({ ok: true, warning: "no_deal_match" });
   }
 
-  // Move to pendencias_stripe + record stripe IDs
+  // Resolve MRR from price_id (commission_products is the source of truth)
+  let resolvedMrr: number | null = null;
+  if (priceId) {
+    const { data: prod } = await supabase
+      .from("commission_products")
+      .select("plan_mrr")
+      .eq("stripe_price_id", priceId)
+      .not("plan_mrr", "is", null)
+      .gt("plan_mrr", 0)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (prod?.plan_mrr) {
+      resolvedMrr = Number(prod.plan_mrr);
+    } else {
+      // Fallback: stripe_prices table
+      const { data: sp } = await supabase
+        .from("stripe_prices")
+        .select("mrr")
+        .eq("price_id", priceId)
+        .gt("mrr", 0)
+        .limit(1)
+        .maybeSingle();
+      if (sp?.mrr) resolvedMrr = Number(sp.mrr);
+    }
+  }
+
+  // Build update payload — only override estimated_mrr if currently empty
+  const updatePayload: Record<string, unknown> = {
+    previous_stage: deal.stage,
+    stage: PENDING_STAGE,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscriptionId,
+    stripe_price_id: priceId,
+    stripe_pending_since: new Date().toISOString(),
+  };
+  const currentMrr = Number((deal as any).estimated_mrr || 0);
+  if (resolvedMrr && currentMrr <= 0) {
+    updatePayload.estimated_mrr = resolvedMrr;
+  }
+
   const { error: updateError } = await supabase
     .from("opportunities")
-    .update({
-      previous_stage: deal.stage,
-      stage: PENDING_STAGE,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      stripe_price_id: priceId,
-      stripe_pending_since: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", deal.id);
 
   if (updateError) {
