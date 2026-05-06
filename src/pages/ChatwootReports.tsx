@@ -251,6 +251,7 @@ export default function ChatwootReports() {
   const [agent, setAgent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
   const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
+  const [labelsSel, setLabelsSel] = useState<string[]>([]); // [] = todas
   const [inbox, setInbox] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [businessHoursOnly, setBusinessHoursOnly] = useState(false);
