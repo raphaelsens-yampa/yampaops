@@ -226,17 +226,22 @@ export default function ChatwootReports() {
     const total = filtered.length;
     const resolved = filtered.filter((r) => r.status === "resolved").length;
     const withTab = filtered.filter((r) => !!r.tabulacao_atendimento).length;
-    const durations = filtered
+    // TMA = duração média do atendimento (abertura → fechamento, considera apenas resolvidos)
+    const tmaList = filtered
       .map((r) => diffMinutes(r.opened_at, r.conversation_closed_at))
       .filter((v): v is number => v != null);
-    const avg = durations.length
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
-      : null;
+    const tma = tmaList.length ? tmaList.reduce((a, b) => a + b, 0) / tmaList.length : null;
+    // TM1R = tempo médio de 1ª resposta (abertura → primeira resposta do agente)
+    const t1rList = filtered
+      .map((r) => diffMinutes(r.opened_at, r.first_response_at))
+      .filter((v): v is number => v != null);
+    const tm1r = t1rList.length ? t1rList.reduce((a, b) => a + b, 0) / t1rList.length : null;
     return {
       total,
       resolvedPct: total ? (resolved / total) * 100 : 0,
       tabPct: total ? (withTab / total) * 100 : 0,
-      avgMin: avg,
+      tma,
+      tm1r,
     };
   }, [filtered]);
 
