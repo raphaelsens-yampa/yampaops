@@ -570,6 +570,7 @@ export default function ChatwootReports() {
               </div>
             )}
           </CardContent>
+          )}
         </Card>
       </div>
     </Layout>
