@@ -445,7 +445,7 @@ export default function ChatwootReports() {
       },
     });
 
-    doc.save(`atendimentos_${from}_${to}.pdf`);
+    doc.save(`atendimentos_${from}_${to}${businessHoursOnly ? "_horario-comercial" : ""}.pdf`);
   }
 
   return (
