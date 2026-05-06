@@ -146,6 +146,7 @@ export default function ChatwootReports() {
   const refAgent = useRef<HTMLDivElement>(null);
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
+  const refInbox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase
