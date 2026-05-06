@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -15,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
-  BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search,
+  BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -86,7 +89,7 @@ export default function ChatwootReports() {
   const [status, setStatus] = useState<string>("all");
   const [agent, setAgent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
-  const [tabulacao, setTabulacao] = useState<string>("all");
+  const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
   const [search, setSearch] = useState("");
 
   const [rows, setRows] = useState<Conv[]>([]);
@@ -121,10 +124,7 @@ export default function ChatwootReports() {
       if (status !== "all") q = q.eq("status", status);
       if (agent !== "all") q = q.eq("assignee_name", agent);
       if (team !== "all") q = q.eq("team_name", team);
-      if (tabulacao !== "all") {
-        if (tabulacao === "__empty__") q = q.is("tabulacao_atendimento", null);
-        else q = q.eq("tabulacao_atendimento", tabulacao);
-      }
+      // Tabulação é filtrada client-side (multi-select)
 
       const { data, error } = await q;
       if (error || !data) break;
@@ -137,7 +137,7 @@ export default function ChatwootReports() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status, agent, team, tabulacao]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status, agent, team]);
 
   // Distinct lists for filter dropdowns
   const [agents, teams, tabs] = useMemo(() => {
@@ -150,17 +150,25 @@ export default function ChatwootReports() {
     return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort()];
   }, [rows]);
 
-  // Search filter (client-side)
+  // Search + tabulação filter (client-side)
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
     const s = search.trim().toLowerCase();
-    return rows.filter((r) =>
-      (r.contact_name || "").toLowerCase().includes(s) ||
-      (r.contact_email || "").toLowerCase().includes(s) ||
-      (r.contact_phone || "").toLowerCase().includes(s) ||
-      String(r.chatwoot_conversation_id).includes(s),
-    );
-  }, [rows, search]);
+    const tabSet = new Set(tabulacaoSel);
+    const tabActive = tabulacaoSel.length > 0;
+    return rows.filter((r) => {
+      if (tabActive) {
+        const key = r.tabulacao_atendimento || "__empty__";
+        if (!tabSet.has(key)) return false;
+      }
+      if (!s) return true;
+      return (
+        (r.contact_name || "").toLowerCase().includes(s) ||
+        (r.contact_email || "").toLowerCase().includes(s) ||
+        (r.contact_phone || "").toLowerCase().includes(s) ||
+        String(r.chatwoot_conversation_id).includes(s)
+      );
+    });
+  }, [rows, search, tabulacaoSel]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -336,14 +344,11 @@ export default function ChatwootReports() {
               </div>
               <div>
                 <Label className="text-xs">Tabulação</Label>
-                <Select value={tabulacao} onValueChange={setTabulacao}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="__empty__">(sem tabulação)</SelectItem>
-                    {tabs.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <TabulacaoFilter
+                  options={tabs}
+                  selected={tabulacaoSel}
+                  onChange={setTabulacaoSel}
+                />
               </div>
               <div>
                 <Label className="text-xs">Buscar</Label>
@@ -536,5 +541,106 @@ function KpiCard({ title, value }: { title: string; value: string }) {
         <p className="font-heading text-2xl font-bold mt-1">{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function TabulacaoFilter({
+  options, selected, onChange,
+}: {
+  options: string[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<number | null>(null);
+  const allOptions = useMemo(() => ["__empty__", ...options], [options]);
+
+  function label() {
+    if (selected.length === 0) return "Todas";
+    if (selected.length === 1) {
+      const v = selected[0];
+      return v === "__empty__" ? "(sem tabulação)" : v;
+    }
+    return `${selected.length} selecionadas`;
+  }
+
+  function toggle(value: string, e: React.MouseEvent) {
+    const idx = allOptions.indexOf(value);
+    // Shift+click = range
+    if (e.shiftKey && anchor != null && idx >= 0) {
+      const [a, b] = [anchor, idx].sort((x, y) => x - y);
+      const range = allOptions.slice(a, b + 1);
+      const set = new Set(selected);
+      const allIn = range.every((v) => set.has(v));
+      if (allIn) range.forEach((v) => set.delete(v));
+      else range.forEach((v) => set.add(v));
+      onChange(Array.from(set));
+      return;
+    }
+    setAnchor(idx);
+    const set = new Set(selected);
+    if (set.has(value)) set.delete(value); else set.add(value);
+    onChange(Array.from(set));
+  }
+
+  function selectAll() { onChange([]); }
+  function selectNone() { onChange(allOptions.slice()); /* none = nada bate; usuário pode limpar */ }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-full justify-between font-normal h-10">
+          <span className="truncate text-sm">{label()}</span>
+          <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0" align="start">
+        <div className="flex items-center justify-between px-3 py-2 border-b">
+          <span className="text-xs font-medium">Tabulações</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={selectAll}
+            >
+              Todas
+            </button>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:underline"
+              onClick={() => onChange([])}
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+        <ScrollArea className="h-[280px]">
+          <div className="p-1">
+            {allOptions.length === 0 && (
+              <div className="text-xs text-muted-foreground p-3 text-center">
+                Sem opções disponíveis
+              </div>
+            )}
+            {allOptions.map((opt) => {
+              const checked = selected.includes(opt);
+              const display = opt === "__empty__" ? "(sem tabulação)" : opt;
+              return (
+                <div
+                  key={opt}
+                  onClick={(e) => toggle(opt, e)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm select-none"
+                >
+                  <Checkbox checked={checked} className="pointer-events-none" />
+                  <span className="truncate">{display}</span>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+        <div className="px-3 py-2 border-t text-[10px] text-muted-foreground">
+          Dica: segure <kbd className="px-1 bg-muted rounded">Shift</kbd> e clique para selecionar um intervalo
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
