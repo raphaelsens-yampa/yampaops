@@ -202,6 +202,8 @@ export default function ChatwootReports() {
         const key = r.tabulacao_atendimento || "__empty__";
         if (!tabSet.has(key)) return false;
       }
+      if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
+      if (team !== "all" && (r.team_name || "") !== team) return false;
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
@@ -210,7 +212,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel]);
+  }, [rows, search, tabulacaoSel, agent, team]);
 
   // KPIs
   const kpis = useMemo(() => {
