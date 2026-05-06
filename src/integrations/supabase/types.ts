@@ -154,6 +154,7 @@ export type Database = {
           first_contact_message_at: string | null
           first_response_at: string | null
           inbox_name: string | null
+          labels: string[]
           last_message_at: string | null
           opened_at: string | null
           opportunity_id: string | null
@@ -180,6 +181,7 @@ export type Database = {
           first_contact_message_at?: string | null
           first_response_at?: string | null
           inbox_name?: string | null
+          labels?: string[]
           last_message_at?: string | null
           opened_at?: string | null
           opportunity_id?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           first_contact_message_at?: string | null
           first_response_at?: string | null
           inbox_name?: string | null
+          labels?: string[]
           last_message_at?: string | null
           opened_at?: string | null
           opportunity_id?: string | null
