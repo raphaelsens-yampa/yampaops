@@ -150,17 +150,25 @@ export default function ChatwootReports() {
     return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort()];
   }, [rows]);
 
-  // Search filter (client-side)
+  // Search + tabulação filter (client-side)
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
     const s = search.trim().toLowerCase();
-    return rows.filter((r) =>
-      (r.contact_name || "").toLowerCase().includes(s) ||
-      (r.contact_email || "").toLowerCase().includes(s) ||
-      (r.contact_phone || "").toLowerCase().includes(s) ||
-      String(r.chatwoot_conversation_id).includes(s),
-    );
-  }, [rows, search]);
+    const tabSet = new Set(tabulacaoSel);
+    const tabActive = tabulacaoSel.length > 0;
+    return rows.filter((r) => {
+      if (tabActive) {
+        const key = r.tabulacao_atendimento || "__empty__";
+        if (!tabSet.has(key)) return false;
+      }
+      if (!s) return true;
+      return (
+        (r.contact_name || "").toLowerCase().includes(s) ||
+        (r.contact_email || "").toLowerCase().includes(s) ||
+        (r.contact_phone || "").toLowerCase().includes(s) ||
+        String(r.chatwoot_conversation_id).includes(s)
+      );
+    });
+  }, [rows, search, tabulacaoSel]);
 
   // KPIs
   const kpis = useMemo(() => {
