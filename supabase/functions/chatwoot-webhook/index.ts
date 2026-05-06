@@ -176,6 +176,36 @@ function extractTabulacao(conversation: any): string | null {
   return null;
 }
 
+function extractLabels(conversation: any): string[] {
+  const candidates = [
+    conversation?.labels,
+    conversation?.meta?.labels,
+    conversation?.additional_attributes?.labels,
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length) {
+      const arr = c
+        .map((v: any) => (typeof v === "string" ? v : v?.title || v?.name || ""))
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0);
+      if (arr.length) return Array.from(new Set(arr));
+    }
+  }
+  return [];
+}
+
+async function fetchConversationLabels(baseUrl: string | null, accountId: number | null, convId: number): Promise<string[]> {
+  if (!baseUrl || !accountId || !convId) return [];
+  try {
+    const url = `${baseUrl.replace(/\/$/, "")}/api/v1/accounts/${accountId}/conversations/${convId}/labels`;
+    const res = await fetch(url, { headers: { api_access_token: Deno.env.get("CHATWOOT_API_TOKEN") || "" } });
+    if (!res.ok) return [];
+    const j = await res.json();
+    const arr: any[] = j?.payload || [];
+    return Array.from(new Set(arr.map((s: any) => String(s).trim()).filter((s: string) => s.length > 0)));
+  } catch { return []; }
+}
+
 async function resolveInboxName(baseUrl: string | null, accountId: number | null, inboxId: number | null, conversation: any): Promise<string | null> {
   const direct = conversation?.inbox?.name || conversation?.meta?.inbox?.name;
   if (direct) return String(direct);
