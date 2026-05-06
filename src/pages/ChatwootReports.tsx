@@ -593,8 +593,11 @@ export default function ChatwootReports() {
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
+        </div>
 
-          <ChartCard title="Por Caixa de Entrada" containerRef={refInbox} filename="por-caixa-entrada.png" height={280}>
+        {/* Caixa de Entrada: gráfico + tabela TMA/TM1R lado a lado */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ChartCard title="Por Caixa de Entrada" containerRef={refInbox} filename="por-caixa-entrada.png" height={360}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byInbox} layout="vertical" margin={{ left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -605,45 +608,44 @@ export default function ChatwootReports() {
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
-        </div>
 
-        {/* TMA / TM1R por Caixa de Entrada */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">TMA e TM1R por Caixa de Entrada</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Caixa de Entrada</TableHead>
-                    <TableHead className="text-right">Atendimentos</TableHead>
-                    <TableHead className="text-right">TMA</TableHead>
-                    <TableHead className="text-right">TM1R</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {byInbox.length === 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">TMA e TM1R por Caixa de Entrada</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto max-h-[360px]">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
-                        Sem dados para o período selecionado.
-                      </TableCell>
+                      <TableHead className="text-xs">Caixa de Entrada</TableHead>
+                      <TableHead className="text-right text-xs">Atend.</TableHead>
+                      <TableHead className="text-right text-xs">TMA</TableHead>
+                      <TableHead className="text-right text-xs">TM1R</TableHead>
                     </TableRow>
-                  )}
-                  {byInbox.map((b) => (
-                    <TableRow key={b.name}>
-                      <TableCell className="text-sm">{b.name}</TableCell>
-                      <TableCell className="text-right text-sm">{b.total.toLocaleString("pt-BR")}</TableCell>
-                      <TableCell className="text-right text-sm">{fmtDuration(b.tma)}</TableCell>
-                      <TableCell className="text-right text-sm">{fmtDuration(b.tm1r)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {byInbox.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                          Sem dados para o período selecionado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {byInbox.map((b) => (
+                      <TableRow key={b.name}>
+                        <TableCell className="text-xs py-2">{b.name}</TableCell>
+                        <TableCell className="text-right text-xs py-2">{b.total.toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-right text-xs py-2">{fmtDuration(b.tma)}</TableCell>
+                        <TableCell className="text-right text-xs py-2">{fmtDuration(b.tm1r)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Tabela */}
         <Card>
