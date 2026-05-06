@@ -651,7 +651,7 @@ export default function ChatwootReports() {
                           ) : "—"}
                         </TableCell>
                         <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
-                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.first_response_at))}</TableCell>
+                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at))}</TableCell>
                       </TableRow>
                     );
                   })}
