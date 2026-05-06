@@ -187,14 +187,15 @@ export default function ChatwootReports() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status]);
 
   // Distinct lists for filter dropdowns
-  const [agents, teams, tabs] = useMemo(() => {
-    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>();
+  const [agents, teams, tabs, inboxes] = useMemo(() => {
+    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>(), ib = new Set<string>();
     rows.forEach((r) => {
       if (r.assignee_name) a.add(r.assignee_name);
       if (r.team_name) t.add(r.team_name);
       if (r.tabulacao_atendimento) tb.add(r.tabulacao_atendimento);
+      if (r.inbox_name) ib.add(r.inbox_name);
     });
-    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort()];
+    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort(), Array.from(ib).sort()];
   }, [rows]);
 
   // Search + tabulação filter (client-side)
@@ -209,6 +210,7 @@ export default function ChatwootReports() {
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
+      if (inbox !== "all" && (r.inbox_name || "") !== inbox) return false;
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
@@ -217,7 +219,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, agent, team]);
+  }, [rows, search, tabulacaoSel, agent, team, inbox]);
 
   // KPIs
   const kpis = useMemo(() => {
