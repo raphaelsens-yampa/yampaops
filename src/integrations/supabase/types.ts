@@ -161,6 +161,7 @@ export type Database = {
           tabulacao_atendimento: string | null
           team_id: number | null
           team_name: string | null
+          tm1r_seconds: number | null
           updated_at: string
         }
         Insert: {
@@ -186,6 +187,7 @@ export type Database = {
           tabulacao_atendimento?: string | null
           team_id?: number | null
           team_name?: string | null
+          tm1r_seconds?: number | null
           updated_at?: string
         }
         Update: {
@@ -211,6 +213,7 @@ export type Database = {
           tabulacao_atendimento?: string | null
           team_id?: number | null
           team_name?: string | null
+          tm1r_seconds?: number | null
           updated_at?: string
         }
         Relationships: []
