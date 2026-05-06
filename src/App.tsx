@@ -50,41 +50,38 @@ function AppRoutes() {
 
   if (!session) return <Auth />;
 
-  if (role === "admin" || role === "tatico") {
-    return (
-      <Routes>
-        <Route path="/" element={<RequireArea area="dashboard"><AdminDashboard /></RequireArea>} />
-        <Route path="/pipeline" element={<RequireArea area="pipeline"><Pipeline /></RequireArea>} />
-        <Route path="/forecast" element={<RequireArea area="forecast"><Forecast /></RequireArea>} />
-        <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
-        <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
-        <Route path="/contacts" element={<RequireArea area="contacts"><Contacts /></RequireArea>} />
-        <Route path="/commissions" element={<RequireArea area="commissions"><Commissions /></RequireArea>} />
-        <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
-        <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
-        <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
-        <Route path="/link-builder" element={<LinkBuilder />} />
-        <Route path="/integrations/active-campaign" element={<ActiveCampaignIntegration />} />
-        <Route path="/integrations/stripe" element={<StripeIntegration />} />
-        <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
-        <Route path="/integrations/audit" element={<IntegrationAudit />} />
-        <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/insights/conversions" element={<StripeConversions />} />
-        <Route path="/settings/tags" element={<TagsSettings />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    );
-  }
+  const isManager = role === "admin" || role === "tatico";
 
   return (
     <Routes>
-      <Route path="/" element={<SellerKanban />} />
-      <Route path="/goals" element={<Goals />} />
-      <Route path="/commissions" element={<Commissions />} />
+      <Route
+        path="/"
+        element={
+          isManager ? (
+            <RequireArea area="dashboard"><AdminDashboard /></RequireArea>
+          ) : (
+            <SellerKanban />
+          )
+        }
+      />
+      <Route path="/pipeline" element={<RequireArea area="pipeline"><Pipeline /></RequireArea>} />
+      <Route path="/forecast" element={<RequireArea area="forecast"><Forecast /></RequireArea>} />
+      <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
+      <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
+      <Route path="/contacts" element={<RequireArea area="contacts"><Contacts /></RequireArea>} />
+      <Route path="/commissions" element={<RequireArea area="commissions"><Commissions /></RequireArea>} />
+      <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
+      <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
+      <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
       <Route path="/link-builder" element={<LinkBuilder />} />
+      <Route path="/integrations/active-campaign" element={<ActiveCampaignIntegration />} />
+      <Route path="/integrations/stripe" element={<StripeIntegration />} />
+      <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
+      <Route path="/integrations/audit" element={<IntegrationAudit />} />
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
+      <Route path="/reports" element={<Reports />} />
+      <Route path="/insights/conversions" element={<StripeConversions />} />
+      <Route path="/settings/tags" element={<TagsSettings />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
