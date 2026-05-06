@@ -179,7 +179,7 @@ export default function ChatwootReports() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status, agent, team]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status]);
 
   // Distinct lists for filter dropdowns
   const [agents, teams, tabs] = useMemo(() => {
