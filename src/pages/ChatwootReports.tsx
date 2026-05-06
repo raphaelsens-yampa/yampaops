@@ -104,26 +104,35 @@ export default function ChatwootReports() {
 
   async function load() {
     setLoading(true);
-    let q = supabase
-      .from("chatwoot_conversations")
-      .select(
-        "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,assignee_name,assignee_email,team_name,contact_id,opportunity_id",
-      )
-      .order("opened_at", { ascending: false, nullsFirst: false })
-      .limit(2000);
+    const PAGE_SIZE = 1000;
+    const all: Conv[] = [];
+    let offset = 0;
+    while (true) {
+      let q = supabase
+        .from("chatwoot_conversations")
+        .select(
+          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,assignee_name,assignee_email,team_name,contact_id,opportunity_id",
+        )
+        .order("opened_at", { ascending: false, nullsFirst: false })
+        .range(offset, offset + PAGE_SIZE - 1);
 
-    if (from) q = q.gte("opened_at", `${from}T00:00:00`);
-    if (to) q = q.lte("opened_at", `${to}T23:59:59`);
-    if (status !== "all") q = q.eq("status", status);
-    if (agent !== "all") q = q.eq("assignee_name", agent);
-    if (team !== "all") q = q.eq("team_name", team);
-    if (tabulacao !== "all") {
-      if (tabulacao === "__empty__") q = q.is("tabulacao_atendimento", null);
-      else q = q.eq("tabulacao_atendimento", tabulacao);
+      if (from) q = q.gte("opened_at", `${from}T00:00:00`);
+      if (to) q = q.lte("opened_at", `${to}T23:59:59`);
+      if (status !== "all") q = q.eq("status", status);
+      if (agent !== "all") q = q.eq("assignee_name", agent);
+      if (team !== "all") q = q.eq("team_name", team);
+      if (tabulacao !== "all") {
+        if (tabulacao === "__empty__") q = q.is("tabulacao_atendimento", null);
+        else q = q.eq("tabulacao_atendimento", tabulacao);
+      }
+
+      const { data, error } = await q;
+      if (error || !data) break;
+      all.push(...(data as Conv[]));
+      if (data.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
     }
-
-    const { data, error } = await q;
-    if (!error && data) setRows(data as Conv[]);
+    setRows(all);
     setPage(0);
     setLoading(false);
   }
