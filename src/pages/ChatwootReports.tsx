@@ -308,15 +308,16 @@ export default function ChatwootReports() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status]);
 
   // Distinct lists for filter dropdowns
-  const [agents, teams, tabs, inboxes] = useMemo(() => {
-    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>(), ib = new Set<string>();
+  const [agents, teams, tabs, inboxes, labelOptions] = useMemo(() => {
+    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>(), ib = new Set<string>(), lb = new Set<string>();
     rows.forEach((r) => {
       if (r.assignee_name) a.add(r.assignee_name);
       if (r.team_name) t.add(r.team_name);
       if (r.tabulacao_atendimento) tb.add(r.tabulacao_atendimento);
       if (r.inbox_name) ib.add(r.inbox_name);
+      (r.labels || []).forEach((l) => { if (l) lb.add(l); });
     });
-    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort(), Array.from(ib).sort()];
+    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort(), Array.from(ib).sort(), Array.from(lb).sort()];
   }, [rows]);
 
   // Search + tabulação filter (client-side)
