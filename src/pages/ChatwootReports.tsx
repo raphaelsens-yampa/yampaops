@@ -225,6 +225,7 @@ export default function ChatwootReports() {
     const tabSet = new Set(tabulacaoSel);
     const tabActive = tabulacaoSel.length > 0;
     return rows.filter((r) => {
+      if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
         const key = r.tabulacao_atendimento || "__empty__";
         if (!tabSet.has(key)) return false;
