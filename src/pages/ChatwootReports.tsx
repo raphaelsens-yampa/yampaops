@@ -538,14 +538,23 @@ export default function ChatwootReports() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end mt-3 gap-2">
-              {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
-                <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
-                <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
-              </Button>
+            <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <Checkbox
+                  checked={businessHoursOnly}
+                  onCheckedChange={(v) => setBusinessHoursOnly(!!v)}
+                />
+                <span>Apenas horário comercial <span className="text-muted-foreground">(Seg–Sex, 09h–18h)</span></span>
+              </label>
+              <div className="flex items-center gap-2">
+                {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
+                  <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
+                  <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
