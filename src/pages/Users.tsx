@@ -209,13 +209,22 @@ export default function UsersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={u.role === "admin" ? "default" : u.role === "tatico" ? "outline" : "secondary"}>
-                              {u.role === "admin" ? "Admin" : u.role === "tatico" ? "Tático" : "Seller"}
+                            <Badge
+                              className={
+                                "text-white border-transparent hover:opacity-90 " +
+                                (u.role === "admin"
+                                  ? "bg-primary"
+                                  : u.role === "tatico"
+                                  ? "bg-secondary"
+                                  : "bg-muted-foreground")
+                              }
+                            >
+                              {u.role === "admin" ? "Admin" : u.role === "tatico" ? "Tático" : "Vendedor"}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             {u.access_level_name ? (
-                              <Badge variant="outline">{u.access_level_name}</Badge>
+                              <Badge className="bg-primary text-white border-transparent hover:opacity-90">{u.access_level_name}</Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">Não atribuído</span>
                             )}

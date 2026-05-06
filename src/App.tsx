@@ -28,6 +28,7 @@ import StripeConversions from "./pages/StripeConversions";
 import TagsSettings from "./pages/TagsSettings";
 import ChatwootReports from "./pages/ChatwootReports";
 import NotFound from "./pages/NotFound";
+import { RequireArea } from "./components/AccessDenied";
 
 const queryClient = new QueryClient();
 
@@ -52,22 +53,22 @@ function AppRoutes() {
   if (role === "admin" || role === "tatico") {
     return (
       <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/pipeline" element={<Pipeline />} />
-        <Route path="/forecast" element={<Forecast />} />
-        <Route path="/goals" element={<Goals />} />
-        <Route path="/team" element={<Team />} />
-        <Route path="/contacts" element={<Contacts />} />
-        <Route path="/commissions" element={<Commissions />} />
-        <Route path="/commissions/settings" element={<CommissionSettings />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/imports" element={<Imports />} />
+        <Route path="/" element={<RequireArea area="dashboard"><AdminDashboard /></RequireArea>} />
+        <Route path="/pipeline" element={<RequireArea area="pipeline"><Pipeline /></RequireArea>} />
+        <Route path="/forecast" element={<RequireArea area="forecast"><Forecast /></RequireArea>} />
+        <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
+        <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
+        <Route path="/contacts" element={<RequireArea area="contacts"><Contacts /></RequireArea>} />
+        <Route path="/commissions" element={<RequireArea area="commissions"><Commissions /></RequireArea>} />
+        <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
+        <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
+        <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
         <Route path="/link-builder" element={<LinkBuilder />} />
         <Route path="/integrations/active-campaign" element={<ActiveCampaignIntegration />} />
         <Route path="/integrations/stripe" element={<StripeIntegration />} />
         <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
         <Route path="/integrations/audit" element={<IntegrationAudit />} />
-        <Route path="/atendimentos" element={<ChatwootReports />} />
+        <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/insights/conversions" element={<StripeConversions />} />
         <Route path="/settings/tags" element={<TagsSettings />} />

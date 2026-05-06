@@ -20,6 +20,9 @@ export const CRM_AREAS = [
   { key: "team", label: "Equipe" },
   { key: "import", label: "Importação" },
   { key: "users", label: "Usuários" },
+  { key: "contacts", label: "Contatos" },
+  { key: "commissions", label: "Comissões" },
+  { key: "atendimentos", label: "Atendimentos" },
 ] as const;
 
 export type CrmAreaKey = typeof CRM_AREAS[number]["key"];

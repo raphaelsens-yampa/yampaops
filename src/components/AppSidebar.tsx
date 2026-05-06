@@ -192,7 +192,7 @@ export function AppSidebar() {
       items: [
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
-        { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle },
+        { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
       ],
     },
@@ -246,9 +246,9 @@ export function AppSidebar() {
     .filter((g) => g.items.length > 0);
 
   // Badge do nível de acesso
-  const levelLabel = accessLevelName || (role === "admin" ? "Gerencial" : role === "tatico" ? "Tático" : "Vendedor");
-  const levelVariant: "default" | "secondary" | "outline" =
-    role === "admin" ? "default" : role === "tatico" ? "secondary" : "outline";
+  const levelLabel = accessLevelName || (role === "admin" ? "Administrador" : role === "tatico" ? "Tático" : "Vendedor");
+  const levelBgClass =
+    role === "admin" ? "bg-primary" : role === "tatico" ? "bg-secondary" : "bg-muted-foreground";
 
   // Iniciais do usuário para avatar fallback
   const initials = (profile?.full_name || "?")
@@ -294,7 +294,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="px-3 pb-2">
-              <Badge variant={levelVariant} className="text-[10px] uppercase tracking-wide">
+              <Badge className={cn("text-[10px] uppercase tracking-wide text-white border-transparent hover:opacity-90", levelBgClass)}>
                 {levelLabel}
               </Badge>
             </div>
