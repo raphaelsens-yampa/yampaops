@@ -838,6 +838,7 @@ export default function ChatwootReports() {
                     <TableHead>Agente</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Tabulação</TableHead>
+                    <TableHead>Etiquetas</TableHead>
                     <TableHead>TMA</TableHead>
                     <TableHead>TM1R</TableHead>
                   </TableRow>
