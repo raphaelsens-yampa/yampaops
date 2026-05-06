@@ -89,7 +89,7 @@ export default function ChatwootReports() {
   const [status, setStatus] = useState<string>("all");
   const [agent, setAgent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
-  const [tabulacao, setTabulacao] = useState<string>("all");
+  const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
   const [search, setSearch] = useState("");
 
   const [rows, setRows] = useState<Conv[]>([]);
