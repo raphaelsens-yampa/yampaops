@@ -251,6 +251,11 @@ async function upsertConversation(
   const settings = await getChatwootSettings();
   const inboxName = await resolveInboxName(settings.baseUrl, settings.accountId || accountId, inboxId, conversation);
 
+  let labels = extractLabels(conversation);
+  if (labels.length === 0) {
+    labels = await fetchConversationLabels(settings.baseUrl, settings.accountId || accountId, convId);
+  }
+
   const assignee = conversation?.meta?.assignee || conversation?.assignee || null;
   const team = conversation?.meta?.team || conversation?.team || null;
 
