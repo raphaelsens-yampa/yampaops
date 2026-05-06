@@ -161,7 +161,7 @@ function extractTabulacao(conversation: any): string | null {
 
 async function upsertConversation(
   conversation: any,
-  ctx: ResolvedContext,
+  ctx: ResolvedContextX,
 ): Promise<void> {
   const convId = Number(conversation.id);
   if (!convId) return;
@@ -169,23 +169,49 @@ async function upsertConversation(
   const inboxId = conversation.inbox_id ? Number(conversation.inbox_id) : null;
   const status = conversation.status || "open";
   const tabulacao = extractTabulacao(conversation);
-  const lastMsgAt = conversation.last_activity_at
-    ? new Date(Number(conversation.last_activity_at) * 1000).toISOString()
-    : new Date().toISOString();
+  const lastMsgAt = tsToIso(conversation.last_activity_at) || new Date().toISOString();
+  const openedAt = tsToIso(conversation.created_at) || tsToIso(conversation.timestamp);
+
+  const assignee = conversation?.meta?.assignee || conversation?.assignee || null;
+  const team = conversation?.meta?.team || conversation?.team || null;
+
+  // Determine closed_at: if resolved, use existing or now()
+  let closedAt: string | null = null;
+  if (status === "resolved") {
+    const { data: existing } = await service
+      .from("chatwoot_conversations")
+      .select("conversation_closed_at")
+      .eq("chatwoot_conversation_id", convId)
+      .maybeSingle();
+    closedAt = existing?.conversation_closed_at
+      || tsToIso(conversation.resolved_at)
+      || tsToIso(conversation.last_activity_at)
+      || new Date().toISOString();
+  }
+
+  const row: any = {
+    chatwoot_conversation_id: convId,
+    chatwoot_account_id: accountId,
+    chatwoot_inbox_id: inboxId,
+    status,
+    tabulacao_atendimento: tabulacao,
+    contact_id: ctx.contactId,
+    opportunity_id: ctx.opportunityId,
+    contact_email: ctx.email,
+    contact_phone: ctx.phone,
+    contact_name: ctx.name,
+    last_message_at: lastMsgAt,
+    opened_at: openedAt,
+    conversation_closed_at: closedAt,
+    assignee_id: assignee?.id ? Number(assignee.id) : null,
+    assignee_name: assignee?.name || assignee?.available_name || null,
+    assignee_email: assignee?.email || null,
+    team_id: team?.id ? Number(team.id) : null,
+    team_name: team?.name || null,
+  };
 
   const { error } = await service.from("chatwoot_conversations").upsert(
-    {
-      chatwoot_conversation_id: convId,
-      chatwoot_account_id: accountId,
-      chatwoot_inbox_id: inboxId,
-      status,
-      tabulacao_atendimento: tabulacao,
-      contact_id: ctx.contactId,
-      opportunity_id: ctx.opportunityId,
-      contact_email: ctx.email,
-      contact_phone: ctx.phone,
-      last_message_at: lastMsgAt,
-    },
+    row,
     { onConflict: "chatwoot_conversation_id" },
   );
   if (error) await logError("chatwoot_conversation", String(convId), error.message, conversation);
