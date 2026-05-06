@@ -166,9 +166,7 @@ export default function ChatwootReports() {
       if (from) q = q.gte("opened_at", `${from}T00:00:00`);
       if (to) q = q.lte("opened_at", `${to}T23:59:59`);
       if (status !== "all") q = q.eq("status", status);
-      if (agent !== "all") q = q.eq("assignee_name", agent);
-      if (team !== "all") q = q.eq("team_name", team);
-      // Tabulação é filtrada client-side (multi-select)
+      // Agente, Time e Tabulação são filtrados client-side para preservar as listas de opções
 
       const { data, error } = await q;
       if (error || !data) break;
@@ -181,7 +179,7 @@ export default function ChatwootReports() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status, agent, team]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status]);
 
   // Distinct lists for filter dropdowns
   const [agents, teams, tabs] = useMemo(() => {
@@ -204,6 +202,8 @@ export default function ChatwootReports() {
         const key = r.tabulacao_atendimento || "__empty__";
         if (!tabSet.has(key)) return false;
       }
+      if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
+      if (team !== "all" && (r.team_name || "") !== team) return false;
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
@@ -212,7 +212,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel]);
+  }, [rows, search, tabulacaoSel, agent, team]);
 
   // KPIs
   const kpis = useMemo(() => {
