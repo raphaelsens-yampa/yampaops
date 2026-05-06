@@ -846,7 +846,7 @@ export default function ChatwootReports() {
                 <TableBody>
                   {pageRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center text-sm text-muted-foreground py-8">
+                      <TableCell colSpan={15} className="text-center text-sm text-muted-foreground py-8">
                         Nenhum atendimento encontrado para os filtros selecionados.
                       </TableCell>
                     </TableRow>
