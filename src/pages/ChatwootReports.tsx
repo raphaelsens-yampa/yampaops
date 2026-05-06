@@ -124,10 +124,7 @@ export default function ChatwootReports() {
       if (status !== "all") q = q.eq("status", status);
       if (agent !== "all") q = q.eq("assignee_name", agent);
       if (team !== "all") q = q.eq("team_name", team);
-      if (tabulacao !== "all") {
-        if (tabulacao === "__empty__") q = q.is("tabulacao_atendimento", null);
-        else q = q.eq("tabulacao_atendimento", tabulacao);
-      }
+      // Tabulação é filtrada client-side (multi-select)
 
       const { data, error } = await q;
       if (error || !data) break;
