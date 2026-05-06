@@ -123,7 +123,9 @@ type ResolvedContext = {
   phone: string | null;
 };
 
-async function resolveContext(conversation: any): Promise<ResolvedContext> {
+type ResolvedContextX = ResolvedContext & { name: string | null };
+
+async function resolveContext(conversation: any): Promise<ResolvedContextX> {
   const sender =
     conversation?.meta?.sender ||
     conversation?.contact_inbox?.contact ||
@@ -135,7 +137,16 @@ async function resolveContext(conversation: any): Promise<ResolvedContext> {
 
   const contactId = await findOrCreateContact({ email, phone, name });
   const opportunityId = contactId ? await findActiveOpportunity(contactId) : null;
-  return { contactId, opportunityId, email, phone };
+  return { contactId, opportunityId, email, phone, name };
+}
+
+function tsToIso(v: any): string | null {
+  if (!v) return null;
+  if (typeof v === "number") return new Date(v * 1000).toISOString();
+  const n = Number(v);
+  if (!isNaN(n) && n > 0) return new Date(n * 1000).toISOString();
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function extractTabulacao(conversation: any): string | null {
