@@ -344,14 +344,11 @@ export default function ChatwootReports() {
               </div>
               <div>
                 <Label className="text-xs">Tabulação</Label>
-                <Select value={tabulacao} onValueChange={setTabulacao}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="__empty__">(sem tabulação)</SelectItem>
-                    {tabs.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <TabulacaoFilter
+                  options={tabs}
+                  selected={tabulacaoSel}
+                  onChange={setTabulacaoSel}
+                />
               </div>
               <div>
                 <Label className="text-xs">Buscar</Label>
