@@ -454,6 +454,15 @@ async function handleMessageCreated(payload: any) {
     await applyTagForEvent(ctx.opportunityId, "message_replied");
   }
 
+  // First response: when an outgoing message is sent and no first_response_at yet
+  if (activityType === "mensagem_enviada") {
+    const msgTs = tsToIso(message.created_at) || new Date().toISOString();
+    await service.from("chatwoot_conversations")
+      .update({ first_response_at: msgTs })
+      .eq("chatwoot_conversation_id", Number(conversation.id))
+      .is("first_response_at", null);
+  }
+
   await bumpOpportunityInteraction(ctx.opportunityId);
   return result;
 }
