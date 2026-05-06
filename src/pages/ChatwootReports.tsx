@@ -125,6 +125,7 @@ type Conv = {
   inbox_name: string | null;
   contact_id: string | null;
   opportunity_id: string | null;
+  labels: string[] | null;
 };
 
 const PAGE_SIZE = 25;
@@ -250,6 +251,7 @@ export default function ChatwootReports() {
   const [agent, setAgent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
   const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
+  const [labelsSel, setLabelsSel] = useState<string[]>([]); // [] = todas
   const [inbox, setInbox] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [businessHoursOnly, setBusinessHoursOnly] = useState(false);
@@ -282,7 +284,7 @@ export default function ChatwootReports() {
       let q = supabase
         .from("chatwoot_conversations")
         .select(
-          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,first_contact_message_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id",
+          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,first_contact_message_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id,labels",
         )
         .order("opened_at", { ascending: false, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
@@ -306,15 +308,16 @@ export default function ChatwootReports() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status]);
 
   // Distinct lists for filter dropdowns
-  const [agents, teams, tabs, inboxes] = useMemo(() => {
-    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>(), ib = new Set<string>();
+  const [agents, teams, tabs, inboxes, labelOptions] = useMemo(() => {
+    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>(), ib = new Set<string>(), lb = new Set<string>();
     rows.forEach((r) => {
       if (r.assignee_name) a.add(r.assignee_name);
       if (r.team_name) t.add(r.team_name);
       if (r.tabulacao_atendimento) tb.add(r.tabulacao_atendimento);
       if (r.inbox_name) ib.add(r.inbox_name);
+      (r.labels || []).forEach((l) => { if (l) lb.add(l); });
     });
-    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort(), Array.from(ib).sort()];
+    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort(), Array.from(ib).sort(), Array.from(lb).sort()];
   }, [rows]);
 
   // Search + tabulação filter (client-side)
@@ -322,11 +325,21 @@ export default function ChatwootReports() {
     const s = search.trim().toLowerCase();
     const tabSet = new Set(tabulacaoSel);
     const tabActive = tabulacaoSel.length > 0;
+    const labelSet = new Set(labelsSel);
+    const labelActive = labelsSel.length > 0;
     return rows.filter((r) => {
       if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
         const key = r.tabulacao_atendimento || "__empty__";
         if (!tabSet.has(key)) return false;
+      }
+      if (labelActive) {
+        const ls = r.labels || [];
+        if (ls.length === 0) {
+          if (!labelSet.has("__empty__")) return false;
+        } else {
+          if (!ls.some((l) => labelSet.has(l))) return false;
+        }
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
@@ -339,7 +352,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, agent, team, inbox, businessHoursOnly]);
+  }, [rows, search, tabulacaoSel, labelsSel, agent, team, inbox, businessHoursOnly]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -627,6 +640,16 @@ export default function ChatwootReports() {
                 />
               </div>
               <div>
+                <Label className="text-xs">Etiquetas</Label>
+                <TabulacaoFilter
+                  options={labelOptions}
+                  selected={labelsSel}
+                  onChange={setLabelsSel}
+                  title="Etiquetas"
+                  emptyLabel="(sem etiqueta)"
+                />
+              </div>
+              <div>
                 <Label className="text-xs">Buscar</Label>
                 <div className="relative">
                   <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -815,6 +838,7 @@ export default function ChatwootReports() {
                     <TableHead>Agente</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Tabulação</TableHead>
+                    <TableHead>Etiquetas</TableHead>
                     <TableHead>TMA</TableHead>
                     <TableHead>TM1R</TableHead>
                   </TableRow>
@@ -822,7 +846,7 @@ export default function ChatwootReports() {
                 <TableBody>
                   {pageRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={14} className="text-center text-sm text-muted-foreground py-8">
+                      <TableCell colSpan={15} className="text-center text-sm text-muted-foreground py-8">
                         Nenhum atendimento encontrado para os filtros selecionados.
                       </TableCell>
                     </TableRow>
@@ -855,6 +879,15 @@ export default function ChatwootReports() {
                         <TableCell className="text-xs">
                           {r.tabulacao_atendimento ? (
                             <Badge variant="secondary" className="text-[10px]">{r.tabulacao_atendimento}</Badge>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.labels && r.labels.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {r.labels.map((l) => (
+                                <Badge key={l} variant="outline" className="text-[10px]">{l}</Badge>
+                              ))}
+                            </div>
                           ) : "—"}
                         </TableCell>
                         <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
@@ -897,11 +930,13 @@ function KpiCard({ title, value }: { title: string; value: string }) {
 }
 
 function TabulacaoFilter({
-  options, selected, onChange,
+  options, selected, onChange, title = "Tabulações", emptyLabel = "(sem tabulação)",
 }: {
   options: string[];
   selected: string[];
   onChange: (v: string[]) => void;
+  title?: string;
+  emptyLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<number | null>(null);
@@ -911,7 +946,7 @@ function TabulacaoFilter({
     if (selected.length === 0 || selected.length === allOptions.length) return "Todas";
     if (selected.length === 1) {
       const v = selected[0];
-      return v === "__empty__" ? "(sem tabulação)" : v;
+      return v === "__empty__" ? emptyLabel : v;
     }
     return `${selected.length} selecionadas`;
   }
@@ -952,7 +987,7 @@ function TabulacaoFilter({
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-0" align="start">
         <div className="flex items-center justify-between px-3 py-2 border-b">
-          <span className="text-xs font-medium">Tabulações</span>
+          <span className="text-xs font-medium">{title}</span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -979,7 +1014,7 @@ function TabulacaoFilter({
             )}
             {allOptions.map((opt) => {
               const checked = selected.includes(opt);
-              const display = opt === "__empty__" ? "(sem tabulação)" : opt;
+              const display = opt === "__empty__" ? emptyLabel : opt;
               return (
                 <div
                   key={opt}
