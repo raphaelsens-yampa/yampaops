@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,50 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
+  ChevronRight, ImageDown,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
 } from "recharts";
+
+function downloadChartPng(container: HTMLElement | null, filename: string) {
+  if (!container) return;
+  const svg = container.querySelector("svg");
+  if (!svg) return;
+  const cloned = svg.cloneNode(true) as SVGSVGElement;
+  const bbox = svg.getBoundingClientRect();
+  const w = Math.ceil(bbox.width), h = Math.ceil(bbox.height);
+  cloned.setAttribute("width", String(w));
+  cloned.setAttribute("height", String(h));
+  cloned.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const css = `<style>text{fill:#222;font-family:Manrope,Arial,sans-serif;}</style>`;
+  cloned.insertAdjacentHTML("afterbegin", css);
+  const xml = new XMLSerializer().serializeToString(cloned);
+  const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = w * scale; canvas.height = h * scale;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    canvas.toBlob((b) => {
+      if (!b) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, "image/png");
+  };
+  img.src = url;
+}
 
 type Conv = {
   chatwoot_conversation_id: number;
@@ -96,6 +135,11 @@ export default function ChatwootReports() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [showReport, setShowReport] = useState(false);
+  const refTab = useRef<HTMLDivElement>(null);
+  const refAgent = useRef<HTMLDivElement>(null);
+  const refTeam = useRef<HTMLDivElement>(null);
+  const refDay = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase
@@ -382,80 +426,79 @@ export default function ChatwootReports() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Por Tabulação</CardTitle></CardHeader>
-            <CardContent style={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Por Tabulação" containerRef={refTab} filename="por-tabulacao.png">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="value" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Por Agente</CardTitle></CardHeader>
-            <CardContent style={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byAgent}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
-                  <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
-                  <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Por Agente" containerRef={refAgent} filename="por-agente.png">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byAgent}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
+                <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
+                <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Por Time</CardTitle></CardHeader>
-            <CardContent style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byTeam}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--secondary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Por Time" containerRef={refTeam} filename="por-time.png" height={240}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byTeam}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="hsl(var(--secondary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Volume diário</CardTitle></CardHeader>
-            <CardContent style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={byDay}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
-                  <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Volume diário" containerRef={refDay} filename="volume-diario.png" height={240}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={byDay}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
+                <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
         </div>
 
         {/* Tabela */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Relatório ({filtered.length.toLocaleString("pt-BR")})
-            </CardTitle>
+            <button
+              type="button"
+              onClick={() => setShowReport((v) => !v)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <CardTitle className="text-base flex items-center gap-2">
+                {showReport ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <BarChart3 className="h-4 w-4" />
+                Relatório ({filtered.length.toLocaleString("pt-BR")})
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">
+                {showReport ? "Ocultar" : "Expandir"}
+              </span>
+            </button>
           </CardHeader>
+          {showReport && (
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
@@ -527,6 +570,7 @@ export default function ChatwootReports() {
               </div>
             )}
           </CardContent>
+          )}
         </Card>
       </div>
     </Layout>
@@ -642,5 +686,37 @@ function TabulacaoFilter({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function ChartCard({
+  title, children, containerRef, filename, height = 280,
+}: {
+  title: string;
+  children: React.ReactNode;
+  containerRef: React.RefObject<HTMLDivElement>;
+  filename: string;
+  height?: number;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2"
+          onClick={() => downloadChartPng(containerRef.current, filename)}
+          title="Baixar como PNG"
+        >
+          <ImageDown className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent style={{ height }}>
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+          {children}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
