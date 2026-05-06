@@ -181,6 +181,11 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
   const { firstIncoming, firstOutgoing } = await fetchFirstTimestamps(baseUrl, accountId, convId);
   const firstResponseAt = firstOutgoing || tsToIso(conv.first_reply_created_at);
 
+  let labels = extractLabels(conv);
+  if (labels.length === 0) {
+    labels = await fetchConversationLabels(baseUrl, accountId, convId);
+  }
+
   await service.from("chatwoot_conversations").upsert({
     chatwoot_conversation_id: convId,
     chatwoot_account_id: accountId,
@@ -203,6 +208,7 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
     assignee_email: assignee?.email || null,
     team_id: team?.id ? Number(team.id) : null,
     team_name: team?.name || null,
+    labels,
   }, { onConflict: "chatwoot_conversation_id" });
 }
 
