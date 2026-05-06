@@ -19,12 +19,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
-  ChevronRight, ImageDown,
+  ChevronRight, ImageDown, FileText,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
 } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function downloadChartPng(container: HTMLElement | null, filename: string) {
   if (!container) return;
@@ -74,9 +76,11 @@ type Conv = {
   contact_phone: string | null;
   opened_at: string | null;
   conversation_closed_at: string | null;
+  first_response_at: string | null;
   assignee_name: string | null;
   assignee_email: string | null;
   team_name: string | null;
+  inbox_name: string | null;
   contact_id: string | null;
   opportunity_id: string | null;
 };
@@ -129,6 +133,7 @@ export default function ChatwootReports() {
   const [agent, setAgent] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
   const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
+  const [inbox, setInbox] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const [rows, setRows] = useState<Conv[]>([]);
@@ -158,7 +163,7 @@ export default function ChatwootReports() {
       let q = supabase
         .from("chatwoot_conversations")
         .select(
-          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,assignee_name,assignee_email,team_name,contact_id,opportunity_id",
+          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id",
         )
         .order("opened_at", { ascending: false, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
@@ -182,14 +187,15 @@ export default function ChatwootReports() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status]);
 
   // Distinct lists for filter dropdowns
-  const [agents, teams, tabs] = useMemo(() => {
-    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>();
+  const [agents, teams, tabs, inboxes] = useMemo(() => {
+    const a = new Set<string>(), t = new Set<string>(), tb = new Set<string>(), ib = new Set<string>();
     rows.forEach((r) => {
       if (r.assignee_name) a.add(r.assignee_name);
       if (r.team_name) t.add(r.team_name);
       if (r.tabulacao_atendimento) tb.add(r.tabulacao_atendimento);
+      if (r.inbox_name) ib.add(r.inbox_name);
     });
-    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort()];
+    return [Array.from(a).sort(), Array.from(t).sort(), Array.from(tb).sort(), Array.from(ib).sort()];
   }, [rows]);
 
   // Search + tabulação filter (client-side)
@@ -204,6 +210,7 @@ export default function ChatwootReports() {
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
+      if (inbox !== "all" && (r.inbox_name || "") !== inbox) return false;
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
@@ -212,24 +219,29 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, agent, team]);
+  }, [rows, search, tabulacaoSel, agent, team, inbox]);
 
   // KPIs
   const kpis = useMemo(() => {
     const total = filtered.length;
     const resolved = filtered.filter((r) => r.status === "resolved").length;
     const withTab = filtered.filter((r) => !!r.tabulacao_atendimento).length;
-    const durations = filtered
+    // TMA = duração média do atendimento (abertura → fechamento, considera apenas resolvidos)
+    const tmaList = filtered
       .map((r) => diffMinutes(r.opened_at, r.conversation_closed_at))
       .filter((v): v is number => v != null);
-    const avg = durations.length
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
-      : null;
+    const tma = tmaList.length ? tmaList.reduce((a, b) => a + b, 0) / tmaList.length : null;
+    // TM1R = tempo médio de 1ª resposta (abertura → primeira resposta do agente)
+    const t1rList = filtered
+      .map((r) => diffMinutes(r.opened_at, r.first_response_at))
+      .filter((v): v is number => v != null);
+    const tm1r = t1rList.length ? t1rList.reduce((a, b) => a + b, 0) / t1rList.length : null;
     return {
       total,
       resolvedPct: total ? (resolved / total) * 100 : 0,
       tabPct: total ? (withTab / total) * 100 : 0,
-      avgMin: avg,
+      tma,
+      tm1r,
     };
   }, [filtered]);
 
@@ -301,17 +313,19 @@ export default function ChatwootReports() {
 
   function exportCsv() {
     const header = [
-      "Cliente", "Email", "Telefone", "Ticket", "Aberto em", "Fechado em",
-      "Agente", "Time", "Tabulação", "Status", "Duração",
+      "Cliente", "Email", "Telefone", "Ticket", "Caixa de Entrada", "Aberto em", "Fechado em",
+      "1ª Resposta", "Agente", "Time", "Tabulação", "Status", "TMA", "TM1R",
     ];
     const lines = filtered.map((r) => {
-      const dur = fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at));
+      const tma = fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at));
+      const tm1r = fmtDuration(diffMinutes(r.opened_at, r.first_response_at));
       return [
         r.contact_name, r.contact_email, r.contact_phone,
-        r.chatwoot_conversation_id,
+        r.chatwoot_conversation_id, r.inbox_name,
         fmtDateTime(r.opened_at), fmtDateTime(r.conversation_closed_at),
+        fmtDateTime(r.first_response_at),
         r.assignee_name, r.team_name, r.tabulacao_atendimento,
-        r.status, dur,
+        r.status, tma, tm1r,
       ].map((v) => {
         const s = (v ?? "").toString().replace(/"/g, '""');
         return /[",;\n]/.test(s) ? `"${s}"` : s;
@@ -325,6 +339,70 @@ export default function ChatwootReports() {
     a.download = `atendimentos_${from}_${to}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function exportPdf() {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Cabeçalho
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Relatório de Atendimentos", 40, 40);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Período: ${from} até ${to}`, 40, 58);
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 72);
+
+    // KPIs
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Indicadores", 40, 100);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const kpiLines = [
+      `Total de atendimentos: ${kpis.total.toLocaleString("pt-BR")}`,
+      `Taxa de resolução: ${kpis.resolvedPct.toFixed(1)}%`,
+      `Com tabulação: ${kpis.tabPct.toFixed(1)}%`,
+      `TMA (Tempo Médio de Atendimento): ${fmtDuration(kpis.tma)}`,
+      `TM1R (Tempo Médio de 1ª Resposta): ${fmtDuration(kpis.tm1r)}`,
+    ];
+    kpiLines.forEach((l, i) => doc.text(l, 40, 118 + i * 14));
+
+    // Tabela
+    autoTable(doc, {
+      startY: 200,
+      styles: { fontSize: 7, cellPadding: 3 },
+      headStyles: { fillColor: [1, 184, 224] },
+      head: [[
+        "Cliente", "Email", "Telefone", "Ticket", "Caixa de Entrada",
+        "Aberto em", "Fechado em", "1ª Resposta", "Agente", "Time",
+        "Tabulação", "Status", "TMA", "TM1R",
+      ]],
+      body: filtered.map((r) => [
+        r.contact_name || "—",
+        r.contact_email || "—",
+        r.contact_phone || "—",
+        `#${r.chatwoot_conversation_id}`,
+        r.inbox_name || "—",
+        fmtDateTime(r.opened_at),
+        fmtDateTime(r.conversation_closed_at),
+        fmtDateTime(r.first_response_at),
+        r.assignee_name || "—",
+        r.team_name || "—",
+        r.tabulacao_atendimento || "—",
+        r.status,
+        fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at)),
+        fmtDuration(diffMinutes(r.opened_at, r.first_response_at)),
+      ]),
+      didDrawPage: () => {
+        const pageNum = doc.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(8);
+        doc.text(`Página ${pageNum}`, pageW - 60, doc.internal.pageSize.getHeight() - 20);
+      },
+    });
+
+    doc.save(`atendimentos_${from}_${to}.pdf`);
   }
 
   return (
@@ -345,7 +423,7 @@ export default function ChatwootReports() {
         {/* Filtros */}
         <Card>
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
               <div>
                 <Label className="text-xs">De</Label>
                 <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -363,6 +441,16 @@ export default function ChatwootReports() {
                     <SelectItem value="open">Aberto</SelectItem>
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="resolved">Resolvido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Caixa de Entrada</Label>
+                <Select value={inbox} onValueChange={setInbox}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {inboxes.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -412,15 +500,19 @@ export default function ChatwootReports() {
               <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
                 <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
               </Button>
+              <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
+                <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <KpiCard title="Total de atendimentos" value={kpis.total.toLocaleString("pt-BR")} />
           <KpiCard title="Taxa de resolução" value={`${kpis.resolvedPct.toFixed(1)}%`} />
-          <KpiCard title="TMR (médio)" value={fmtDuration(kpis.avgMin)} />
+          <KpiCard title="TMA (Tempo Médio de Atendimento)" value={fmtDuration(kpis.tma)} />
+          <KpiCard title="TM1R (Tempo Médio de 1ª Resposta)" value={fmtDuration(kpis.tm1r)} />
           <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
         </div>
 
@@ -508,17 +600,21 @@ export default function ChatwootReports() {
                     <TableHead>Email</TableHead>
                     <TableHead>Telefone</TableHead>
                     <TableHead>Ticket</TableHead>
+                    <TableHead>Caixa de Entrada</TableHead>
                     <TableHead>Aberto em</TableHead>
                     <TableHead>Fechado em</TableHead>
+                    <TableHead>1ª Resposta</TableHead>
                     <TableHead>Agente</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Tabulação</TableHead>
+                    <TableHead>TMA</TableHead>
+                    <TableHead>TM1R</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pageRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                      <TableCell colSpan={14} className="text-center text-sm text-muted-foreground py-8">
                         Nenhum atendimento encontrado para os filtros selecionados.
                       </TableCell>
                     </TableRow>
@@ -542,8 +638,10 @@ export default function ChatwootReports() {
                             </a>
                           ) : `#${r.chatwoot_conversation_id}`}
                         </TableCell>
+                        <TableCell className="text-xs">{r.inbox_name || "—"}</TableCell>
                         <TableCell className="text-xs">{fmtDateTime(r.opened_at)}</TableCell>
                         <TableCell className="text-xs">{fmtDateTime(r.conversation_closed_at)}</TableCell>
+                        <TableCell className="text-xs">{fmtDateTime(r.first_response_at)}</TableCell>
                         <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
                         <TableCell className="text-xs">{r.team_name || "—"}</TableCell>
                         <TableCell className="text-xs">
@@ -551,6 +649,8 @@ export default function ChatwootReports() {
                             <Badge variant="secondary" className="text-[10px]">{r.tabulacao_atendimento}</Badge>
                           ) : "—"}
                         </TableCell>
+                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
+                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.first_response_at))}</TableCell>
                       </TableRow>
                     );
                   })}

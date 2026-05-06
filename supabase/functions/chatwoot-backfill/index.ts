@@ -83,7 +83,23 @@ async function findActiveOpportunity(contactId: string): Promise<string | null> 
   return data?.[0]?.id || null;
 }
 
-async function processConversation(conv: any, accountId: number) {
+const inboxNameCache = new Map<number, string | null>();
+
+async function fetchInboxName(baseUrl: string, accountId: number, inboxId: number): Promise<string | null> {
+  if (inboxNameCache.has(inboxId)) return inboxNameCache.get(inboxId) ?? null;
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/inboxes/${inboxId}`, {
+      headers: { api_access_token: CHATWOOT_API_TOKEN },
+    });
+    if (!res.ok) { inboxNameCache.set(inboxId, null); return null; }
+    const j = await res.json();
+    const n = j?.name || null;
+    inboxNameCache.set(inboxId, n);
+    return n;
+  } catch { return null; }
+}
+
+async function processConversation(conv: any, accountId: number, baseUrl: string) {
   const sender = conv?.meta?.sender || conv?.contact_inbox?.contact || conv?.sender || {};
   const email = (sender.email || "").trim().toLowerCase() || null;
   const phone = sender.phone_number || sender.phone || null;
@@ -99,6 +115,7 @@ async function processConversation(conv: any, accountId: number) {
   const tabulacao = extractTabulacao(conv);
   const openedAt = tsToIso(conv.created_at) || tsToIso(conv.timestamp);
   const lastMsgAt = tsToIso(conv.last_activity_at) || openedAt || new Date().toISOString();
+  const firstResponseAt = tsToIso(conv.first_reply_created_at);
 
   const assignee = conv?.meta?.assignee || conv?.assignee || null;
   const team = conv?.meta?.team || conv?.team || null;
@@ -108,11 +125,14 @@ async function processConversation(conv: any, accountId: number) {
     : null;
 
   const inboxId = conv.inbox_id ? Number(conv.inbox_id) : null;
+  const inboxName = (conv?.inbox?.name || conv?.meta?.inbox?.name)
+    || (inboxId ? await fetchInboxName(baseUrl, accountId, inboxId) : null);
 
   await service.from("chatwoot_conversations").upsert({
     chatwoot_conversation_id: convId,
     chatwoot_account_id: accountId,
     chatwoot_inbox_id: inboxId,
+    inbox_name: inboxName,
     status,
     tabulacao_atendimento: tabulacao,
     contact_id: contactId,
@@ -123,6 +143,7 @@ async function processConversation(conv: any, accountId: number) {
     last_message_at: lastMsgAt,
     opened_at: openedAt,
     conversation_closed_at: closedAt,
+    first_response_at: firstResponseAt,
     assignee_id: assignee?.id ? Number(assignee.id) : null,
     assignee_name: assignee?.name || assignee?.available_name || null,
     assignee_email: assignee?.email || null,
@@ -214,7 +235,7 @@ Deno.serve(async (req) => {
       const BATCH = 5;
       for (let i = 0; i < items.length; i += BATCH) {
         const slice = items.slice(i, i + BATCH);
-        const results = await Promise.allSettled(slice.map((it) => processConversation(it, accountId)));
+        const results = await Promise.allSettled(slice.map((it) => processConversation(it, accountId, baseUrl)));
         results.forEach((r, idx) => {
           if (r.status === "fulfilled") totalProcessed++;
           else errors.push(`conv ${slice[idx].id}: ${r.reason?.message || r.reason}`);
