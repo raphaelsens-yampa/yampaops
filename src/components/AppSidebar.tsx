@@ -192,6 +192,7 @@ export function AppSidebar() {
       items: [
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
+        { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
       ],
     },
