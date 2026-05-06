@@ -84,6 +84,7 @@ function AppRoutes() {
       <Route path="/goals" element={<Goals />} />
       <Route path="/commissions" element={<Commissions />} />
       <Route path="/link-builder" element={<LinkBuilder />} />
+      <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
