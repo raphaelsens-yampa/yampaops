@@ -19,8 +19,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
-  ChevronRight, ImageDown, FileText,
+  ChevronRight, ImageDown, FileText, CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
@@ -510,13 +515,45 @@ export default function ChatwootReports() {
         <Card>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
-              <div>
-                <Label className="text-xs">De</Label>
-                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Até</Label>
-                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <div className="sm:col-span-2 xl:col-span-2">
+                <Label className="text-xs">Período</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !from && !to && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {from && to ? (
+                        <>
+                          {format(parseISO(from), "dd/MM/yy", { locale: ptBR })} – {format(parseISO(to), "dd/MM/yy", { locale: ptBR })}
+                        </>
+                      ) : (
+                        <span>Selecione o período</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      defaultMonth={from ? parseISO(from) : undefined}
+                      selected={{
+                        from: from ? parseISO(from) : undefined,
+                        to: to ? parseISO(to) : undefined,
+                      } as DateRange}
+                      onSelect={(range) => {
+                        if (range?.from) setFrom(isoDate(range.from));
+                        if (range?.to) setTo(isoDate(range.to));
+                      }}
+                      numberOfMonths={2}
+                      locale={ptBR}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label className="text-xs">Status</Label>
