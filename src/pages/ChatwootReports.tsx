@@ -166,9 +166,7 @@ export default function ChatwootReports() {
       if (from) q = q.gte("opened_at", `${from}T00:00:00`);
       if (to) q = q.lte("opened_at", `${to}T23:59:59`);
       if (status !== "all") q = q.eq("status", status);
-      if (agent !== "all") q = q.eq("assignee_name", agent);
-      if (team !== "all") q = q.eq("team_name", team);
-      // Tabulação é filtrada client-side (multi-select)
+      // Agente, Time e Tabulação são filtrados client-side para preservar as listas de opções
 
       const { data, error } = await q;
       if (error || !data) break;
