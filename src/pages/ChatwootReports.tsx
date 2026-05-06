@@ -319,7 +319,7 @@ export default function ChatwootReports() {
     ];
     const lines = filtered.map((r) => {
       const tma = fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at));
-      const tm1r = fmtDuration(diffMinutes(r.opened_at, r.first_response_at));
+      const tm1r = fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at));
       return [
         r.contact_name, r.contact_email, r.contact_phone,
         r.chatwoot_conversation_id, r.inbox_name,
