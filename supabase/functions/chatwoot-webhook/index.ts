@@ -192,19 +192,42 @@ async function upsertConversation(
   const assignee = conversation?.meta?.assignee || conversation?.assignee || null;
   const team = conversation?.meta?.team || conversation?.team || null;
 
+  // Lookup current row to (a) preserve agent/team frozen at close time
+  // and (b) keep an existing closed timestamp.
+  const { data: existing } = await service
+    .from("chatwoot_conversations")
+    .select("conversation_closed_at, assignee_id, assignee_name, assignee_email, team_id, team_name, status")
+    .eq("chatwoot_conversation_id", convId)
+    .maybeSingle();
+
   // Determine closed_at: if resolved, use existing or now()
-  let closedAt: string | null = null;
-  if (status === "resolved") {
-    const { data: existing } = await service
-      .from("chatwoot_conversations")
-      .select("conversation_closed_at")
-      .eq("chatwoot_conversation_id", convId)
-      .maybeSingle();
-    closedAt = existing?.conversation_closed_at
-      || tsToIso(conversation.resolved_at)
+  let closedAt: string | null = existing?.conversation_closed_at || null;
+  if (status === "resolved" && !closedAt) {
+    closedAt = tsToIso(conversation.resolved_at)
       || tsToIso(conversation.last_activity_at)
       || new Date().toISOString();
   }
+
+  // Freeze assignee/team if the conversation was already resolved.
+  // Otherwise (open/pending), keep refreshing with the latest values.
+  const wasResolved = existing?.status === "resolved" && !!existing?.conversation_closed_at;
+
+  const incomingAssignee = {
+    id: assignee?.id ? Number(assignee.id) : null,
+    name: assignee?.name || assignee?.available_name || null,
+    email: assignee?.email || null,
+  };
+  const incomingTeam = {
+    id: team?.id ? Number(team.id) : null,
+    name: team?.name || null,
+  };
+
+  const finalAssignee = wasResolved
+    ? { id: existing?.assignee_id ?? null, name: existing?.assignee_name ?? null, email: existing?.assignee_email ?? null }
+    : incomingAssignee;
+  const finalTeam = wasResolved
+    ? { id: existing?.team_id ?? null, name: existing?.team_name ?? null }
+    : incomingTeam;
 
   const row: any = {
     chatwoot_conversation_id: convId,
@@ -220,11 +243,11 @@ async function upsertConversation(
     last_message_at: lastMsgAt,
     opened_at: openedAt,
     conversation_closed_at: closedAt,
-    assignee_id: assignee?.id ? Number(assignee.id) : null,
-    assignee_name: assignee?.name || assignee?.available_name || null,
-    assignee_email: assignee?.email || null,
-    team_id: team?.id ? Number(team.id) : null,
-    team_name: team?.name || null,
+    assignee_id: finalAssignee.id,
+    assignee_name: finalAssignee.name,
+    assignee_email: finalAssignee.email,
+    team_id: finalTeam.id,
+    team_name: finalTeam.name,
   };
 
   const { error } = await service.from("chatwoot_conversations").upsert(
