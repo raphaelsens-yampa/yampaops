@@ -32,28 +32,63 @@ function downloadChartPng(container: HTMLElement | null, filename: string) {
   if (!container) return;
   const svg = container.querySelector("svg");
   if (!svg) return;
-  const cloned = svg.cloneNode(true) as SVGSVGElement;
+
   const bbox = svg.getBoundingClientRect();
-  const w = Math.ceil(bbox.width), h = Math.ceil(bbox.height);
+  const w = Math.ceil(bbox.width) || svg.clientWidth || 800;
+  const h = Math.ceil(bbox.height) || svg.clientHeight || 400;
+
+  const cloned = svg.cloneNode(true) as SVGSVGElement;
   cloned.setAttribute("width", String(w));
   cloned.setAttribute("height", String(h));
   cloned.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  const css = `<style>text{fill:#222;font-family:Manrope,Arial,sans-serif;}</style>`;
-  cloned.insertAdjacentHTML("afterbegin", css);
+  if (!cloned.getAttribute("viewBox")) {
+    cloned.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  }
+
+  // Recharts pinta com `fill="hsl(var(--primary))"` etc. Quando o SVG é
+  // serializado fora do DOM, as CSS variables não existem e o navegador
+  // pinta tudo como preto/transparente — o que deixa o PNG em branco.
+  // Solução: copiar os estilos computados de cada nó original para o clone.
+  const PROPS = [
+    "fill", "fill-opacity",
+    "stroke", "stroke-width", "stroke-opacity", "stroke-dasharray", "stroke-linecap", "stroke-linejoin",
+    "opacity", "color",
+    "font-family", "font-size", "font-weight", "text-anchor",
+  ];
+  const origNodes = svg.querySelectorAll<SVGElement>("*");
+  const cloneNodes = cloned.querySelectorAll<SVGElement>("*");
+  origNodes.forEach((node, i) => {
+    const target = cloneNodes[i];
+    if (!target) return;
+    const cs = window.getComputedStyle(node);
+    let style = "";
+    for (const prop of PROPS) {
+      const value = cs.getPropertyValue(prop);
+      if (value && value !== "none" && value !== "normal") {
+        style += `${prop}:${value};`;
+      }
+    }
+    if (style) {
+      const existing = target.getAttribute("style") || "";
+      target.setAttribute("style", style + existing);
+    }
+  });
+
   const xml = new XMLSerializer().serializeToString(cloned);
-  const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
+  const svg64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+
   const img = new Image();
+  img.crossOrigin = "anonymous";
   img.onload = () => {
     const scale = 2;
     const canvas = document.createElement("canvas");
-    canvas.width = w * scale; canvas.height = h * scale;
+    canvas.width = w * scale;
+    canvas.height = h * scale;
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
+    ctx.drawImage(img, 0, 0, w, h);
     canvas.toBlob((b) => {
       if (!b) return;
       const a = document.createElement("a");
@@ -63,7 +98,8 @@ function downloadChartPng(container: HTMLElement | null, filename: string) {
       URL.revokeObjectURL(a.href);
     }, "image/png");
   };
-  img.src = url;
+  img.onerror = (e) => console.error("Falha ao renderizar gráfico para PNG", e);
+  img.src = svg64;
 }
 
 type Conv = {
