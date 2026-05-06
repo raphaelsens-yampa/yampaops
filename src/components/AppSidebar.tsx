@@ -92,8 +92,10 @@ function ACStatusDot() {
 }
 
 function StripeStatusDot() {
+  const { role } = useAuth();
   const { data } = useQuery({
     queryKey: ["stripe-sidebar-status"],
+    enabled: role === "admin",
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("stripe-test-connection");
       if (error) return { ok: false } as { ok: boolean; webhook_secret_configured?: boolean };
