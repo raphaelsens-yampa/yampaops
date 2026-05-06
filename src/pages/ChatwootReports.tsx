@@ -967,7 +967,7 @@ function TabulacaoFilter({
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-0" align="start">
         <div className="flex items-center justify-between px-3 py-2 border-b">
-          <span className="text-xs font-medium">Tabulações</span>
+          <span className="text-xs font-medium">{title}</span>
           <div className="flex gap-2">
             <button
               type="button"
