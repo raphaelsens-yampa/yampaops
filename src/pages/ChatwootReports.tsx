@@ -232,9 +232,9 @@ export default function ChatwootReports() {
       .map((r) => diffMinutes(r.opened_at, r.conversation_closed_at))
       .filter((v): v is number => v != null);
     const tma = tmaList.length ? tmaList.reduce((a, b) => a + b, 0) / tmaList.length : null;
-    // TM1R = tempo médio de 1ª resposta (abertura → primeira resposta do agente)
+    // TM1R = diferença entre primeira mensagem do cliente e primeira resposta do agente
     const t1rList = filtered
-      .map((r) => diffMinutes(r.opened_at, r.first_response_at))
+      .map((r) => diffMinutes(r.first_contact_message_at, r.first_response_at))
       .filter((v): v is number => v != null);
     const tm1r = t1rList.length ? t1rList.reduce((a, b) => a + b, 0) / t1rList.length : null;
     return {
