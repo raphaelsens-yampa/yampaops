@@ -688,3 +688,35 @@ function TabulacaoFilter({
     </Popover>
   );
 }
+
+function ChartCard({
+  title, children, containerRef, filename, height = 280,
+}: {
+  title: string;
+  children: React.ReactNode;
+  containerRef: React.RefObject<HTMLDivElement>;
+  filename: string;
+  height?: number;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2"
+          onClick={() => downloadChartPng(containerRef.current, filename)}
+          title="Baixar como PNG"
+        >
+          <ImageDown className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent style={{ height }}>
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+          {children}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
