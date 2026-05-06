@@ -99,6 +99,30 @@ async function fetchInboxName(baseUrl: string, accountId: number, inboxId: numbe
   } catch { return null; }
 }
 
+async function fetchFirstTimestamps(baseUrl: string, accountId: number, convId: number): Promise<{ firstIncoming: string | null; firstOutgoing: string | null }> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/conversations/${convId}/messages`, {
+      headers: { api_access_token: CHATWOOT_API_TOKEN },
+    });
+    if (!res.ok) return { firstIncoming: null, firstOutgoing: null };
+    const j = await res.json();
+    const items: any[] = j?.payload || j?.data?.payload || [];
+    let firstIncoming: number | null = null;
+    let firstOutgoing: number | null = null;
+    for (const m of items) {
+      const ts = Number(m.created_at);
+      if (!ts) continue;
+      const mt = m.message_type;
+      if ((mt === 0 || mt === "incoming") && (firstIncoming == null || ts < firstIncoming)) firstIncoming = ts;
+      if ((mt === 1 || mt === "outgoing") && (firstOutgoing == null || ts < firstOutgoing)) firstOutgoing = ts;
+    }
+    return {
+      firstIncoming: firstIncoming ? new Date(firstIncoming * 1000).toISOString() : null,
+      firstOutgoing: firstOutgoing ? new Date(firstOutgoing * 1000).toISOString() : null,
+    };
+  } catch { return { firstIncoming: null, firstOutgoing: null }; }
+}
+
 async function processConversation(conv: any, accountId: number, baseUrl: string) {
   const sender = conv?.meta?.sender || conv?.contact_inbox?.contact || conv?.sender || {};
   const email = (sender.email || "").trim().toLowerCase() || null;
@@ -115,7 +139,6 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
   const tabulacao = extractTabulacao(conv);
   const openedAt = tsToIso(conv.created_at) || tsToIso(conv.timestamp);
   const lastMsgAt = tsToIso(conv.last_activity_at) || openedAt || new Date().toISOString();
-  const firstResponseAt = tsToIso(conv.first_reply_created_at);
 
   const assignee = conv?.meta?.assignee || conv?.assignee || null;
   const team = conv?.meta?.team || conv?.team || null;
@@ -127,6 +150,10 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
   const inboxId = conv.inbox_id ? Number(conv.inbox_id) : null;
   const inboxName = (conv?.inbox?.name || conv?.meta?.inbox?.name)
     || (inboxId ? await fetchInboxName(baseUrl, accountId, inboxId) : null);
+
+  // Buscar primeira mensagem do cliente e primeira resposta do agente via mensagens
+  const { firstIncoming, firstOutgoing } = await fetchFirstTimestamps(baseUrl, accountId, convId);
+  const firstResponseAt = firstOutgoing || tsToIso(conv.first_reply_created_at);
 
   await service.from("chatwoot_conversations").upsert({
     chatwoot_conversation_id: convId,
@@ -144,6 +171,7 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
     opened_at: openedAt,
     conversation_closed_at: closedAt,
     first_response_at: firstResponseAt,
+    first_contact_message_at: firstIncoming,
     assignee_id: assignee?.id ? Number(assignee.id) : null,
     assignee_name: assignee?.name || assignee?.available_name || null,
     assignee_email: assignee?.email || null,
