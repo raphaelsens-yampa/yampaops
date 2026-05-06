@@ -426,70 +426,58 @@ export default function ChatwootReports() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Por Tabulação</CardTitle></CardHeader>
-            <CardContent style={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Por Tabulação" containerRef={refTab} filename="por-tabulacao.png">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="value" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Por Agente</CardTitle></CardHeader>
-            <CardContent style={{ height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byAgent}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
-                  <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
-                  <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Por Agente" containerRef={refAgent} filename="por-agente.png">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byAgent}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
+                <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
+                <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Por Time</CardTitle></CardHeader>
-            <CardContent style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byTeam}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--secondary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Por Time" containerRef={refTeam} filename="por-time.png" height={240}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byTeam}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="hsl(var(--secondary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Volume diário</CardTitle></CardHeader>
-            <CardContent style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={byDay}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
-                  <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <ChartCard title="Volume diário" containerRef={refDay} filename="volume-diario.png" height={240}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={byDay}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
+                <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
         </div>
 
         {/* Tabela */}
