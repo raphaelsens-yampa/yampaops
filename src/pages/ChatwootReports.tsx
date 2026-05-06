@@ -638,6 +638,15 @@ export default function ChatwootReports() {
                   selected={tabulacaoSel}
                   onChange={setTabulacaoSel}
                 />
+              <div>
+                <Label className="text-xs">Etiquetas</Label>
+                <TabulacaoFilter
+                  options={labelOptions}
+                  selected={labelsSel}
+                  onChange={setLabelsSel}
+                  title="Etiquetas"
+                  emptyLabel="(sem etiqueta)"
+                />
               </div>
               <div>
                 <Label className="text-xs">Buscar</Label>
