@@ -543,3 +543,104 @@ function KpiCard({ title, value }: { title: string; value: string }) {
     </Card>
   );
 }
+
+function TabulacaoFilter({
+  options, selected, onChange,
+}: {
+  options: string[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<number | null>(null);
+  const allOptions = useMemo(() => ["__empty__", ...options], [options]);
+
+  function label() {
+    if (selected.length === 0) return "Todas";
+    if (selected.length === 1) {
+      const v = selected[0];
+      return v === "__empty__" ? "(sem tabulação)" : v;
+    }
+    return `${selected.length} selecionadas`;
+  }
+
+  function toggle(value: string, e: React.MouseEvent) {
+    const idx = allOptions.indexOf(value);
+    // Shift+click = range
+    if (e.shiftKey && anchor != null && idx >= 0) {
+      const [a, b] = [anchor, idx].sort((x, y) => x - y);
+      const range = allOptions.slice(a, b + 1);
+      const set = new Set(selected);
+      const allIn = range.every((v) => set.has(v));
+      if (allIn) range.forEach((v) => set.delete(v));
+      else range.forEach((v) => set.add(v));
+      onChange(Array.from(set));
+      return;
+    }
+    setAnchor(idx);
+    const set = new Set(selected);
+    if (set.has(value)) set.delete(value); else set.add(value);
+    onChange(Array.from(set));
+  }
+
+  function selectAll() { onChange([]); }
+  function selectNone() { onChange(allOptions.slice()); /* none = nada bate; usuário pode limpar */ }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-full justify-between font-normal h-10">
+          <span className="truncate text-sm">{label()}</span>
+          <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0" align="start">
+        <div className="flex items-center justify-between px-3 py-2 border-b">
+          <span className="text-xs font-medium">Tabulações</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={selectAll}
+            >
+              Todas
+            </button>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:underline"
+              onClick={() => onChange([])}
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+        <ScrollArea className="h-[280px]">
+          <div className="p-1">
+            {allOptions.length === 0 && (
+              <div className="text-xs text-muted-foreground p-3 text-center">
+                Sem opções disponíveis
+              </div>
+            )}
+            {allOptions.map((opt) => {
+              const checked = selected.includes(opt);
+              const display = opt === "__empty__" ? "(sem tabulação)" : opt;
+              return (
+                <div
+                  key={opt}
+                  onClick={(e) => toggle(opt, e)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm select-none"
+                >
+                  <Checkbox checked={checked} className="pointer-events-none" />
+                  <span className="truncate">{display}</span>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+        <div className="px-3 py-2 border-t text-[10px] text-muted-foreground">
+          Dica: segure <kbd className="px-1 bg-muted rounded">Shift</kbd> e clique para selecionar um intervalo
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
