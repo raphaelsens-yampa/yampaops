@@ -1,88 +1,53 @@
-## Módulo "Atendimentos Chatwoot" — Dashboard e Relatório de Tabulação
+# Backfill de TM1R via Chatwoot
 
-Criar uma seção independente, focada em analisar os atendimentos sincronizados via Chatwoot, com foco em **tabulação**, **SLA** e **performance por agente/time**.
+## Contexto
 
----
+Hoje, das 3.623 conversas armazenadas, apenas:
+- **46** têm `first_response_at` populado
+- **8** têm `first_contact_message_at` populado
 
-### 1. Enriquecer dados sincronizados
+Sem esses dois timestamps a fórmula `TM1R = first_response_at − first_contact_message_at` não tem amostra suficiente para ser útil — por isso a coluna TM1R aparece quase toda vazia na tela.
 
-Hoje `chatwoot_conversations` guarda só: id, status, tabulação, contato (id/email/phone), última msg. Faltam campos pedidos pelo relatório.
+A informação **existe** no Chatwoot e o código atual (`chatwoot-backfill`) já sabe buscar via endpoint `/api/v1/accounts/{id}/conversations/{convId}/messages`, identificando a primeira mensagem `incoming` (cliente) e a primeira `outgoing` (agente). O problema é apenas execução: o backfill antigo não percorreu todas as conversas históricas com essa lógica nova.
 
-**Migração na tabela `chatwoot_conversations`:**
-- `contact_name text` — nome do cliente
-- `opened_at timestamptz` — abertura da conversa (de `created_at` do Chatwoot)
-- `closed_at timestamptz` — preenchido quando status vira `resolved`
-- `assignee_id bigint` — ID do agente no Chatwoot
-- `assignee_name text`, `assignee_email text` — nome/email do agente
-- `team_id bigint`, `team_name text` — time responsável
-- Índices em `opened_at`, `closed_at`, `assignee_id`, `team_id`, `tabulacao_atendimento`
+## O que será feito
 
-**Atualizar `supabase/functions/chatwoot-webhook/index.ts`:**
-- Extrair `conversation.created_at` → `opened_at`
-- Quando `status === "resolved"` e `closed_at` ainda nulo → setar `closed_at` (de `conversation.timestamp` ou `now()`)
-- Extrair `conversation.meta.assignee` → `assignee_id/name/email`
-- Extrair `conversation.meta.team` → `team_id/name`
-- Continuar capturando `tabulacao_atendimento` (já existe)
+Criar uma rotina dedicada que, para cada conversa já existente sem TM1R, busca as mensagens no Chatwoot e preenche os dois campos. Isolada do backfill geral para poder rodar em ritmo controlado e ser retomada de onde parou.
 
-Sem backfill automático: novos eventos preenchem; histórico antigo aparece com campos vazios até a próxima atualização da conversa.
+### Nova edge function: `chatwoot-fill-tm1r`
 
----
+- Recebe parâmetros opcionais: `limit` (default 200), `only_missing` (default true).
+- Lê em `chatwoot_conversations` as conversas onde `first_response_at IS NULL OR first_contact_message_at IS NULL`, ordenadas por `created_at` desc (mais novas primeiro, que é o que mais importa para o relatório).
+- Para cada uma, chama `/api/v1/accounts/{accountId}/conversations/{chatwoot_conversation_id}/messages` (com paginação, pois conversas grandes podem ter centenas de mensagens).
+- Identifica primeira incoming (`message_type=0`) e primeira outgoing (`message_type=1`).
+- Atualiza `first_contact_message_at` e `first_response_at` na linha correspondente.
+- Retorna no JSON: `processed`, `updated`, `skipped`, `errors`, `next_cursor` (id da última conversa processada).
+- Throttle de ~5 req/s para respeitar o limite do Chatwoot.
 
-### 2. Nova página `/atendimentos`
+### Execução em lotes
 
-Rota nova em `src/pages/ChatwootReports.tsx`, registrada no `App.tsx` e adicionada ao `AppSidebar` (item "Atendimentos", ícone `MessageCircle`/`BarChart3`). Acesso: admin + tatico (mesma regra das outras telas analíticas).
+Como são ~3.500 conversas pendentes e cada uma faz 1 chamada HTTP, executar tudo de uma vez estouraria o timeout da edge function. A função processa lotes (~200 por chamada, ~40 segundos cada) e devolve um `next_cursor` para retomar.
 
-**Estrutura da página:**
+A primeira execução será disparada manualmente algumas vezes em sequência até zerar o backlog. Não há mudança de UI nesta etapa.
 
-**(a) Filtros (topo, sticky):**
-- Período (date range, default últimos 30 dias) — sobre `opened_at`
-- Status: todos / open / pending / resolved
-- Agente (multi-select, populado da lista distinta de `assignee_name`)
-- Time (multi-select)
-- Tabulação (multi-select)
-- Busca livre (nome, email, telefone, nº conversa)
+### Sem mudança no fluxo "ao vivo"
 
-**(b) KPIs (cards no topo):**
-- Total de atendimentos no período
-- % resolvidos
-- TMR — tempo médio de resolução (`closed_at - opened_at`)
-- % com tabulação preenchida (qualidade do dado)
+Não vamos mexer nos webhooks nem no `chatwoot-backfill` — eles já populam corretamente conversas novas. Esse plano é só para limpar o passivo histórico.
 
-**(c) Dashboard (gráficos lado a lado):**
-- **Distribuição por Tabulação** (barra horizontal, contagem)
-- **Atendimentos por Agente** (barra) — empilhado por status
-- **Atendimentos por Time** (barra)
-- **Volume diário** (linha, opened vs resolved)
+## Após a execução
 
-**(d) Tabela de Relatório (com paginação 25/pg):**
-Colunas exatamente conforme pedido:
-| Cliente | Email | Telefone | Ticket # | Aberto em | Fechado em | Agente | Time | Tabulação |
+A coluna TM1R no relatório por Caixa de Entrada e nos KPIs deve passar a mostrar valores reais para a grande maioria das conversas. Conversas sem mensagem de saída (não respondidas) continuarão com TM1R nulo — comportamento correto.
 
-- Datas formatadas `DD/MM/AAAA HH:MM` (pt-BR)
-- "Ticket #" linka para o Chatwoot (`{base_url}/app/accounts/{account_id}/conversations/{id}`)
-- Vínculo a Deal/Contato exibido como badge inline na coluna Cliente quando `opportunity_id`/`contact_id` existir
-- Ordenação por qualquer coluna; default `opened_at desc`
+## Detalhes técnicos
 
-**(e) Exportação:**
-- Botão "Exportar CSV" — gera arquivo respeitando os filtros aplicados (client-side, com `papaparse` ou string manual)
+- Arquivo novo: `supabase/functions/chatwoot-fill-tm1r/index.ts`
+- Endpoint Chatwoot: `GET /api/v1/accounts/{accountId}/conversations/{convId}/messages?page=N`
+- Campos atualizados: `first_contact_message_at`, `first_response_at` (timestamptz)
+- Concorrência: lotes de 5 conversas em paralelo, sleep ~220ms entre lotes
+- Re-executável: idempotente (só preenche o que estiver nulo)
 
----
+## Fora de escopo
 
-### Detalhes técnicos
-
-- Frontend usa Supabase client direto (RLS já permite admin/tatico ler `chatwoot_conversations`)
-- Gráficos com `recharts` (já presente via shadcn `chart.tsx`)
-- Date range picker com `react-day-picker` já instalado
-- Para listas distinct (agentes, times, tabulações nos filtros) — uma única query agregada inicial limitada ao período selecionado
-- Se a lista crescer muito (>1000 linhas), paginar server-side via `range()`
-
-### Arquivos afetados
-- migração SQL (novos campos + índices)
-- `supabase/functions/chatwoot-webhook/index.ts` (extração dos novos campos)
-- `src/pages/ChatwootReports.tsx` (nova)
-- `src/App.tsx` (rota)
-- `src/components/AppSidebar.tsx` (item de menu)
-
-### Fora de escopo
-- Backfill histórico via API do Chatwoot (posso fazer numa segunda etapa criando uma função `chatwoot-backfill` que pagina `/conversations`)
-- Edição/criação de tabulação direto pelo Yampa (mantém one-way Chatwoot → Yampa)
+- Não vamos recalcular TMA — `opened_at` e `conversation_closed_at` já estão populados na maioria.
+- Não vamos alterar a fórmula de TM1R nem a UI dos KPIs.
+- Não vamos agendar via cron — execução manual sob demanda até o backlog zerar.
