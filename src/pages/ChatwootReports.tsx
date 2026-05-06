@@ -164,7 +164,7 @@ export default function ChatwootReports() {
       let q = supabase
         .from("chatwoot_conversations")
         .select(
-          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id",
+          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,first_contact_message_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id",
         )
         .order("opened_at", { ascending: false, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
