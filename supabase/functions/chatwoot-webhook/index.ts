@@ -452,9 +452,15 @@ async function handleMessageCreated(payload: any) {
   // Tag "Mensagem respondida" only on incoming (cliente respondeu)
   if (activityType === "resposta_recebida") {
     await applyTagForEvent(ctx.opportunityId, "message_replied");
+    // Marca primeira mensagem do cliente
+    const msgTs = tsToIso(message.created_at) || new Date().toISOString();
+    await service.from("chatwoot_conversations")
+      .update({ first_contact_message_at: msgTs })
+      .eq("chatwoot_conversation_id", Number(conversation.id))
+      .is("first_contact_message_at", null);
   }
 
-  // First response: when an outgoing message is sent and no first_response_at yet
+  // First response: quando o agente enviar e ainda não houver primeira resposta registrada
   if (activityType === "mensagem_enviada") {
     const msgTs = tsToIso(message.created_at) || new Date().toISOString();
     await service.from("chatwoot_conversations")

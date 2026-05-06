@@ -77,6 +77,7 @@ type Conv = {
   opened_at: string | null;
   conversation_closed_at: string | null;
   first_response_at: string | null;
+  first_contact_message_at: string | null;
   assignee_name: string | null;
   assignee_email: string | null;
   team_name: string | null;
@@ -145,6 +146,7 @@ export default function ChatwootReports() {
   const refAgent = useRef<HTMLDivElement>(null);
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
+  const refInbox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase
@@ -163,7 +165,7 @@ export default function ChatwootReports() {
       let q = supabase
         .from("chatwoot_conversations")
         .select(
-          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id",
+          "chatwoot_conversation_id,chatwoot_account_id,status,tabulacao_atendimento,contact_name,contact_email,contact_phone,opened_at,conversation_closed_at,first_response_at,first_contact_message_at,assignee_name,assignee_email,team_name,inbox_name,contact_id,opportunity_id",
         )
         .order("opened_at", { ascending: false, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
@@ -231,9 +233,9 @@ export default function ChatwootReports() {
       .map((r) => diffMinutes(r.opened_at, r.conversation_closed_at))
       .filter((v): v is number => v != null);
     const tma = tmaList.length ? tmaList.reduce((a, b) => a + b, 0) / tmaList.length : null;
-    // TM1R = tempo médio de 1ª resposta (abertura → primeira resposta do agente)
+    // TM1R = diferença entre primeira mensagem do cliente e primeira resposta do agente
     const t1rList = filtered
-      .map((r) => diffMinutes(r.opened_at, r.first_response_at))
+      .map((r) => diffMinutes(r.first_contact_message_at, r.first_response_at))
       .filter((v): v is number => v != null);
     const tm1r = t1rList.length ? t1rList.reduce((a, b) => a + b, 0) / t1rList.length : null;
     return {
@@ -302,7 +304,28 @@ export default function ChatwootReports() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   }, [filtered]);
 
-  // Pagination
+  // Por Caixa de Entrada: contagem + TMA + TM1R
+  const byInbox = useMemo(() => {
+    const map = new Map<string, { name: string; total: number; tmaSum: number; tmaN: number; t1rSum: number; t1rN: number }>();
+    filtered.forEach((r) => {
+      const k = r.inbox_name || "(sem caixa)";
+      const cur = map.get(k) || { name: k, total: 0, tmaSum: 0, tmaN: 0, t1rSum: 0, t1rN: 0 };
+      cur.total++;
+      const tma = diffMinutes(r.opened_at, r.conversation_closed_at);
+      if (tma != null) { cur.tmaSum += tma; cur.tmaN++; }
+      const t1r = diffMinutes(r.first_contact_message_at, r.first_response_at);
+      if (t1r != null) { cur.t1rSum += t1r; cur.t1rN++; }
+      map.set(k, cur);
+    });
+    return Array.from(map.values())
+      .map((v) => ({
+        name: v.name,
+        total: v.total,
+        tma: v.tmaN ? v.tmaSum / v.tmaN : null,
+        tm1r: v.t1rN ? v.t1rSum / v.t1rN : null,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [filtered]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -318,7 +341,7 @@ export default function ChatwootReports() {
     ];
     const lines = filtered.map((r) => {
       const tma = fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at));
-      const tm1r = fmtDuration(diffMinutes(r.opened_at, r.first_response_at));
+      const tm1r = fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at));
       return [
         r.contact_name, r.contact_email, r.contact_phone,
         r.chatwoot_conversation_id, r.inbox_name,
@@ -393,7 +416,7 @@ export default function ChatwootReports() {
         r.tabulacao_atendimento || "—",
         r.status,
         fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at)),
-        fmtDuration(diffMinutes(r.opened_at, r.first_response_at)),
+        fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at)),
       ]),
       didDrawPage: () => {
         const pageNum = doc.getCurrentPageInfo().pageNumber;
@@ -570,7 +593,57 @@ export default function ChatwootReports() {
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
+
+          <ChartCard title="Por Caixa de Entrada" containerRef={refInbox} filename="por-caixa-entrada.png" height={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byInbox} layout="vertical" margin={{ left: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="total" name="Atendimentos" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
         </div>
+
+        {/* TMA / TM1R por Caixa de Entrada */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">TMA e TM1R por Caixa de Entrada</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Caixa de Entrada</TableHead>
+                    <TableHead className="text-right">Atendimentos</TableHead>
+                    <TableHead className="text-right">TMA</TableHead>
+                    <TableHead className="text-right">TM1R</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {byInbox.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                        Sem dados para o período selecionado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {byInbox.map((b) => (
+                    <TableRow key={b.name}>
+                      <TableCell className="text-sm">{b.name}</TableCell>
+                      <TableCell className="text-right text-sm">{b.total.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-right text-sm">{fmtDuration(b.tma)}</TableCell>
+                      <TableCell className="text-right text-sm">{fmtDuration(b.tm1r)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tabela */}
         <Card>
@@ -650,7 +723,7 @@ export default function ChatwootReports() {
                           ) : "—"}
                         </TableCell>
                         <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
-                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.first_response_at))}</TableCell>
+                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at))}</TableCell>
                       </TableRow>
                     );
                   })}
