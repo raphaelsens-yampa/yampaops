@@ -120,6 +120,24 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+// Verifica se um timestamp cai em horário comercial: Seg–Sex, 09h–18h (America/Sao_Paulo)
+const _bhFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Sao_Paulo",
+  hour12: false,
+  weekday: "short",
+  hour: "2-digit",
+});
+function isBusinessHours(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  const parts = _bhFmt.formatToParts(d);
+  const wd = parts.find((p) => p.type === "weekday")?.value || "";
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "NaN", 10);
+  const isWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(wd);
+  return isWeekday && hour >= 9 && hour < 18;
+}
+
 export default function ChatwootReports() {
   const { role } = useAuth();
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
@@ -136,6 +154,7 @@ export default function ChatwootReports() {
   const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
   const [inbox, setInbox] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [businessHoursOnly, setBusinessHoursOnly] = useState(false);
 
   const [rows, setRows] = useState<Conv[]>([]);
   const [loading, setLoading] = useState(false);
@@ -206,6 +225,7 @@ export default function ChatwootReports() {
     const tabSet = new Set(tabulacaoSel);
     const tabActive = tabulacaoSel.length > 0;
     return rows.filter((r) => {
+      if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
         const key = r.tabulacao_atendimento || "__empty__";
         if (!tabSet.has(key)) return false;
@@ -221,7 +241,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, agent, team, inbox]);
+  }, [rows, search, tabulacaoSel, agent, team, inbox, businessHoursOnly]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -359,7 +379,7 @@ export default function ChatwootReports() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `atendimentos_${from}_${to}.csv`;
+    a.download = `atendimentos_${from}_${to}${businessHoursOnly ? "_horario-comercial" : ""}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -374,7 +394,7 @@ export default function ChatwootReports() {
     doc.text("Relatório de Atendimentos", 40, 40);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Período: ${from} até ${to}`, 40, 58);
+    doc.text(`Período: ${from} até ${to}${businessHoursOnly ? "  •  Apenas horário comercial (Seg–Sex, 09h–18h)" : ""}`, 40, 58);
     doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 72);
 
     // KPIs
@@ -425,7 +445,7 @@ export default function ChatwootReports() {
       },
     });
 
-    doc.save(`atendimentos_${from}_${to}.pdf`);
+    doc.save(`atendimentos_${from}_${to}${businessHoursOnly ? "_horario-comercial" : ""}.pdf`);
   }
 
   return (
@@ -436,7 +456,14 @@ export default function ChatwootReports() {
             <MessageCircle className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold">Atendimentos</h1>
+            <h1 className="font-heading text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              Atendimentos
+              {businessHoursOnly && (
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                  Horário comercial
+                </Badge>
+              )}
+            </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Dashboard e relatório de tabulação dos atendimentos do Chatwoot
             </p>
@@ -518,14 +545,23 @@ export default function ChatwootReports() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end mt-3 gap-2">
-              {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
-                <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
-                <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
-              </Button>
+            <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <Checkbox
+                  checked={businessHoursOnly}
+                  onCheckedChange={(v) => setBusinessHoursOnly(!!v)}
+                />
+                <span>Apenas horário comercial <span className="text-muted-foreground">(Seg–Sex, 09h–18h)</span></span>
+              </label>
+              <div className="flex items-center gap-2">
+                {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
+                  <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
+                  <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
