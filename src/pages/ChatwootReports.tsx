@@ -137,7 +137,7 @@ export default function ChatwootReports() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status, agent, team, tabulacao]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to, status, agent, team]);
 
   // Distinct lists for filter dropdowns
   const [agents, teams, tabs] = useMemo(() => {
