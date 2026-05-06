@@ -99,6 +99,32 @@ async function fetchInboxName(baseUrl: string, accountId: number, inboxId: numbe
   } catch { return null; }
 }
 
+function extractLabels(conv: any): string[] {
+  const candidates = [conv?.labels, conv?.meta?.labels, conv?.additional_attributes?.labels];
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length) {
+      const arr = c
+        .map((v: any) => (typeof v === "string" ? v : v?.title || v?.name || ""))
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0);
+      if (arr.length) return Array.from(new Set(arr));
+    }
+  }
+  return [];
+}
+
+async function fetchConversationLabels(baseUrl: string, accountId: number, convId: number): Promise<string[]> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/conversations/${convId}/labels`, {
+      headers: { api_access_token: CHATWOOT_API_TOKEN },
+    });
+    if (!res.ok) return [];
+    const j = await res.json();
+    const arr: any[] = j?.payload || [];
+    return Array.from(new Set(arr.map((s: any) => String(s).trim()).filter((s: string) => s.length > 0)));
+  } catch { return []; }
+}
+
 async function fetchFirstTimestamps(baseUrl: string, accountId: number, convId: number): Promise<{ firstIncoming: string | null; firstOutgoing: string | null }> {
   try {
     const res = await fetch(`${baseUrl}/api/v1/accounts/${accountId}/conversations/${convId}/messages`, {
@@ -155,6 +181,11 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
   const { firstIncoming, firstOutgoing } = await fetchFirstTimestamps(baseUrl, accountId, convId);
   const firstResponseAt = firstOutgoing || tsToIso(conv.first_reply_created_at);
 
+  let labels = extractLabels(conv);
+  if (labels.length === 0) {
+    labels = await fetchConversationLabels(baseUrl, accountId, convId);
+  }
+
   await service.from("chatwoot_conversations").upsert({
     chatwoot_conversation_id: convId,
     chatwoot_account_id: accountId,
@@ -177,6 +208,7 @@ async function processConversation(conv: any, accountId: number, baseUrl: string
     assignee_email: assignee?.email || null,
     team_id: team?.id ? Number(team.id) : null,
     team_name: team?.name || null,
+    labels,
   }, { onConflict: "chatwoot_conversation_id" });
 }
 
