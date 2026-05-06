@@ -241,7 +241,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, agent, team, inbox]);
+  }, [rows, search, tabulacaoSel, agent, team, inbox, businessHoursOnly]);
 
   // KPIs
   const kpis = useMemo(() => {
