@@ -325,11 +325,21 @@ export default function ChatwootReports() {
     const s = search.trim().toLowerCase();
     const tabSet = new Set(tabulacaoSel);
     const tabActive = tabulacaoSel.length > 0;
+    const labelSet = new Set(labelsSel);
+    const labelActive = labelsSel.length > 0;
     return rows.filter((r) => {
       if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
         const key = r.tabulacao_atendimento || "__empty__";
         if (!tabSet.has(key)) return false;
+      }
+      if (labelActive) {
+        const ls = r.labels || [];
+        if (ls.length === 0) {
+          if (!labelSet.has("__empty__")) return false;
+        } else {
+          if (!ls.some((l) => labelSet.has(l))) return false;
+        }
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
@@ -342,7 +352,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, agent, team, inbox, businessHoursOnly]);
+  }, [rows, search, tabulacaoSel, labelsSel, agent, team, inbox, businessHoursOnly]);
 
   // KPIs
   const kpis = useMemo(() => {
