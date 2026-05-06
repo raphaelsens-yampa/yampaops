@@ -994,7 +994,7 @@ function TabulacaoFilter({
             )}
             {allOptions.map((opt) => {
               const checked = selected.includes(opt);
-              const display = opt === "__empty__" ? "(sem tabulação)" : opt;
+              const display = opt === "__empty__" ? emptyLabel : opt;
               return (
                 <div
                   key={opt}
