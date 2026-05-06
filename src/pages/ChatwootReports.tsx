@@ -125,6 +125,7 @@ type Conv = {
   inbox_name: string | null;
   contact_id: string | null;
   opportunity_id: string | null;
+  labels: string[] | null;
 };
 
 const PAGE_SIZE = 25;
