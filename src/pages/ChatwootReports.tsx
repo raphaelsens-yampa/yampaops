@@ -600,17 +600,21 @@ export default function ChatwootReports() {
                     <TableHead>Email</TableHead>
                     <TableHead>Telefone</TableHead>
                     <TableHead>Ticket</TableHead>
+                    <TableHead>Caixa de Entrada</TableHead>
                     <TableHead>Aberto em</TableHead>
                     <TableHead>Fechado em</TableHead>
+                    <TableHead>1ª Resposta</TableHead>
                     <TableHead>Agente</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Tabulação</TableHead>
+                    <TableHead>TMA</TableHead>
+                    <TableHead>TM1R</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pageRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                      <TableCell colSpan={14} className="text-center text-sm text-muted-foreground py-8">
                         Nenhum atendimento encontrado para os filtros selecionados.
                       </TableCell>
                     </TableRow>
@@ -634,8 +638,10 @@ export default function ChatwootReports() {
                             </a>
                           ) : `#${r.chatwoot_conversation_id}`}
                         </TableCell>
+                        <TableCell className="text-xs">{r.inbox_name || "—"}</TableCell>
                         <TableCell className="text-xs">{fmtDateTime(r.opened_at)}</TableCell>
                         <TableCell className="text-xs">{fmtDateTime(r.conversation_closed_at)}</TableCell>
+                        <TableCell className="text-xs">{fmtDateTime(r.first_response_at)}</TableCell>
                         <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
                         <TableCell className="text-xs">{r.team_name || "—"}</TableCell>
                         <TableCell className="text-xs">
@@ -643,6 +649,8 @@ export default function ChatwootReports() {
                             <Badge variant="secondary" className="text-[10px]">{r.tabulacao_atendimento}</Badge>
                           ) : "—"}
                         </TableCell>
+                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
+                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.first_response_at))}</TableCell>
                       </TableRow>
                     );
                   })}
