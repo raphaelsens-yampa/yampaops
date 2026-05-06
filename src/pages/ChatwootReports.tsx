@@ -423,7 +423,7 @@ export default function ChatwootReports() {
         {/* Filtros */}
         <Card>
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
               <div>
                 <Label className="text-xs">De</Label>
                 <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -441,6 +441,16 @@ export default function ChatwootReports() {
                     <SelectItem value="open">Aberto</SelectItem>
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="resolved">Resolvido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Caixa de Entrada</Label>
+                <Select value={inbox} onValueChange={setInbox}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {inboxes.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -490,15 +500,19 @@ export default function ChatwootReports() {
               <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
                 <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
               </Button>
+              <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
+                <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <KpiCard title="Total de atendimentos" value={kpis.total.toLocaleString("pt-BR")} />
           <KpiCard title="Taxa de resolução" value={`${kpis.resolvedPct.toFixed(1)}%`} />
-          <KpiCard title="TMR (médio)" value={fmtDuration(kpis.avgMin)} />
+          <KpiCard title="TMA (Tempo Médio de Atendimento)" value={fmtDuration(kpis.tma)} />
+          <KpiCard title="TM1R (Tempo Médio de 1ª Resposta)" value={fmtDuration(kpis.tm1r)} />
           <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
         </div>
 
