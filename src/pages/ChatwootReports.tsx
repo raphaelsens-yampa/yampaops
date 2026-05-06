@@ -135,6 +135,11 @@ export default function ChatwootReports() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [showReport, setShowReport] = useState(false);
+  const refTab = useRef<HTMLDivElement>(null);
+  const refAgent = useRef<HTMLDivElement>(null);
+  const refTeam = useRef<HTMLDivElement>(null);
+  const refDay = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase
