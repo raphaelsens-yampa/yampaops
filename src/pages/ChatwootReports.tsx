@@ -545,8 +545,9 @@ export default function ChatwootReports() {
                         to: to ? parseISO(to) : undefined,
                       } as DateRange}
                       onSelect={(range) => {
-                        if (range?.from) setFrom(isoDate(range.from));
-                        if (range?.to) setTo(isoDate(range.to));
+                        if (!range) { setFrom(""); setTo(""); return; }
+                        setFrom(range.from ? isoDate(range.from) : "");
+                        setTo(range.to ? isoDate(range.to) : "");
                       }}
                       numberOfMonths={2}
                       locale={ptBR}
