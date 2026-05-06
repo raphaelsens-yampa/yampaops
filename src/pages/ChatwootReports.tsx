@@ -582,13 +582,16 @@ export default function ChatwootReports() {
               </div>
             </div>
             <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
-              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div className="flex items-center gap-2 text-sm select-none">
                 <Checkbox
+                  id="business-hours-only"
                   checked={businessHoursOnly}
                   onCheckedChange={(v) => setBusinessHoursOnly(!!v)}
                 />
-                <span>Apenas horário comercial <span className="text-muted-foreground">(Seg–Sex, 09h–18h)</span></span>
-              </label>
+                <Label htmlFor="business-hours-only" className="cursor-pointer font-normal">
+                  Apenas horário comercial <span className="text-muted-foreground">(Seg–Sex, 09h–18h)</span>
+                </Label>
+              </div>
               <div className="flex items-center gap-2">
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
