@@ -317,6 +317,7 @@ async function upsertConversation(
     assignee_email: finalAssignee.email,
     team_id: finalTeam.id,
     team_name: finalTeam.name,
+    labels,
   };
 
   const { error } = await service.from("chatwoot_conversations").upsert(
