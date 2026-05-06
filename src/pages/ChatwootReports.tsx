@@ -881,6 +881,15 @@ export default function ChatwootReports() {
                             <Badge variant="secondary" className="text-[10px]">{r.tabulacao_atendimento}</Badge>
                           ) : "—"}
                         </TableCell>
+                        <TableCell className="text-xs">
+                          {r.labels && r.labels.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {r.labels.map((l) => (
+                                <Badge key={l} variant="outline" className="text-[10px]">{l}</Badge>
+                              ))}
+                            </div>
+                          ) : "—"}
+                        </TableCell>
                         <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
                         <TableCell className="text-xs">{fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at))}</TableCell>
                       </TableRow>
