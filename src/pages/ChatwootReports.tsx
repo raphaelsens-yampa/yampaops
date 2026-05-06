@@ -303,7 +303,28 @@ export default function ChatwootReports() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   }, [filtered]);
 
-  // Pagination
+  // Por Caixa de Entrada: contagem + TMA + TM1R
+  const byInbox = useMemo(() => {
+    const map = new Map<string, { name: string; total: number; tmaSum: number; tmaN: number; t1rSum: number; t1rN: number }>();
+    filtered.forEach((r) => {
+      const k = r.inbox_name || "(sem caixa)";
+      const cur = map.get(k) || { name: k, total: 0, tmaSum: 0, tmaN: 0, t1rSum: 0, t1rN: 0 };
+      cur.total++;
+      const tma = diffMinutes(r.opened_at, r.conversation_closed_at);
+      if (tma != null) { cur.tmaSum += tma; cur.tmaN++; }
+      const t1r = diffMinutes(r.first_contact_message_at, r.first_response_at);
+      if (t1r != null) { cur.t1rSum += t1r; cur.t1rN++; }
+      map.set(k, cur);
+    });
+    return Array.from(map.values())
+      .map((v) => ({
+        name: v.name,
+        total: v.total,
+        tma: v.tmaN ? v.tmaSum / v.tmaN : null,
+        tm1r: v.t1rN ? v.t1rSum / v.t1rN : null,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [filtered]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
