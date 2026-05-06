@@ -77,6 +77,7 @@ type Conv = {
   opened_at: string | null;
   conversation_closed_at: string | null;
   first_response_at: string | null;
+  first_contact_message_at: string | null;
   assignee_name: string | null;
   assignee_email: string | null;
   team_name: string | null;
