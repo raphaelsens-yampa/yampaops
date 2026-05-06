@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
       const BATCH = 5;
       for (let i = 0; i < items.length; i += BATCH) {
         const slice = items.slice(i, i + BATCH);
-        const results = await Promise.allSettled(slice.map((it) => processConversation(it, accountId)));
+        const results = await Promise.allSettled(slice.map((it) => processConversation(it, accountId, baseUrl)));
         results.forEach((r, idx) => {
           if (r.status === "fulfilled") totalProcessed++;
           else errors.push(`conv ${slice[idx].id}: ${r.reason?.message || r.reason}`);
