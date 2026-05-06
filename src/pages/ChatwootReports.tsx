@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,50 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
+  ChevronRight, ImageDown,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Legend,
 } from "recharts";
+
+function downloadChartPng(container: HTMLElement | null, filename: string) {
+  if (!container) return;
+  const svg = container.querySelector("svg");
+  if (!svg) return;
+  const cloned = svg.cloneNode(true) as SVGSVGElement;
+  const bbox = svg.getBoundingClientRect();
+  const w = Math.ceil(bbox.width), h = Math.ceil(bbox.height);
+  cloned.setAttribute("width", String(w));
+  cloned.setAttribute("height", String(h));
+  cloned.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const css = `<style>text{fill:#222;font-family:Manrope,Arial,sans-serif;}</style>`;
+  cloned.insertAdjacentHTML("afterbegin", css);
+  const xml = new XMLSerializer().serializeToString(cloned);
+  const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = w * scale; canvas.height = h * scale;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    canvas.toBlob((b) => {
+      if (!b) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, "image/png");
+  };
+  img.src = url;
+}
 
 type Conv = {
   chatwoot_conversation_id: number;
