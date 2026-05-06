@@ -910,11 +910,13 @@ function KpiCard({ title, value }: { title: string; value: string }) {
 }
 
 function TabulacaoFilter({
-  options, selected, onChange,
+  options, selected, onChange, title = "Tabulações", emptyLabel = "(sem tabulação)",
 }: {
   options: string[];
   selected: string[];
   onChange: (v: string[]) => void;
+  title?: string;
+  emptyLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<number | null>(null);
@@ -924,7 +926,7 @@ function TabulacaoFilter({
     if (selected.length === 0 || selected.length === allOptions.length) return "Todas";
     if (selected.length === 1) {
       const v = selected[0];
-      return v === "__empty__" ? "(sem tabulação)" : v;
+      return v === "__empty__" ? emptyLabel : v;
     }
     return `${selected.length} selecionadas`;
   }
