@@ -483,11 +483,22 @@ export default function ChatwootReports() {
         {/* Tabela */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Relatório ({filtered.length.toLocaleString("pt-BR")})
-            </CardTitle>
+            <button
+              type="button"
+              onClick={() => setShowReport((v) => !v)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <CardTitle className="text-base flex items-center gap-2">
+                {showReport ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <BarChart3 className="h-4 w-4" />
+                Relatório ({filtered.length.toLocaleString("pt-BR")})
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">
+                {showReport ? "Ocultar" : "Expandir"}
+              </span>
+            </button>
           </CardHeader>
+          {showReport && (
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
