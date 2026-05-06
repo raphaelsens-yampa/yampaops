@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.chatwoot-webhook]
 verify_jwt = false
+
+[functions.chatwoot-fill-tm1r]
+verify_jwt = false
+
+[functions.chatwoot-fill-inboxes]
+verify_jwt = false
