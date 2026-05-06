@@ -139,45 +139,69 @@ export type Database = {
       }
       chatwoot_conversations: {
         Row: {
+          assignee_email: string | null
+          assignee_id: number | null
+          assignee_name: string | null
           chatwoot_account_id: number
           chatwoot_conversation_id: number
           chatwoot_inbox_id: number | null
           contact_email: string | null
           contact_id: string | null
+          contact_name: string | null
           contact_phone: string | null
+          conversation_closed_at: string | null
           created_at: string
           last_message_at: string | null
+          opened_at: string | null
           opportunity_id: string | null
           status: string
           tabulacao_atendimento: string | null
+          team_id: number | null
+          team_name: string | null
           updated_at: string
         }
         Insert: {
+          assignee_email?: string | null
+          assignee_id?: number | null
+          assignee_name?: string | null
           chatwoot_account_id: number
           chatwoot_conversation_id: number
           chatwoot_inbox_id?: number | null
           contact_email?: string | null
           contact_id?: string | null
+          contact_name?: string | null
           contact_phone?: string | null
+          conversation_closed_at?: string | null
           created_at?: string
           last_message_at?: string | null
+          opened_at?: string | null
           opportunity_id?: string | null
           status?: string
           tabulacao_atendimento?: string | null
+          team_id?: number | null
+          team_name?: string | null
           updated_at?: string
         }
         Update: {
+          assignee_email?: string | null
+          assignee_id?: number | null
+          assignee_name?: string | null
           chatwoot_account_id?: number
           chatwoot_conversation_id?: number
           chatwoot_inbox_id?: number | null
           contact_email?: string | null
           contact_id?: string | null
+          contact_name?: string | null
           contact_phone?: string | null
+          conversation_closed_at?: string | null
           created_at?: string
           last_message_at?: string | null
+          opened_at?: string | null
           opportunity_id?: string | null
           status?: string
           tabulacao_atendimento?: string | null
+          team_id?: number | null
+          team_name?: string | null
           updated_at?: string
         }
         Relationships: []
