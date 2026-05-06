@@ -138,20 +138,23 @@ async function fetchConversation(baseUrl: string, accountId: number, convId: num
   return await res.json();
 }
 
-async function listConversations(baseUrl: string, accountId: number, sinceUnix: number, page: number) {
-  // Use v2 reports filter for date-bound listing
-  const url = `${baseUrl}/api/v2/accounts/${accountId}/reports/conversations_filter?type=conversation&page=${page}&since=${sinceUnix}`;
-  const res = await fetch(url, { headers: { api_access_token: CHATWOOT_API_TOKEN } });
-  if (!res.ok) {
-    // fallback to v1 list
-    const u = `${baseUrl}/api/v1/accounts/${accountId}/conversations?page=${page}&q[updated_within]=365d`;
-    const r = await fetch(u, { headers: { api_access_token: CHATWOOT_API_TOKEN } });
-    if (!r.ok) throw new Error(`List failed: ${r.status} ${await r.text()}`);
-    const j = await r.json();
-    return { items: j?.data?.payload || [], meta: j?.data?.meta || {} };
-  }
+async function listConversations(baseUrl: string, accountId: number, since: string, page: number) {
+  const url = `${baseUrl}/api/v1/accounts/${accountId}/conversations/filter?page=${page}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      api_access_token: CHATWOOT_API_TOKEN,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      payload: [
+        { attribute_key: "created_at", filter_operator: "is_greater_than", values: [since], attribute_model: "standard" },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`List failed: ${res.status} ${await res.text()}`);
   const j = await res.json();
-  return { items: j?.data?.payload || j?.payload || j?.data || [], meta: j?.meta || {} };
+  return { items: j?.payload || [], meta: j?.meta || {} };
 }
 
 Deno.serve(async (req) => {
