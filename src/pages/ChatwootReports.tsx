@@ -638,6 +638,7 @@ export default function ChatwootReports() {
                   selected={tabulacaoSel}
                   onChange={setTabulacaoSel}
                 />
+              </div>
               <div>
                 <Label className="text-xs">Etiquetas</Label>
                 <TabulacaoFilter
