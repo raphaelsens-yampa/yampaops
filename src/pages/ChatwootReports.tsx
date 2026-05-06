@@ -517,44 +517,7 @@ export default function ChatwootReports() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
               <div className="sm:col-span-2 xl:col-span-2">
                 <Label className="text-xs">Período</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !from && !to && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {from && to ? (
-                        <>
-                          {format(parseISO(from), "dd/MM/yy", { locale: ptBR })} – {format(parseISO(to), "dd/MM/yy", { locale: ptBR })}
-                        </>
-                      ) : (
-                        <span>Selecione o período</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      defaultMonth={from ? parseISO(from) : undefined}
-                      selected={{
-                        from: from ? parseISO(from) : undefined,
-                        to: to ? parseISO(to) : undefined,
-                      } as DateRange}
-                      onSelect={(range) => {
-                        if (!range) { setFrom(""); setTo(""); return; }
-                        setFrom(range.from ? isoDate(range.from) : "");
-                        setTo(range.to ? isoDate(range.to) : "");
-                      }}
-                      numberOfMonths={2}
-                      locale={ptBR}
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateRangeFilter from={from} to={to} setFrom={setFrom} setTo={setTo} />
               </div>
               <div>
                 <Label className="text-xs">Status</Label>
