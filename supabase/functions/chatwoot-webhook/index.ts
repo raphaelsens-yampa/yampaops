@@ -150,13 +150,30 @@ function tsToIso(v: any): string | null {
 }
 
 function extractTabulacao(conversation: any): string | null {
-  const attrs = conversation?.custom_attributes || {};
-  return (
-    attrs.tabulacao_atendimento ||
-    attrs.tabulacaoAtendimento ||
-    attrs["tabulacao-atendimento"] ||
-    null
-  );
+  const sources = [
+    conversation?.custom_attributes,
+    conversation?.additional_attributes,
+    conversation?.meta?.custom_attributes,
+  ].filter(Boolean);
+  const keys = [
+    "tabulacao_atendimentos",
+    "tabulacao_atendimento",
+    "tabulacaoAtendimentos",
+    "tabulacaoAtendimento",
+    "tabulacao-atendimentos",
+    "tabulacao-atendimento",
+    "Tabulação Atendimentos",
+    "Tabulação Atendimento",
+    "tabulação_atendimentos",
+    "tabulação_atendimento",
+  ];
+  for (const src of sources) {
+    for (const k of keys) {
+      const v = src?.[k];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+  }
+  return null;
 }
 
 async function upsertConversation(
