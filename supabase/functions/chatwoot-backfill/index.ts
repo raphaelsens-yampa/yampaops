@@ -169,13 +169,14 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const since: string = body.since || "2026-04-01";
+    const startPage: number = Number(body.start_page || 1);
+    const maxPages: number = Number(body.max_pages || 30);
     const sinceDate = new Date(`${since}T00:00:00Z`);
     if (isNaN(sinceDate.getTime())) {
       return new Response(JSON.stringify({ error: "invalid since" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const sinceUnix = Math.floor(sinceDate.getTime() / 1000);
 
     const { data: settings } = await service
       .from("integration_settings")
@@ -189,49 +190,53 @@ Deno.serve(async (req) => {
     const baseUrl = settings.chatwoot_base_url.replace(/\/$/, "");
     const accountId = Number(settings.chatwoot_account_id);
 
-    let page = 1;
+    let page = startPage;
+    const endPage = startPage + maxPages - 1;
     let totalProcessed = 0;
-    let totalSkipped = 0;
+    let totalCount = 0;
     const errors: string[] = [];
-    const MAX_PAGES = 100;
+    let lastNonEmpty = startPage - 1;
 
-    while (page <= MAX_PAGES) {
+    while (page <= endPage) {
       let listResp: { items: any[]; meta: any };
       try {
-        listResp = await listConversations(baseUrl, accountId, sinceUnix, page);
+        listResp = await listConversations(baseUrl, accountId, since, page);
       } catch (e: any) {
         errors.push(`page ${page}: ${e.message}`);
         break;
       }
       const items = listResp.items || [];
+      totalCount = listResp.meta?.all_count || totalCount;
       if (!items.length) break;
+      lastNonEmpty = page;
 
-      let pageHadOlder = false;
-      for (const it of items) {
-        const created = Number(it.created_at || 0);
-        if (created && created < sinceUnix) {
-          pageHadOlder = true;
-          totalSkipped++;
-          continue;
-        }
-        try {
-          // Fetch full conversation to get custom_attributes + meta
-          const full = await fetchConversation(baseUrl, accountId, Number(it.id));
-          await processConversation(full || it, accountId);
-          totalProcessed++;
-        } catch (e: any) {
-          errors.push(`conv ${it.id}: ${e.message}`);
-        }
+      // Process in parallel batches of 5 to keep DB pressure reasonable
+      const BATCH = 5;
+      for (let i = 0; i < items.length; i += BATCH) {
+        const slice = items.slice(i, i + BATCH);
+        const results = await Promise.allSettled(slice.map((it) => processConversation(it, accountId)));
+        results.forEach((r, idx) => {
+          if (r.status === "fulfilled") totalProcessed++;
+          else errors.push(`conv ${slice[idx].id}: ${r.reason?.message || r.reason}`);
+        });
       }
-
-      // If the API doesn't filter by since, stop when results are entirely older
-      if (pageHadOlder && items.every((it) => Number(it.created_at || 0) < sinceUnix)) break;
 
       page++;
     }
 
+    const nextPage = lastNonEmpty + 1;
+    const done = totalCount > 0 ? (lastNonEmpty * 25) >= totalCount : (page > endPage ? false : true);
+
     return new Response(JSON.stringify({
-      ok: true, since, processed: totalProcessed, skipped_older: totalSkipped, pages: page - 1, errors,
+      ok: true,
+      since,
+      start_page: startPage,
+      pages_processed: lastNonEmpty - startPage + 1,
+      processed: totalProcessed,
+      total_in_chatwoot: totalCount,
+      next_page: done ? null : nextPage,
+      done,
+      errors: errors.slice(0, 20),
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e.message }), {
