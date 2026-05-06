@@ -67,6 +67,7 @@ function AppRoutes() {
         <Route path="/integrations/stripe" element={<StripeIntegration />} />
         <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
         <Route path="/integrations/audit" element={<IntegrationAudit />} />
+        <Route path="/atendimentos" element={<ChatwootReports />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/insights/conversions" element={<StripeConversions />} />
         <Route path="/settings/tags" element={<TagsSettings />} />
