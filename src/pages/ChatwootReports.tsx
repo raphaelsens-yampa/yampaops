@@ -149,12 +149,12 @@ function diffMinutes(a: string | null, b: string | null): number | null {
 
 function fmtDuration(mins: number | null): string {
   if (mins == null) return "—";
-  if (mins < 60) return `${Math.round(mins)} min`;
-  const h = Math.floor(mins / 60);
-  const m = Math.round(mins % 60);
-  if (h < 24) return `${h}h ${m}m`;
-  const d = Math.floor(h / 24);
-  return `${d}d ${h % 24}h`;
+  const totalSec = Math.max(0, Math.round(mins * 60));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 function isoDate(d: Date) {
