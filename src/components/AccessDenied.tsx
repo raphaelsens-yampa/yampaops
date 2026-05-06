@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useAuth, type CrmAreaKey } from "@/hooks/useAuth";
 
 export function AccessDenied() {
   const navigate = useNavigate();
@@ -32,12 +33,12 @@ export function AccessDenied() {
 }
 
 interface RequireAreaProps {
-  area: import("@/hooks/useAuth").CrmAreaKey;
+  area: CrmAreaKey;
   children: React.ReactNode;
 }
 
 export function RequireArea({ area, children }: RequireAreaProps) {
-  const { role, canView, loading } = require("@/hooks/useAuth").useAuth();
+  const { role, canView, loading } = useAuth();
   if (loading) return null;
   if (role === "admin") return <>{children}</>;
   if (!canView(area)) return <AccessDenied />;
