@@ -76,9 +76,11 @@ type Conv = {
   contact_phone: string | null;
   opened_at: string | null;
   conversation_closed_at: string | null;
+  first_response_at: string | null;
   assignee_name: string | null;
   assignee_email: string | null;
   team_name: string | null;
+  inbox_name: string | null;
   contact_id: string | null;
   opportunity_id: string | null;
 };
