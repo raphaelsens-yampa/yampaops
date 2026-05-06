@@ -313,17 +313,19 @@ export default function ChatwootReports() {
 
   function exportCsv() {
     const header = [
-      "Cliente", "Email", "Telefone", "Ticket", "Aberto em", "Fechado em",
-      "Agente", "Time", "Tabulação", "Status", "Duração",
+      "Cliente", "Email", "Telefone", "Ticket", "Caixa de Entrada", "Aberto em", "Fechado em",
+      "1ª Resposta", "Agente", "Time", "Tabulação", "Status", "TMA", "TM1R",
     ];
     const lines = filtered.map((r) => {
-      const dur = fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at));
+      const tma = fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at));
+      const tm1r = fmtDuration(diffMinutes(r.opened_at, r.first_response_at));
       return [
         r.contact_name, r.contact_email, r.contact_phone,
-        r.chatwoot_conversation_id,
+        r.chatwoot_conversation_id, r.inbox_name,
         fmtDateTime(r.opened_at), fmtDateTime(r.conversation_closed_at),
+        fmtDateTime(r.first_response_at),
         r.assignee_name, r.team_name, r.tabulacao_atendimento,
-        r.status, dur,
+        r.status, tma, tm1r,
       ].map((v) => {
         const s = (v ?? "").toString().replace(/"/g, '""');
         return /[",;\n]/.test(s) ? `"${s}"` : s;
@@ -337,6 +339,70 @@ export default function ChatwootReports() {
     a.download = `atendimentos_${from}_${to}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function exportPdf() {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Cabeçalho
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Relatório de Atendimentos", 40, 40);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Período: ${from} até ${to}`, 40, 58);
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 72);
+
+    // KPIs
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Indicadores", 40, 100);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const kpiLines = [
+      `Total de atendimentos: ${kpis.total.toLocaleString("pt-BR")}`,
+      `Taxa de resolução: ${kpis.resolvedPct.toFixed(1)}%`,
+      `Com tabulação: ${kpis.tabPct.toFixed(1)}%`,
+      `TMA (Tempo Médio de Atendimento): ${fmtDuration(kpis.tma)}`,
+      `TM1R (Tempo Médio de 1ª Resposta): ${fmtDuration(kpis.tm1r)}`,
+    ];
+    kpiLines.forEach((l, i) => doc.text(l, 40, 118 + i * 14));
+
+    // Tabela
+    autoTable(doc, {
+      startY: 200,
+      styles: { fontSize: 7, cellPadding: 3 },
+      headStyles: { fillColor: [1, 184, 224] },
+      head: [[
+        "Cliente", "Email", "Telefone", "Ticket", "Caixa de Entrada",
+        "Aberto em", "Fechado em", "1ª Resposta", "Agente", "Time",
+        "Tabulação", "Status", "TMA", "TM1R",
+      ]],
+      body: filtered.map((r) => [
+        r.contact_name || "—",
+        r.contact_email || "—",
+        r.contact_phone || "—",
+        `#${r.chatwoot_conversation_id}`,
+        r.inbox_name || "—",
+        fmtDateTime(r.opened_at),
+        fmtDateTime(r.conversation_closed_at),
+        fmtDateTime(r.first_response_at),
+        r.assignee_name || "—",
+        r.team_name || "—",
+        r.tabulacao_atendimento || "—",
+        r.status,
+        fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at)),
+        fmtDuration(diffMinutes(r.opened_at, r.first_response_at)),
+      ]),
+      didDrawPage: () => {
+        const pageNum = doc.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(8);
+        doc.text(`Página ${pageNum}`, pageW - 60, doc.internal.pageSize.getHeight() - 20);
+      },
+    });
+
+    doc.save(`atendimentos_${from}_${to}.pdf`);
   }
 
   return (
