@@ -26,6 +26,7 @@ import IntegrationAudit from "./pages/IntegrationAudit";
 import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
 import TagsSettings from "./pages/TagsSettings";
+import ChatwootReports from "./pages/ChatwootReports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
