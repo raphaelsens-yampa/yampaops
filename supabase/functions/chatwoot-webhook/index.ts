@@ -176,6 +176,34 @@ function extractTabulacao(conversation: any): string | null {
   return null;
 }
 
+async function resolveInboxName(baseUrl: string | null, accountId: number | null, inboxId: number | null, conversation: any): Promise<string | null> {
+  const direct = conversation?.inbox?.name || conversation?.meta?.inbox?.name;
+  if (direct) return String(direct);
+  if (!baseUrl || !accountId || !inboxId) return null;
+  const cacheKey = `${accountId}:${inboxId}`;
+  if (inboxNameCache.has(cacheKey)) return inboxNameCache.get(cacheKey) ?? null;
+  try {
+    const url = `${baseUrl.replace(/\/$/, "")}/api/v1/accounts/${accountId}/inboxes/${inboxId}`;
+    const res = await fetch(url, { headers: { api_access_token: Deno.env.get("CHATWOOT_API_TOKEN") || "" } });
+    if (!res.ok) { inboxNameCache.set(cacheKey, null); return null; }
+    const j = await res.json();
+    const n = j?.name || null;
+    inboxNameCache.set(cacheKey, n);
+    return n;
+  } catch { return null; }
+}
+
+const inboxNameCache = new Map<string, string | null>();
+
+async function getChatwootSettings() {
+  const { data } = await service.from("integration_settings")
+    .select("chatwoot_base_url, chatwoot_account_id").maybeSingle();
+  return {
+    baseUrl: data?.chatwoot_base_url || null,
+    accountId: data?.chatwoot_account_id ? Number(data.chatwoot_account_id) : null,
+  };
+}
+
 async function upsertConversation(
   conversation: any,
   ctx: ResolvedContextX,
@@ -188,6 +216,10 @@ async function upsertConversation(
   const tabulacao = extractTabulacao(conversation);
   const lastMsgAt = tsToIso(conversation.last_activity_at) || new Date().toISOString();
   const openedAt = tsToIso(conversation.created_at) || tsToIso(conversation.timestamp);
+  const firstResponseAt = tsToIso(conversation.first_reply_created_at);
+
+  const settings = await getChatwootSettings();
+  const inboxName = await resolveInboxName(settings.baseUrl, settings.accountId || accountId, inboxId, conversation);
 
   const assignee = conversation?.meta?.assignee || conversation?.assignee || null;
   const team = conversation?.meta?.team || conversation?.team || null;
@@ -196,7 +228,7 @@ async function upsertConversation(
   // and (b) keep an existing closed timestamp.
   const { data: existing } = await service
     .from("chatwoot_conversations")
-    .select("conversation_closed_at, assignee_id, assignee_name, assignee_email, team_id, team_name, status")
+    .select("conversation_closed_at, assignee_id, assignee_name, assignee_email, team_id, team_name, status, first_response_at, inbox_name")
     .eq("chatwoot_conversation_id", convId)
     .maybeSingle();
 
@@ -233,6 +265,7 @@ async function upsertConversation(
     chatwoot_conversation_id: convId,
     chatwoot_account_id: accountId,
     chatwoot_inbox_id: inboxId,
+    inbox_name: inboxName || existing?.inbox_name || null,
     status,
     tabulacao_atendimento: tabulacao,
     contact_id: ctx.contactId,
@@ -243,6 +276,7 @@ async function upsertConversation(
     last_message_at: lastMsgAt,
     opened_at: openedAt,
     conversation_closed_at: closedAt,
+    first_response_at: existing?.first_response_at || firstResponseAt,
     assignee_id: finalAssignee.id,
     assignee_name: finalAssignee.name,
     assignee_email: finalAssignee.email,
