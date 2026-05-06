@@ -593,7 +593,57 @@ export default function ChatwootReports() {
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
+
+          <ChartCard title="Por Caixa de Entrada" containerRef={refInbox} filename="por-caixa-entrada.png" height={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byInbox} layout="vertical" margin={{ left: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="total" name="Atendimentos" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
         </div>
+
+        {/* TMA / TM1R por Caixa de Entrada */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">TMA e TM1R por Caixa de Entrada</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Caixa de Entrada</TableHead>
+                    <TableHead className="text-right">Atendimentos</TableHead>
+                    <TableHead className="text-right">TMA</TableHead>
+                    <TableHead className="text-right">TM1R</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {byInbox.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                        Sem dados para o período selecionado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {byInbox.map((b) => (
+                    <TableRow key={b.name}>
+                      <TableCell className="text-sm">{b.name}</TableCell>
+                      <TableCell className="text-right text-sm">{b.total.toLocaleString("pt-BR")}</TableCell>
+                      <TableCell className="text-right text-sm">{fmtDuration(b.tma)}</TableCell>
+                      <TableCell className="text-right text-sm">{fmtDuration(b.tm1r)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tabela */}
         <Card>
