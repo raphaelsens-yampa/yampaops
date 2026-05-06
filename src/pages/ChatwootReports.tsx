@@ -120,6 +120,24 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+// Verifica se um timestamp cai em horário comercial: Seg–Sex, 09h–18h (America/Sao_Paulo)
+const _bhFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Sao_Paulo",
+  hour12: false,
+  weekday: "short",
+  hour: "2-digit",
+});
+function isBusinessHours(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  const parts = _bhFmt.formatToParts(d);
+  const wd = parts.find((p) => p.type === "weekday")?.value || "";
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "NaN", 10);
+  const isWeekday = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(wd);
+  return isWeekday && hour >= 9 && hour < 18;
+}
+
 export default function ChatwootReports() {
   const { role } = useAuth();
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
