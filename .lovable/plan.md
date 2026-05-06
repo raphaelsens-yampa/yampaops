@@ -1,35 +1,90 @@
-## Objetivo
+# Melhorias na Integração Stripe
 
-Adicionar ao relatório de Atendimentos um filtro **"Apenas horário comercial"** (Seg–Sex, 09h–18h) que, quando ativado, descarte conversas abertas fora desse horário, fazendo com que **todas** as métricas (volume, TMA, TM1R, gráficos por dia/agente/equipe/inbox/tabulação e a tabela) recalculem somente sobre o subset filtrado.
+A tela atual (`/integrations/stripe`) já mostra contadores básicos (pendentes, não casados, conciliados, total) e um botão de "Testar conexão". Falta visibilidade sobre **saúde da integração ao longo do tempo** e **frescor dos dados**, que é justamente o que você pediu.
 
-## Comportamento
+## O que dá para melhorar
 
-- Novo controle no painel de filtros do relatório, ao lado dos filtros existentes (Status, Agente, Equipe, Inbox, Tabulação, Busca).
-- Tipo: **Switch / Checkbox** chamado "Apenas horário comercial (Seg–Sex, 09h–18h)".
-- Padrão: **desligado** (mantém comportamento atual).
-- Quando ligado:
-  - Considera apenas conversas cujo `opened_at` cai em **dia útil (segunda a sexta)** e em **horário entre 09:00 e 18:00** no fuso **America/Sao_Paulo** (mesmo fuso já usado nos timestamps exibidos).
-  - O filtro é aplicado **antes** de qualquer cálculo: TMA, TM1R, médias, contagens, top agentes, distribuição por dia, tabulação, inbox e a tabela paginada usam o conjunto filtrado.
-  - Conversas sem `opened_at` válido são descartadas quando o filtro estiver ativo.
-- O badge/legenda no topo do relatório mostra "Horário comercial" quando o filtro estiver ativo, para deixar claro no PDF/PNG exportados que aquele recorte foi aplicado.
+### 1. Painel "Saúde da integração" (no topo)
+Um card único com semáforo verde/amarelo/vermelho consolidando:
+- Conexão com a API Stripe (chave válida)
+- Webhook secret configurado
+- Último evento recebido há menos de X horas
+- Modo (LIVE / TESTE) com destaque
 
-## Onde mexer
+Abrir a tela já dispara o teste de conexão automaticamente (hoje só roda quando clica no botão).
 
-- `src/pages/ChatwootReports.tsx`
-  - Adicionar estado `businessHoursOnly: boolean` (default `false`).
-  - Adicionar helper `isBusinessHours(iso: string | null): boolean` que converte para America/Sao_Paulo e valida dia (1–5) e hora (>=9 e <18).
-  - Aplicar o filtro no `useMemo` que monta o dataset base usado por todos os agregados e pela tabela. Como hoje todos os cálculos derivam do mesmo array `rows`, basta filtrar uma vez nesse memo.
-  - Renderizar o controle no bloco de filtros existente.
-  - Incluir indicação "Horário comercial: Seg–Sex 09–18h" no cabeçalho do PDF e no nome do arquivo exportado quando ativo.
+### 2. Indicadores de "última atualização"
+Cards/linhas mostrando **quando** as coisas aconteceram pela última vez:
+- **Último evento Stripe recebido** — `max(processed_at)` em `stripe_events` + tempo relativo ("há 12 min")
+- **Última conversão registrada** — `max(converted_at)` em `stripe_conversions`
+- **Último sync manual** — `last_full_sync_at` em `integration_settings`
+- **Última pendência aprovada** — última oportunidade que saiu de `pendencias_stripe`
+
+Cada um com badge verde se recente, amarelo se antigo, vermelho se nunca.
+
+### 3. Atividade recente (últimos 7 dias)
+- Mini gráfico de barras: eventos recebidos por dia
+- Breakdown por tipo: `checkout.session.completed`, `customer.subscription.created`, `invoice.paid`, com contagem
+- Taxa de match (% de eventos que casaram com deal vs sem match)
+
+### 4. Últimos 10 eventos (tabela)
+Lista cronológica dos últimos eventos brutos, com:
+- Data/hora
+- Tipo de evento
+- Email do cliente
+- Resultado (matched / matched_pending / no_match / error)
+- Link para abrir no Stripe Dashboard
+
+Hoje esses dados existem em `stripe_events` mas não são exibidos.
+
+### 5. Erros não resolvidos
+Painel destacado dos `integration_sync_errors` com `entity_type='stripe_no_match'` e `resolved=false`, mostrando email + data, com botão para marcar como resolvido ou criar contato manualmente.
+
+### 6. Ação "Sincronizar agora"
+Botão que invoca a edge function `stripe-sync-recent` (já existe) para puxar eventos recentes manualmente, útil quando o webhook ficou fora do ar. Mostra toast com quantos eventos foram trazidos.
+
+### 7. Histórico de webhook
+Pequena seção mostrando se houve eventos com erro de assinatura nas últimas 24h (sinal de que o `STRIPE_WEBHOOK_SECRET` está errado).
+
+## Layout proposto
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│ Integração Stripe                  [Sincronizar][Testar] │
+├──────────────────────────────────────────────────────────┤
+│ ● Saúde: OK    Modo LIVE    Último evento há 12 min      │
+├──────────────────────────────────────────────────────────┤
+│ [Pendentes] [Não casados] [Conciliados] [Total eventos]  │
+├──────────────────────────────────────────────────────────┤
+│ Última atualização                                       │
+│  • Último evento recebido:   há 12 min                   │
+│  • Última conversão:         há 2 h                      │
+│  • Último sync manual:       ontem 18:30                 │
+├──────────────────────────────────────────────────────────┤
+│ Atividade últimos 7 dias  [gráfico de barras]            │
+│  checkout.session.completed: 42                          │
+│  customer.subscription.created: 38                       │
+│  invoice.paid: 120                                       │
+├──────────────────────────────────────────────────────────┤
+│ Últimos 10 eventos [tabela]                              │
+├──────────────────────────────────────────────────────────┤
+│ Erros não resolvidos (3) [lista expansível]              │
+├──────────────────────────────────────────────────────────┤
+│ Configuração do webhook (URL + eventos)                  │
+└──────────────────────────────────────────────────────────┘
+```
 
 ## Detalhes técnicos
 
-- Cálculo do "horário comercial" no client, usando `Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour12: false, weekday: 'short', hour: '2-digit' })` para extrair dia/hora no fuso correto sem depender de libs.
-- Janela: `hour >= 9 && hour < 18`, `weekday in {Mon,Tue,Wed,Thu,Fri}`.
-- Sem mudanças no backend nem no schema; nada de alterar `tm1r_seconds` no banco.
-- Sem alteração nos cron jobs nem nas Edge Functions.
+- Tudo client-side, sem alteração de schema nem de edge functions
+- Queries adicionais em `stripe_events`, `stripe_conversions`, `integration_sync_errors`, `opportunities` e `integration_settings`
+- `stripe-test-connection` chamada automaticamente no mount (já lida com erro 401 graciosamente)
+- Função utilitária `formatRelativeTime(date)` para "há X min/horas/dias"
+- Helper `getHealthStatus()` que combina os 4 sinais e retorna `'ok' | 'warning' | 'error'`
+- Reutiliza componentes existentes (`Card`, `Badge`, `Button`) — sem novas libs
 
-## Fora de escopo
+## Fora do escopo (sugestões para depois)
 
-- Configurar horário comercial customizável (feriados, fuso por usuário, etc.).
-- Recalcular TMA/TM1R "dentro do expediente" (descontando horas fora do horário comercial dentro de uma mesma conversa). Aqui apenas filtramos conversas abertas fora do horário; a duração em si continua sendo a real.
+- Reprocessar evento individual (precisa nova edge function)
+- Configurar webhook secret pela UI (hoje é via secret manager, mais seguro assim)
+- Alertas por email quando webhook falha
