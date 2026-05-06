@@ -151,6 +151,8 @@ export type Database = {
           contact_phone: string | null
           conversation_closed_at: string | null
           created_at: string
+          first_response_at: string | null
+          inbox_name: string | null
           last_message_at: string | null
           opened_at: string | null
           opportunity_id: string | null
@@ -173,6 +175,8 @@ export type Database = {
           contact_phone?: string | null
           conversation_closed_at?: string | null
           created_at?: string
+          first_response_at?: string | null
+          inbox_name?: string | null
           last_message_at?: string | null
           opened_at?: string | null
           opportunity_id?: string | null
@@ -195,6 +199,8 @@ export type Database = {
           contact_phone?: string | null
           conversation_closed_at?: string | null
           created_at?: string
+          first_response_at?: string | null
+          inbox_name?: string | null
           last_message_at?: string | null
           opened_at?: string | null
           opportunity_id?: string | null
