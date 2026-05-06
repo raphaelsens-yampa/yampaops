@@ -394,7 +394,7 @@ export default function ChatwootReports() {
     doc.text("Relatório de Atendimentos", 40, 40);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Período: ${from} até ${to}`, 40, 58);
+    doc.text(`Período: ${from} até ${to}${businessHoursOnly ? "  •  Apenas horário comercial (Seg–Sex, 09h–18h)" : ""}`, 40, 58);
     doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 40, 72);
 
     // KPIs
