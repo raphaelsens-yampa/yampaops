@@ -847,7 +847,7 @@ function TabulacaoFilter({
   const allOptions = useMemo(() => ["__empty__", ...options], [options]);
 
   function label() {
-    if (selected.length === 0) return "Todas";
+    if (selected.length === 0 || selected.length === allOptions.length) return "Todas";
     if (selected.length === 1) {
       const v = selected[0];
       return v === "__empty__" ? "(sem tabulação)" : v;
@@ -857,11 +857,15 @@ function TabulacaoFilter({
 
   function toggle(value: string, e: React.MouseEvent) {
     const idx = allOptions.indexOf(value);
+    // Se nada está selecionado (= "todas" implícito), começa com tudo marcado
+    // para que o clique funcione como "desmarcar este".
+    const base = selected.length === 0 ? allOptions.slice() : selected;
+
     // Shift+click = range
     if (e.shiftKey && anchor != null && idx >= 0) {
       const [a, b] = [anchor, idx].sort((x, y) => x - y);
       const range = allOptions.slice(a, b + 1);
-      const set = new Set(selected);
+      const set = new Set(base);
       const allIn = range.every((v) => set.has(v));
       if (allIn) range.forEach((v) => set.delete(v));
       else range.forEach((v) => set.add(v));
@@ -869,13 +873,13 @@ function TabulacaoFilter({
       return;
     }
     setAnchor(idx);
-    const set = new Set(selected);
+    const set = new Set(base);
     if (set.has(value)) set.delete(value); else set.add(value);
     onChange(Array.from(set));
   }
 
-  function selectAll() { onChange([]); }
-  function selectNone() { onChange(allOptions.slice()); /* none = nada bate; usuário pode limpar */ }
+  function selectAll() { onChange(allOptions.slice()); }
+  function clearAll() { onChange([]); }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
