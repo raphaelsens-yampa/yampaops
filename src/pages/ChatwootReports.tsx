@@ -394,7 +394,7 @@ export default function ChatwootReports() {
         r.tabulacao_atendimento || "—",
         r.status,
         fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at)),
-        fmtDuration(diffMinutes(r.opened_at, r.first_response_at)),
+        fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at)),
       ]),
       didDrawPage: () => {
         const pageNum = doc.getCurrentPageInfo().pageNumber;
