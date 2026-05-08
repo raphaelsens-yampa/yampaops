@@ -128,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           contacts: { view: true, create: true, edit: true },
           commissions: { view: true, create: false, edit: false },
           atendimentos: { view: true, create: false, edit: false },
+          auditoria_ia: { view: true, create: false, edit: false },
         });
       } else {
         setPermissions({
