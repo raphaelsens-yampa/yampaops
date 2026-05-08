@@ -1,7 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
-  FileBarChart, Tag, PieChart,
+  FileBarChart, Tag, PieChart, Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -195,6 +195,7 @@ export function AppSidebar() {
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
+        { title: "Auditoria IA", url: "/atendimentos/auditoria", icon: Sparkles, area: "atendimentos" },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
       ],
     },
