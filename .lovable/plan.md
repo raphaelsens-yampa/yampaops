@@ -1,90 +1,96 @@
-# Melhorias na Integração Stripe
 
-A tela atual (`/integrations/stripe`) já mostra contadores básicos (pendentes, não casados, conciliados, total) e um botão de "Testar conexão". Falta visibilidade sobre **saúde da integração ao longo do tempo** e **frescor dos dados**, que é justamente o que você pediu.
+# Auditoria Inteligente de Atendimentos
 
-## O que dá para melhorar
+Sistema que analisa **todos os atendimentos resolvidos** do Chatwoot via IA (Lovable AI / Gemini) em um job diário, classifica qualidade em três dimensões (tom de voz, risco de churn/concorrentes, aderência a playbook+SLA) e expõe um dashboard com ranking por atendente e fluxo de revisão de flags.
 
-### 1. Painel "Saúde da integração" (no topo)
-Um card único com semáforo verde/amarelo/vermelho consolidando:
-- Conexão com a API Stripe (chave válida)
-- Webhook secret configurado
-- Último evento recebido há menos de X horas
-- Modo (LIVE / TESTE) com destaque
+## 1. Modelo de dados (nova migration)
 
-Abrir a tela já dispara o teste de conexão automaticamente (hoje só roda quando clica no botão).
+**`chatwoot_audit_runs`** — execuções do job diário
+- `id`, `started_at`, `finished_at`, `period_start`, `period_end`
+- `total_conversations`, `analyzed`, `failed`, `status` (running/done/error)
+- `triggered_by` (cron / manual / user_id)
 
-### 2. Indicadores de "última atualização"
-Cards/linhas mostrando **quando** as coisas aconteceram pela última vez:
-- **Último evento Stripe recebido** — `max(processed_at)` em `stripe_events` + tempo relativo ("há 12 min")
-- **Última conversão registrada** — `max(converted_at)` em `stripe_conversions`
-- **Último sync manual** — `last_full_sync_at` em `integration_settings`
-- **Última pendência aprovada** — última oportunidade que saiu de `pendencias_stripe`
+**`chatwoot_conversation_audits`** — uma linha por conversa analisada
+- `id`, `conversation_id` (FK lógica → `chatwoot_conversations.chatwoot_conversation_id`)
+- `run_id`, `analyzed_at`, `model_used`
+- `assignee_id`, `assignee_name`, `team_name`, `inbox_name` (snapshot p/ ranking estável)
+- `overall_score` (0–100), `severity` (`ok` | `attention` | `critical`)
+- `tone_score`, `tone_flags` (jsonb: trechos + categorias: palavrão, ironia, grosseria)
+- `churn_risk_score`, `churn_signals` (jsonb: cliente irritado, ameaça cancelar, mencionou concorrente X)
+- `playbook_score`, `playbook_checks` (jsonb: saudação ✓, identificação ✓, despedida ✗, ofereceu ajuda extra ✗, SLA ok)
+- `summary` (texto curto da IA), `message_count`, `transcript_hash` (evita re-análise)
+- `review_status` (`pending` | `confirmed` | `false_positive` | `dismissed`)
+- `reviewed_by`, `reviewed_at`, `review_notes`
 
-Cada um com badge verde se recente, amarelo se antigo, vermelho se nunca.
+**`chatwoot_audit_settings`** (1 linha)
+- Listas de keywords (concorrentes, palavrões), prompt customizável, modelo (default `google/gemini-2.5-flash`), thresholds de severidade, itens do playbook (checklist editável).
 
-### 3. Atividade recente (últimos 7 dias)
-- Mini gráfico de barras: eventos recebidos por dia
-- Breakdown por tipo: `checkout.session.completed`, `customer.subscription.created`, `invoice.paid`, com contagem
-- Taxa de match (% de eventos que casaram com deal vs sem match)
+RLS: admin gerencia tudo; tatico read-only; sellers veem só os próprios audits.
 
-### 4. Últimos 10 eventos (tabela)
-Lista cronológica dos últimos eventos brutos, com:
-- Data/hora
-- Tipo de evento
-- Email do cliente
-- Resultado (matched / matched_pending / no_match / error)
-- Link para abrir no Stripe Dashboard
+## 2. Edge functions
 
-Hoje esses dados existem em `stripe_events` mas não são exibidos.
+**`chatwoot-audit-fetch-messages`** (helper interno)
+- Recebe `conversation_id`, busca mensagens via `GET /api/v1/accounts/{id}/conversations/{id}/messages`, retorna transcrição limpa (filtra notas privadas, ordena por timestamp, marca `agente:` / `cliente:`).
 
-### 5. Erros não resolvidos
-Painel destacado dos `integration_sync_errors` com `entity_type='stripe_no_match'` e `resolved=false`, mostrando email + data, com botão para marcar como resolvido ou criar contato manualmente.
+**`chatwoot-audit-run`** (job principal, agendável)
+- Parâmetros: `since`, `before`, `limit`, `force` (re-analisa).
+- Lista `chatwoot_conversations` com `status='resolved'` no período, faz LEFT JOIN com `chatwoot_conversation_audits` e processa apenas os pendentes.
+- Cria registro em `chatwoot_audit_runs`.
+- Para cada conversa em batch (concorrência ~5):
+  1. Busca transcrição via helper.
+  2. Aplica pré-filtros locais (keywords de concorrentes/palavrões) → entra no contexto da IA.
+  3. Chama Lovable AI com **prompt estruturado** + `tools` para devolver JSON validado (Zod) com os 3 scores, flags, trechos citados, sumário e severity.
+  4. Faz upsert em `chatwoot_conversation_audits` (chave `conversation_id`).
+- Atualiza `chatwoot_audit_runs` no fim.
+- Trata 429/402 com backoff e log em `integration_sync_errors`.
 
-### 6. Ação "Sincronizar agora"
-Botão que invoca a edge function `stripe-sync-recent` (já existe) para puxar eventos recentes manualmente, útil quando o webhook ficou fora do ar. Mostra toast com quantos eventos foram trazidos.
+**`chatwoot-audit-analyze-one`** (sob demanda)
+- Reanalisa uma conversa específica a partir do dashboard (botão "Reanalisar").
 
-### 7. Histórico de webhook
-Pequena seção mostrando se houve eventos com erro de assinatura nas últimas 24h (sinal de que o `STRIPE_WEBHOOK_SECRET` está errado).
+**Cron**: pg_cron diário 03:00 BRT chamando `chatwoot-audit-run` com `since=ontem`.
 
-## Layout proposto
+## 3. Tela `/atendimentos/auditoria` (nova)
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ Integração Stripe                  [Sincronizar][Testar] │
-├──────────────────────────────────────────────────────────┤
-│ ● Saúde: OK    Modo LIVE    Último evento há 12 min      │
-├──────────────────────────────────────────────────────────┤
-│ [Pendentes] [Não casados] [Conciliados] [Total eventos]  │
-├──────────────────────────────────────────────────────────┤
-│ Última atualização                                       │
-│  • Último evento recebido:   há 12 min                   │
-│  • Última conversão:         há 2 h                      │
-│  • Último sync manual:       ontem 18:30                 │
-├──────────────────────────────────────────────────────────┤
-│ Atividade últimos 7 dias  [gráfico de barras]            │
-│  checkout.session.completed: 42                          │
-│  customer.subscription.created: 38                       │
-│  invoice.paid: 120                                       │
-├──────────────────────────────────────────────────────────┤
-│ Últimos 10 eventos [tabela]                              │
-├──────────────────────────────────────────────────────────┤
-│ Erros não resolvidos (3) [lista expansível]              │
-├──────────────────────────────────────────────────────────┤
-│ Configuração do webhook (URL + eventos)                  │
-└──────────────────────────────────────────────────────────┘
-```
+Adiciona item no `AppSidebar` em "Atendimentos → Auditoria" (admin/tatico).
 
-## Detalhes técnicos
+**Cabeçalho — KPIs**
+- Conversas auditadas no período · Score médio · % críticos · % com flag de tom · % com risco de churn · Aderência média ao playbook.
 
-- Tudo client-side, sem alteração de schema nem de edge functions
-- Queries adicionais em `stripe_events`, `stripe_conversions`, `integration_sync_errors`, `opportunities` e `integration_settings`
-- `stripe-test-connection` chamada automaticamente no mount (já lida com erro 401 graciosamente)
-- Função utilitária `formatRelativeTime(date)` para "há X min/horas/dias"
-- Helper `getHealthStatus()` que combina os 4 sinais e retorna `'ok' | 'warning' | 'error'`
-- Reutiliza componentes existentes (`Card`, `Badge`, `Button`) — sem novas libs
+**Filtros**
+- Período (reusa `SafraSelector`/date range), atendente, equipe, inbox, severity, status de revisão, busca textual.
 
-## Fora do escopo (sugestões para depois)
+**Bloco "Ranking de Qualidade por Atendente"**
+- Tabela ordenável: atendente, # auditadas, score médio, tom médio, churn médio, playbook %, % flags críticos, evolução vs período anterior (▲/▼).
+- Top 3 e Bottom 3 destacados em cards.
 
-- Reprocessar evento individual (precisa nova edge function)
-- Configurar webhook secret pela UI (hoje é via secret manager, mais seguro assim)
-- Alertas por email quando webhook falha
+**Bloco "Conversas com flags"**
+- Lista paginada: badge de severity, atendente, score, dimensões com problema (chips), data, status de revisão.
+- Linha clicável → `Sheet` lateral com:
+  - Resumo da IA, scores das 3 dimensões, checklist do playbook, trechos citados (quote do cliente/agente), link para a conversa no Chatwoot.
+  - Ações: **Confirmar flag**, **Marcar falso positivo**, **Descartar**, campo de notas, botão **Reanalisar**.
+
+**Gráficos**
+- Linha: score médio diário; barras: distribuição de severity; heatmap: flags por equipe × dimensão.
+
+## 4. Configurações (`/configuracoes/auditoria`, admin)
+- Editar listas de palavrões, concorrentes, itens do playbook (checklist), thresholds de severidade, modelo da IA. Gravado em `chatwoot_audit_settings`.
+
+## 5. Detalhes técnicos relevantes
+
+- **Modelo IA**: `google/gemini-2.5-flash` por default (custo/latência). Para conversas longas (>60 mensagens) escala para `gemini-2.5-pro`.
+- **Prompt**: system prompt em PT-BR com persona de "auditor de QA de SAC fintech", pedindo JSON estrito; usa tool calling para garantir schema. Instrução explícita para citar trechos literais ao gerar flags (evita alucinação).
+- **Idempotência**: `transcript_hash` (SHA-256 da transcrição) evita reanálise quando nada mudou; `force=true` ignora.
+- **Custo controlado**: pré-filtro de keywords reduz tokens enviados; conversa truncada às 80 mensagens mais relevantes (primeiras + últimas + as que casarem keywords).
+- **Backfill inicial**: botão na tela de configurações para rodar `chatwoot-audit-run` retroativo por intervalo escolhido (mesmo padrão do `chatwoot-backfill`).
+- **Reuso**: aproveita `chatwoot_conversations` e a integração existente; sem mudança em webhook.
+
+## 6. Entregas em ordem
+1. Migration (3 tabelas + RLS + seed de `audit_settings` com defaults).
+2. Edge functions: fetch-messages helper → audit-run → audit-analyze-one (deploy).
+3. Cron diário.
+4. Página `/atendimentos/auditoria` + Sheet de detalhe + ações de revisão.
+5. Página de configurações (`/configuracoes/auditoria`).
+6. Backfill inicial dos últimos 30 dias para popular o dashboard.
+
+## Fora de escopo (decidido com você)
+- CSAT inferido pela IA, amostragem parcial, execução em tempo real, feedback escrito ao atendente — podemos adicionar depois sem refazer a base.
