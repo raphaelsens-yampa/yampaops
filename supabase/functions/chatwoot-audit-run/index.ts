@@ -1,5 +1,5 @@
 // Job de auditoria: analisa conversas resolvidas via Lovable AI.
-// Body: { since?: string, before?: string, limit?: number, force?: boolean, conversation_ids?: number[], triggered_by?: string }
+// Body: { since?, before?, limit?, force?, conversation_ids?, triggered_by?, sampling?: boolean }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
 const corsHeaders = {
@@ -16,7 +16,6 @@ const TOKEN = Deno.env.get("CHATWOOT_API_TOKEN") || "";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 
 function isSystemMessage(m: any, patterns: RegExp[]): boolean {
-  // Chatwoot activity messages: message_type === 2 OR content_type "activity"
   if (m.message_type === 2 || m.message_type === "activity") return true;
   if (m.content_type === "activity" || m.content_type === "input_csat") return true;
   const ca = m.content_attributes;
@@ -65,20 +64,25 @@ const TOOL_SCHEMA = {
     parameters: {
       type: "object",
       additionalProperties: false,
-      required: ["overall_score", "severity", "tone_score", "tone_flags", "churn_risk_score", "churn_signals", "playbook_score", "playbook_checks", "competitor_mentions", "summary"],
+      required: [
+        "overall_score", "severity", "tone_score", "tone_flags",
+        "churn_risk_score", "churn_signals", "playbook_score", "playbook_checks",
+        "competitor_mentions", "summary",
+        "sla_compliance", "sentiment_arc", "missed_opportunities",
+        "compliance_flags", "technical_accuracy",
+      ],
       properties: {
-        overall_score: { type: "number", description: "Nota geral de 0 a 100." },
+        overall_score: { type: "number" },
         severity: { type: "string", enum: ["ok", "attention", "critical"] },
         tone_score: { type: "number" },
         tone_flags: {
           type: "array",
           items: {
-            type: "object",
-            additionalProperties: false,
+            type: "object", additionalProperties: false,
             required: ["category", "quote", "severity"],
             properties: {
               category: { type: "string" },
-              quote: { type: "string", description: "Trecho literal do atendente." },
+              quote: { type: "string" },
               severity: { type: "string", enum: ["low", "medium", "high"] },
             },
           },
@@ -87,42 +91,85 @@ const TOOL_SCHEMA = {
         churn_signals: {
           type: "array",
           items: {
-            type: "object",
-            additionalProperties: false,
+            type: "object", additionalProperties: false,
             required: ["type", "quote"],
-            properties: {
-              type: { type: "string" },
-              quote: { type: "string" },
-            },
+            properties: { type: { type: "string" }, quote: { type: "string" } },
           },
         },
         playbook_score: { type: "number" },
         playbook_checks: {
           type: "array",
           items: {
-            type: "object",
-            additionalProperties: false,
+            type: "object", additionalProperties: false,
             required: ["key", "passed"],
-            properties: {
-              key: { type: "string" },
-              passed: { type: "boolean" },
-              note: { type: "string" },
-            },
+            properties: { key: { type: "string" }, passed: { type: "boolean" }, note: { type: "string" } },
           },
         },
         competitor_mentions: {
           type: "array",
           items: {
-            type: "object",
-            additionalProperties: false,
+            type: "object", additionalProperties: false,
             required: ["name", "quote"],
+            properties: { name: { type: "string" }, quote: { type: "string" } },
+          },
+        },
+        summary: { type: "string" },
+        sla_compliance: {
+          type: "object", additionalProperties: false,
+          required: ["was_acceptable", "reasoning"],
+          properties: {
+            was_acceptable: { type: "boolean" },
+            reasoning: { type: "string" },
+          },
+        },
+        sentiment_arc: {
+          type: "object", additionalProperties: false,
+          required: ["start", "end", "trajectory"],
+          properties: {
+            start: { type: "string", enum: ["positive", "neutral", "negative"] },
+            end: { type: "string", enum: ["positive", "neutral", "negative"] },
+            trajectory: { type: "string", enum: ["improved", "stable", "deteriorated"] },
+          },
+        },
+        missed_opportunities: {
+          type: "array",
+          items: {
+            type: "object", additionalProperties: false,
+            required: ["moment", "what_client_wanted", "what_seller_did"],
             properties: {
-              name: { type: "string" },
-              quote: { type: "string" },
+              moment: { type: "string" },
+              what_client_wanted: { type: "string" },
+              what_seller_did: { type: "string" },
             },
           },
         },
-        summary: { type: "string", description: "Resumo curto em PT-BR (até 2 frases)." },
+        compliance_flags: {
+          type: "array",
+          items: {
+            type: "object", additionalProperties: false,
+            required: ["type", "severity", "excerpt"],
+            properties: {
+              type: { type: "string" },
+              severity: { type: "string", enum: ["low", "medium", "high"] },
+              excerpt: { type: "string" },
+            },
+          },
+        },
+        technical_accuracy: {
+          type: "object", additionalProperties: false,
+          required: ["accuracy_score", "issues"],
+          properties: {
+            accuracy_score: { type: "number" },
+            issues: {
+              type: "array",
+              items: {
+                type: "object", additionalProperties: false,
+                required: ["type", "excerpt"],
+                properties: { type: { type: "string" }, excerpt: { type: "string" } },
+              },
+            },
+          },
+        },
       },
     },
   },
@@ -135,47 +182,52 @@ function renderRubric(rubric: string, settings: any): string {
     .replaceAll("{{attention_threshold}}", String(settings.attention_threshold));
 }
 
-async function analyzeWithAI(model: string, settings: any, transcriptText: string) {
-  const playbookList = (settings.playbook_items || [])
-    .map((it: any) => `- ${it.key}: ${it.label}`)
-    .join("\n");
+async function analyzeWithAI(model: string, settings: any, transcriptText: string, slaSeconds: number | null) {
+  const playbookList = (settings.playbook_items || []).map((it: any) => `- ${it.key}: ${it.label}`).join("\n");
   const toneCats = (settings.tone_categories || []).map((c: any) => `${c.key} (${c.label})`).join(", ");
   const churnTypes = (settings.churn_signal_types || []).map((c: any) => `${c.key} (${c.label})`).join(", ");
   const rubric = renderRubric(settings.scoring_rubric || "", settings);
 
   const sys = `Você é um auditor sênior de QA para um SAC de fintech brasileira.
-Avalie a qualidade do atendimento do AGENTE (não do cliente) em três dimensões: tom de voz, risco de churn e aderência ao playbook.
+Avalie a qualidade do atendimento do AGENTE em múltiplas dimensões.
 
 # Categorias permitidas
 - tone_flags.category: ${toneCats}
 - churn_signals.type: ${churnTypes}
 
-# Palavras consideradas inadequadas
+# Palavras inadequadas
 ${(settings.profanity_keywords || []).join(", ")}
 
 # Concorrentes monitorados
 ${(settings.competitor_keywords || []).join(", ")}
 
-# Itens do playbook (use exatamente estas chaves em playbook_checks)
+# Itens do playbook (use exatamente estas chaves)
 ${playbookList}
 
-# Playbook completo (contexto)
+# Playbook completo
 ${settings.playbook_markdown || "(não informado)"}
 
 # Rubrica de scoring e severity
 ${rubric}
 
-NUNCA invente trechos. Se não houver evidência, deixe arrays vazios. Cite trechos LITERAIS extraídos da transcrição.
+# Base de conhecimento do produto (use para julgar precisão técnica)
+${settings.product_knowledge_base || "(não informada)"}
+
+# Dimensões adicionais que você DEVE preencher:
+- sla_compliance: avalie se o tempo de primeira resposta foi aceitável. ${slaSeconds != null ? `Tempo de primeira resposta nesta conversa: ${slaSeconds}s. SLA configurado: ${settings.sla_breach_seconds || 1800}s.` : "Tempo de primeira resposta não disponível."}
+- sentiment_arc: sentimento do cliente no início, no fim, e a trajetória.
+- missed_opportunities: momentos onde o cliente sinalizou interesse/dúvida e o atendente não aproveitou.
+- compliance_flags: promessas sem amparo, dados sensíveis vazados, juros indevidos, falta de transparência.
+- technical_accuracy: nota 0-100 + issues onde o atendente disse algo factualmente incorreto sobre o produto.
+
+NUNCA invente trechos. Cite trechos LITERAIS. Arrays vazios quando não houver evidência.
 ${settings.custom_instructions || ""}
 
 Chame a tool register_audit obrigatoriamente.`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-    },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${LOVABLE_API_KEY}` },
     body: JSON.stringify({
       model,
       messages: [
@@ -195,7 +247,35 @@ Chame a tool register_audit obrigatoriamente.`;
   return JSON.parse(call.function.arguments);
 }
 
-async function analyzeConversation(conv: any, settings: any, baseUrl: string, accountId: number, runId: string | null, force: boolean) {
+// Garante uma versão atual da rubrica e devolve seu id
+async function ensureRubricVersion(settings: any): Promise<string | null> {
+  const fingerprint = await sha256(JSON.stringify({
+    s: settings.scoring_rubric, p: settings.playbook_markdown,
+    pi: settings.playbook_items, tc: settings.tone_categories,
+    cs: settings.churn_signal_types, ai: settings.ai_model,
+    ci: settings.custom_instructions, kb: settings.product_knowledge_base,
+  }));
+  const { data: existing } = await service
+    .from("chatwoot_audit_rubric_versions")
+    .select("id, version_label")
+    .eq("version_label", `auto-${fingerprint.slice(0, 12)}`)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+  const { data: created } = await service.from("chatwoot_audit_rubric_versions").insert({
+    version_label: `auto-${fingerprint.slice(0, 12)}`,
+    scoring_rubric: settings.scoring_rubric,
+    playbook_markdown: settings.playbook_markdown,
+    playbook_items: settings.playbook_items || [],
+    tone_categories: settings.tone_categories || [],
+    churn_signal_types: settings.churn_signal_types || [],
+    custom_instructions: settings.custom_instructions,
+    ai_model: settings.ai_model,
+    notes: "Snapshot automático ao rodar auditoria",
+  }).select("id").maybeSingle();
+  return created?.id || null;
+}
+
+async function analyzeConversation(conv: any, settings: any, baseUrl: string, accountId: number, runId: string | null, force: boolean, rubricVersionId: string | null) {
   const convId = Number(conv.chatwoot_conversation_id);
   const { messages, total } = await fetchTranscript(baseUrl, accountId, convId, settings.system_message_patterns || []);
   if (messages.length === 0) return { skipped: true, reason: "no_messages" };
@@ -203,25 +283,34 @@ async function analyzeConversation(conv: any, settings: any, baseUrl: string, ac
   const transcriptText = messages.map((m) => `${m.role}: ${m.content}`).join("\n");
   const hash = await sha256(transcriptText);
 
-  // Idempotência
   if (!force) {
     const { data: existing } = await service
       .from("chatwoot_conversation_audits")
-      .select("id, transcript_hash")
+      .select("id, transcript_hash, rubric_version_id")
       .eq("conversation_id", convId)
       .maybeSingle();
-    if (existing && existing.transcript_hash === hash) return { skipped: true, reason: "unchanged" };
+    if (existing && existing.transcript_hash === hash && existing.rubric_version_id === rubricVersionId) {
+      return { skipped: true, reason: "unchanged" };
+    }
   }
 
-  const result = await analyzeWithAI(settings.ai_model, settings, transcriptText);
+  const slaSeconds = conv.tm1r_seconds != null ? Number(conv.tm1r_seconds) : null;
+  const result = await analyzeWithAI(settings.ai_model, settings, transcriptText, slaSeconds);
 
-  // Resolve assignee_id pelo email
   let assigneeId: number | null = null;
   if (conv.assignee_id) assigneeId = Number(conv.assignee_id);
+
+  // Enrich sla_compliance with raw seconds
+  const slaPayload = {
+    ...(result.sla_compliance || {}),
+    tm1r_seconds: slaSeconds,
+    sla_threshold_seconds: settings.sla_breach_seconds || 1800,
+  };
 
   await service.from("chatwoot_conversation_audits").upsert({
     conversation_id: convId,
     run_id: runId,
+    rubric_version_id: rubricVersionId,
     analyzed_at: new Date().toISOString(),
     model_used: settings.ai_model,
     assignee_id: assigneeId,
@@ -243,9 +332,44 @@ async function analyzeConversation(conv: any, settings: any, baseUrl: string, ac
     competitor_mentions: result.competitor_mentions || [],
     summary: result.summary,
     review_status: "pending",
+    sla_compliance: slaPayload,
+    sentiment_arc: result.sentiment_arc || {},
+    missed_opportunities: result.missed_opportunities || [],
+    compliance_flags: result.compliance_flags || [],
+    technical_accuracy: result.technical_accuracy || {},
   }, { onConflict: "conversation_id" });
 
   return { ok: true };
+}
+
+// Aplica amostragem estratificada
+function applySampling(conversations: any[], settings: any): any[] {
+  if (!settings?.sampling_enabled) return conversations;
+  const slaThreshold = Number(settings.sla_breach_seconds || 1800);
+  const pct = Math.max(0, Math.min(100, Number(settings.sampling_percent_per_seller || 10)));
+
+  const must: any[] = [];
+  const optional: Map<string, any[]> = new Map();
+
+  for (const c of conversations) {
+    const isLost = settings.must_audit_lost && (c.status === "resolved" && (c.labels || []).some?.((l: string) => /perdid|lost|churn/i.test(l)));
+    const isSlaBreach = settings.must_audit_sla_breach && c.tm1r_seconds != null && c.tm1r_seconds > slaThreshold;
+    if (isLost || isSlaBreach) {
+      must.push(c);
+      continue;
+    }
+    const key = String(c.assignee_id || c.assignee_email || "no_assignee");
+    if (!optional.has(key)) optional.set(key, []);
+    optional.get(key)!.push(c);
+  }
+
+  const sampled: any[] = [...must];
+  for (const [, list] of optional) {
+    const n = Math.max(1, Math.ceil((list.length * pct) / 100));
+    const shuffled = [...list].sort(() => Math.random() - 0.5);
+    sampled.push(...shuffled.slice(0, n));
+  }
+  return sampled;
 }
 
 Deno.serve(async (req) => {
@@ -261,6 +385,7 @@ Deno.serve(async (req) => {
     const force: boolean = !!body.force;
     const convIds: number[] = Array.isArray(body.conversation_ids) ? body.conversation_ids.map(Number) : [];
     const triggeredBy = body.triggered_by || "manual";
+    const useSampling: boolean = body.sampling !== false; // default true se settings.sampling_enabled
 
     const { data: settings } = await service.from("chatwoot_audit_settings").select("*").limit(1).maybeSingle();
     const { data: integ } = await service.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").maybeSingle();
@@ -272,7 +397,7 @@ Deno.serve(async (req) => {
 
     let q = service
       .from("chatwoot_conversations")
-      .select("chatwoot_conversation_id, assignee_id, assignee_name, assignee_email, team_name, inbox_name, conversation_closed_at, last_message_at, status")
+      .select("chatwoot_conversation_id, assignee_id, assignee_name, assignee_email, team_name, inbox_name, conversation_closed_at, last_message_at, status, labels, tm1r_seconds")
       .eq("status", "resolved")
       .order("conversation_closed_at", { ascending: false })
       .limit(limit);
@@ -283,9 +408,13 @@ Deno.serve(async (req) => {
     }
     const { data: convs, error } = await q;
     if (error) throw error;
-    const conversations = convs || [];
+    let conversations = convs || [];
+    if (useSampling && convIds.length === 0) {
+      conversations = applySampling(conversations, settings);
+    }
 
-    // Cria run
+    const rubricVersionId = await ensureRubricVersion(settings);
+
     const { data: run } = await service.from("chatwoot_audit_runs").insert({
       period_start: since,
       period_end: before,
@@ -295,7 +424,6 @@ Deno.serve(async (req) => {
     }).select("id").maybeSingle();
     const runId = run?.id || null;
 
-    // Processa em background para não estourar o timeout de 150s da edge function.
     const processAll = async () => {
       let analyzed = 0;
       let failed = 0;
@@ -304,7 +432,7 @@ Deno.serve(async (req) => {
       try {
         for (let i = 0; i < conversations.length; i += BATCH) {
           const slice = conversations.slice(i, i + BATCH);
-          const results = await Promise.allSettled(slice.map((c) => analyzeConversation(c, settings, baseUrl, accountId, runId, force)));
+          const results = await Promise.allSettled(slice.map((c) => analyzeConversation(c, settings, baseUrl, accountId, runId, force, rubricVersionId)));
           for (const r of results) {
             if (r.status === "fulfilled") {
               if ((r.value as any).skipped) skipped++; else analyzed++;
@@ -313,27 +441,23 @@ Deno.serve(async (req) => {
               console.error("audit fail:", r.reason?.message || r.reason);
             }
           }
-          // Atualização incremental do progresso
           await service.from("chatwoot_audit_runs").update({ analyzed, failed }).eq("id", runId);
         }
         await service.from("chatwoot_audit_runs").update({
           finished_at: new Date().toISOString(),
-          analyzed,
-          failed,
+          analyzed, failed,
           status: failed > 0 && analyzed === 0 ? "error" : "done",
         }).eq("id", runId);
       } catch (e: any) {
         console.error("audit-run background error", e);
         await service.from("chatwoot_audit_runs").update({
           finished_at: new Date().toISOString(),
-          analyzed,
-          failed,
-          status: "error",
+          analyzed, failed, status: "error",
         }).eq("id", runId);
       }
     };
 
-    // @ts-ignore EdgeRuntime is available in Supabase edge runtime
+    // @ts-ignore
     if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
       // @ts-ignore
       EdgeRuntime.waitUntil(processAll());
