@@ -403,6 +403,15 @@ export default function ChatwootAudit() {
                           </TableCell>
                           <TableCell className="max-w-xs truncate text-xs text-muted-foreground">{a.summary || "—"}</TableCell>
                           <TableCell><Badge variant="outline" className={REVIEW_META[a.review_status]?.cls}>{REVIEW_META[a.review_status]?.label}</Badge></TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {buildConversationUrl(a.conversation_id) && (
+                              <Button asChild size="icon" variant="ghost" title="Abrir no Chatwoot">
+                                <a href={buildConversationUrl(a.conversation_id)!} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
