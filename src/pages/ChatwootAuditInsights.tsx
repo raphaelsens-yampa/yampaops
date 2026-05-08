@@ -59,7 +59,7 @@ export default function ChatwootAuditInsights() {
     for (const a of audits) {
       const key = a.assignee_name || a.assignee_email || "—";
       const inner = sellers.get(key) || new Map();
-      for (const c of (a.playbook_checks || [])) {
+      for (const c of ((a.playbook_checks as any[]) || [])) {
         const cur = inner.get(c.key) || { pass: 0, total: 0 };
         cur.total++;
         if (c.passed) cur.pass++;
@@ -75,7 +75,7 @@ export default function ChatwootAuditInsights() {
   const churnByInbox = useMemo(() => {
     const m = new Map<string, number>();
     for (const a of audits) {
-      if ((a.churn_signals?.length || 0) === 0) continue;
+      if (((a.churn_signals as any[])?.length || 0) === 0) continue;
       const k = a.inbox_name || "—";
       m.set(k, (m.get(k) || 0) + 1);
     }
