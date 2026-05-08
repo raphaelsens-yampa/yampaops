@@ -137,6 +137,156 @@ export type Database = {
           },
         ]
       }
+      chatwoot_audit_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          severity: string
+          target_email: string | null
+          target_inbox: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          severity?: string
+          target_email?: string | null
+          target_inbox?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          severity?: string
+          target_email?: string | null
+          target_inbox?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      chatwoot_audit_golden_set: {
+        Row: {
+          conversation_id: number
+          created_at: string
+          created_by: string | null
+          expected_flags: Json
+          expected_overall_score: number | null
+          expected_severity: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: number
+          created_at?: string
+          created_by?: string | null
+          expected_flags?: Json
+          expected_overall_score?: number | null
+          expected_severity: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: number
+          created_at?: string
+          created_by?: string | null
+          expected_flags?: Json
+          expected_overall_score?: number | null
+          expected_severity?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chatwoot_audit_reports: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          period_end: string | null
+          period_start: string | null
+          report_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          period_end?: string | null
+          period_start?: string | null
+          report_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          period_end?: string | null
+          period_start?: string | null
+          report_type?: string
+        }
+        Relationships: []
+      }
+      chatwoot_audit_rubric_versions: {
+        Row: {
+          ai_model: string | null
+          churn_signal_types: Json
+          created_at: string
+          created_by: string | null
+          custom_instructions: string | null
+          id: string
+          notes: string | null
+          playbook_items: Json
+          playbook_markdown: string | null
+          scoring_rubric: string | null
+          tone_categories: Json
+          version_label: string | null
+        }
+        Insert: {
+          ai_model?: string | null
+          churn_signal_types?: Json
+          created_at?: string
+          created_by?: string | null
+          custom_instructions?: string | null
+          id?: string
+          notes?: string | null
+          playbook_items?: Json
+          playbook_markdown?: string | null
+          scoring_rubric?: string | null
+          tone_categories?: Json
+          version_label?: string | null
+        }
+        Update: {
+          ai_model?: string | null
+          churn_signal_types?: Json
+          created_at?: string
+          created_by?: string | null
+          custom_instructions?: string | null
+          id?: string
+          notes?: string | null
+          playbook_items?: Json
+          playbook_markdown?: string | null
+          scoring_rubric?: string | null
+          tone_categories?: Json
+          version_label?: string | null
+        }
+        Relationships: []
+      }
       chatwoot_audit_runs: {
         Row: {
           analyzed: number
@@ -192,10 +342,19 @@ export type Database = {
           critical_threshold: number
           custom_instructions: string | null
           id: string
+          must_audit_critical: boolean
+          must_audit_lost: boolean
+          must_audit_sla_breach: boolean
           playbook_items: Json
           playbook_markdown: string | null
+          product_knowledge_base: string | null
           profanity_keywords: string[]
+          sampling_enabled: boolean
+          sampling_new_seller_days: number
+          sampling_new_seller_percent: number
+          sampling_percent_per_seller: number
           scoring_rubric: string | null
+          sla_breach_seconds: number
           system_message_patterns: string[]
           tone_categories: Json
           updated_at: string
@@ -209,10 +368,19 @@ export type Database = {
           critical_threshold?: number
           custom_instructions?: string | null
           id?: string
+          must_audit_critical?: boolean
+          must_audit_lost?: boolean
+          must_audit_sla_breach?: boolean
           playbook_items?: Json
           playbook_markdown?: string | null
+          product_knowledge_base?: string | null
           profanity_keywords?: string[]
+          sampling_enabled?: boolean
+          sampling_new_seller_days?: number
+          sampling_new_seller_percent?: number
+          sampling_percent_per_seller?: number
           scoring_rubric?: string | null
+          sla_breach_seconds?: number
           system_message_patterns?: string[]
           tone_categories?: Json
           updated_at?: string
@@ -226,10 +394,19 @@ export type Database = {
           critical_threshold?: number
           custom_instructions?: string | null
           id?: string
+          must_audit_critical?: boolean
+          must_audit_lost?: boolean
+          must_audit_sla_breach?: boolean
           playbook_items?: Json
           playbook_markdown?: string | null
+          product_knowledge_base?: string | null
           profanity_keywords?: string[]
+          sampling_enabled?: boolean
+          sampling_new_seller_days?: number
+          sampling_new_seller_percent?: number
+          sampling_percent_per_seller?: number
           scoring_rubric?: string | null
+          sla_breach_seconds?: number
           system_message_patterns?: string[]
           tone_categories?: Json
           updated_at?: string
@@ -245,24 +422,37 @@ export type Database = {
           churn_risk_score: number
           churn_signals: Json
           competitor_mentions: Json
+          compliance_flags: Json | null
           conversation_id: number
           conversation_resolved_at: string | null
           created_at: string
+          human_notes: string | null
+          human_overall_score: number | null
+          human_reviewed_at: string | null
+          human_reviewed_by: string | null
+          human_severity: string | null
           id: string
           inbox_name: string | null
           message_count: number
+          missed_opportunities: Json | null
           model_used: string | null
           overall_score: number
+          override_reason: string | null
           playbook_checks: Json
           playbook_score: number
           review_notes: string | null
           review_status: string
           reviewed_at: string | null
           reviewed_by: string | null
+          rubric_version_id: string | null
           run_id: string | null
+          seller_seen_at: string | null
+          sentiment_arc: Json | null
           severity: string
+          sla_compliance: Json | null
           summary: string | null
           team_name: string | null
+          technical_accuracy: Json | null
           tone_flags: Json
           tone_score: number
           transcript_hash: string | null
@@ -276,24 +466,37 @@ export type Database = {
           churn_risk_score?: number
           churn_signals?: Json
           competitor_mentions?: Json
+          compliance_flags?: Json | null
           conversation_id: number
           conversation_resolved_at?: string | null
           created_at?: string
+          human_notes?: string | null
+          human_overall_score?: number | null
+          human_reviewed_at?: string | null
+          human_reviewed_by?: string | null
+          human_severity?: string | null
           id?: string
           inbox_name?: string | null
           message_count?: number
+          missed_opportunities?: Json | null
           model_used?: string | null
           overall_score?: number
+          override_reason?: string | null
           playbook_checks?: Json
           playbook_score?: number
           review_notes?: string | null
           review_status?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          rubric_version_id?: string | null
           run_id?: string | null
+          seller_seen_at?: string | null
+          sentiment_arc?: Json | null
           severity?: string
+          sla_compliance?: Json | null
           summary?: string | null
           team_name?: string | null
+          technical_accuracy?: Json | null
           tone_flags?: Json
           tone_score?: number
           transcript_hash?: string | null
@@ -307,24 +510,37 @@ export type Database = {
           churn_risk_score?: number
           churn_signals?: Json
           competitor_mentions?: Json
+          compliance_flags?: Json | null
           conversation_id?: number
           conversation_resolved_at?: string | null
           created_at?: string
+          human_notes?: string | null
+          human_overall_score?: number | null
+          human_reviewed_at?: string | null
+          human_reviewed_by?: string | null
+          human_severity?: string | null
           id?: string
           inbox_name?: string | null
           message_count?: number
+          missed_opportunities?: Json | null
           model_used?: string | null
           overall_score?: number
+          override_reason?: string | null
           playbook_checks?: Json
           playbook_score?: number
           review_notes?: string | null
           review_status?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
+          rubric_version_id?: string | null
           run_id?: string | null
+          seller_seen_at?: string | null
+          sentiment_arc?: Json | null
           severity?: string
+          sla_compliance?: Json | null
           summary?: string | null
           team_name?: string | null
+          technical_accuracy?: Json | null
           tone_flags?: Json
           tone_score?: number
           transcript_hash?: string | null
