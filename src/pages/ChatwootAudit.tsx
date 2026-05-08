@@ -93,7 +93,7 @@ function ScoreBar({ value, label }: { value: number; label: string }) {
 
 export default function ChatwootAudit() {
   const { role, canView } = useAuth();
-  if (role !== "admin" && role !== "tatico" && !canView("atendimentos")) {
+  if (role !== "admin" && role !== "tatico" && !canView("auditoria_ia")) {
     return <Navigate to="/" replace />;
   }
   const isManager = role === "admin" || role === "tatico";

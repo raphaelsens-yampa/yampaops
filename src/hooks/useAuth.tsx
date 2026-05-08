@@ -16,7 +16,8 @@ export type CrmAreaKey =
   | "users"
   | "contacts"
   | "commissions"
-  | "atendimentos";
+  | "atendimentos"
+  | "auditoria_ia";
 export type Permissions = Partial<Record<CrmAreaKey, AreaPermission>>;
 
 interface AuthContext {
@@ -115,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           contacts: { view: true, create: true, edit: true },
           commissions: { view: true, create: true, edit: true },
           atendimentos: { view: true, create: true, edit: true },
+          auditoria_ia: { view: true, create: true, edit: true },
         });
       } else if (resolvedRole === "tatico") {
         setPermissions({
@@ -126,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           contacts: { view: true, create: true, edit: true },
           commissions: { view: true, create: false, edit: false },
           atendimentos: { view: true, create: false, edit: false },
+          auditoria_ia: { view: true, create: false, edit: false },
         });
       } else {
         setPermissions({
