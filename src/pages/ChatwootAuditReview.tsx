@@ -185,15 +185,24 @@ export default function ChatwootAuditReview() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="pending">Pendentes</TabsTrigger>
+            <TabsTrigger value="to_review">A revisar</TabsTrigger>
+            <TabsTrigger value="pending">Pendentes (todas)</TabsTrigger>
             <TabsTrigger value="approved">Aprovadas</TabsTrigger>
             <TabsTrigger value="adjusted">Ajustadas</TabsTrigger>
             <TabsTrigger value="rejected">Rejeitadas</TabsTrigger>
+            <TabsTrigger value="all">Todas</TabsTrigger>
           </TabsList>
 
           <TabsContent value={tab}>
             <Card>
-              <CardHeader><CardTitle className="text-base">{rows.length} auditoria(s)</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">{rows.length} auditoria(s)</CardTitle>
+                {reviewSampleStats && (
+                  <p className="text-xs text-muted-foreground">
+                    {reviewSampleStats.inSample} de {reviewSampleStats.total} pendentes selecionadas para revisão humana ({reviewSampleStats.pct}%) — IA auditou 100%, humano revisa amostra.
+                  </p>
+                )}
+              </CardHeader>
               <CardContent>
                 {isLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
