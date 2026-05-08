@@ -379,6 +379,29 @@ export default function ChatwootAudit() {
           </CardContent>
         </Card>
 
+        {/* Cobertura da IA */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Cobertura da IA no período</p>
+                <p className="text-2xl font-heading font-bold">{coverage.pct}%</p>
+              </div>
+              <div className="text-sm">
+                <p><span className="font-mono font-semibold">{coverage.audited}</span> de <span className="font-mono font-semibold">{coverage.resolved}</span> conversas resolvidas</p>
+                {coverage.missing > 0 && <p className="text-warning text-xs">{coverage.missing} ainda não auditadas</p>}
+              </div>
+              <div className="w-48"><Progress value={coverage.pct} /></div>
+            </div>
+            {isManager && coverage.missing > 0 && (
+              <Button size="sm" variant="outline" onClick={() => reauditMissingMutation.mutate()} disabled={reauditMissingMutation.isPending}>
+                {reauditMissingMutation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                Auditar não cobertas
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
