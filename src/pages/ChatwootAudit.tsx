@@ -22,6 +22,7 @@ import { DateRange } from "react-day-picker";
 import { CalendarIcon, RefreshCw, Settings, AlertTriangle, ShieldAlert, ShieldCheck, MessageSquareWarning, Loader2, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useChatwootIntegration } from "@/hooks/useChatwootIntegration";
 
 type AuditRow = {
   id: string;
