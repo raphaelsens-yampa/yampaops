@@ -98,6 +98,7 @@ export default function ChatwootAudit() {
   }
   const isManager = role === "admin" || role === "tatico";
   const qc = useQueryClient();
+  const { buildConversationUrl } = useChatwootIntegration();
 
   const [range, setRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
