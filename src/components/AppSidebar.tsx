@@ -195,6 +195,7 @@ export function AppSidebar() {
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
+        { title: "Auditoria IA", url: "/atendimentos/auditoria", icon: Sparkles, area: "atendimentos" },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
       ],
     },
