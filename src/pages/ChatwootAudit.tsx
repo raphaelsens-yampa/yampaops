@@ -156,8 +156,12 @@ export default function ChatwootAudit() {
   const ranking = useMemo(() => {
     const map = new Map<string, { name: string; email: string; count: number; sumOverall: number; sumTone: number; sumChurn: number; sumPlaybook: number; critical: number }>();
     audits.forEach((a) => {
-      const key = a.assignee_email || a.assignee_name || "—";
-      const cur = map.get(key) || { name: a.assignee_name || key, email: a.assignee_email || "", count: 0, sumOverall: 0, sumTone: 0, sumChurn: 0, sumPlaybook: 0, critical: 0 };
+      const key = a.assignee_id != null
+        ? `id:${a.assignee_id}`
+        : (a.assignee_email ? `em:${a.assignee_email.toLowerCase()}` : (a.assignee_name ? `nm:${a.assignee_name}` : "—"));
+      const cur = map.get(key) || { name: a.assignee_name || a.assignee_email || "—", email: a.assignee_email || "", count: 0, sumOverall: 0, sumTone: 0, sumChurn: 0, sumPlaybook: 0, critical: 0 };
+      if (!cur.email && a.assignee_email) cur.email = a.assignee_email;
+      if ((!cur.name || cur.name === "—") && a.assignee_name) cur.name = a.assignee_name;
       cur.count++;
       cur.sumOverall += Number(a.overall_score) || 0;
       cur.sumTone += Number(a.tone_score) || 0;
