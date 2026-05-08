@@ -117,7 +117,7 @@ export default function ChatwootAuditSettings() {
       const since = new Date(Date.now() - backfillDays * 24 * 3600 * 1000).toISOString();
       const before = new Date().toISOString();
       const { data, error } = await supabase.functions.invoke("chatwoot-audit-run", {
-        body: { since, before, limit: 500, triggered_by: "backfill" },
+        body: { since, before, limit: 2000, triggered_by: "backfill" },
       });
       if (error) throw error;
       return data;
