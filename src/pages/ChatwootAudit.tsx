@@ -19,10 +19,11 @@ import { Navigate, Link } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
-import { CalendarIcon, RefreshCw, Settings, AlertTriangle, ShieldAlert, ShieldCheck, MessageSquareWarning, Loader2, Sparkles, ExternalLink } from "lucide-react";
+import { CalendarIcon, RefreshCw, Settings, AlertTriangle, ShieldAlert, ShieldCheck, MessageSquareWarning, Loader2, Sparkles, ExternalLink, Download, Clock, TrendingDown, Target, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useChatwootIntegration } from "@/hooks/useChatwootIntegration";
+import Papa from "papaparse";
 
 type AuditRow = {
   id: string;
@@ -49,6 +50,11 @@ type AuditRow = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
+  sla_compliance?: any;
+  sentiment_arc?: any;
+  missed_opportunities?: any[];
+  compliance_flags?: any[];
+  technical_accuracy?: any;
 };
 
 const SEVERITY_META: Record<string, { label: string; cls: string; icon: any }> = {
