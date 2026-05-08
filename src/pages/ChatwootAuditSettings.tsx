@@ -92,6 +92,15 @@ export default function ChatwootAuditSettings() {
         must_audit_sla_breach: form.must_audit_sla_breach,
         sla_breach_seconds: form.sla_breach_seconds,
         product_knowledge_base: form.product_knowledge_base,
+        human_review_percent_per_seller: form.human_review_percent_per_seller,
+        human_review_new_seller_percent: form.human_review_new_seller_percent,
+        human_review_new_seller_days: form.human_review_new_seller_days,
+        must_review_critical: form.must_review_critical,
+        must_review_lost: form.must_review_lost,
+        must_review_sla_breach: form.must_review_sla_breach,
+        must_review_low_confidence: form.must_review_low_confidence,
+        low_confidence_threshold: form.low_confidence_threshold,
+        daily_audit_cap: form.daily_audit_cap,
       };
       const { error } = await supabase.from("chatwoot_audit_settings").update(payload).eq("id", form.id);
       if (error) throw error;
