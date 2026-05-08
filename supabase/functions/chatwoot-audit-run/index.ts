@@ -260,31 +260,53 @@ Deno.serve(async (req) => {
     }).select("id").maybeSingle();
     const runId = run?.id || null;
 
-    let analyzed = 0;
-    let failed = 0;
-    let skipped = 0;
-    const BATCH = 5;
-    for (let i = 0; i < conversations.length; i += BATCH) {
-      const slice = conversations.slice(i, i + BATCH);
-      const results = await Promise.allSettled(slice.map((c) => analyzeConversation(c, settings, baseUrl, accountId, runId, force)));
-      for (const r of results) {
-        if (r.status === "fulfilled") {
-          if ((r.value as any).skipped) skipped++; else analyzed++;
-        } else {
-          failed++;
-          console.error("audit fail:", r.reason?.message || r.reason);
+    // Processa em background para não estourar o timeout de 150s da edge function.
+    const processAll = async () => {
+      let analyzed = 0;
+      let failed = 0;
+      let skipped = 0;
+      const BATCH = 5;
+      try {
+        for (let i = 0; i < conversations.length; i += BATCH) {
+          const slice = conversations.slice(i, i + BATCH);
+          const results = await Promise.allSettled(slice.map((c) => analyzeConversation(c, settings, baseUrl, accountId, runId, force)));
+          for (const r of results) {
+            if (r.status === "fulfilled") {
+              if ((r.value as any).skipped) skipped++; else analyzed++;
+            } else {
+              failed++;
+              console.error("audit fail:", r.reason?.message || r.reason);
+            }
+          }
+          // Atualização incremental do progresso
+          await service.from("chatwoot_audit_runs").update({ analyzed, failed }).eq("id", runId);
         }
+        await service.from("chatwoot_audit_runs").update({
+          finished_at: new Date().toISOString(),
+          analyzed,
+          failed,
+          status: failed > 0 && analyzed === 0 ? "error" : "done",
+        }).eq("id", runId);
+      } catch (e: any) {
+        console.error("audit-run background error", e);
+        await service.from("chatwoot_audit_runs").update({
+          finished_at: new Date().toISOString(),
+          analyzed,
+          failed,
+          status: "error",
+        }).eq("id", runId);
       }
+    };
+
+    // @ts-ignore EdgeRuntime is available in Supabase edge runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processAll());
+    } else {
+      processAll();
     }
 
-    await service.from("chatwoot_audit_runs").update({
-      finished_at: new Date().toISOString(),
-      analyzed,
-      failed,
-      status: failed > 0 && analyzed === 0 ? "error" : "done",
-    }).eq("id", runId);
-
-    return new Response(JSON.stringify({ ok: true, run_id: runId, total: conversations.length, analyzed, skipped, failed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, run_id: runId, total: conversations.length, status: "queued" }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("audit-run error", e);
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
