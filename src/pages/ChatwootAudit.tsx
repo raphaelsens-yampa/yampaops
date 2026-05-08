@@ -19,10 +19,11 @@ import { Navigate, Link } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
-import { CalendarIcon, RefreshCw, Settings, AlertTriangle, ShieldAlert, ShieldCheck, MessageSquareWarning, Loader2, Sparkles, ExternalLink } from "lucide-react";
+import { CalendarIcon, RefreshCw, Settings, AlertTriangle, ShieldAlert, ShieldCheck, MessageSquareWarning, Loader2, Sparkles, ExternalLink, Download, Clock, TrendingDown, Target, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useChatwootIntegration } from "@/hooks/useChatwootIntegration";
+import Papa from "papaparse";
 
 type AuditRow = {
   id: string;
@@ -49,6 +50,11 @@ type AuditRow = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
+  sla_compliance?: any;
+  sentiment_arc?: any;
+  missed_opportunities?: any[];
+  compliance_flags?: any[];
+  technical_accuracy?: any;
 };
 
 const SEVERITY_META: Record<string, { label: string; cls: string; icon: any }> = {
@@ -244,6 +250,40 @@ export default function ChatwootAudit() {
           </div>
           {isManager && (
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => {
+                if (!audits.length) { toast.info("Sem auditorias para exportar."); return; }
+                const rows = audits.map((a) => ({
+                  conversation_id: a.conversation_id,
+                  data: a.conversation_resolved_at,
+                  atendente: a.assignee_name,
+                  email: a.assignee_email,
+                  inbox: a.inbox_name,
+                  severity: a.severity,
+                  score_geral: a.overall_score,
+                  score_tom: a.tone_score,
+                  score_churn: a.churn_risk_score,
+                  score_playbook: a.playbook_score,
+                  flags_tom: (a.tone_flags || []).length,
+                  sinais_churn: (a.churn_signals || []).length,
+                  mencoes_concorrente: (a.competitor_mentions || []).length,
+                  sla_aceitavel: a.sla_compliance?.was_acceptable ?? "",
+                  oportunidades_perdidas: (a.missed_opportunities || []).length,
+                  compliance_flags: (a.compliance_flags || []).length,
+                  precisao_tecnica: a.technical_accuracy?.accuracy_score ?? "",
+                  status_revisao: a.review_status,
+                  resumo: a.summary,
+                }));
+                const csv = Papa.unparse(rows);
+                const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `auditoria-${format(new Date(), "yyyy-MM-dd")}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}>
+                <Download className="h-4 w-4 mr-2" /> Exportar CSV
+              </Button>
               <Button variant="outline" asChild>
                 <Link to="/atendimentos/auditoria/configuracoes">
                   <Settings className="h-4 w-4 mr-2" /> Configurações
@@ -560,6 +600,84 @@ function AuditDetailSheet({
                         </li>
                       ))}
                     </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {audit.sla_compliance && Object.keys(audit.sla_compliance).length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="h-4 w-4" />SLA & Tempo de resposta</CardTitle></CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    {audit.sla_compliance.tm1r_seconds != null && (
+                      <p><span className="text-muted-foreground">TM1R:</span> <span className="font-mono">{Math.round(audit.sla_compliance.tm1r_seconds / 60)} min</span></p>
+                    )}
+                    <p>
+                      <Badge variant="outline" className={audit.sla_compliance.was_acceptable ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}>
+                        {audit.sla_compliance.was_acceptable ? "Dentro do SLA" : "SLA estourado"}
+                      </Badge>
+                    </p>
+                    {audit.sla_compliance.reasoning && <p className="text-muted-foreground italic text-xs">{audit.sla_compliance.reasoning}</p>}
+                  </CardContent>
+                </Card>
+              )}
+
+              {audit.sentiment_arc && Object.keys(audit.sentiment_arc).length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><TrendingDown className="h-4 w-4" />Arco de sentimento</CardTitle></CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">Início: {audit.sentiment_arc.start || "—"}</Badge>
+                      <span>→</span>
+                      <Badge variant="outline">Fim: {audit.sentiment_arc.end || "—"}</Badge>
+                      {audit.sentiment_arc.trajectory && <Badge variant="outline" className="bg-muted">{audit.sentiment_arc.trajectory}</Badge>}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {(audit.missed_opportunities?.length || 0) > 0 && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Lightbulb className="h-4 w-4" />Oportunidades perdidas</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {audit.missed_opportunities!.map((m: any, i: number) => (
+                      <div key={i} className="text-sm border-l-2 border-warning/40 pl-3 space-y-1">
+                        {m.moment && <p className="text-xs text-muted-foreground">Momento: {m.moment}</p>}
+                        {m.what_client_wanted && <p><span className="text-xs font-medium">Cliente queria:</span> {m.what_client_wanted}</p>}
+                        {m.what_seller_did && <p className="text-muted-foreground"><span className="text-xs font-medium">Vendedor fez:</span> {m.what_seller_did}</p>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {(audit.compliance_flags?.length || 0) > 0 && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ShieldAlert className="h-4 w-4" />Compliance</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {audit.compliance_flags!.map((f: any, i: number) => (
+                      <div key={i} className="text-sm border-l-2 border-destructive/40 pl-3">
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive text-[10px] mr-2">{f.type}</Badge>
+                        {f.severity && <Badge variant="outline" className="text-[10px] mr-2">{f.severity}</Badge>}
+                        {f.excerpt && <span className="text-muted-foreground italic">"{f.excerpt}"</span>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {audit.technical_accuracy && Object.keys(audit.technical_accuracy).length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Target className="h-4 w-4" />Precisão técnica</CardTitle></CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    {audit.technical_accuracy.accuracy_score != null && (
+                      <ScoreBar value={audit.technical_accuracy.accuracy_score} label="Precisão das informações" />
+                    )}
+                    {(audit.technical_accuracy.issues || []).map((iss: any, i: number) => (
+                      <div key={i} className="border-l-2 border-warning/40 pl-3">
+                        <Badge variant="outline" className="text-[10px] mr-2">{iss.type || "issue"}</Badge>
+                        <span className="text-muted-foreground">{iss.description || iss.excerpt}</span>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               )}

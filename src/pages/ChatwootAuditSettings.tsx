@@ -13,7 +13,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Save, X, Plus, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Loader2, Save, X, Plus, RefreshCw, Eye, EyeOff, BookOpen, Filter as FilterIcon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import ReactMarkdown from "react-markdown";
 
 const MODELS = [
@@ -81,6 +83,15 @@ export default function ChatwootAuditSettings() {
         attention_threshold: form.attention_threshold,
         critical_threshold: form.critical_threshold,
         custom_instructions: form.custom_instructions,
+        sampling_enabled: form.sampling_enabled,
+        sampling_percent_per_seller: form.sampling_percent_per_seller,
+        sampling_new_seller_days: form.sampling_new_seller_days,
+        sampling_new_seller_percent: form.sampling_new_seller_percent,
+        must_audit_lost: form.must_audit_lost,
+        must_audit_critical: form.must_audit_critical,
+        must_audit_sla_breach: form.must_audit_sla_breach,
+        sla_breach_seconds: form.sla_breach_seconds,
+        product_knowledge_base: form.product_knowledge_base,
       };
       const { error } = await supabase.from("chatwoot_audit_settings").update(payload).eq("id", form.id);
       if (error) throw error;
@@ -165,6 +176,8 @@ export default function ChatwootAuditSettings() {
             <TabsTrigger value="rubrica">Rubrica de Análise</TabsTrigger>
             <TabsTrigger value="playbook">Playbook</TabsTrigger>
             <TabsTrigger value="filtros">Filtros & Palavras-chave</TabsTrigger>
+            <TabsTrigger value="amostragem"><FilterIcon className="h-3 w-3 mr-1" />Amostragem</TabsTrigger>
+            <TabsTrigger value="knowledge"><BookOpen className="h-3 w-3 mr-1" />Knowledge Base</TabsTrigger>
             <TabsTrigger value="backfill">Backfill</TabsTrigger>
           </TabsList>
 
@@ -342,6 +355,72 @@ export default function ChatwootAuditSettings() {
                     </Badge>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* AMOSTRAGEM */}
+          <TabsContent value="amostragem" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Amostragem estratificada</CardTitle>
+                <p className="text-xs text-muted-foreground">Em vez de auditar 100% das conversas, defina uma amostra representativa por vendedor — combinada com regras "must audit" para casos críticos. Ideal para volumes acima de 500 conversas/semana.</p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Amostragem habilitada</Label>
+                    <p className="text-xs text-muted-foreground">Quando desligado, audita todas as conversas do período.</p>
+                  </div>
+                  <Switch checked={!!form.sampling_enabled} onCheckedChange={(v) => setForm({ ...form, sampling_enabled: v })} />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs"><Label>% aleatório por vendedor</Label><span className="font-mono">{form.sampling_percent_per_seller}%</span></div>
+                  <Slider value={[Number(form.sampling_percent_per_seller) || 0]} max={100} step={5} onValueChange={([v]) => setForm({ ...form, sampling_percent_per_seller: v })} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Vendedor novo: até quantos dias</Label>
+                    <Input type="number" value={form.sampling_new_seller_days} onChange={(e) => setForm({ ...form, sampling_new_seller_days: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <Label>% para vendedor novo</Label>
+                    <Input type="number" value={form.sampling_new_seller_percent} onChange={(e) => setForm({ ...form, sampling_new_seller_percent: Number(e.target.value) })} />
+                  </div>
+                  <p className="text-xs text-muted-foreground col-span-2">Vendedores recém-contratados recebem amostragem maior para acelerar coaching.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Regras de auditoria obrigatória ("must audit")</CardTitle>
+                <p className="text-xs text-muted-foreground">Conversas que se enquadram nestas regras serão auditadas SEMPRE, mesmo fora da amostra.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between"><Label>Sempre auditar conversas marcadas como crítica em análise prévia</Label><Switch checked={!!form.must_audit_critical} onCheckedChange={(v) => setForm({ ...form, must_audit_critical: v })} /></div>
+                <div className="flex items-center justify-between"><Label>Sempre auditar oportunidades perdidas vinculadas</Label><Switch checked={!!form.must_audit_lost} onCheckedChange={(v) => setForm({ ...form, must_audit_lost: v })} /></div>
+                <div className="flex items-center justify-between"><Label>Sempre auditar conversas com SLA estourado</Label><Switch checked={!!form.must_audit_sla_breach} onCheckedChange={(v) => setForm({ ...form, must_audit_sla_breach: v })} /></div>
+                <div>
+                  <Label>SLA em segundos (TM1R máximo aceitável)</Label>
+                  <Input type="number" value={form.sla_breach_seconds} onChange={(e) => setForm({ ...form, sla_breach_seconds: Number(e.target.value) })} className="w-40" />
+                  <p className="text-xs text-muted-foreground mt-1">Padrão: 1800s (30 min). Conversas com primeira resposta acima disso entram na fila.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* KNOWLEDGE BASE */}
+          <TabsContent value="knowledge" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Base de conhecimento do produto</CardTitle>
+                <p className="text-xs text-muted-foreground">Informações factuais sobre seu produto que a IA usará como referência ao avaliar precisão técnica do atendimento. Inclua taxas, prazos, condições, políticas, limites — tudo que o vendedor não pode errar ou prometer indevidamente.</p>
+              </CardHeader>
+              <CardContent>
+                <MarkdownEditor value={form.product_knowledge_base || ""} onChange={(v) => setForm({ ...form, product_knowledge_base: v })} rows={24} />
               </CardContent>
             </Card>
           </TabsContent>
