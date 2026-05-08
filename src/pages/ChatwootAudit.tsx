@@ -250,6 +250,40 @@ export default function ChatwootAudit() {
           </div>
           {isManager && (
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => {
+                if (!audits.length) { toast.info("Sem auditorias para exportar."); return; }
+                const rows = audits.map((a) => ({
+                  conversation_id: a.conversation_id,
+                  data: a.conversation_resolved_at,
+                  atendente: a.assignee_name,
+                  email: a.assignee_email,
+                  inbox: a.inbox_name,
+                  severity: a.severity,
+                  score_geral: a.overall_score,
+                  score_tom: a.tone_score,
+                  score_churn: a.churn_risk_score,
+                  score_playbook: a.playbook_score,
+                  flags_tom: (a.tone_flags || []).length,
+                  sinais_churn: (a.churn_signals || []).length,
+                  mencoes_concorrente: (a.competitor_mentions || []).length,
+                  sla_aceitavel: a.sla_compliance?.was_acceptable ?? "",
+                  oportunidades_perdidas: (a.missed_opportunities || []).length,
+                  compliance_flags: (a.compliance_flags || []).length,
+                  precisao_tecnica: a.technical_accuracy?.accuracy_score ?? "",
+                  status_revisao: a.review_status,
+                  resumo: a.summary,
+                }));
+                const csv = Papa.unparse(rows);
+                const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `auditoria-${format(new Date(), "yyyy-MM-dd")}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}>
+                <Download className="h-4 w-4 mr-2" /> Exportar CSV
+              </Button>
               <Button variant="outline" asChild>
                 <Link to="/atendimentos/auditoria/configuracoes">
                   <Settings className="h-4 w-4 mr-2" /> Configurações
