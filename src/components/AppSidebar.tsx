@@ -196,6 +196,14 @@ export function AppSidebar() {
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
         { title: "Auditoria IA", url: "/atendimentos/auditoria", icon: Sparkles, area: "auditoria_ia" },
+        ...(role === "admin" ? [
+          { title: "↳ Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, adminOnly: true },
+          { title: "↳ Insights", url: "/atendimentos/auditoria/insights", icon: Sparkles, adminOnly: true },
+          { title: "↳ Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, adminOnly: true },
+        ] : []),
+        ...(role === "seller" ? [
+          { title: "Minhas Auditorias", url: "/atendimentos/auditoria/minhas", icon: Sparkles, area: "auditoria_ia" as CrmAreaKey },
+        ] : []),
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
       ],
     },

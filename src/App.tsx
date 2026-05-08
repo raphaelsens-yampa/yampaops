@@ -29,6 +29,10 @@ import TagsSettings from "./pages/TagsSettings";
 import ChatwootReports from "./pages/ChatwootReports";
 import ChatwootAudit from "./pages/ChatwootAudit";
 import ChatwootAuditSettings from "./pages/ChatwootAuditSettings";
+import ChatwootAuditReview from "./pages/ChatwootAuditReview";
+import ChatwootAuditInsights from "./pages/ChatwootAuditInsights";
+import ChatwootAuditGoldenSet from "./pages/ChatwootAuditGoldenSet";
+import ChatwootAuditMine from "./pages/ChatwootAuditMine";
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
 
@@ -83,6 +87,10 @@ function AppRoutes() {
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/atendimentos/auditoria" element={<RequireArea area="atendimentos"><ChatwootAudit /></RequireArea>} />
       <Route path="/atendimentos/auditoria/configuracoes" element={<ChatwootAuditSettings />} />
+      <Route path="/atendimentos/auditoria/revisao" element={<ChatwootAuditReview />} />
+      <Route path="/atendimentos/auditoria/insights" element={<ChatwootAuditInsights />} />
+      <Route path="/atendimentos/auditoria/golden-set" element={<ChatwootAuditGoldenSet />} />
+      <Route path="/atendimentos/auditoria/minhas" element={<ChatwootAuditMine />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/insights/conversions" element={<StripeConversions />} />
       <Route path="/settings/tags" element={<TagsSettings />} />
