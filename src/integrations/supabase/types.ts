@@ -341,10 +341,19 @@ export type Database = {
           created_at: string
           critical_threshold: number
           custom_instructions: string | null
+          daily_audit_cap: number | null
+          human_review_new_seller_days: number
+          human_review_new_seller_percent: number
+          human_review_percent_per_seller: number
           id: string
+          low_confidence_threshold: number
           must_audit_critical: boolean
           must_audit_lost: boolean
           must_audit_sla_breach: boolean
+          must_review_critical: boolean
+          must_review_lost: boolean
+          must_review_low_confidence: boolean
+          must_review_sla_breach: boolean
           playbook_items: Json
           playbook_markdown: string | null
           product_knowledge_base: string | null
@@ -367,10 +376,19 @@ export type Database = {
           created_at?: string
           critical_threshold?: number
           custom_instructions?: string | null
+          daily_audit_cap?: number | null
+          human_review_new_seller_days?: number
+          human_review_new_seller_percent?: number
+          human_review_percent_per_seller?: number
           id?: string
+          low_confidence_threshold?: number
           must_audit_critical?: boolean
           must_audit_lost?: boolean
           must_audit_sla_breach?: boolean
+          must_review_critical?: boolean
+          must_review_lost?: boolean
+          must_review_low_confidence?: boolean
+          must_review_sla_breach?: boolean
           playbook_items?: Json
           playbook_markdown?: string | null
           product_knowledge_base?: string | null
@@ -393,10 +411,19 @@ export type Database = {
           created_at?: string
           critical_threshold?: number
           custom_instructions?: string | null
+          daily_audit_cap?: number | null
+          human_review_new_seller_days?: number
+          human_review_new_seller_percent?: number
+          human_review_percent_per_seller?: number
           id?: string
+          low_confidence_threshold?: number
           must_audit_critical?: boolean
           must_audit_lost?: boolean
           must_audit_sla_breach?: boolean
+          must_review_critical?: boolean
+          must_review_lost?: boolean
+          must_review_low_confidence?: boolean
+          must_review_sla_breach?: boolean
           playbook_items?: Json
           playbook_markdown?: string | null
           product_knowledge_base?: string | null
@@ -415,6 +442,7 @@ export type Database = {
       }
       chatwoot_conversation_audits: {
         Row: {
+          ai_confidence: number | null
           analyzed_at: string
           assignee_email: string | null
           assignee_id: number | null
@@ -459,6 +487,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_confidence?: number | null
           analyzed_at?: string
           assignee_email?: string | null
           assignee_id?: number | null
@@ -503,6 +532,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_confidence?: number | null
           analyzed_at?: string
           assignee_email?: string | null
           assignee_id?: number | null

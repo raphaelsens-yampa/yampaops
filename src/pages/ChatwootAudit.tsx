@@ -194,16 +194,52 @@ export default function ChatwootAudit() {
   const runMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("chatwoot-audit-run", {
-        body: { since: sinceISO, before: beforeISO, limit: 200, triggered_by: "manual" },
+        body: { since: sinceISO, before: beforeISO, limit: 2000, triggered_by: "manual" },
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Auditoria concluída: ${d?.analyzed || 0} analisados, ${d?.skipped || 0} já estavam atualizados.`);
+      toast.success(`Auditoria iniciada: ${d?.total || 0} conversas na fila.`);
       qc.invalidateQueries({ queryKey: ["audits"] });
+      qc.invalidateQueries({ queryKey: ["audit-coverage"] });
     },
     onError: (e: any) => toast.error("Falha ao rodar auditoria: " + e.message),
+  });
+
+  // Cobertura: total de conversas resolvidas no período × auditadas
+  const coverageQ = useQuery({
+    queryKey: ["audit-coverage", sinceISO, beforeISO],
+    queryFn: async () => {
+      let q = supabase.from("chatwoot_conversations").select("chatwoot_conversation_id", { count: "exact", head: true }).eq("status", "resolved");
+      if (sinceISO) q = q.gte("conversation_closed_at", sinceISO);
+      if (beforeISO) q = q.lte("conversation_closed_at", beforeISO);
+      const { count } = await q;
+      return { resolved: count || 0 };
+    },
+  });
+
+  const coverage = useMemo(() => {
+    const resolved = coverageQ.data?.resolved || 0;
+    const audited = audits.length;
+    const pct = resolved > 0 ? Math.min(100, Math.round((audited / resolved) * 100)) : 0;
+    return { resolved, audited, pct, missing: Math.max(0, resolved - audited) };
+  }, [coverageQ.data, audits]);
+
+  const reauditMissingMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("chatwoot-audit-run", {
+        body: { since: sinceISO, before: beforeISO, limit: 2000, triggered_by: "coverage_fix" },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      toast.success(`Reauditando ${d?.total || 0} conversas...`);
+      qc.invalidateQueries({ queryKey: ["audits"] });
+      qc.invalidateQueries({ queryKey: ["audit-coverage"] });
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const reanalyzeMutation = useMutation({
@@ -340,6 +376,29 @@ export default function ChatwootAudit() {
               </SelectContent>
             </Select>
             <Input placeholder="Buscar resumo/atendente..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+          </CardContent>
+        </Card>
+
+        {/* Cobertura da IA */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Cobertura da IA no período</p>
+                <p className="text-2xl font-heading font-bold">{coverage.pct}%</p>
+              </div>
+              <div className="text-sm">
+                <p><span className="font-mono font-semibold">{coverage.audited}</span> de <span className="font-mono font-semibold">{coverage.resolved}</span> conversas resolvidas</p>
+                {coverage.missing > 0 && <p className="text-warning text-xs">{coverage.missing} ainda não auditadas</p>}
+              </div>
+              <div className="w-48"><Progress value={coverage.pct} /></div>
+            </div>
+            {isManager && coverage.missing > 0 && (
+              <Button size="sm" variant="outline" onClick={() => reauditMissingMutation.mutate()} disabled={reauditMissingMutation.isPending}>
+                {reauditMissingMutation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                Auditar não cobertas
+              </Button>
+            )}
           </CardContent>
         </Card>
 

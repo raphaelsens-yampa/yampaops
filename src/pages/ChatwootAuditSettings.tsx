@@ -92,6 +92,15 @@ export default function ChatwootAuditSettings() {
         must_audit_sla_breach: form.must_audit_sla_breach,
         sla_breach_seconds: form.sla_breach_seconds,
         product_knowledge_base: form.product_knowledge_base,
+        human_review_percent_per_seller: form.human_review_percent_per_seller,
+        human_review_new_seller_percent: form.human_review_new_seller_percent,
+        human_review_new_seller_days: form.human_review_new_seller_days,
+        must_review_critical: form.must_review_critical,
+        must_review_lost: form.must_review_lost,
+        must_review_sla_breach: form.must_review_sla_breach,
+        must_review_low_confidence: form.must_review_low_confidence,
+        low_confidence_threshold: form.low_confidence_threshold,
+        daily_audit_cap: form.daily_audit_cap,
       };
       const { error } = await supabase.from("chatwoot_audit_settings").update(payload).eq("id", form.id);
       if (error) throw error;
@@ -108,7 +117,7 @@ export default function ChatwootAuditSettings() {
       const since = new Date(Date.now() - backfillDays * 24 * 3600 * 1000).toISOString();
       const before = new Date().toISOString();
       const { data, error } = await supabase.functions.invoke("chatwoot-audit-run", {
-        body: { since, before, limit: 500, triggered_by: "backfill" },
+        body: { since, before, limit: 2000, triggered_by: "backfill" },
       });
       if (error) throw error;
       return data;
@@ -176,7 +185,7 @@ export default function ChatwootAuditSettings() {
             <TabsTrigger value="rubrica">Rubrica de Análise</TabsTrigger>
             <TabsTrigger value="playbook">Playbook</TabsTrigger>
             <TabsTrigger value="filtros">Filtros & Palavras-chave</TabsTrigger>
-            <TabsTrigger value="amostragem"><FilterIcon className="h-3 w-3 mr-1" />Amostragem</TabsTrigger>
+            <TabsTrigger value="amostragem"><FilterIcon className="h-3 w-3 mr-1" />Revisão Humana</TabsTrigger>
             <TabsTrigger value="knowledge"><BookOpen className="h-3 w-3 mr-1" />Knowledge Base</TabsTrigger>
             <TabsTrigger value="backfill">Backfill</TabsTrigger>
           </TabsList>
@@ -359,35 +368,44 @@ export default function ChatwootAuditSettings() {
             </Card>
           </TabsContent>
 
-          {/* AMOSTRAGEM */}
+          {/* REVISÃO HUMANA */}
           <TabsContent value="amostragem" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Amostragem estratificada</CardTitle>
-                <p className="text-xs text-muted-foreground">Em vez de auditar 100% das conversas, defina uma amostra representativa por vendedor — combinada com regras "must audit" para casos críticos. Ideal para volumes acima de 500 conversas/semana.</p>
+                <CardTitle className="text-base">Cobertura da IA</CardTitle>
+                <p className="text-xs text-muted-foreground">A IA audita <strong>100% das conversas resolvidas</strong>. A amostragem abaixo controla apenas o que vai para a fila de revisão humana.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>Cap diário de auditorias (opcional)</Label>
+                  <Input type="number" placeholder="Ex: 1000 (deixe vazio para ilimitado)"
+                    value={form.daily_audit_cap ?? ""}
+                    onChange={(e) => setForm({ ...form, daily_audit_cap: e.target.value === "" ? null : Number(e.target.value) })}
+                    className="w-60" />
+                  <p className="text-xs text-muted-foreground mt-1">Salvaguarda de custo. Quando atingido, conversas restantes são processadas no dia seguinte.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Amostragem para revisão humana</CardTitle>
+                <p className="text-xs text-muted-foreground">% das auditorias que vão à fila de revisão por vendedor. O resto fica disponível na aba "Todas".</p>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Amostragem habilitada</Label>
-                    <p className="text-xs text-muted-foreground">Quando desligado, audita todas as conversas do período.</p>
-                  </div>
-                  <Switch checked={!!form.sampling_enabled} onCheckedChange={(v) => setForm({ ...form, sampling_enabled: v })} />
-                </div>
-
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs"><Label>% aleatório por vendedor</Label><span className="font-mono">{form.sampling_percent_per_seller}%</span></div>
-                  <Slider value={[Number(form.sampling_percent_per_seller) || 0]} max={100} step={5} onValueChange={([v]) => setForm({ ...form, sampling_percent_per_seller: v })} />
+                  <div className="flex justify-between text-xs"><Label>% de auditorias por vendedor para revisar</Label><span className="font-mono">{form.human_review_percent_per_seller ?? 10}%</span></div>
+                  <Slider value={[Number(form.human_review_percent_per_seller) || 0]} max={100} step={5} onValueChange={([v]) => setForm({ ...form, human_review_percent_per_seller: v })} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Vendedor novo: até quantos dias</Label>
-                    <Input type="number" value={form.sampling_new_seller_days} onChange={(e) => setForm({ ...form, sampling_new_seller_days: Number(e.target.value) })} />
+                    <Input type="number" value={form.human_review_new_seller_days ?? 30} onChange={(e) => setForm({ ...form, human_review_new_seller_days: Number(e.target.value) })} />
                   </div>
                   <div>
                     <Label>% para vendedor novo</Label>
-                    <Input type="number" value={form.sampling_new_seller_percent} onChange={(e) => setForm({ ...form, sampling_new_seller_percent: Number(e.target.value) })} />
+                    <Input type="number" value={form.human_review_new_seller_percent ?? 30} onChange={(e) => setForm({ ...form, human_review_new_seller_percent: Number(e.target.value) })} />
                   </div>
                   <p className="text-xs text-muted-foreground col-span-2">Vendedores recém-contratados recebem amostragem maior para acelerar coaching.</p>
                 </div>
@@ -396,17 +414,23 @@ export default function ChatwootAuditSettings() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Regras de auditoria obrigatória ("must audit")</CardTitle>
-                <p className="text-xs text-muted-foreground">Conversas que se enquadram nestas regras serão auditadas SEMPRE, mesmo fora da amostra.</p>
+                <CardTitle className="text-base">Regras de revisão obrigatória</CardTitle>
+                <p className="text-xs text-muted-foreground">Auditorias que se enquadram serão sempre adicionadas à fila humana, fora da amostra.</p>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between"><Label>Sempre auditar conversas marcadas como crítica em análise prévia</Label><Switch checked={!!form.must_audit_critical} onCheckedChange={(v) => setForm({ ...form, must_audit_critical: v })} /></div>
-                <div className="flex items-center justify-between"><Label>Sempre auditar oportunidades perdidas vinculadas</Label><Switch checked={!!form.must_audit_lost} onCheckedChange={(v) => setForm({ ...form, must_audit_lost: v })} /></div>
-                <div className="flex items-center justify-between"><Label>Sempre auditar conversas com SLA estourado</Label><Switch checked={!!form.must_audit_sla_breach} onCheckedChange={(v) => setForm({ ...form, must_audit_sla_breach: v })} /></div>
-                <div>
-                  <Label>SLA em segundos (TM1R máximo aceitável)</Label>
-                  <Input type="number" value={form.sla_breach_seconds} onChange={(e) => setForm({ ...form, sla_breach_seconds: Number(e.target.value) })} className="w-40" />
-                  <p className="text-xs text-muted-foreground mt-1">Padrão: 1800s (30 min). Conversas com primeira resposta acima disso entram na fila.</p>
+                <div className="flex items-center justify-between"><Label>Sempre revisar auditorias críticas da IA</Label><Switch checked={!!form.must_review_critical} onCheckedChange={(v) => setForm({ ...form, must_review_critical: v })} /></div>
+                <div className="flex items-center justify-between"><Label>Sempre revisar conversas de oportunidades perdidas</Label><Switch checked={!!form.must_review_lost} onCheckedChange={(v) => setForm({ ...form, must_review_lost: v })} /></div>
+                <div className="flex items-center justify-between"><Label>Sempre revisar conversas com SLA estourado</Label><Switch checked={!!form.must_review_sla_breach} onCheckedChange={(v) => setForm({ ...form, must_review_sla_breach: v })} /></div>
+                <div className="flex items-center justify-between"><Label>Sempre revisar quando confiança da IA for baixa</Label><Switch checked={!!form.must_review_low_confidence} onCheckedChange={(v) => setForm({ ...form, must_review_low_confidence: v })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Limite de "baixa confiança" (0-100)</Label>
+                    <Input type="number" value={form.low_confidence_threshold ?? 60} onChange={(e) => setForm({ ...form, low_confidence_threshold: Number(e.target.value) })} className="w-40" />
+                  </div>
+                  <div>
+                    <Label>SLA em segundos (TM1R máximo)</Label>
+                    <Input type="number" value={form.sla_breach_seconds} onChange={(e) => setForm({ ...form, sla_breach_seconds: Number(e.target.value) })} className="w-40" />
+                  </div>
                 </div>
               </CardContent>
             </Card>

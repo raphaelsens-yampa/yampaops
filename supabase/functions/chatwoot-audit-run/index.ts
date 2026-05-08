@@ -69,11 +69,12 @@ const TOOL_SCHEMA = {
         "churn_risk_score", "churn_signals", "playbook_score", "playbook_checks",
         "competitor_mentions", "summary",
         "sla_compliance", "sentiment_arc", "missed_opportunities",
-        "compliance_flags", "technical_accuracy",
+        "compliance_flags", "technical_accuracy", "confidence",
       ],
       properties: {
         overall_score: { type: "number" },
         severity: { type: "string", enum: ["ok", "attention", "critical"] },
+        confidence: { type: "number", description: "Sua confiança (0-100) na avaliação geral. Baixe quando a transcrição for ambígua, curta demais ou contiver pouco contexto." },
         tone_score: { type: "number" },
         tone_flags: {
           type: "array",
@@ -332,6 +333,7 @@ async function analyzeConversation(conv: any, settings: any, baseUrl: string, ac
     competitor_mentions: result.competitor_mentions || [],
     summary: result.summary,
     review_status: "pending",
+    ai_confidence: typeof result.confidence === "number" ? result.confidence : null,
     sla_compliance: slaPayload,
     sentiment_arc: result.sentiment_arc || {},
     missed_opportunities: result.missed_opportunities || [],
@@ -381,11 +383,12 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const since: string | null = body.since || null;
     const before: string | null = body.before || null;
-    const limit = Math.min(Number(body.limit || 100), 500);
+    const limit = Math.min(Number(body.limit || 1000), 5000);
     const force: boolean = !!body.force;
     const convIds: number[] = Array.isArray(body.conversation_ids) ? body.conversation_ids.map(Number) : [];
     const triggeredBy = body.triggered_by || "manual";
-    const useSampling: boolean = body.sampling !== false; // default true se settings.sampling_enabled
+    // Padrão: NÃO amostrar — auditar 100%. Só amostra se body.sampling === true.
+    const useSampling: boolean = body.sampling === true;
 
     const { data: settings } = await service.from("chatwoot_audit_settings").select("*").limit(1).maybeSingle();
     const { data: integ } = await service.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").maybeSingle();
@@ -412,6 +415,23 @@ Deno.serve(async (req) => {
     if (useSampling && convIds.length === 0) {
       conversations = applySampling(conversations, settings);
     }
+
+    // Cap diário opcional: respeita o número de auditorias já feitas hoje
+    const dailyCap = Number(settings?.daily_audit_cap || 0);
+    if (dailyCap > 0 && convIds.length === 0) {
+      const startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const { count: todayCount } = await service
+        .from("chatwoot_conversation_audits")
+        .select("id", { count: "exact", head: true })
+        .gte("analyzed_at", startOfDay.toISOString());
+      const remaining = Math.max(0, dailyCap - (todayCount || 0));
+      if (conversations.length > remaining) {
+        console.log(`daily_audit_cap=${dailyCap}, já feitas=${todayCount}, cortando para ${remaining}`);
+        conversations = conversations.slice(0, remaining);
+      }
+    }
+
 
     const rubricVersionId = await ensureRubricVersion(settings);
 
