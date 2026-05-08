@@ -69,11 +69,12 @@ const TOOL_SCHEMA = {
         "churn_risk_score", "churn_signals", "playbook_score", "playbook_checks",
         "competitor_mentions", "summary",
         "sla_compliance", "sentiment_arc", "missed_opportunities",
-        "compliance_flags", "technical_accuracy",
+        "compliance_flags", "technical_accuracy", "confidence",
       ],
       properties: {
         overall_score: { type: "number" },
         severity: { type: "string", enum: ["ok", "attention", "critical"] },
+        confidence: { type: "number", description: "Sua confiança (0-100) na avaliação geral. Baixe quando a transcrição for ambígua, curta demais ou contiver pouco contexto." },
         tone_score: { type: "number" },
         tone_flags: {
           type: "array",
