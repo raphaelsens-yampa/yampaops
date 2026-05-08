@@ -26,21 +26,30 @@ export default function ChatwootAuditReview() {
   const qc = useQueryClient();
   const { buildConversationUrl } = useChatwootIntegration();
 
-  const [tab, setTab] = useState("pending");
+  const [tab, setTab] = useState("to_review");
   const [assignee, setAssignee] = useState("all");
   const [severity, setSeverity] = useState("all");
   const [search, setSearch] = useState("");
   const [adjustOpen, setAdjustOpen] = useState<any>(null);
   const [goldenOpen, setGoldenOpen] = useState<any>(null);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: settings } = useQuery({
+    queryKey: ["audit-settings-review"],
+    queryFn: async () => {
+      const { data } = await supabase.from("chatwoot_audit_settings").select("*").limit(1).maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: rawRows = [], isLoading } = useQuery({
     queryKey: ["audit-review", tab, assignee, severity, search],
     queryFn: async () => {
-      let q = supabase.from("chatwoot_conversation_audits").select("*").order("conversation_resolved_at", { ascending: false }).limit(500);
-      if (tab === "pending") q = q.eq("review_status", "pending");
+      let q = supabase.from("chatwoot_conversation_audits").select("*").order("conversation_resolved_at", { ascending: false }).limit(1000);
+      if (tab === "pending" || tab === "to_review") q = q.eq("review_status", "pending");
       else if (tab === "approved") q = q.in("review_status", ["confirmed"]);
       else if (tab === "adjusted") q = q.not("human_reviewed_at", "is", null);
       else if (tab === "rejected") q = q.eq("review_status", "false_positive");
+      // "all" -> sem filtro de status
       if (assignee !== "all") q = q.eq("assignee_email", assignee);
       if (severity !== "all") q = q.eq("severity", severity);
       if (search.trim()) q = q.or(`summary.ilike.%${search}%,assignee_name.ilike.%${search}%`);
@@ -50,11 +59,43 @@ export default function ChatwootAuditReview() {
     },
   });
 
+  // Determina se uma auditoria entra na amostra de revisão humana
+  const isInReviewSample = (a: any): boolean => {
+    if (!settings) return true;
+    const sevEff = a.human_severity || a.severity;
+    if (settings.must_review_critical && sevEff === "critical") return true;
+    if (settings.must_review_low_confidence && a.ai_confidence != null && Number(a.ai_confidence) < Number(settings.low_confidence_threshold || 60)) return true;
+    if (settings.must_review_sla_breach) {
+      const tm1r = a.sla_compliance?.tm1r_seconds;
+      if (tm1r != null && Number(tm1r) > Number(settings.sla_breach_seconds || 1800)) return true;
+    }
+    const pct = Number(settings.human_review_percent_per_seller || 0);
+    if (pct >= 100) return true;
+    if (pct <= 0) return false;
+    // Hash determinístico do id para amostra consistente
+    let h = 0;
+    const s = String(a.id || "");
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return Math.abs(h) % 100 < pct;
+  };
+
+  const rows = useMemo(() => {
+    if (tab !== "to_review") return rawRows;
+    return rawRows.filter(isInReviewSample);
+  }, [rawRows, tab, settings]);
+
+  const reviewSampleStats = useMemo(() => {
+    if (tab !== "to_review") return null;
+    const total = rawRows.length;
+    const inSample = rawRows.filter(isInReviewSample).length;
+    return { total, inSample, pct: total ? Math.round((inSample / total) * 100) : 0 };
+  }, [rawRows, tab, settings]);
+
   const assignees = useMemo(() => {
     const m = new Map<string, string>();
-    rows.forEach((r: any) => r.assignee_email && m.set(r.assignee_email, r.assignee_name || r.assignee_email));
+    rawRows.forEach((r: any) => r.assignee_email && m.set(r.assignee_email, r.assignee_name || r.assignee_email));
     return Array.from(m.entries());
-  }, [rows]);
+  }, [rawRows]);
 
   const reviewMut = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
