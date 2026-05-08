@@ -384,6 +384,7 @@ export default function ChatwootAudit() {
                         <TableHead>Flags</TableHead>
                         <TableHead>Resumo</TableHead>
                         <TableHead>Revisão</TableHead>
+                        <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
