@@ -81,6 +81,8 @@ function AppRoutes() {
       <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
       <Route path="/integrations/audit" element={<IntegrationAudit />} />
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
+      <Route path="/atendimentos/auditoria" element={<RequireArea area="atendimentos"><ChatwootAudit /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/configuracoes" element={<ChatwootAuditSettings />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/insights/conversions" element={<StripeConversions />} />
       <Route path="/settings/tags" element={<TagsSettings />} />
