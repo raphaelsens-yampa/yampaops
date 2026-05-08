@@ -27,6 +27,8 @@ import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
 import TagsSettings from "./pages/TagsSettings";
 import ChatwootReports from "./pages/ChatwootReports";
+import ChatwootAudit from "./pages/ChatwootAudit";
+import ChatwootAuditSettings from "./pages/ChatwootAuditSettings";
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
 
