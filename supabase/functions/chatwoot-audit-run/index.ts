@@ -333,6 +333,7 @@ async function analyzeConversation(conv: any, settings: any, baseUrl: string, ac
     competitor_mentions: result.competitor_mentions || [],
     summary: result.summary,
     review_status: "pending",
+    ai_confidence: typeof result.confidence === "number" ? result.confidence : null,
     sla_compliance: slaPayload,
     sentiment_arc: result.sentiment_arc || {},
     missed_opportunities: result.missed_opportunities || [],
