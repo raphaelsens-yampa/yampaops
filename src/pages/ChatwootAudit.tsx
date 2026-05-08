@@ -431,6 +431,7 @@ export default function ChatwootAudit() {
           onReview={(payload) => reviewMutation.mutate(payload)}
           isReviewing={reviewMutation.isPending}
           isManager={isManager}
+          chatwootUrl={selected ? buildConversationUrl(selected.conversation_id) : null}
         />
       </div>
     </Layout>
@@ -438,7 +439,7 @@ export default function ChatwootAudit() {
 }
 
 function AuditDetailSheet({
-  audit, onClose, onReanalyze, isReanalyzing, onReview, isReviewing, isManager,
+  audit, onClose, onReanalyze, isReanalyzing, onReview, isReviewing, isManager, chatwootUrl,
 }: {
   audit: AuditRow | null;
   onClose: () => void;
@@ -447,6 +448,7 @@ function AuditDetailSheet({
   onReview: (p: { id: string; status: string; notes?: string }) => void;
   isReviewing: boolean;
   isManager: boolean;
+  chatwootUrl: string | null;
 }) {
   const [notes, setNotes] = useState("");
 
