@@ -15,15 +15,33 @@ const service = createClient(
 const TOKEN = Deno.env.get("CHATWOOT_API_TOKEN") || "";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 
-async function fetchTranscript(baseUrl: string, accountId: number, convId: number) {
+function isSystemMessage(m: any, patterns: RegExp[]): boolean {
+  // Chatwoot activity messages: message_type === 2 OR content_type "activity"
+  if (m.message_type === 2 || m.message_type === "activity") return true;
+  if (m.content_type === "activity" || m.content_type === "input_csat") return true;
+  const ca = m.content_attributes;
+  if (ca && (ca.type === "activity" || ca.is_system === true)) return true;
+  const c = String(m.content || "");
+  for (const re of patterns) {
+    if (re.test(c)) return true;
+  }
+  return false;
+}
+
+async function fetchTranscript(baseUrl: string, accountId: number, convId: number, systemPatterns: string[]) {
   const url = `${baseUrl}/api/v1/accounts/${accountId}/conversations/${convId}/messages`;
   const res = await fetch(url, { headers: { api_access_token: TOKEN } });
   if (!res.ok) throw new Error(`chatwoot ${res.status}`);
   const j = await res.json();
   const arr: any[] = j?.payload || [];
+  const compiled = (systemPatterns || []).map((p) => {
+    try { return new RegExp(p, "i"); } catch { return null; }
+  }).filter(Boolean) as RegExp[];
+
   const msgs = arr
     .filter((m) => !m.private)
     .filter((m) => typeof m.content === "string" && m.content.trim().length > 0)
+    .filter((m) => !isSystemMessage(m, compiled))
     .sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
     .map((m) => ({
       role: (m.message_type === 1 || m.message_type === "outgoing") ? "agente" : "cliente",
@@ -59,7 +77,7 @@ const TOOL_SCHEMA = {
             additionalProperties: false,
             required: ["category", "quote", "severity"],
             properties: {
-              category: { type: "string", enum: ["palavrao", "ironia", "grosseria", "impaciencia", "outros"] },
+              category: { type: "string" },
               quote: { type: "string", description: "Trecho literal do atendente." },
               severity: { type: "string", enum: ["low", "medium", "high"] },
             },
@@ -73,7 +91,7 @@ const TOOL_SCHEMA = {
             additionalProperties: false,
             required: ["type", "quote"],
             properties: {
-              type: { type: "string", enum: ["irritacao", "ameaca_cancelamento", "insatisfacao", "decepcao", "outros"] },
+              type: { type: "string" },
               quote: { type: "string" },
             },
           },
@@ -110,27 +128,44 @@ const TOOL_SCHEMA = {
   },
 };
 
+function renderRubric(rubric: string, settings: any): string {
+  if (!rubric) return "";
+  return rubric
+    .replaceAll("{{critical_threshold}}", String(settings.critical_threshold))
+    .replaceAll("{{attention_threshold}}", String(settings.attention_threshold));
+}
+
 async function analyzeWithAI(model: string, settings: any, transcriptText: string) {
   const playbookList = (settings.playbook_items || [])
     .map((it: any) => `- ${it.key}: ${it.label}`)
     .join("\n");
-  const sys = `Você é um auditor sênior de QA para um SAC de fintech brasileira.
-Sua tarefa é avaliar a qualidade do atendimento do AGENTE (não do cliente) em três dimensões:
-1) Tom de voz (0-100): identifique palavrões, ironia, grosseria, impaciência. Cite trechos LITERAIS.
-2) Risco de churn (0-100, MAIOR = MAIOR risco): cliente irritado, ameaça cancelar, insatisfação grave, menção a concorrentes (${(settings.competitor_keywords || []).join(", ")}).
-3) Aderência ao playbook (0-100): valide cada item abaixo.
+  const toneCats = (settings.tone_categories || []).map((c: any) => `${c.key} (${c.label})`).join(", ");
+  const churnTypes = (settings.churn_signal_types || []).map((c: any) => `${c.key} (${c.label})`).join(", ");
+  const rubric = renderRubric(settings.scoring_rubric || "", settings);
 
-Itens do playbook:
+  const sys = `Você é um auditor sênior de QA para um SAC de fintech brasileira.
+Avalie a qualidade do atendimento do AGENTE (não do cliente) em três dimensões: tom de voz, risco de churn e aderência ao playbook.
+
+# Categorias permitidas
+- tone_flags.category: ${toneCats}
+- churn_signals.type: ${churnTypes}
+
+# Palavras consideradas inadequadas
+${(settings.profanity_keywords || []).join(", ")}
+
+# Concorrentes monitorados
+${(settings.competitor_keywords || []).join(", ")}
+
+# Itens do playbook (use exatamente estas chaves em playbook_checks)
 ${playbookList}
 
-Palavras consideradas inadequadas: ${(settings.profanity_keywords || []).join(", ")}.
+# Playbook completo (contexto)
+${settings.playbook_markdown || "(não informado)"}
 
-Severity da conversa:
-- "critical" se overall_score < ${settings.critical_threshold} OU houver flag de tom severity=high OU ameaça de cancelamento.
-- "attention" se overall_score < ${settings.attention_threshold} OU houver qualquer flag relevante.
-- "ok" caso contrário.
+# Rubrica de scoring e severity
+${rubric}
 
-NUNCA invente trechos. Se não houver evidência, deixe arrays vazios.
+NUNCA invente trechos. Se não houver evidência, deixe arrays vazios. Cite trechos LITERAIS extraídos da transcrição.
 ${settings.custom_instructions || ""}
 
 Chame a tool register_audit obrigatoriamente.`;
@@ -162,7 +197,7 @@ Chame a tool register_audit obrigatoriamente.`;
 
 async function analyzeConversation(conv: any, settings: any, baseUrl: string, accountId: number, runId: string | null, force: boolean) {
   const convId = Number(conv.chatwoot_conversation_id);
-  const { messages, total } = await fetchTranscript(baseUrl, accountId, convId);
+  const { messages, total } = await fetchTranscript(baseUrl, accountId, convId, settings.system_message_patterns || []);
   if (messages.length === 0) return { skipped: true, reason: "no_messages" };
 
   const transcriptText = messages.map((m) => `${m.role}: ${m.content}`).join("\n");

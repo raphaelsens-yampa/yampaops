@@ -186,37 +186,52 @@ export type Database = {
         Row: {
           ai_model: string
           attention_threshold: number
+          churn_signal_types: Json
           competitor_keywords: string[]
           created_at: string
           critical_threshold: number
           custom_instructions: string | null
           id: string
           playbook_items: Json
+          playbook_markdown: string | null
           profanity_keywords: string[]
+          scoring_rubric: string | null
+          system_message_patterns: string[]
+          tone_categories: Json
           updated_at: string
         }
         Insert: {
           ai_model?: string
           attention_threshold?: number
+          churn_signal_types?: Json
           competitor_keywords?: string[]
           created_at?: string
           critical_threshold?: number
           custom_instructions?: string | null
           id?: string
           playbook_items?: Json
+          playbook_markdown?: string | null
           profanity_keywords?: string[]
+          scoring_rubric?: string | null
+          system_message_patterns?: string[]
+          tone_categories?: Json
           updated_at?: string
         }
         Update: {
           ai_model?: string
           attention_threshold?: number
+          churn_signal_types?: Json
           competitor_keywords?: string[]
           created_at?: string
           critical_threshold?: number
           custom_instructions?: string | null
           id?: string
           playbook_items?: Json
+          playbook_markdown?: string | null
           profanity_keywords?: string[]
+          scoring_rubric?: string | null
+          system_message_patterns?: string[]
+          tone_categories?: Json
           updated_at?: string
         }
         Relationships: []

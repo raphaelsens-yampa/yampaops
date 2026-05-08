@@ -1,96 +1,64 @@
+## Objetivo
+Tornar a auditoria mais transparente, editável e confiável: acessar a conversa original, ver/editar a rubrica usada pela IA, ter o playbook como markdown rico e ignorar ruído de mensagens de sistema do Chatwoot.
 
-# Auditoria Inteligente de Atendimentos
+## Mudanças
 
-Sistema que analisa **todos os atendimentos resolvidos** do Chatwoot via IA (Lovable AI / Gemini) em um job diário, classifica qualidade em três dimensões (tom de voz, risco de churn/concorrentes, aderência a playbook+SLA) e expõe um dashboard com ranking por atendente e fluxo de revisão de flags.
+### 1. Link "Abrir no Chatwoot" na conversa auditada
+- No detalhe de cada conversa em `/atendimentos/auditoria` (Sheet) e no cabeçalho do card da lista, adicionar botão **"Abrir no Chatwoot"** (ícone external-link) que abre em nova aba.
+- URL montada no frontend a partir de `integration_settings.chatwoot_base_url` + `chatwoot_account_id` + `conversation_id`:
+  `{base_url}/app/accounts/{account_id}/conversations/{conversation_id}`
+- Buscar `chatwoot_base_url` e `chatwoot_account_id` uma vez via React Query e reusar em todos os links.
 
-## 1. Modelo de dados (nova migration)
+### 2. Rubrica de scoring editável (severity, score, flags)
+Hoje a rubrica está hardcoded no system prompt (`chatwoot-audit-run/index.ts`). Vamos expor tudo via banco e UI.
 
-**`chatwoot_audit_runs`** — execuções do job diário
-- `id`, `started_at`, `finished_at`, `period_start`, `period_end`
-- `total_conversations`, `analyzed`, `failed`, `status` (running/done/error)
-- `triggered_by` (cron / manual / user_id)
+**Migração**: adicionar colunas em `chatwoot_audit_settings`:
+- `scoring_rubric` (text) — markdown explicando como calcular `overall_score`, `tone_score`, `churn_risk_score`, `playbook_score` e como decidir `severity` (ok/attention/critical). Vem com um default que reproduz a lógica atual.
+- `tone_categories` (jsonb) — lista editável das categorias de tom (palavrao, ironia, grosseria, impaciencia, outros) com label e exemplos.
+- `churn_signal_types` (jsonb) — lista editável de tipos de sinal de churn.
 
-**`chatwoot_conversation_audits`** — uma linha por conversa analisada
-- `id`, `conversation_id` (FK lógica → `chatwoot_conversations.chatwoot_conversation_id`)
-- `run_id`, `analyzed_at`, `model_used`
-- `assignee_id`, `assignee_name`, `team_name`, `inbox_name` (snapshot p/ ranking estável)
-- `overall_score` (0–100), `severity` (`ok` | `attention` | `critical`)
-- `tone_score`, `tone_flags` (jsonb: trechos + categorias: palavrão, ironia, grosseria)
-- `churn_risk_score`, `churn_signals` (jsonb: cliente irritado, ameaça cancelar, mencionou concorrente X)
-- `playbook_score`, `playbook_checks` (jsonb: saudação ✓, identificação ✓, despedida ✗, ofereceu ajuda extra ✗, SLA ok)
-- `summary` (texto curto da IA), `message_count`, `transcript_hash` (evita re-análise)
-- `review_status` (`pending` | `confirmed` | `false_positive` | `dismissed`)
-- `reviewed_by`, `reviewed_at`, `review_notes`
+**Edge function** (`chatwoot-audit-run`): substitui o bloco "Severity da conversa..." hardcoded pelo conteúdo de `scoring_rubric`. Mantém o tool schema, mas o que o modelo segue como critério vem 100% do banco.
 
-**`chatwoot_audit_settings`** (1 linha)
-- Listas de keywords (concorrentes, palavrões), prompt customizável, modelo (default `google/gemini-2.5-flash`), thresholds de severidade, itens do playbook (checklist editável).
+**UI** (`/atendimentos/auditoria/configuracoes`): nova aba/seção **"Rubrica de Análise"** com:
+- Editor markdown (textarea grande com preview) para `scoring_rubric`.
+- Tabelas para gerenciar `tone_categories` e `churn_signal_types`.
+- Sliders existentes (`attention_threshold`, `critical_threshold`) ficam, mas a rubrica passa a referenciá-los explicitamente.
+- Botão "Restaurar padrão" para a rubrica.
 
-RLS: admin gerencia tudo; tatico read-only; sellers veem só os próprios audits.
+### 3. Playbook como markdown rico
+Hoje o playbook é uma lista chave/label simples. Vamos suportar um documento markdown completo, mantendo também os itens de checklist (porque a IA precisa devolver `passed` por item).
 
-## 2. Edge functions
+**Migração**: adicionar `playbook_markdown` (text) em `chatwoot_audit_settings`. Os `playbook_items` continuam para o checklist verificável.
 
-**`chatwoot-audit-fetch-messages`** (helper interno)
-- Recebe `conversation_id`, busca mensagens via `GET /api/v1/accounts/{id}/conversations/{id}/messages`, retorna transcrição limpa (filtra notas privadas, ordena por timestamp, marca `agente:` / `cliente:`).
+**Edge function**: o system prompt passa a incluir o `playbook_markdown` completo como contexto, e os `playbook_items` continuam sendo a lista que a IA marca como passed/failed.
 
-**`chatwoot-audit-run`** (job principal, agendável)
-- Parâmetros: `since`, `before`, `limit`, `force` (re-analisa).
-- Lista `chatwoot_conversations` com `status='resolved'` no período, faz LEFT JOIN com `chatwoot_conversation_audits` e processa apenas os pendentes.
-- Cria registro em `chatwoot_audit_runs`.
-- Para cada conversa em batch (concorrência ~5):
-  1. Busca transcrição via helper.
-  2. Aplica pré-filtros locais (keywords de concorrentes/palavrões) → entra no contexto da IA.
-  3. Chama Lovable AI com **prompt estruturado** + `tools` para devolver JSON validado (Zod) com os 3 scores, flags, trechos citados, sumário e severity.
-  4. Faz upsert em `chatwoot_conversation_audits` (chave `conversation_id`).
-- Atualiza `chatwoot_audit_runs` no fim.
-- Trata 429/402 com backoff e log em `integration_sync_errors`.
+**UI** (settings):
+- Nova seção **"Playbook"** com editor markdown grande (mesmo componente da rubrica) para `playbook_markdown`.
+- A seção atual de "Itens do playbook" (checklist) continua logo abaixo.
+- Texto explicativo: "O markdown é o contexto completo; os itens abaixo são as checagens que a IA marcará item a item."
 
-**`chatwoot-audit-analyze-one`** (sob demanda)
-- Reanalisa uma conversa específica a partir do dashboard (botão "Reanalisar").
+### 4. Filtro de mensagens de sistema do Chatwoot
+No `chatwoot-audit-run/index.ts`, função `fetchTranscript`, ampliar o filtro além de `!m.private`:
+- Ignorar `m.message_type === 2` ou `"activity"` (mensagens de atividade do Chatwoot — "Conversa marcada como resolvida por X", "Atribuída a Y", etc.).
+- Ignorar `m.content_type` quando for `"input_csat"`, `"text"` com `content_attributes.type === "activity"`, e demais tipos não-conversacionais.
+- Adicional: regex de segurança para descartar conteúdos com padrões típicos de sistema, configurável via novo campo `system_message_patterns` (text[]) em `chatwoot_audit_settings` com defaults:
+  - `^Conversa foi marcada como`
+  - `^Conversation was marked as`
+  - `^Envio via app`
+  - `^Atribuída? a `
+  - `^Assigned to `
+  - `^.{1,80} resolveu a conversa`
 
-**Cron**: pg_cron diário 03:00 BRT chamando `chatwoot-audit-run` com `since=ontem`.
+**UI** (settings): adicionar campo de chips/tags **"Padrões de mensagens a ignorar"** editável.
 
-## 3. Tela `/atendimentos/auditoria` (nova)
+## Detalhes técnicos
+- Migração única adicionando: `scoring_rubric text`, `tone_categories jsonb`, `churn_signal_types jsonb`, `playbook_markdown text`, `system_message_patterns text[]` com defaults sensatos.
+- `ChatwootAuditSettings.tsx`: refatorar para abas (`Geral`, `Rubrica`, `Playbook`, `Filtros & Palavras-chave`) para não virar uma página gigante.
+- `ChatwootAudit.tsx`: hook `useChatwootIntegration()` para montar URL do Chatwoot; botão no card e no Sheet.
+- `chatwoot-audit-run/index.ts` e `chatwoot-audit-analyze-one/index.ts`: ler todos os novos campos de settings, aplicar filtro de regex no transcript antes do hash.
+- Reanalisar conversas existentes invalidará o `transcript_hash` (transcript fica menor sem mensagens de sistema), então o force=true ou novo hash naturalmente refazem.
 
-Adiciona item no `AppSidebar` em "Atendimentos → Auditoria" (admin/tatico).
-
-**Cabeçalho — KPIs**
-- Conversas auditadas no período · Score médio · % críticos · % com flag de tom · % com risco de churn · Aderência média ao playbook.
-
-**Filtros**
-- Período (reusa `SafraSelector`/date range), atendente, equipe, inbox, severity, status de revisão, busca textual.
-
-**Bloco "Ranking de Qualidade por Atendente"**
-- Tabela ordenável: atendente, # auditadas, score médio, tom médio, churn médio, playbook %, % flags críticos, evolução vs período anterior (▲/▼).
-- Top 3 e Bottom 3 destacados em cards.
-
-**Bloco "Conversas com flags"**
-- Lista paginada: badge de severity, atendente, score, dimensões com problema (chips), data, status de revisão.
-- Linha clicável → `Sheet` lateral com:
-  - Resumo da IA, scores das 3 dimensões, checklist do playbook, trechos citados (quote do cliente/agente), link para a conversa no Chatwoot.
-  - Ações: **Confirmar flag**, **Marcar falso positivo**, **Descartar**, campo de notas, botão **Reanalisar**.
-
-**Gráficos**
-- Linha: score médio diário; barras: distribuição de severity; heatmap: flags por equipe × dimensão.
-
-## 4. Configurações (`/configuracoes/auditoria`, admin)
-- Editar listas de palavrões, concorrentes, itens do playbook (checklist), thresholds de severidade, modelo da IA. Gravado em `chatwoot_audit_settings`.
-
-## 5. Detalhes técnicos relevantes
-
-- **Modelo IA**: `google/gemini-2.5-flash` por default (custo/latência). Para conversas longas (>60 mensagens) escala para `gemini-2.5-pro`.
-- **Prompt**: system prompt em PT-BR com persona de "auditor de QA de SAC fintech", pedindo JSON estrito; usa tool calling para garantir schema. Instrução explícita para citar trechos literais ao gerar flags (evita alucinação).
-- **Idempotência**: `transcript_hash` (SHA-256 da transcrição) evita reanálise quando nada mudou; `force=true` ignora.
-- **Custo controlado**: pré-filtro de keywords reduz tokens enviados; conversa truncada às 80 mensagens mais relevantes (primeiras + últimas + as que casarem keywords).
-- **Backfill inicial**: botão na tela de configurações para rodar `chatwoot-audit-run` retroativo por intervalo escolhido (mesmo padrão do `chatwoot-backfill`).
-- **Reuso**: aproveita `chatwoot_conversations` e a integração existente; sem mudança em webhook.
-
-## 6. Entregas em ordem
-1. Migration (3 tabelas + RLS + seed de `audit_settings` com defaults).
-2. Edge functions: fetch-messages helper → audit-run → audit-analyze-one (deploy).
-3. Cron diário.
-4. Página `/atendimentos/auditoria` + Sheet de detalhe + ações de revisão.
-5. Página de configurações (`/configuracoes/auditoria`).
-6. Backfill inicial dos últimos 30 dias para popular o dashboard.
-
-## Fora de escopo (decidido com você)
-- CSAT inferido pela IA, amostragem parcial, execução em tempo real, feedback escrito ao atendente — podemos adicionar depois sem refazer a base.
+## Fora de escopo
+- Editor markdown WYSIWYG (vamos com textarea + preview simples usando `react-markdown` que já deve estar disponível, ou um preview básico).
+- Versionamento histórico das rubricas/playbook.
+- Re-rodar automaticamente todas as auditorias após mudar a rubrica (usuário roda backfill manualmente).

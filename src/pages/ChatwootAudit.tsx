@@ -22,6 +22,7 @@ import { DateRange } from "react-day-picker";
 import { CalendarIcon, RefreshCw, Settings, AlertTriangle, ShieldAlert, ShieldCheck, MessageSquareWarning, Loader2, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useChatwootIntegration } from "@/hooks/useChatwootIntegration";
 
 type AuditRow = {
   id: string;
@@ -97,6 +98,7 @@ export default function ChatwootAudit() {
   }
   const isManager = role === "admin" || role === "tatico";
   const qc = useQueryClient();
+  const { buildConversationUrl } = useChatwootIntegration();
 
   const [range, setRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
@@ -382,6 +384,7 @@ export default function ChatwootAudit() {
                         <TableHead>Flags</TableHead>
                         <TableHead>Resumo</TableHead>
                         <TableHead>Revisão</TableHead>
+                        <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -400,6 +403,15 @@ export default function ChatwootAudit() {
                           </TableCell>
                           <TableCell className="max-w-xs truncate text-xs text-muted-foreground">{a.summary || "—"}</TableCell>
                           <TableCell><Badge variant="outline" className={REVIEW_META[a.review_status]?.cls}>{REVIEW_META[a.review_status]?.label}</Badge></TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {buildConversationUrl(a.conversation_id) && (
+                              <Button asChild size="icon" variant="ghost" title="Abrir no Chatwoot">
+                                <a href={buildConversationUrl(a.conversation_id)!} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -419,6 +431,7 @@ export default function ChatwootAudit() {
           onReview={(payload) => reviewMutation.mutate(payload)}
           isReviewing={reviewMutation.isPending}
           isManager={isManager}
+          chatwootUrl={selected ? buildConversationUrl(selected.conversation_id) : null}
         />
       </div>
     </Layout>
@@ -426,7 +439,7 @@ export default function ChatwootAudit() {
 }
 
 function AuditDetailSheet({
-  audit, onClose, onReanalyze, isReanalyzing, onReview, isReviewing, isManager,
+  audit, onClose, onReanalyze, isReanalyzing, onReview, isReviewing, isManager, chatwootUrl,
 }: {
   audit: AuditRow | null;
   onClose: () => void;
@@ -435,6 +448,7 @@ function AuditDetailSheet({
   onReview: (p: { id: string; status: string; notes?: string }) => void;
   isReviewing: boolean;
   isManager: boolean;
+  chatwootUrl: string | null;
 }) {
   const [notes, setNotes] = useState("");
 
@@ -449,10 +463,19 @@ function AuditDetailSheet({
                   <SeverityBadge sev={audit.severity} />
                   Conversa #{audit.conversation_id}
                 </SheetTitle>
-                <Button size="sm" variant="outline" onClick={() => onReanalyze(audit.conversation_id)} disabled={isReanalyzing}>
-                  {isReanalyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                  Reanalisar
-                </Button>
+                <div className="flex gap-2">
+                  {chatwootUrl && (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={chatwootUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3 w-3 mr-1" /> Abrir no Chatwoot
+                      </a>
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => onReanalyze(audit.conversation_id)} disabled={isReanalyzing}>
+                    {isReanalyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                    Reanalisar
+                  </Button>
+                </div>
               </div>
               <SheetDescription>
                 {audit.assignee_name} · {audit.team_name || "—"} · {audit.inbox_name || "—"}
