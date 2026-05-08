@@ -194,16 +194,52 @@ export default function ChatwootAudit() {
   const runMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("chatwoot-audit-run", {
-        body: { since: sinceISO, before: beforeISO, limit: 200, triggered_by: "manual" },
+        body: { since: sinceISO, before: beforeISO, limit: 2000, triggered_by: "manual" },
       });
       if (error) throw error;
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Auditoria concluída: ${d?.analyzed || 0} analisados, ${d?.skipped || 0} já estavam atualizados.`);
+      toast.success(`Auditoria iniciada: ${d?.total || 0} conversas na fila.`);
       qc.invalidateQueries({ queryKey: ["audits"] });
+      qc.invalidateQueries({ queryKey: ["audit-coverage"] });
     },
     onError: (e: any) => toast.error("Falha ao rodar auditoria: " + e.message),
+  });
+
+  // Cobertura: total de conversas resolvidas no período × auditadas
+  const coverageQ = useQuery({
+    queryKey: ["audit-coverage", sinceISO, beforeISO],
+    queryFn: async () => {
+      let q = supabase.from("chatwoot_conversations").select("chatwoot_conversation_id", { count: "exact", head: true }).eq("status", "resolved");
+      if (sinceISO) q = q.gte("conversation_closed_at", sinceISO);
+      if (beforeISO) q = q.lte("conversation_closed_at", beforeISO);
+      const { count } = await q;
+      return { resolved: count || 0 };
+    },
+  });
+
+  const coverage = useMemo(() => {
+    const resolved = coverageQ.data?.resolved || 0;
+    const audited = audits.length;
+    const pct = resolved > 0 ? Math.min(100, Math.round((audited / resolved) * 100)) : 0;
+    return { resolved, audited, pct, missing: Math.max(0, resolved - audited) };
+  }, [coverageQ.data, audits]);
+
+  const reauditMissingMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("chatwoot-audit-run", {
+        body: { since: sinceISO, before: beforeISO, limit: 2000, triggered_by: "coverage_fix" },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (d: any) => {
+      toast.success(`Reauditando ${d?.total || 0} conversas...`);
+      qc.invalidateQueries({ queryKey: ["audits"] });
+      qc.invalidateQueries({ queryKey: ["audit-coverage"] });
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const reanalyzeMutation = useMutation({
