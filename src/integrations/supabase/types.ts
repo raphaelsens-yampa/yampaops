@@ -137,6 +137,194 @@ export type Database = {
           },
         ]
       }
+      chatwoot_audit_runs: {
+        Row: {
+          analyzed: number
+          created_at: string
+          error_message: string | null
+          failed: number
+          finished_at: string | null
+          id: string
+          period_end: string | null
+          period_start: string | null
+          started_at: string
+          status: string
+          total_conversations: number
+          triggered_by: string | null
+        }
+        Insert: {
+          analyzed?: number
+          created_at?: string
+          error_message?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          started_at?: string
+          status?: string
+          total_conversations?: number
+          triggered_by?: string | null
+        }
+        Update: {
+          analyzed?: number
+          created_at?: string
+          error_message?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          started_at?: string
+          status?: string
+          total_conversations?: number
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      chatwoot_audit_settings: {
+        Row: {
+          ai_model: string
+          attention_threshold: number
+          competitor_keywords: string[]
+          created_at: string
+          critical_threshold: number
+          custom_instructions: string | null
+          id: string
+          playbook_items: Json
+          profanity_keywords: string[]
+          updated_at: string
+        }
+        Insert: {
+          ai_model?: string
+          attention_threshold?: number
+          competitor_keywords?: string[]
+          created_at?: string
+          critical_threshold?: number
+          custom_instructions?: string | null
+          id?: string
+          playbook_items?: Json
+          profanity_keywords?: string[]
+          updated_at?: string
+        }
+        Update: {
+          ai_model?: string
+          attention_threshold?: number
+          competitor_keywords?: string[]
+          created_at?: string
+          critical_threshold?: number
+          custom_instructions?: string | null
+          id?: string
+          playbook_items?: Json
+          profanity_keywords?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chatwoot_conversation_audits: {
+        Row: {
+          analyzed_at: string
+          assignee_email: string | null
+          assignee_id: number | null
+          assignee_name: string | null
+          churn_risk_score: number
+          churn_signals: Json
+          competitor_mentions: Json
+          conversation_id: number
+          conversation_resolved_at: string | null
+          created_at: string
+          id: string
+          inbox_name: string | null
+          message_count: number
+          model_used: string | null
+          overall_score: number
+          playbook_checks: Json
+          playbook_score: number
+          review_notes: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          run_id: string | null
+          severity: string
+          summary: string | null
+          team_name: string | null
+          tone_flags: Json
+          tone_score: number
+          transcript_hash: string | null
+          updated_at: string
+        }
+        Insert: {
+          analyzed_at?: string
+          assignee_email?: string | null
+          assignee_id?: number | null
+          assignee_name?: string | null
+          churn_risk_score?: number
+          churn_signals?: Json
+          competitor_mentions?: Json
+          conversation_id: number
+          conversation_resolved_at?: string | null
+          created_at?: string
+          id?: string
+          inbox_name?: string | null
+          message_count?: number
+          model_used?: string | null
+          overall_score?: number
+          playbook_checks?: Json
+          playbook_score?: number
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id?: string | null
+          severity?: string
+          summary?: string | null
+          team_name?: string | null
+          tone_flags?: Json
+          tone_score?: number
+          transcript_hash?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analyzed_at?: string
+          assignee_email?: string | null
+          assignee_id?: number | null
+          assignee_name?: string | null
+          churn_risk_score?: number
+          churn_signals?: Json
+          competitor_mentions?: Json
+          conversation_id?: number
+          conversation_resolved_at?: string | null
+          created_at?: string
+          id?: string
+          inbox_name?: string | null
+          message_count?: number
+          model_used?: string | null
+          overall_score?: number
+          playbook_checks?: Json
+          playbook_score?: number
+          review_notes?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id?: string | null
+          severity?: string
+          summary?: string | null
+          team_name?: string | null
+          tone_flags?: Json
+          tone_score?: number
+          transcript_hash?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatwoot_conversation_audits_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "chatwoot_audit_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatwoot_conversations: {
         Row: {
           assignee_email: string | null
