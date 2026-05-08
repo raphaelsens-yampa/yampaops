@@ -116,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           contacts: { view: true, create: true, edit: true },
           commissions: { view: true, create: true, edit: true },
           atendimentos: { view: true, create: true, edit: true },
+          auditoria_ia: { view: true, create: true, edit: true },
         });
       } else if (resolvedRole === "tatico") {
         setPermissions({
