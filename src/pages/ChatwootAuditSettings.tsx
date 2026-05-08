@@ -185,7 +185,7 @@ export default function ChatwootAuditSettings() {
             <TabsTrigger value="rubrica">Rubrica de Análise</TabsTrigger>
             <TabsTrigger value="playbook">Playbook</TabsTrigger>
             <TabsTrigger value="filtros">Filtros & Palavras-chave</TabsTrigger>
-            <TabsTrigger value="amostragem"><FilterIcon className="h-3 w-3 mr-1" />Amostragem</TabsTrigger>
+            <TabsTrigger value="amostragem"><FilterIcon className="h-3 w-3 mr-1" />Revisão Humana</TabsTrigger>
             <TabsTrigger value="knowledge"><BookOpen className="h-3 w-3 mr-1" />Knowledge Base</TabsTrigger>
             <TabsTrigger value="backfill">Backfill</TabsTrigger>
           </TabsList>
