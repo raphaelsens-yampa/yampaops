@@ -463,10 +463,19 @@ function AuditDetailSheet({
                   <SeverityBadge sev={audit.severity} />
                   Conversa #{audit.conversation_id}
                 </SheetTitle>
-                <Button size="sm" variant="outline" onClick={() => onReanalyze(audit.conversation_id)} disabled={isReanalyzing}>
-                  {isReanalyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                  Reanalisar
-                </Button>
+                <div className="flex gap-2">
+                  {chatwootUrl && (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={chatwootUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3 w-3 mr-1" /> Abrir no Chatwoot
+                      </a>
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => onReanalyze(audit.conversation_id)} disabled={isReanalyzing}>
+                    {isReanalyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                    Reanalisar
+                  </Button>
+                </div>
               </div>
               <SheetDescription>
                 {audit.assignee_name} · {audit.team_name || "—"} · {audit.inbox_name || "—"}
