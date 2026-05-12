@@ -260,11 +260,20 @@ export function AppSidebar() {
     .filter((g) => !g.adminOnly || role === "admin")
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) => {
-        if (it.adminOnly && role !== "admin") return false;
-        if (!it.area) return true;
-        return role === "admin" ? true : canView(it.area);
-      }),
+      items: g.items
+        .filter((it) => {
+          if (it.adminOnly && role !== "admin") return false;
+          if (!it.area) return true;
+          return role === "admin" ? true : canView(it.area);
+        })
+        .map((it) => ({
+          ...it,
+          children: it.children?.filter((c) => {
+            if (c.adminOnly && role !== "admin") return false;
+            if (!c.area) return true;
+            return role === "admin" ? true : canView(c.area);
+          }),
+        })),
     }))
     .filter((g) => g.items.length > 0);
 
