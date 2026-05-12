@@ -174,6 +174,10 @@ export function AppSidebar() {
 
   const [openGestao, setOpenGestao] = useLocalBool("sidebar:group:gestao", false);
   const [openIntegr, setOpenIntegr] = useLocalBool("sidebar:group:integracoes", false);
+  const [openAuditoria, setOpenAuditoria] = useLocalBool(
+    "sidebar:item:auditoria",
+    typeof window !== "undefined" && window.location.pathname.startsWith("/atendimentos/auditoria"),
+  );
 
   // Definição declarativa dos grupos
   const groups: Group[] = [
