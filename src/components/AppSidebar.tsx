@@ -26,6 +26,7 @@ type NavItem = {
   area?: CrmAreaKey;
   adminOnly?: boolean;
   rightSlot?: "ac-status" | "stripe-status" | "chatwoot-status";
+  children?: NavItem[];
 };
 
 type Group = {
