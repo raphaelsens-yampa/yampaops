@@ -26,6 +26,7 @@ type NavItem = {
   area?: CrmAreaKey;
   adminOnly?: boolean;
   rightSlot?: "ac-status" | "stripe-status" | "chatwoot-status";
+  children?: NavItem[];
 };
 
 type Group = {
@@ -173,6 +174,10 @@ export function AppSidebar() {
 
   const [openGestao, setOpenGestao] = useLocalBool("sidebar:group:gestao", false);
   const [openIntegr, setOpenIntegr] = useLocalBool("sidebar:group:integracoes", false);
+  const [openAuditoria, setOpenAuditoria] = useLocalBool(
+    "sidebar:item:auditoria",
+    typeof window !== "undefined" && window.location.pathname.startsWith("/atendimentos/auditoria"),
+  );
 
   // Definição declarativa dos grupos
   const groups: Group[] = [
@@ -195,15 +200,22 @@ export function AppSidebar() {
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
-        { title: "Auditoria IA", url: "/atendimentos/auditoria", icon: Sparkles, area: "auditoria_ia" },
-        ...(role === "admin" ? [
-          { title: "↳ Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, adminOnly: true },
-          { title: "↳ Insights", url: "/atendimentos/auditoria/insights", icon: Sparkles, adminOnly: true },
-          { title: "↳ Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, adminOnly: true },
-        ] : []),
-        ...(role === "seller" ? [
-          { title: "Minhas Auditorias", url: "/atendimentos/auditoria/minhas", icon: Sparkles, area: "auditoria_ia" as CrmAreaKey },
-        ] : []),
+        {
+          title: "Auditoria IA",
+          url: "/atendimentos/auditoria",
+          icon: Sparkles,
+          area: "auditoria_ia",
+          children: [
+            ...(role === "admin" ? [
+              { title: "Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, adminOnly: true },
+              { title: "Insights", url: "/atendimentos/auditoria/insights", icon: Sparkles, adminOnly: true },
+              { title: "Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, adminOnly: true },
+            ] : []),
+            ...(role === "seller" ? [
+              { title: "Minhas Auditorias", url: "/atendimentos/auditoria/minhas", icon: Sparkles, area: "auditoria_ia" as CrmAreaKey },
+            ] : []),
+          ],
+        },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
       ],
     },
@@ -248,11 +260,20 @@ export function AppSidebar() {
     .filter((g) => !g.adminOnly || role === "admin")
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) => {
-        if (it.adminOnly && role !== "admin") return false;
-        if (!it.area) return true;
-        return role === "admin" ? true : canView(it.area);
-      }),
+      items: g.items
+        .filter((it) => {
+          if (it.adminOnly && role !== "admin") return false;
+          if (!it.area) return true;
+          return role === "admin" ? true : canView(it.area);
+        })
+        .map((it) => ({
+          ...it,
+          children: it.children?.filter((c) => {
+            if (c.adminOnly && role !== "admin") return false;
+            if (!c.area) return true;
+            return role === "admin" ? true : canView(c.area);
+          }),
+        })),
     }))
     .filter((g) => g.items.length > 0);
 
@@ -269,24 +290,61 @@ export function AppSidebar() {
     .map((s) => s[0]?.toUpperCase())
     .join("");
 
-  const renderItem = (item: NavItem) => (
-    <SidebarMenuItem key={item.title}>
-      <SidebarMenuButton asChild tooltip={collapsed ? item.title : undefined}>
-        <NavLink
-          to={item.url}
-          end
-          className={NAV_BASE}
-          activeClassName={NAV_ACTIVE}
-        >
-          <item.icon className="h-4 w-4" />
-          <span>{item.title}</span>
-          {!collapsed && item.rightSlot === "ac-status" && <ACStatusDot />}
-          {!collapsed && item.rightSlot === "stripe-status" && <StripeStatusDot />}
-          {!collapsed && item.rightSlot === "chatwoot-status" && <ChatwootStatusDot />}
-        </NavLink>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
+  const renderItem = (item: NavItem) => {
+    const hasChildren = !!item.children && item.children.length > 0;
+
+    if (hasChildren && !collapsed) {
+      return (
+        <SidebarMenuItem key={item.title}>
+          <div className="flex items-center w-full">
+            <SidebarMenuButton asChild tooltip={undefined} className="flex-1">
+              <NavLink
+                to={item.url}
+                end
+                className={NAV_BASE}
+                activeClassName={NAV_ACTIVE}
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.title}</span>
+              </NavLink>
+            </SidebarMenuButton>
+            <button
+              type="button"
+              onClick={() => setOpenAuditoria(!openAuditoria)}
+              className="p-1 mr-1 rounded hover:bg-sidebar-accent/50 text-sidebar-foreground/70"
+              aria-label={openAuditoria ? "Recolher" : "Expandir"}
+            >
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", openAuditoria ? "rotate-0" : "-rotate-90")} />
+            </button>
+          </div>
+          {openAuditoria && (
+            <div className="ml-4 border-l border-sidebar-border/60 pl-1 mt-0.5">
+              <SidebarMenu>{item.children!.map(renderItem)}</SidebarMenu>
+            </div>
+          )}
+        </SidebarMenuItem>
+      );
+    }
+
+    return (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton asChild tooltip={collapsed ? item.title : undefined}>
+          <NavLink
+            to={item.url}
+            end
+            className={NAV_BASE}
+            activeClassName={NAV_ACTIVE}
+          >
+            <item.icon className="h-4 w-4" />
+            <span>{item.title}</span>
+            {!collapsed && item.rightSlot === "ac-status" && <ACStatusDot />}
+            {!collapsed && item.rightSlot === "stripe-status" && <StripeStatusDot />}
+            {!collapsed && item.rightSlot === "chatwoot-status" && <ChatwootStatusDot />}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon">
