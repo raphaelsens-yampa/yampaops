@@ -418,6 +418,8 @@ function DebugMatchSection({ rows }: { rows: Row[] }) {
     let r = rows;
     if (filter === "matched") r = r.filter((x) => x.match_method);
     if (filter === "unmatched") r = r.filter((x) => !x.match_method);
+    if (filter === "phone") r = r.filter((x) => x.match_method === "phone");
+    if (filter === "email") r = r.filter((x) => x.match_method === "email");
     if (search.trim()) {
       const s = search.trim().toLowerCase();
       r = r.filter((x) =>
