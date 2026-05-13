@@ -188,8 +188,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const startPage: number = Number(body.page_start || 1);
-    const maxPages: number = Number(body.max_pages || 40);
+    const maxPages: number = Number(body.max_pages || 4);
     const pageSize: number = Number(body.page_size || 25);
+    const timeBudgetMs: number = Number(body.time_budget_ms || 120000);
+    const startedAt = Date.now();
 
     const { data: settings } = await service
       .from("integration_settings")
@@ -210,7 +212,9 @@ Deno.serve(async (req) => {
     const errors: string[] = [];
     let lastNonEmpty = startPage - 1;
 
+    let timedOut = false;
     while (page <= endPage) {
+      if (Date.now() - startedAt > timeBudgetMs) { timedOut = true; break; }
       let resp: { items: any[]; meta: any };
       try {
         resp = await listContacts(baseUrl, accountId, page, pageSize);
@@ -236,7 +240,7 @@ Deno.serve(async (req) => {
       page++;
     }
 
-    const done = totalCount > 0 ? (lastNonEmpty * 25) >= totalCount : (page > endPage ? false : true);
+    const done = !timedOut && (totalCount > 0 ? (lastNonEmpty * 25) >= totalCount : false);
     const nextPage = lastNonEmpty + 1;
 
     return new Response(JSON.stringify({
