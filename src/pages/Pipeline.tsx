@@ -45,28 +45,53 @@ export default function PipelinePage() {
   const [manageOpen, setManageOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ phase?: string; pipelineIdx?: number; totalPipelines?: number; currentPipeline?: string; dealsProcessed?: number; dealsTotal?: number } | null>(null);
+
+  // Detecta sync já em andamento ao montar
+  useEffect(() => {
+    let cancelled = false;
+    const checkSync = async () => {
+      const { data } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
+      if (cancelled) return;
+      if (data?.sync_status === "running") {
+        setSyncing(true);
+        setSyncProgress((data.sync_log as any)?.progress ?? null);
+        startPolling();
+      }
+    };
+    checkSync();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startPolling = () => {
+    let elapsed = 0;
+    const interval = setInterval(async () => {
+      elapsed += 5;
+      const { data: settings } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
+      const progress = (settings?.sync_log as any)?.progress ?? null;
+      setSyncProgress(progress);
+      if (settings?.sync_status === "idle" || elapsed >= 600) {
+        clearInterval(interval);
+        setSyncing(false);
+        await loadData();
+        toast({ title: "Sincronização concluída", description: "Pipeline atualizado com os dados do AC." });
+      }
+    }, 5000);
+  };
 
   const handleSyncAC = async () => {
     setSyncing(true);
-    toast({ title: "Sincronização iniciada", description: "Trazendo dados do ActiveCampaign em segundo plano. Isso pode levar alguns minutos." });
-    const { data, error } = await supabase.functions.invoke("ac-sync-initial", { body: { force: true } });
+    setSyncProgress({ phase: "starting" });
+    toast({ title: "Sincronização iniciada", description: "Trazendo dados do ActiveCampaign em segundo plano." });
+    const { error } = await supabase.functions.invoke("ac-sync-initial", { body: { force: true } });
     if (error) {
       toast({ title: "Erro ao iniciar sync", description: error.message, variant: "destructive" });
       setSyncing(false);
+      setSyncProgress(null);
       return;
     }
-    // Polling: a cada 15s recarrega dados; após 3 min libera o botão de qualquer forma
-    let elapsed = 0;
-    const interval = setInterval(async () => {
-      elapsed += 15;
-      await loadData();
-      const { data: settings } = await supabase.from("integration_settings").select("sync_status, last_full_sync_at").limit(1).maybeSingle();
-      if (settings?.sync_status === "idle" || elapsed >= 360) {
-        clearInterval(interval);
-        setSyncing(false);
-        toast({ title: "Sincronização concluída", description: "Pipeline atualizado com os dados do AC." });
-      }
-    }, 15000);
+    startPolling();
   };
 
   const loadPipelines = useCallback(async () => {
