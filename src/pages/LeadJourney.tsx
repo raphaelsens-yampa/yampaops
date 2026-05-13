@@ -342,6 +342,7 @@ function DetailTable({ rows }: { rows: Row[] }) {
               <TableHead>1ª conversa</TableHead>
               <TableHead className="text-right">Horas</TableHead>
               <TableHead>Bucket</TableHead>
+              <TableHead>Via</TableHead>
               <TableHead>Pagante</TableHead>
               <TableHead className="text-right">MRR</TableHead>
               <TableHead>Consultor</TableHead>
