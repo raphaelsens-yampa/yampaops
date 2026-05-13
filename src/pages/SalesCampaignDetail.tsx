@@ -151,10 +151,10 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
-        <Kpi label="Contatados" value={a.contacted} target={campaign.target_contacted} />
-        <Kpi label="Respostas" value={a.replies} target={campaign.target_replies} sub={`${replyRate}%`} />
-        <Kpi label="Conversões" value={a.conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
-        <Kpi label="MRR" value={`R$ ${a.mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
+        <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} />
+        <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}%`} />
+        <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
+        <Kpi label="MRR" value={`R$ ${mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
         <Kpi label="ROI MRR/Orç." value={`${roi}${roi === "—" ? "" : "%"}`} />
       </div>
 
