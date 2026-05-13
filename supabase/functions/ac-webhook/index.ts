@@ -94,13 +94,19 @@ async function processDeal(payload: any) {
 
   // Sync contact if present — lookup by ac_id OR email to avoid duplicates
   let localContactId: string | null = null;
+  let dealPhone: string | null = deal.contact_phone || deal.contactPhone || null;
   if (deal.contact) {
-    const { data: existing } = await service.from("contacts").select("id").eq("ac_id", String(deal.contact)).maybeSingle();
-    if (existing) localContactId = existing.id;
-    else if (deal.contact_email || deal.contactEmail) {
+    const { data: existing } = await service.from("contacts").select("id, phone").eq("ac_id", String(deal.contact)).maybeSingle();
+    if (existing) {
+      localContactId = existing.id;
+      if (!dealPhone) dealPhone = existing.phone || null;
+    } else if (deal.contact_email || deal.contactEmail) {
       const email = String(deal.contact_email || deal.contactEmail).toLowerCase().trim();
-      const { data: byEmail } = await service.from("contacts").select("id").ilike("email", email).maybeSingle();
-      if (byEmail) localContactId = byEmail.id;
+      const { data: byEmail } = await service.from("contacts").select("id, phone").ilike("email", email).maybeSingle();
+      if (byEmail) {
+        localContactId = byEmail.id;
+        if (!dealPhone) dealPhone = byEmail.phone || null;
+      }
     }
   }
 
@@ -111,6 +117,7 @@ async function processDeal(payload: any) {
     name: deal.title || `Deal ${acDealId}`,
     title: deal.title || null,
     contact_id: localContactId,
+    phone: dealPhone,
     consultant_id: consultantId,
     pipeline_id: localPipelineId,
     stage: stageSlug,
@@ -148,6 +155,9 @@ async function processContact(payload: any) {
     if (error) {
       await logError("contact", acContactId, error.message, contact);
       return { error: error.message };
+    }
+    if (contact.phone) {
+      await service.from("opportunities").update({ phone: contact.phone }).eq("contact_id", existing.id).is("phone", null);
     }
     return { ok: true, updated: existing.id };
   }

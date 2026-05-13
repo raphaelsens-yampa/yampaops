@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X } from "lucide-react";
+import { Search, Settings, X, Phone, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { StageManager } from "@/components/StageManager";
 import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
@@ -57,7 +58,7 @@ export default function PipelinePage() {
   const loadData = useCallback(async () => {
     if (!currentPipelineId) return;
     const [leadsRes, profsRes] = await Promise.all([
-      supabase.from("opportunities").select("*, contacts:contact_id(name, company, email)").eq("pipeline_id", currentPipelineId),
+      supabase.from("opportunities").select("*, contacts:contact_id(name, company, email, phone)").eq("pipeline_id", currentPipelineId),
       supabase.from("profiles").select("*"),
     ]);
     setLeads(leadsRes.data || []);
@@ -106,6 +107,36 @@ export default function PipelinePage() {
         return fields.some((f) => typeof f === "string" && f.toLowerCase().includes(q));
       })
     : byChannel;
+
+  const handleExport = () => {
+    const profileMap = new Map(profiles.map((p: any) => [p.user_id, p.full_name || p.email]));
+    const rows = filtered.map((l: any) => ({
+      "Título": l.title || "",
+      "Nome": l.name || "",
+      "Empresa": l.company || l.contacts?.company || "",
+      "Email": l.contacts?.email || "",
+      "Telefone": l.phone || l.contacts?.phone || "",
+      "Etapa": stageLabels[l.stage] || l.stage,
+      "Canal": ORIGIN_LABELS[l.origin] || l.origin,
+      "Sub-origem": l.sub_origin || "",
+      "MRR (R$)": l.estimated_mrr || 0,
+      "TPV (R$)": l.estimated_tpv || 0,
+      "Probabilidade (%)": l.probability || 0,
+      "Vendedor": profileMap.get(l.consultant_id) || "",
+      "Criado em": l.opportunity_created_at || l.created_at,
+      "Última interação": l.last_interaction_at || "",
+      "Convertido em": l.converted_at || "",
+      "Fechado em": l.closed_at || "",
+      "Previsão fechamento": l.estimated_close_date || "",
+      "Notas": l.notes || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Oportunidades");
+    const fname = `pipeline-${currentPipeline?.name || "export"}-${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    toast({ title: "Exportação concluída", description: `${rows.length} oportunidades exportadas.` });
+  };
 
   // Tags lookup for visible cards (hooks must be called before any early return)
   const leadIds = leads.map((l) => l.id);
@@ -189,6 +220,9 @@ export default function PipelinePage() {
                 </button>
               )}
             </div>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+              <Download className="h-4 w-4 mr-1" /> Exportar Excel
+            </Button>
           </div>
         </div>
 
@@ -232,6 +266,11 @@ export default function PipelinePage() {
                                   <CardContent className="p-3 space-y-1.5">
                                     <p className="font-medium text-sm">{lead.title || lead.name}</p>
                                     {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
+                                    {(lead.phone || lead.contacts?.phone) && (
+                                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Phone className="h-3 w-3" /> {lead.phone || lead.contacts?.phone}
+                                      </p>
+                                    )}
                                     <div className="flex items-center justify-between mt-1 text-xs">
                                       <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
                                       <span className="text-muted-foreground">{ORIGIN_LABELS[lead.origin] || lead.origin}</span>

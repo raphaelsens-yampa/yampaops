@@ -59,6 +59,7 @@ export function EditOpportunityDialog({
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
   const [origin, setOrigin] = useState("freetrial");
   const [subOrigin, setSubOrigin] = useState("");
   const [stage, setStage] = useState("");
@@ -124,6 +125,7 @@ export function EditOpportunityDialog({
       setTitle(opportunity.title || "");
       setName(opportunity.name || "");
       setCompany(opportunity.company || "");
+      setPhone(opportunity.phone || "");
       setOrigin(opportunity.origin || "freetrial");
       setSubOrigin(opportunity.sub_origin || "");
       setStage(opportunity.stage || "");
@@ -207,6 +209,7 @@ export function EditOpportunityDialog({
       title: title || null,
       name,
       company: company || null,
+      phone: phone || null,
       origin: origin as any,
       sub_origin: subOrigin || null,
       stage,
@@ -270,6 +273,10 @@ export function EditOpportunityDialog({
             <div>
               <Label>Empresa</Label>
               <Input value={company} onChange={e => setCompany(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <Label>Telefone</Label>
+              <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
             </div>
           </div>
 

@@ -155,12 +155,16 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
         const consultantId = await findUserByEmail(d.ownerEmail || d.owner_email);
 
         const stageSlug = stageBySlug.get(String(d.stage)) ?? "novo_lead";
+        const dealPhone = (acContactId && contactsMap.has(acContactId))
+          ? ((contactsMap.get(acContactId) as any).phone || null)
+          : null;
 
         const { error: dErr } = await service.from("opportunities").upsert({
           ac_id: String(d.id),
           name: d.title || `Deal ${d.id}`,
           title: d.title || null,
           company: null,
+          phone: dealPhone,
           contact_id: localContactId,
           consultant_id: consultantId,
           pipeline_id: localPipelineId,
