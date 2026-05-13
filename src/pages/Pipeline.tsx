@@ -47,6 +47,18 @@ export default function PipelinePage() {
   const [editingOpp, setEditingOpp] = useState<any | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ phase?: string; pipelineIdx?: number; totalPipelines?: number; currentPipeline?: string; dealsProcessed?: number; dealsTotal?: number } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelSync = async () => {
+    setCancelling(true);
+    const { error } = await supabase.functions.invoke("ac-sync-cancel");
+    if (error) {
+      toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
+      setCancelling(false);
+      return;
+    }
+    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida no próximo ciclo." });
+  };
 
   // Detecta sync já em andamento ao montar
   useEffect(() => {
