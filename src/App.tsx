@@ -25,6 +25,7 @@ import ChatwootIntegration from "./pages/ChatwootIntegration";
 import IntegrationAudit from "./pages/IntegrationAudit";
 import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
+import LeadJourney from "./pages/LeadJourney";
 import TagsSettings from "./pages/TagsSettings";
 import ChatwootReports from "./pages/ChatwootReports";
 import ChatwootAudit from "./pages/ChatwootAudit";
