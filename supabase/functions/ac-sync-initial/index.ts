@@ -100,6 +100,12 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force
   const alreadySynced = new Set((existingOpps || []).map((o: any) => o.ac_id));
 
   outer: while (true) {
+    // Verifica solicitação de cancelamento
+    const { data: st } = await service.from("integration_settings").select("sync_status").limit(1).maybeSingle();
+    if (st?.sync_status === "cancelling") {
+      truncated = true;
+      break outer;
+    }
     let dealsRes: any;
     try {
       dealsRes = await acFetch(`/api/3/deals?filters[group]=${acPipelineId}&limit=${limit}&offset=${offset}&include=contact`);
