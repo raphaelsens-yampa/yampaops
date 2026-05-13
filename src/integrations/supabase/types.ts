@@ -440,6 +440,126 @@ export type Database = {
         }
         Relationships: []
       }
+      chatwoot_contact_match_log: {
+        Row: {
+          chatwoot_contact_id: number
+          confidence: number | null
+          created_at: string
+          id: string
+          matched_contact_id: string | null
+          matched_opportunity_id: string | null
+          method: string
+          notes: string | null
+        }
+        Insert: {
+          chatwoot_contact_id: number
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          matched_contact_id?: string | null
+          matched_opportunity_id?: string | null
+          method: string
+          notes?: string | null
+        }
+        Update: {
+          chatwoot_contact_id?: number
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          matched_contact_id?: string | null
+          matched_opportunity_id?: string | null
+          method?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      chatwoot_contacts: {
+        Row: {
+          additional_attributes: Json
+          additional_emails: string[]
+          additional_phones: string[]
+          chatwoot_account_id: number | null
+          chatwoot_contact_id: number
+          city: string | null
+          company_name: string | null
+          conversations_count: number
+          country_code: string | null
+          created_at: string
+          created_at_chatwoot: string | null
+          custom_attributes: Json
+          email: string | null
+          id: string
+          identifier: string | null
+          inbox_ids: number[]
+          last_activity_at: string | null
+          match_method: string | null
+          matched_at: string | null
+          matched_contact_id: string | null
+          name: string | null
+          phone_digits: string | null
+          phone_e164: string | null
+          raw: Json
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          additional_attributes?: Json
+          additional_emails?: string[]
+          additional_phones?: string[]
+          chatwoot_account_id?: number | null
+          chatwoot_contact_id: number
+          city?: string | null
+          company_name?: string | null
+          conversations_count?: number
+          country_code?: string | null
+          created_at?: string
+          created_at_chatwoot?: string | null
+          custom_attributes?: Json
+          email?: string | null
+          id?: string
+          identifier?: string | null
+          inbox_ids?: number[]
+          last_activity_at?: string | null
+          match_method?: string | null
+          matched_at?: string | null
+          matched_contact_id?: string | null
+          name?: string | null
+          phone_digits?: string | null
+          phone_e164?: string | null
+          raw?: Json
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          additional_attributes?: Json
+          additional_emails?: string[]
+          additional_phones?: string[]
+          chatwoot_account_id?: number | null
+          chatwoot_contact_id?: number
+          city?: string | null
+          company_name?: string | null
+          conversations_count?: number
+          country_code?: string | null
+          created_at?: string
+          created_at_chatwoot?: string | null
+          custom_attributes?: Json
+          email?: string | null
+          id?: string
+          identifier?: string | null
+          inbox_ids?: number[]
+          last_activity_at?: string | null
+          match_method?: string | null
+          matched_at?: string | null
+          matched_contact_id?: string | null
+          name?: string | null
+          phone_digits?: string | null
+          phone_e164?: string | null
+          raw?: Json
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chatwoot_conversation_audits: {
         Row: {
           ai_confidence: number | null
@@ -592,6 +712,7 @@ export type Database = {
           assignee_id: number | null
           assignee_name: string | null
           chatwoot_account_id: number
+          chatwoot_contact_id: number | null
           chatwoot_conversation_id: number
           chatwoot_inbox_id: number | null
           contact_email: string | null
@@ -619,6 +740,7 @@ export type Database = {
           assignee_id?: number | null
           assignee_name?: string | null
           chatwoot_account_id: number
+          chatwoot_contact_id?: number | null
           chatwoot_conversation_id: number
           chatwoot_inbox_id?: number | null
           contact_email?: string | null
@@ -646,6 +768,7 @@ export type Database = {
           assignee_id?: number | null
           assignee_name?: string | null
           chatwoot_account_id?: number
+          chatwoot_contact_id?: number | null
           chatwoot_conversation_id?: number
           chatwoot_inbox_id?: number | null
           contact_email?: string | null
@@ -1838,6 +1961,7 @@ export type Database = {
         Returns: boolean
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
     }
     Enums: {
       activity_type:

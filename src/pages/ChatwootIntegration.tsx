@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   Loader2, RefreshCw, Copy, CheckCircle2, XCircle, AlertCircle, MessageCircle, ExternalLink,
 } from "lucide-react";
+import { ChatwootContactsCard } from "@/components/chatwoot/ChatwootContactsCard";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/chatwoot-webhook`;
@@ -268,6 +269,9 @@ export default function ChatwootIntegration() {
             )}
           </CardContent>
         </Card>
+
+        {/* 5. Contatos do Chatwoot */}
+        <ChatwootContactsCard />
 
         {/* Erros */}
         {errors.length > 0 && (
