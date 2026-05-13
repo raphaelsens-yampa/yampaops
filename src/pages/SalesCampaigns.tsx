@@ -154,6 +154,43 @@ export default function SalesCampaigns() {
     },
   });
 
+  // Realtime: refresh list + aggregates when campaigns/contacts/snapshots change
+  useEffect(() => {
+    const channel = supabase
+      .channel("sales-campaigns-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaigns" }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaigns"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_contacts" }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-aggregates"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_snapshots" }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-aggregates"] });
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-latest-snapshots"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
+  // Latest snapshot per campaign — overrides contact-derived KPIs when present
+  const { data: latestSnapshots = {} } = useQuery({
+    queryKey: ["sales-campaigns-latest-snapshots", campaigns.map((c: any) => c.id).join(",")],
+    enabled: campaigns.length > 0,
+    queryFn: async () => {
+      const ids = campaigns.map((c: any) => c.id);
+      const { data } = await supabase
+        .from("sales_campaign_snapshots")
+        .select("campaign_id, snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
+        .in("campaign_id", ids)
+        .order("snapshot_date", { ascending: false });
+      const map: Record<string, any> = {};
+      for (const s of data || []) {
+        if (!map[s.campaign_id]) map[s.campaign_id] = s;
+      }
+      return map;
+    },
+  });
+
   const filtered = campaigns.filter((c: any) => {
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
     if (filterChannel !== "all" && c.channel !== filterChannel) return false;
