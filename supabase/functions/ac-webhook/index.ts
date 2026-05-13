@@ -156,6 +156,9 @@ async function processContact(payload: any) {
       await logError("contact", acContactId, error.message, contact);
       return { error: error.message };
     }
+    if (contact.phone) {
+      await service.from("opportunities").update({ phone: contact.phone }).eq("contact_id", existing.id).is("phone", null);
+    }
     return { ok: true, updated: existing.id };
   }
 
