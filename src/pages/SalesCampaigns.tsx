@@ -287,7 +287,7 @@ export default function SalesCampaigns() {
                     {isLoading && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
                     {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
                     {filtered.map((c: any) => {
-                      const agg = (aggregates as any)[c.id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
+                      const agg = effective(c.id);
                       const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
                       return (
                         <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
