@@ -410,7 +410,7 @@ const CW_BASE = "https://chatwoot.yampa.com.br";
 const CW_ACCOUNT = 1;
 
 function DebugMatchSection({ rows }: { rows: Row[] }) {
-  const [filter, setFilter] = useState<"all" | "matched" | "unmatched">("all");
+  const [filter, setFilter] = useState<"all" | "matched" | "unmatched" | "phone" | "email">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -418,6 +418,8 @@ function DebugMatchSection({ rows }: { rows: Row[] }) {
     let r = rows;
     if (filter === "matched") r = r.filter((x) => x.match_method);
     if (filter === "unmatched") r = r.filter((x) => !x.match_method);
+    if (filter === "phone") r = r.filter((x) => x.match_method === "phone");
+    if (filter === "email") r = r.filter((x) => x.match_method === "email");
     if (search.trim()) {
       const s = search.trim().toLowerCase();
       r = r.filter((x) =>
@@ -455,6 +457,8 @@ function DebugMatchSection({ rows }: { rows: Row[] }) {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="matched">Apenas com match</SelectItem>
               <SelectItem value="unmatched">Apenas sem match</SelectItem>
+              <SelectItem value="phone">Match por telefone</SelectItem>
+              <SelectItem value="email">Match por email</SelectItem>
             </SelectContent>
           </Select>
           <Input
