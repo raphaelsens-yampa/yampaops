@@ -26,6 +26,7 @@ interface Row {
   origin: string | null; sub_origin: string | null; stage: string;
   opportunity_created_at: string;
   first_contact_at: string | null; hours_to_contact: number | null; bucket: Bucket;
+  match_method: "phone" | "email" | null;
   is_paying: boolean; mrr: number; converted_at: string | null;
 }
 
@@ -35,6 +36,7 @@ interface Report {
   timeseries: { date: string; leads: number; contacted: number; paying: number }[];
   by_consultant: { key: string; label: string; leads: number; contacted: number; in_sla: number; paying: number; mrr: number }[];
   by_origin: { key: string; label: string; leads: number; contacted: number; in_sla: number; paying: number; mrr: number }[];
+  match_stats?: { matched_by_phone: number; matched_by_email: number; cw_phone_keys: number; cw_email_keys: number; contacts_with_phone: number; contacts_with_email: number };
   rows: Row[];
 }
 
