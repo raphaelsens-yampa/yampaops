@@ -362,6 +362,9 @@ function DetailTable({ rows }: { rows: Row[] }) {
                     {r.bucket}
                   </Badge>
                 </TableCell>
+                <TableCell className="text-xs">
+                  {r.match_method === "phone" ? "📱 tel" : r.match_method === "email" ? "✉️ email" : "—"}
+                </TableCell>
                 <TableCell>{r.is_paying ? <Badge className="bg-success">Sim</Badge> : <span className="text-muted-foreground text-xs">Não</span>}</TableCell>
                 <TableCell className="text-right text-xs">{r.mrr ? brl(r.mrr) : "—"}</TableCell>
                 <TableCell className="text-xs">{r.consultant_name || "—"}</TableCell>
