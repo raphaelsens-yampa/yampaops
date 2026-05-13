@@ -749,6 +749,8 @@ Deno.serve(async (req) => {
       eventName === "conversation_status_changed"
     ) {
       result = await handleConversationUpdated(payload);
+    } else if (eventName === "contact_created" || eventName === "contact_updated") {
+      result = await handleContactEvent(payload);
     }
 
     return new Response(JSON.stringify({ ok: true, eventName, result }), {
