@@ -166,6 +166,15 @@ export default function LeadJourney() {
           <MetricCard title="MRR Total" value={k ? brl(k.mrr_total) : "—"} icon={<DollarSign className="h-5 w-5" />} />
         </div>
 
+        {report?.match_stats && (
+          <div className="text-xs text-muted-foreground bg-muted/40 border rounded-md px-3 py-2">
+            <span className="font-medium">Match Chatwoot:</span>{" "}
+            {report.match_stats.matched_by_phone} por telefone · {report.match_stats.matched_by_email} por email (fallback) ·{" "}
+            base: {report.match_stats.contacts_with_phone} contatos com tel, {report.match_stats.contacts_with_email} com email ·{" "}
+            chaves Chatwoot: {report.match_stats.cw_phone_keys} tel / {report.match_stats.cw_email_keys} email
+          </div>
+        )}
+
         {/* Funil */}
         <Card>
           <CardHeader><CardTitle>Funil</CardTitle></CardHeader>
