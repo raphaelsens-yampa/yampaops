@@ -267,6 +267,9 @@ export default function LeadJourney() {
           </CardContent>
         </Card>
 
+        {/* Debug match Chatwoot */}
+        <DebugMatchSection rows={report?.rows || []} />
+
         {isLoading && <p className="text-sm text-muted-foreground text-center">Carregando relatório...</p>}
       </div>
     </Layout>
