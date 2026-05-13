@@ -48,6 +48,7 @@ export default function PipelinePage() {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ phase?: string; pipelineIdx?: number; totalPipelines?: number; currentPipeline?: string; dealsProcessed?: number; dealsTotal?: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [lastSync, setLastSync] = useState<{ ranAt?: string; cancelled?: boolean; totals?: any; progress?: any; results?: any[] } | null>(null);
 
   const handleCancelSync = async () => {
     setCancelling(true);
@@ -57,23 +58,25 @@ export default function PipelinePage() {
       setCancelling(false);
       return;
     }
-    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida no próximo ciclo." });
+    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida em instantes." });
   };
 
-  // Detecta sync já em andamento ao montar
+  // Detecta sync em andamento e carrega último resultado ao montar
   useEffect(() => {
-    let cancelled = false;
+    let cancelledFlag = false;
     const checkSync = async () => {
       const { data } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-      if (cancelled) return;
-      if (data?.sync_status === "running") {
+      if (cancelledFlag) return;
+      setLastSync((data?.sync_log as any) ?? null);
+      if (data?.sync_status === "running" || data?.sync_status === "cancelling") {
         setSyncing(true);
+        setCancelling(data.sync_status === "cancelling");
         setSyncProgress((data.sync_log as any)?.progress ?? null);
         startPolling();
       }
     };
     checkSync();
-    return () => { cancelled = true; };
+    return () => { cancelledFlag = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -88,6 +91,7 @@ export default function PipelinePage() {
         clearInterval(interval);
         setSyncing(false);
         setCancelling(false);
+        setLastSync((settings?.sync_log as any) ?? null);
         await loadData();
         const wasCancelled = (settings?.sync_log as any)?.cancelled || progress?.phase === "cancelled";
         toast({
@@ -342,6 +346,29 @@ export default function PipelinePage() {
               }
               className={!syncProgress?.dealsTotal ? "animate-pulse" : ""}
             />
+          </div>
+        )}
+
+        {!syncing && lastSync?.cancelled && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-xs">
+              <div className="font-medium text-foreground">Sincronização cancelada</div>
+              <div className="text-muted-foreground">
+                {lastSync?.progress?.dealsProcessed ?? lastSync?.totals?.dealsCount ?? 0} oportunidades processadas
+                {lastSync?.progress?.dealsTotal ? ` de ${lastSync.progress.dealsTotal}` : ""}
+                {lastSync?.ranAt && ` — ${format(new Date(lastSync.ranAt), "dd/MM HH:mm")}`}
+              </div>
+            </div>
+            {role === "admin" && (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setLastSync({ ...lastSync, cancelled: false })} className="h-7 text-xs">
+                  Dispensar
+                </Button>
+                <Button variant="default" size="sm" onClick={handleSyncAC} className="h-7 text-xs">
+                  <RefreshCw className="h-3 w-3 mr-1" /> Sincronizar novamente
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
