@@ -1,104 +1,108 @@
-## Subseção: Auditoria de Leads via CSV
+## Objetivo
 
-Nova subseção dentro de **Insights → Jornada do Lead** (aba/sub-rota) que recebe um CSV do Marketing, cruza cada linha com **100% das conversas do Chatwoot** e com pagamentos da Stripe, e gera um painel + relatório pronto para reunião de gerência.
+Hoje só persistimos dados da entidade **Conversa** do Chatwoot (com `sender` embutido). Isso explica o baixo match com a base de Sales: 4.612 conversas mas só 1.719 com email e 1.877 com telefone. A API de Conversas não retorna `additional_attributes` nem identificadores secundários do contato.
 
----
+A solução é tratar **Contatos do Chatwoot como entidade de primeira classe**, espelhando-os numa tabela própria com chaves bem normalizadas, e usar essa tabela como fonte canônica para qualquer match com a base de Sales (CSV audit, oportunidades, jornada do lead).
 
-### 1. Banco de dados (nova migration)
+## Escopo
 
-**`lead_imports`** — cabeçalho de cada importação
-- `id`, `created_at`, `created_by`, `name` (nome dado pelo usuário), `source_file_name`
-- `total_rows`, `matched_chatwoot`, `matched_paying`
-- `column_mapping jsonb` (mapeamento escolhido: email→col0, phone→col2, etc.)
-- `status` (`processing` | `done` | `error`)
+### 1. Nova tabela `chatwoot_contacts`
 
-**`lead_import_rows`** — linhas individuais com resultado calculado
-- `id`, `import_id` (FK), `row_index`
-- Entrada: `lead_email`, `lead_phone_raw`, `lead_phone_normalized`, `lead_name`, `lead_origin`, `lead_campaign`, `lead_created_at`, `extra jsonb`
-- Match Chatwoot: `cw_match_method` (`phone`|`email`|null), `cw_conversation_ids int[]`, `cw_first_contact_at`, `cw_first_agent_name`, `cw_first_agent_email`, `cw_total_conversations`, `cw_total_messages`, `cw_customer_replied bool`, `cw_last_status`, `cw_last_label` (motivo de perda/tabulação)
-- Match Stripe: `stripe_paying bool`, `stripe_converted_at`, `stripe_mrr`, `stripe_plan`
-- Cálculo: `hours_to_first_contact`, `sla_bucket`
+Espelho fiel do contato do Chatwoot, indexado para match rápido.
 
-RLS: admin + tatico podem ler/escrever; seller não vê.
+Colunas-chave:
+- `chatwoot_contact_id` (bigint, único) — id na origem
+- `chatwoot_account_id`, `identifier` (CRM externo)
+- `name`, `email` (lower), `phone_e164`, `phone_digits` (somente dígitos, indexado)
+- `additional_emails text[]`, `additional_phones text[]` (extraídos de `contact_inboxes` + `additional_attributes`) — indexados via GIN
+- `company_name`, `city`, `country_code`
+- `custom_attributes jsonb`, `additional_attributes jsonb`
+- `inbox_ids bigint[]`, `conversations_count int`, `last_activity_at`, `created_at_chatwoot`
+- `raw jsonb` (payload completo para reprocessamento futuro)
+- `synced_at`, `created_at`, `updated_at`
+- FK lógica: `matched_contact_id uuid` (link para `public.contacts` quando casamos com a base interna), `matched_at`
 
----
+Índices: `(lower(email))`, `(phone_digits)`, GIN em `additional_emails`, GIN em `additional_phones`, GIN em `custom_attributes`.
 
-### 2. Edge function `lead-csv-audit`
+RLS: admin gerencia; tatico vê.
 
-Recebe `{ import_id, rows: [{email, phone, created_at, name?, origin?, campaign?, extra?}] }`.
+### 2. Nova tabela `chatwoot_contact_match_log`
+Auditoria das tentativas de match (por que casou ou não casou): `chatwoot_contact_id`, `method` (`email|email_secundario|phone|identifier|manual|none`), `matched_contact_id`, `matched_opportunity_id`, `confidence`, `notes`, `created_at`. Útil para debug igual ao `DebugMatchSection` que já existe.
 
-Para cada lote (em chunks de 500):
-1. Normaliza email/phone.
-2. Busca conversas Chatwoot com match por **telefone primeiro, email fallback** (mesma lógica do `lead-journey-report`), mas considera **qualquer conversa antes ou depois** do `created_at`.
-3. Para cada lead resolve:
-   - `cw_first_contact_at` = menor `first_contact_message_at`/`opened_at` entre as conversas casadas.
-   - `cw_first_agent` = `assignee_name`/`assignee_email` da conversa de menor timestamp.
-   - `cw_total_messages` somado, `cw_customer_replied` true se existir msg de contato.
-   - `cw_last_label` = última label/`tabulacao_atendimento`.
-4. Cruza com `stripe_conversions` por `customer_email` (e por `matched_opportunity_id` se houver opp ligada ao contato).
-5. Insere/atualiza `lead_import_rows`, atualiza contadores em `lead_imports`.
+### 3. Edge function `chatwoot-contacts-backfill`
 
-Também expõe `GET ?import_id=...` para devolver o relatório agregado (KPIs + buckets + breakdowns + linhas).
+Pagina `GET /api/v1/accounts/{id}/contacts?page=N&include_contact_inboxes=true` (até ~25k contatos hoje, ~1.000 páginas de 25). Suporta:
+- `body: { page_start, max_pages, since }` para rodar em chunks via cron.
+- Extrai e normaliza emails/phones secundários de `contact_inboxes[].source_id` e `additional_attributes`.
+- Upsert em `chatwoot_contacts` por `chatwoot_contact_id`.
+- Roda matching contra `public.contacts` (email primário → emails secundários → telefone normalizado → `identifier`) e grava no `chatwoot_contact_match_log`.
 
----
+### 4. Edge function `chatwoot-contacts-sync-incremental`
 
-### 3. Frontend — nova aba na página Jornada do Lead
+Roda a cada N minutos via cron. Usa `last_activity_after` (timestamp) para puxar só o que mudou desde `max(synced_at)`.
 
-`src/pages/LeadJourney.tsx` ganha um `<Tabs>` no topo:
-- **Aba 1: Pipeline AC** (relatório atual existente, sem alteração)
-- **Aba 2: Auditoria via CSV** (nova)
+### 5. Atualizar `chatwoot-webhook`
 
-#### Componentes da aba CSV
+Adicionar handlers para `contact_created` e `contact_updated` → upsert direto em `chatwoot_contacts` + reprocessa match. Hoje o webhook só trata conversas/mensagens.
 
-**a) Histórico de importações** (`lead_imports`): lista compacta com nome, data, total, % contactados, % pagantes. Botão para reabrir relatório de uma importação anterior.
+### 6. Reaproveitar nas funções existentes
 
-**b) Wizard de upload (3 passos)**
-1. Drop/seleção do CSV (parse client-side com PapaParse).
-2. **Mapeamento de colunas**: detecta cabeçalhos automaticamente, sugere via heurística (`email`/`mail`, `phone`/`telefone`/`whats`, `data`/`created`/`criado`). Usuário ajusta selects para email/phone/created_at/name/origin/campaign. Preview das 5 primeiras linhas.
-3. Validação: data parseável (ISO ou `dd/mm/yyyy`), pelo menos email **ou** phone por linha. Mostra contagem de linhas válidas/descartadas. Botão "Processar".
+- `chatwoot-backfill` (conversas): em vez de só guardar `sender` inline, guarda `chatwoot_contact_id` na conversa (nova coluna `chatwoot_contact_id bigint` em `chatwoot_conversations`) e busca dados do contato em `chatwoot_contacts`. Isso enriquece automaticamente as 2.893 conversas hoje sem email.
+- `lead-csv-audit` e `lead-journey-report`: mudar a query de match para olhar primeiro `chatwoot_contacts` (com emails/phones secundários) antes de cair em `chatwoot_conversations`. Aumenta drasticamente o hit-rate.
 
-**c) Painel de resultado** (após processamento ou ao reabrir importação)
+### 7. UI — Seção "Contatos Chatwoot" em `/integrations/chatwoot`
 
-KPIs no topo:
-- Leads recebidos (total CSV)
-- Abordados pelo time (com 1ª msg do agente)
-- Responderam (cliente respondeu)
-- Pagantes Stripe + MRR total
-- SLA médio até 1º contato
+Nova aba/card mostrando:
+- Total de contatos sincronizados, % com email, % com telefone, % casados com base interna.
+- Botão "Sincronizar agora" (chama backfill).
+- Botão "Sync incremental" (chama incremental).
+- Tabela paginada/filtro por: status do match (casado/não casado), inbox, com/sem email, com/sem telefone.
+- Linha expansível mostrando: dados crus, emails/phones secundários, motivo do match (do log), e botão "Forçar match com contato X" (input de busca).
 
-Funil visual 4 etapas: Recebidos → Abordados → Responderam → Pagantes (com taxa entre etapas).
+Tudo em frontend React (`src/pages/ChatwootIntegration.tsx` ou novo `ChatwootContacts.tsx` referenciado lá).
 
-Gráficos:
-- Distribuição SLA buckets (`<24h`, `1-3d`, `4-7d`, `>7d`, `Sem contato`)
-- Série temporal por dia (recebidos vs abordados vs pagantes)
+## Detalhes técnicos
 
-Breakdowns (tabs):
-- **Por consultor (1º a atender)**: leads atendidos, taxa de resposta, taxa de conversão, MRR.
-- **Por origem/campanha** (do CSV): mesmas métricas, mostra qualidade do lead que o Marketing entrega.
-- **Qualidade do lead**: ranking de origens por taxa de resposta + taxa de conversão.
+**Normalização de telefone**: função SQL `public.normalize_phone_digits(text) returns text` (apenas dígitos, descarta < 8). Usada em trigger `BEFORE INSERT/UPDATE` para preencher `phone_digits` em `chatwoot_contacts` e idealmente também em `public.contacts` (migration de uma vez nos dados existentes).
 
-Tabela detalhada (paginada, exportável CSV):
-- Lead | Email | Tel | Origem | Criado | 1º contato | Atendente | Msgs | Cliente respondeu? | Pagante? | MRR | Tabulação
-- Filtros: status, consultor, origem, bucket SLA, "só sem match", "só pagantes".
+**Match algorithm (ordem)**:
+```text
+1. lower(email) == lower(contact.email)
+2. email IN additional_emails
+3. phone_digits == contact.phone_digits  (sufixo de 10/11 dígitos para BR)
+4. identifier == contact.id::text OU custom_attributes->>'crm_id'
+5. nenhum → matched_contact_id = NULL, log "none"
+```
 
-Seção de **debug** (igual à existente da aba Pipeline): expande lead e mostra IDs das conversas Chatwoot vinculadas + motivo do match.
+**Volume**: 25k contatos × ~2KB/raw ≈ 50MB. Pagina de 25 → ~1.000 chamadas. Backfill inicial roda em ~10 chunks de 100 páginas (timeout edge ≈ 150s por chunk).
 
-Botão **"Exportar relatório completo"** (CSV) com todos os campos.
+**Cron**: novo job a cada 15min chamando `chatwoot-contacts-sync-incremental` com `since=now()-1h` para tolerância.
 
----
+## Arquivos
 
-### Detalhes técnicos
+Migrations:
+- `create_chatwoot_contacts.sql` — tabela + índices + RLS + função `normalize_phone_digits` + trigger.
+- `add_chatwoot_contact_id_to_conversations.sql`.
+- `create_chatwoot_contact_match_log.sql`.
 
-- Parsing CSV no cliente com `papaparse` (já leve, ~45kb).
-- Edge function processa em background mas síncrona até 500 linhas; acima disso processa em chunks com progresso opcional (versão 1: limitar a 5.000 linhas/CSV e aguardar).
-- Lógica de match reusa helpers `normPhone`/`normEmail` do `lead-journey-report` (duplicar para manter functions independentes — não compartilham módulos).
-- Match telefone: pré-carrega todas conversas com `contact_phone not null` no Chatwoot e indexa por telefone normalizado (mesmo padrão da função existente).
-- Buckets SLA: `<24h`, `1-3d`, `4-7d`, `>7d`, `Sem contato` (consistente com aba existente).
-- Sidebar: nenhum item novo — entra via aba dentro de `/insights/lead-journey`.
+Edge functions (novas):
+- `supabase/functions/chatwoot-contacts-backfill/index.ts`
+- `supabase/functions/chatwoot-contacts-sync-incremental/index.ts`
 
-### Arquivos afetados
-- **Migration**: cria `lead_imports`, `lead_import_rows` + RLS.
-- **Nova edge function**: `supabase/functions/lead-csv-audit/index.ts`.
-- **Edit**: `src/pages/LeadJourney.tsx` — envolve conteúdo atual em `<Tabs>` e adiciona aba "Auditoria via CSV".
-- **Novos componentes**: `src/components/lead-journey/CsvAuditTab.tsx`, `CsvUploadWizard.tsx`, `CsvAuditReport.tsx`, `ImportsHistory.tsx`.
-- **Dependência nova**: `papaparse` + `@types/papaparse`.
+Edge functions (editadas):
+- `supabase/functions/chatwoot-webhook/index.ts` — handlers `contact_*`.
+- `supabase/functions/chatwoot-backfill/index.ts` — gravar `chatwoot_contact_id`.
+- `supabase/functions/lead-csv-audit/index.ts` — usar `chatwoot_contacts` no match.
+- `supabase/functions/lead-journey-report/index.ts` — idem.
+
+Frontend:
+- `src/pages/ChatwootContacts.tsx` (nova aba).
+- `src/pages/ChatwootIntegration.tsx` — adicionar link/aba para contatos.
+
+## Entrega faseada sugerida
+
+1. **Fase 1 (foundation)**: migrations + `chatwoot-contacts-backfill` + UI básica de status. Roda backfill manual.
+2. **Fase 2 (live)**: webhook + cron incremental + coluna em conversas.
+3. **Fase 3 (match v2)**: refatorar `lead-csv-audit` e `lead-journey-report` para usar a nova fonte; UI de match manual.
+
+Posso começar pela Fase 1 assim que aprovar o plano.
