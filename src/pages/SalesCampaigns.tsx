@@ -198,10 +198,24 @@ export default function SalesCampaigns() {
     return true;
   });
 
+  // Effective aggregate per campaign: prefer latest snapshot for funnel KPIs when available
+  const effective = (id: string) => {
+    const a = (aggregates as any)[id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
+    const s = (latestSnapshots as any)[id];
+    if (!s) return a;
+    return {
+      base: a.base,
+      contacted: Math.max(a.contacted, Number(s.contacted) || 0),
+      replies: Math.max(a.replies, Number(s.replies) || 0),
+      conversions: Math.max(a.conversions, Number(s.conversions) || 0),
+      mrr: Math.max(a.mrr, Number(s.mrr_generated) || 0),
+    };
+  };
+
   const totalActive = campaigns.filter((c: any) => c.status === "ativa").length;
-  const totalBase = Object.values(aggregates).reduce((a, b: any) => a + b.base, 0);
-  const totalConv = Object.values(aggregates).reduce((a, b: any) => a + b.conversions, 0);
-  const totalMrr = Object.values(aggregates).reduce((a, b: any) => a + b.mrr, 0);
+  const totalBase = campaigns.reduce((sum: number, c: any) => sum + effective(c.id).base, 0);
+  const totalConv = campaigns.reduce((sum: number, c: any) => sum + effective(c.id).conversions, 0);
+  const totalMrr = campaigns.reduce((sum: number, c: any) => sum + effective(c.id).mrr, 0);
 
   return (
     <ManagerOnly>
