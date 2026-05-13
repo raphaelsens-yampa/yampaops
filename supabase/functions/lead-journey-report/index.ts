@@ -114,6 +114,82 @@ Deno.serve(async (req) => {
     const firstContactByEmail = new Map<string, CwInfo>();
     const firstContactByPhone = new Map<string, CwInfo>();
 
+    function pushConv(map: Map<string, CwInfo>, key: string, r: any) {
+      const ts = r.first_contact_message_at || r.opened_at;
+      if (!ts) return;
+      const conv = {
+        id: r.chatwoot_conversation_id,
+        contact_email: r.contact_email,
+        contact_phone: r.contact_phone,
+        first_contact_message_at: r.first_contact_message_at,
+        opened_at: r.opened_at,
+      };
+      const cur = map.get(key);
+      if (!cur) {
+        map.set(key, { ts, convs: [conv] });
+      } else {
+        if (!cur.convs.some((c) => c.id === conv.id)) cur.convs.push(conv);
+        if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
+      }
+    }
+
+    const cwSelect = "chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at, chatwoot_contact_id";
+
+    // ---- Enrich via chatwoot_contacts ----
+    const cwContactIdsByEmail = new Map<string, Set<number>>();
+    const cwContactIdsByPhone = new Map<string, Set<number>>();
+    const allCwContactIds = new Set<number>();
+    {
+      const emailSet = new Set(emails);
+      const phoneSet = new Set(phones);
+      const { data: cwContacts } = await admin
+        .from("chatwoot_contacts")
+        .select("chatwoot_contact_id, email, phone_digits, additional_emails, additional_phones")
+        .limit(50000);
+      for (const c of cwContacts || []) {
+        const cid = Number((c as any).chatwoot_contact_id);
+        const allEmails = [(c as any).email, ...((c as any).additional_emails || [])].filter(Boolean) as string[];
+        const allPhones = [(c as any).phone_digits, ...((c as any).additional_phones || [])].filter(Boolean) as string[];
+        for (const e of allEmails) {
+          const k = String(e).toLowerCase();
+          if (!emailSet.has(k)) continue;
+          const s = cwContactIdsByEmail.get(k) || new Set<number>();
+          s.add(cid); cwContactIdsByEmail.set(k, s); allCwContactIds.add(cid);
+        }
+        for (const p of allPhones) {
+          if (!phoneSet.has(p)) continue;
+          const s = cwContactIdsByPhone.get(p) || new Set<number>();
+          s.add(cid); cwContactIdsByPhone.set(p, s); allCwContactIds.add(cid);
+        }
+      }
+    }
+    const convsByContactId = new Map<number, any[]>();
+    if (allCwContactIds.size) {
+      const ids = Array.from(allCwContactIds);
+      const CHUNK_ID = 500;
+      for (let i = 0; i < ids.length; i += CHUNK_ID) {
+        const chunk = ids.slice(i, i + CHUNK_ID);
+        const { data } = await admin
+          .from("chatwoot_conversations")
+          .select(cwSelect)
+          .in("chatwoot_contact_id", chunk)
+          .limit(50000);
+        for (const r of data || []) {
+          const cid = Number((r as any).chatwoot_contact_id);
+          if (!cid) continue;
+          const arr = convsByContactId.get(cid) || [];
+          arr.push(r); convsByContactId.set(cid, arr);
+        }
+      }
+    }
+    for (const [k, ids] of cwContactIdsByEmail) {
+      for (const id of ids) for (const r of convsByContactId.get(id) || []) pushConv(firstContactByEmail, k, r);
+    }
+    for (const [k, ids] of cwContactIdsByPhone) {
+      for (const id of ids) for (const r of convsByContactId.get(id) || []) pushConv(firstContactByPhone, k, r);
+    }
+
+    // ---- Legacy fallback: inline contact_email/contact_phone in conversations ----
     async function fetchCw(field: "contact_email" | "contact_phone", values: string[]) {
       if (!values.length) return [] as any[];
       const out: any[] = [];
@@ -122,7 +198,7 @@ Deno.serve(async (req) => {
         const chunk = values.slice(i, i + CHUNK);
         const { data } = await admin
           .from("chatwoot_conversations")
-          .select(`chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at`)
+          .select(cwSelect)
           .in(field, chunk)
           .limit(20000);
         if (data) out.push(...data);
@@ -133,39 +209,21 @@ Deno.serve(async (req) => {
     const cwByEmail = await fetchCw("contact_email", emails);
     for (const r of cwByEmail) {
       const k = normEmail(r.contact_email);
-      const ts = r.first_contact_message_at || r.opened_at;
-      if (!k || !ts) continue;
-      const conv = { id: r.chatwoot_conversation_id, contact_email: r.contact_email, contact_phone: r.contact_phone, first_contact_message_at: r.first_contact_message_at, opened_at: r.opened_at };
-      const cur = firstContactByEmail.get(k);
-      if (!cur) {
-        firstContactByEmail.set(k, { ts, convs: [conv] });
-      } else {
-        cur.convs.push(conv);
-        if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
-      }
+      if (!k) continue;
+      pushConv(firstContactByEmail, k, r);
     }
 
-    // For phone we need to compare normalized; fetch by raw and normalize client side
     const phoneSet = new Set(phones);
     if (phones.length) {
       const { data: cwAll } = await admin
         .from("chatwoot_conversations")
-        .select("chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at")
+        .select(cwSelect)
         .not("contact_phone", "is", null)
         .limit(50000);
       for (const r of cwAll || []) {
         const np = normPhone(r.contact_phone);
         if (!np || !phoneSet.has(np)) continue;
-        const ts = r.first_contact_message_at || r.opened_at;
-        if (!ts) continue;
-        const conv = { id: r.chatwoot_conversation_id, contact_email: r.contact_email, contact_phone: r.contact_phone, first_contact_message_at: r.first_contact_message_at, opened_at: r.opened_at };
-        const cur = firstContactByPhone.get(np);
-        if (!cur) {
-          firstContactByPhone.set(np, { ts, convs: [conv] });
-        } else {
-          cur.convs.push(conv);
-          if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
-        }
+        pushConv(firstContactByPhone, np, r);
       }
     }
 

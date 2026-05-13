@@ -166,8 +166,73 @@ Deno.serve(async (req) => {
       const cwByPhone = new Map<string, Conv[]>();
 
       const cwSelect =
-        "chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at, last_message_at, assignee_name, assignee_email, status, labels, tabulacao_atendimento";
+        "chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at, last_message_at, assignee_name, assignee_email, status, labels, tabulacao_atendimento, chatwoot_contact_id";
 
+      // ---- Enrich via chatwoot_contacts (primary + additional emails/phones) ----
+      // Build maps lead-key -> cw_contact_ids
+      const cwContactIdsByEmail = new Map<string, Set<number>>();
+      const cwContactIdsByPhone = new Map<string, Set<number>>();
+      const allCwContactIds = new Set<number>();
+      {
+        const emailSet = new Set(emails);
+        const phoneSet = new Set(phones);
+        const { data: cwContacts } = await admin
+          .from("chatwoot_contacts")
+          .select("chatwoot_contact_id, email, phone_digits, additional_emails, additional_phones")
+          .limit(50000);
+        for (const c of cwContacts || []) {
+          const cid = Number((c as any).chatwoot_contact_id);
+          const allEmails = [(c as any).email, ...((c as any).additional_emails || [])].filter(Boolean) as string[];
+          const allPhones = [(c as any).phone_digits, ...((c as any).additional_phones || [])].filter(Boolean) as string[];
+          for (const e of allEmails) {
+            const k = String(e).toLowerCase();
+            if (!emailSet.has(k)) continue;
+            const s = cwContactIdsByEmail.get(k) || new Set<number>();
+            s.add(cid); cwContactIdsByEmail.set(k, s);
+            allCwContactIds.add(cid);
+          }
+          for (const p of allPhones) {
+            if (!phoneSet.has(p)) continue;
+            const s = cwContactIdsByPhone.get(p) || new Set<number>();
+            s.add(cid); cwContactIdsByPhone.set(p, s);
+            allCwContactIds.add(cid);
+          }
+        }
+      }
+
+      // Fetch conversations linked via chatwoot_contact_id
+      const cwConvByContactId = new Map<number, Conv[]>();
+      if (allCwContactIds.size) {
+        const ids = Array.from(allCwContactIds);
+        const CHUNK_ID = 500;
+        for (let i = 0; i < ids.length; i += CHUNK_ID) {
+          const chunk = ids.slice(i, i + CHUNK_ID);
+          const { data } = await admin
+            .from("chatwoot_conversations")
+            .select(cwSelect)
+            .in("chatwoot_contact_id", chunk)
+            .limit(50000);
+          for (const r of (data || []) as any as Conv[]) {
+            const cid = Number((r as any).chatwoot_contact_id);
+            if (!cid) continue;
+            const arr = cwConvByContactId.get(cid) || [];
+            arr.push(r); cwConvByContactId.set(cid, arr);
+          }
+        }
+      }
+      // Hydrate cwByEmail / cwByPhone from contacts
+      for (const [k, ids] of cwContactIdsByEmail) {
+        const arr = cwByEmail.get(k) || [];
+        for (const id of ids) arr.push(...(cwConvByContactId.get(id) || []));
+        if (arr.length) cwByEmail.set(k, arr);
+      }
+      for (const [k, ids] of cwContactIdsByPhone) {
+        const arr = cwByPhone.get(k) || [];
+        for (const id of ids) arr.push(...(cwConvByContactId.get(id) || []));
+        if (arr.length) cwByPhone.set(k, arr);
+      }
+
+      // ---- Fallback: legacy match via inline contact_email / contact_phone in conversations ----
       // by email (chunked .in)
       const CHUNK = 200;
       for (let i = 0; i < emails.length; i += CHUNK) {
@@ -201,6 +266,24 @@ Deno.serve(async (req) => {
           arr.push(r);
           cwByPhone.set(np, arr);
         }
+      }
+
+      // Deduplicate conversations per key
+      for (const [k, arr] of cwByEmail) {
+        const seen = new Set<number>();
+        cwByEmail.set(k, arr.filter((c) => {
+          const id = c.chatwoot_conversation_id;
+          if (seen.has(id)) return false;
+          seen.add(id); return true;
+        }));
+      }
+      for (const [k, arr] of cwByPhone) {
+        const seen = new Set<number>();
+        cwByPhone.set(k, arr.filter((c) => {
+          const id = c.chatwoot_conversation_id;
+          if (seen.has(id)) return false;
+          seen.add(id); return true;
+        }));
       }
 
       // ------ Stripe by email ------

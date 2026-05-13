@@ -123,7 +123,7 @@ type ResolvedContext = {
   phone: string | null;
 };
 
-type ResolvedContextX = ResolvedContext & { name: string | null };
+type ResolvedContextX = ResolvedContext & { name: string | null; chatwootContactId: number | null };
 
 async function resolveContext(conversation: any): Promise<ResolvedContextX> {
   const sender =
@@ -134,10 +134,152 @@ async function resolveContext(conversation: any): Promise<ResolvedContextX> {
   const email = (sender.email || "").trim().toLowerCase() || null;
   const phone = sender.phone_number || sender.phone || null;
   const name = sender.name || sender.full_name || null;
+  const chatwootContactId = sender?.id ? Number(sender.id) : null;
+
+  // Best-effort upsert into chatwoot_contacts mirror (no contact_inboxes here)
+  if (chatwootContactId) {
+    await upsertChatwootContactLite(sender, Number(conversation?.account_id || 0));
+  }
 
   const contactId = await findOrCreateContact({ email, phone, name });
   const opportunityId = contactId ? await findActiveOpportunity(contactId) : null;
-  return { contactId, opportunityId, email, phone, name };
+  return { contactId, opportunityId, email, phone, name, chatwootContactId };
+}
+
+function normPhoneFull(p?: string | null): string | null {
+  if (!p) return null;
+  const d = String(p).replace(/\D/g, "");
+  if (d.length < 8) return null;
+  return d.length > 11 ? d.slice(-11) : d;
+}
+
+async function upsertChatwootContactLite(sender: any, accountId: number) {
+  const cwId = sender?.id ? Number(sender.id) : null;
+  if (!cwId) return;
+  const email = (sender.email || "").trim().toLowerCase() || null;
+  const phoneE164 = sender.phone_number || sender.phone || null;
+  const phoneDigits = normPhoneFull(phoneE164);
+  // Don't overwrite richer data from backfill — only insert if missing
+  const { data: existing } = await service
+    .from("chatwoot_contacts")
+    .select("chatwoot_contact_id")
+    .eq("chatwoot_contact_id", cwId)
+    .maybeSingle();
+  if (existing) {
+    // Light refresh only of name/email/phone if changed
+    await service.from("chatwoot_contacts").update({
+      name: sender.name || sender.full_name || null,
+      email,
+      phone_e164: phoneE164,
+      phone_digits: phoneDigits,
+      synced_at: new Date().toISOString(),
+    }).eq("chatwoot_contact_id", cwId);
+    return;
+  }
+  await service.from("chatwoot_contacts").insert({
+    chatwoot_contact_id: cwId,
+    chatwoot_account_id: accountId || null,
+    name: sender.name || sender.full_name || null,
+    email,
+    phone_e164: phoneE164,
+    phone_digits: phoneDigits,
+    raw: sender,
+  });
+}
+
+async function upsertChatwootContactFull(contact: any, accountId: number) {
+  const cwId = contact?.id ? Number(contact.id) : null;
+  if (!cwId) return;
+  const email = (contact.email || "").trim().toLowerCase() || null;
+  const phoneE164 = contact.phone_number || null;
+  const phoneDigits = normPhoneFull(phoneE164);
+
+  // Extract additional emails/phones from contact_inboxes + additional_attributes
+  const addlEmails = new Set<string>();
+  const addlPhones = new Set<string>();
+  const inboxIds = new Set<number>();
+  for (const ci of (contact?.contact_inboxes || [])) {
+    if (ci?.inbox?.id) inboxIds.add(Number(ci.inbox.id));
+    const sid = ci?.source_id;
+    if (!sid) continue;
+    const s = String(sid);
+    if (s.includes("@")) addlEmails.add(s.toLowerCase());
+    else { const p = normPhoneFull(s); if (p) addlPhones.add(p); }
+  }
+  const aa = contact?.additional_attributes || {};
+  for (const e of [aa.email_2, aa.secondary_email, aa.work_email, ...(aa.emails || [])].filter(Boolean)) {
+    addlEmails.add(String(e).toLowerCase());
+  }
+  for (const p of [aa.phone_2, aa.secondary_phone, aa.whatsapp, ...(aa.phones || [])].filter(Boolean)) {
+    const n = normPhoneFull(p); if (n) addlPhones.add(n);
+  }
+  if (email) addlEmails.delete(email);
+  if (phoneDigits) addlPhones.delete(phoneDigits);
+
+  // Match against internal contacts (email -> phone -> identifier)
+  let matchedContactId: string | null = null;
+  let matchMethod = "none";
+  let matchNotes: string | null = null;
+  if (email) {
+    const { data } = await service.from("contacts").select("id").ilike("email", email).maybeSingle();
+    if (data?.id) { matchedContactId = data.id; matchMethod = "email"; }
+  }
+  if (!matchedContactId) {
+    for (const e of addlEmails) {
+      const { data } = await service.from("contacts").select("id").ilike("email", e).maybeSingle();
+      if (data?.id) { matchedContactId = data.id; matchMethod = "email_secundario"; matchNotes = e; break; }
+    }
+  }
+  if (!matchedContactId && phoneDigits) {
+    const suffix = phoneDigits.slice(-8);
+    const { data } = await service.from("contacts").select("id, phone").ilike("phone", `%${suffix}%`).limit(5);
+    const exact = (data || []).find((c: any) => normPhoneFull(c.phone) === phoneDigits);
+    if (exact?.id) { matchedContactId = exact.id; matchMethod = "phone"; matchNotes = phoneDigits; }
+  }
+  if (!matchedContactId && contact.identifier) {
+    const { data } = await service.from("contacts").select("id").eq("ac_id", String(contact.identifier)).maybeSingle();
+    if (data?.id) { matchedContactId = data.id; matchMethod = "identifier"; matchNotes = String(contact.identifier); }
+  }
+
+  await service.from("chatwoot_contacts").upsert({
+    chatwoot_contact_id: cwId,
+    chatwoot_account_id: accountId || null,
+    identifier: contact.identifier ? String(contact.identifier) : null,
+    name: contact.name || null,
+    email,
+    phone_e164: phoneE164,
+    phone_digits: phoneDigits,
+    additional_emails: Array.from(addlEmails),
+    additional_phones: Array.from(addlPhones),
+    company_name: contact.additional_attributes?.company_name || contact.company_name || null,
+    city: contact.additional_attributes?.city || null,
+    country_code: contact.additional_attributes?.country_code || null,
+    custom_attributes: contact.custom_attributes || {},
+    additional_attributes: contact.additional_attributes || {},
+    inbox_ids: Array.from(inboxIds),
+    conversations_count: contact.conversations_count || 0,
+    last_activity_at: tsToIso(contact.last_activity_at),
+    created_at_chatwoot: tsToIso(contact.created_at),
+    raw: contact,
+    matched_contact_id: matchedContactId,
+    match_method: matchMethod,
+    matched_at: matchedContactId ? new Date().toISOString() : null,
+    synced_at: new Date().toISOString(),
+  }, { onConflict: "chatwoot_contact_id" });
+
+  await service.from("chatwoot_contact_match_log").insert({
+    chatwoot_contact_id: cwId,
+    method: matchMethod,
+    matched_contact_id: matchedContactId,
+    notes: matchNotes,
+  });
+}
+
+async function handleContactEvent(payload: any) {
+  const contact = payload.contact || payload;
+  const accountId = Number(payload.account?.id || contact?.account_id || 0);
+  await upsertChatwootContactFull(contact, accountId);
+  return { ok: true };
 }
 
 function tsToIso(v: any): string | null {
@@ -299,6 +441,7 @@ async function upsertConversation(
   const row: any = {
     chatwoot_conversation_id: convId,
     chatwoot_account_id: accountId,
+    chatwoot_contact_id: ctx.chatwootContactId,
     chatwoot_inbox_id: inboxId,
     inbox_name: inboxName || existing?.inbox_name || null,
     status,
@@ -606,6 +749,8 @@ Deno.serve(async (req) => {
       eventName === "conversation_status_changed"
     ) {
       result = await handleConversationUpdated(payload);
+    } else if (eventName === "contact_created" || eventName === "contact_updated") {
+      result = await handleContactEvent(payload);
     }
 
     return new Response(JSON.stringify({ ok: true, eventName, result }), {

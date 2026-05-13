@@ -7,9 +7,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Users, Search } from "lucide-react";
+import { Loader2, RefreshCw, Users, Search, Link2, X } from "lucide-react";
 
 type Stats = {
   total: number;
@@ -226,13 +227,14 @@ export function ChatwootContactsCard() {
                 <TableHead className="text-center">Conv</TableHead>
                 <TableHead>Match</TableHead>
                 <TableHead>Última atividade</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">Carregando...</TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Nenhum contato. Rode o sync.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">Nenhum contato. Rode o sync.</TableCell></TableRow>
               ) : (
                 rows.map((r) => (
                   <TableRow key={r.chatwoot_contact_id}>
@@ -254,6 +256,9 @@ export function ChatwootContactsCard() {
                     <TableCell className="text-xs text-muted-foreground">
                       {r.last_activity_at ? new Date(r.last_activity_at).toLocaleString("pt-BR") : "—"}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <ManualMatchDialog row={r} onChanged={() => { loadStats(); loadRows(); }} />
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -271,5 +276,114 @@ function Kpi({ label, value }: { label: string; value: any }) {
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-xl font-semibold mt-1">{value}</div>
     </div>
+  );
+}
+
+function ManualMatchDialog({ row, onChanged }: { row: Row; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<Array<{ id: string; name: string; email: string | null; phone: string | null }>>([]);
+  const [busy, setBusy] = useState(false);
+
+  async function doSearch() {
+    const s = search.trim();
+    if (!s) return;
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, name, email, phone")
+      .or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`)
+      .limit(20);
+    setResults((data as any) || []);
+  }
+
+  async function link(contactId: string) {
+    setBusy(true);
+    const { error } = await supabase
+      .from("chatwoot_contacts")
+      .update({
+        matched_contact_id: contactId,
+        match_method: "manual",
+        matched_at: new Date().toISOString(),
+      })
+      .eq("chatwoot_contact_id", row.chatwoot_contact_id);
+    if (error) { toast.error(error.message); setBusy(false); return; }
+    await supabase.from("chatwoot_contact_match_log").insert({
+      chatwoot_contact_id: row.chatwoot_contact_id,
+      method: "manual",
+      matched_contact_id: contactId,
+      notes: "Match manual via UI",
+    });
+    toast.success("Match aplicado");
+    setBusy(false);
+    setOpen(false);
+    onChanged();
+  }
+
+  async function unlink() {
+    setBusy(true);
+    const { error } = await supabase
+      .from("chatwoot_contacts")
+      .update({ matched_contact_id: null, match_method: "none", matched_at: null })
+      .eq("chatwoot_contact_id", row.chatwoot_contact_id);
+    if (error) { toast.error(error.message); setBusy(false); return; }
+    toast.success("Match removido");
+    setBusy(false);
+    setOpen(false);
+    onChanged();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" className="h-7 px-2">
+          <Link2 className="h-3 w-3 mr-1" />
+          {row.matched_contact_id ? "Trocar" : "Casar"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Casar contato Chatwoot manualmente</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="text-xs text-muted-foreground">
+            CW #{row.chatwoot_contact_id} · {row.name || "—"} · {row.email || row.phone_e164 || "—"}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Buscar contato interno por nome, email ou telefone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && doSearch()}
+            />
+            <Button size="sm" onClick={doSearch}><Search className="h-4 w-4" /></Button>
+          </div>
+          <div className="max-h-80 overflow-auto border rounded">
+            {results.length === 0 ? (
+              <div className="p-4 text-center text-xs text-muted-foreground">Sem resultados</div>
+            ) : (
+              <Table>
+                <TableBody>
+                  {results.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="text-sm">{c.name}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{c.email || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{c.phone || "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" disabled={busy} onClick={() => link(c.id)}>Vincular</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          {row.matched_contact_id && (
+            <Button size="sm" variant="outline" disabled={busy} onClick={unlink}>
+              <X className="h-3 w-3 mr-1" /> Remover match atual
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
