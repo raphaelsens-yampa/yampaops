@@ -210,6 +210,8 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force
 
     if (deals.length < limit) break;
     offset += limit;
+    const total = Number(dealsRes?.meta?.total ?? 0);
+    if (onProgress) await onProgress({ dealsProcessed: dealsCount + skipped, dealsTotal: total, currentPipeline: acPipelineTitle });
   }
 
   // 4. Notes sync skipped on initial pull (too expensive on big pipelines, comes via webhook)
