@@ -193,17 +193,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6) Build rows
+    // 6) Build rows — priority: phone first, then email fallback
+    let matchedByPhone = 0;
+    let matchedByEmail = 0;
     const rows = (opps || []).map((o: any) => {
       const c = o.contact_id ? contactsMap.get(o.contact_id) : null;
       const email = c?.email || null;
       const phone = c?.phone || null;
       let firstContact: string | null = null;
-      if (email && firstContactByEmail.has(email)) firstContact = firstContactByEmail.get(email)!;
+      let matchMethod: "phone" | "email" | null = null;
+
       if (phone && firstContactByPhone.has(phone)) {
-        const p = firstContactByPhone.get(phone)!;
-        if (!firstContact || new Date(p) < new Date(firstContact)) firstContact = p;
+        firstContact = firstContactByPhone.get(phone)!;
+        matchMethod = "phone";
+        matchedByPhone += 1;
+      } else if (email && firstContactByEmail.has(email)) {
+        firstContact = firstContactByEmail.get(email)!;
+        matchMethod = "email";
+        matchedByEmail += 1;
       }
+
       const created = new Date(o.opportunity_created_at);
       const hoursToContact = firstContact ? Math.max(0, (new Date(firstContact).getTime() - created.getTime()) / 3600000) : null;
       const bucket = bucketOf(hoursToContact);
@@ -225,11 +234,14 @@ Deno.serve(async (req) => {
         first_contact_at: firstContact,
         hours_to_contact: hoursToContact,
         bucket,
+        match_method: matchMethod,
         is_paying: !!stripe,
         mrr: stripe?.mrr || 0,
         converted_at: stripe?.converted_at || null,
       };
     });
+
+    console.log(`lead-journey-report: leads=${rows.length} matched_by_phone=${matchedByPhone} matched_by_email=${matchedByEmail} cw_email_keys=${firstContactByEmail.size} cw_phone_keys=${firstContactByPhone.size}`);
 
     // 7) Aggregates
     const totalLeads = rows.length;
