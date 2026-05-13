@@ -1,7 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
-  FileBarChart, Tag, PieChart, Sparkles,
+  FileBarChart, Tag, PieChart, Sparkles, Megaphone,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ type NavItem = {
   icon: any;
   area?: CrmAreaKey;
   adminOnly?: boolean;
+  managerOnly?: boolean;
   rightSlot?: "ac-status" | "stripe-status" | "chatwoot-status";
   children?: NavItem[];
 };
@@ -224,6 +225,7 @@ export function AppSidebar() {
       key: "comercial",
       label: "Administrativo",
       items: [
+        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
       ],
@@ -264,6 +266,7 @@ export function AppSidebar() {
       items: g.items
         .filter((it) => {
           if (it.adminOnly && role !== "admin") return false;
+          if (it.managerOnly && role !== "admin" && role !== "tatico") return false;
           if (!it.area) return true;
           return role === "admin" ? true : canView(it.area);
         })

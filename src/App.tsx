@@ -34,6 +34,9 @@ import ChatwootAuditReview from "./pages/ChatwootAuditReview";
 import ChatwootAuditInsights from "./pages/ChatwootAuditInsights";
 import ChatwootAuditGoldenSet from "./pages/ChatwootAuditGoldenSet";
 import ChatwootAuditMine from "./pages/ChatwootAuditMine";
+import SalesCampaigns from "./pages/SalesCampaigns";
+import SalesCampaignDetail from "./pages/SalesCampaignDetail";
+import SalesCampaignReports from "./pages/SalesCampaignReports";
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
 
@@ -96,6 +99,9 @@ function AppRoutes() {
       <Route path="/insights/conversions" element={<StripeConversions />} />
       <Route path="/insights/lead-journey" element={<RequireArea area="dashboard"><LeadJourney /></RequireArea>} />
       <Route path="/settings/tags" element={<TagsSettings />} />
+      <Route path="/sales-campaigns" element={<SalesCampaigns />} />
+      <Route path="/sales-campaigns/reports" element={<SalesCampaignReports />} />
+      <Route path="/sales-campaigns/:id" element={<SalesCampaignDetail />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

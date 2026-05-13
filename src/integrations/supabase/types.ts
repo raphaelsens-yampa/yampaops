@@ -1669,6 +1669,246 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_campaign_contacts: {
+        Row: {
+          campaign_id: string
+          company: string | null
+          created_at: string
+          email: string | null
+          email_norm: string | null
+          extra: Json
+          id: string
+          last_touch_at: string | null
+          match_method: string | null
+          matched_chatwoot_contact_id: number | null
+          matched_contact_id: string | null
+          matched_opportunity_id: string | null
+          mrr_generated: number
+          name: string | null
+          notes: string | null
+          phone: string | null
+          phone_digits: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          email_norm?: string | null
+          extra?: Json
+          id?: string
+          last_touch_at?: string | null
+          match_method?: string | null
+          matched_chatwoot_contact_id?: number | null
+          matched_contact_id?: string | null
+          matched_opportunity_id?: string | null
+          mrr_generated?: number
+          name?: string | null
+          notes?: string | null
+          phone?: string | null
+          phone_digits?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          email_norm?: string | null
+          extra?: Json
+          id?: string
+          last_touch_at?: string | null
+          match_method?: string | null
+          matched_chatwoot_contact_id?: number | null
+          matched_contact_id?: string | null
+          matched_opportunity_id?: string | null
+          mrr_generated?: number
+          name?: string | null
+          notes?: string | null
+          phone?: string | null
+          phone_digits?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sales_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_campaign_imports: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          file_name: string | null
+          id: string
+          inserted_rows: number
+          mapping: Json
+          skipped_rows: number
+          status: string
+          total_rows: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          inserted_rows?: number
+          mapping?: Json
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          inserted_rows?: number
+          mapping?: Json
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_campaign_imports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sales_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_campaign_snapshots: {
+        Row: {
+          campaign_id: string
+          contacted: number
+          conversions: number
+          created_at: string
+          created_by: string | null
+          id: string
+          meetings: number
+          mrr_generated: number
+          notes: string | null
+          replies: number
+          snapshot_date: string
+          source: string
+        }
+        Insert: {
+          campaign_id: string
+          contacted?: number
+          conversions?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meetings?: number
+          mrr_generated?: number
+          notes?: string | null
+          replies?: number
+          snapshot_date?: string
+          source?: string
+        }
+        Update: {
+          campaign_id?: string
+          contacted?: number
+          conversions?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meetings?: number
+          mrr_generated?: number
+          notes?: string | null
+          replies?: number
+          snapshot_date?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_campaign_snapshots_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sales_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_campaigns: {
+        Row: {
+          budget: number
+          channel: string
+          created_at: string
+          created_by: string | null
+          custom_field_defs: Json
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          owner_id: string | null
+          segment: string | null
+          start_date: string | null
+          status: string
+          target_contacted: number
+          target_conversions: number
+          target_mrr: number
+          target_replies: number
+          updated_at: string
+        }
+        Insert: {
+          budget?: number
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          custom_field_defs?: Json
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          owner_id?: string | null
+          segment?: string | null
+          start_date?: string | null
+          status?: string
+          target_contacted?: number
+          target_conversions?: number
+          target_mrr?: number
+          target_replies?: number
+          updated_at?: string
+        }
+        Update: {
+          budget?: number
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          custom_field_defs?: Json
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          owner_id?: string | null
+          segment?: string | null
+          start_date?: string | null
+          status?: string
+          target_contacted?: number
+          target_conversions?: number
+          target_mrr?: number
+          target_replies?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stripe_conversions: {
         Row: {
           area: string
