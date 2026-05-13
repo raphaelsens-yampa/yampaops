@@ -22,9 +22,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { data: cur } = await service.from("integration_settings").select("sync_status").limit(1).maybeSingle();
-    if (cur?.sync_status !== "running") {
+    const { data: cur } = await service.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
+    if (cur?.sync_status !== "running" && cur?.sync_status !== "cancelling") {
       return new Response(JSON.stringify({ ok: true, message: "Nenhuma sincronização em andamento." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Se já estava 'cancelling', forçar reset para 'idle' (o background pode ter morrido)
+    if (cur.sync_status === "cancelling") {
+      const prevLog = (cur.sync_log as any) || {};
+      const prevProgress = prevLog.progress || {};
+      await service.from("integration_settings").update({
+        sync_status: "idle",
+        sync_log: { ...prevLog, cancelled: true, ranAt: new Date().toISOString(), progress: { ...prevProgress, phase: "cancelled" } },
+      }).neq("id", "00000000-0000-0000-0000-000000000000");
+      return new Response(JSON.stringify({ ok: true, message: "Sincronização forçadamente encerrada." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     await service.from("integration_settings").update({ sync_status: "cancelling" }).neq("id", "00000000-0000-0000-0000-000000000000");
