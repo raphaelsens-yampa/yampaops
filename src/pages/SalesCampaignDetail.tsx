@@ -38,6 +38,26 @@ export default function SalesCampaignDetail() {
     },
   });
 
+  // Realtime: invalidate detail/overview/evolution queries when related tables change
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`sales-campaign-${id}-realtime`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_snapshots", filter: `campaign_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["scc-overview", id] });
+        qc.invalidateQueries({ queryKey: ["scs", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_contacts", filter: `campaign_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["scc-overview", id] });
+        qc.invalidateQueries({ queryKey: ["scc", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaigns", filter: `id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaign", id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, qc]);
+
   if (isLoading || !campaign) {
     return (
       <ManagerOnly><Layout><div className="text-muted-foreground p-6">Carregando...</div></Layout></ManagerOnly>
