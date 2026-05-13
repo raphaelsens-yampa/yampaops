@@ -233,6 +233,11 @@ export default function PipelinePage() {
                                   <CardContent className="p-3 space-y-1.5">
                                     <p className="font-medium text-sm">{lead.title || lead.name}</p>
                                     {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
+                                    {(lead.phone || lead.contacts?.phone) && (
+                                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Phone className="h-3 w-3" /> {lead.phone || lead.contacts?.phone}
+                                      </p>
+                                    )}
                                     <div className="flex items-center justify-between mt-1 text-xs">
                                       <span className="text-primary font-medium">R$ {(lead.estimated_mrr || 0).toLocaleString("pt-BR")}</span>
                                       <span className="text-muted-foreground">{ORIGIN_LABELS[lead.origin] || lead.origin}</span>
