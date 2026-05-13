@@ -227,13 +227,14 @@ export function ChatwootContactsCard() {
                 <TableHead className="text-center">Conv</TableHead>
                 <TableHead>Match</TableHead>
                 <TableHead>Última atividade</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">Carregando...</TableCell></TableRow>
               ) : rows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">Nenhum contato. Rode o sync.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">Nenhum contato. Rode o sync.</TableCell></TableRow>
               ) : (
                 rows.map((r) => (
                   <TableRow key={r.chatwoot_contact_id}>
@@ -254,6 +255,9 @@ export function ChatwootContactsCard() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {r.last_activity_at ? new Date(r.last_activity_at).toLocaleString("pt-BR") : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ManualMatchDialog row={r} onChanged={() => { loadStats(); loadRows(); }} />
                     </TableCell>
                   </TableRow>
                 ))
