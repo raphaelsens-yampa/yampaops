@@ -270,6 +270,9 @@ export default function ChatwootIntegration() {
           </CardContent>
         </Card>
 
+        {/* 5. Contatos do Chatwoot */}
+        <ChatwootContactsCard />
+
         {/* Erros */}
         {errors.length > 0 && (
           <Card>
