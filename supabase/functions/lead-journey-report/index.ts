@@ -301,6 +301,14 @@ Deno.serve(async (req) => {
       timeseries,
       by_consultant: byConsultant,
       by_origin: byOrigin,
+      match_stats: {
+        matched_by_phone: matchedByPhone,
+        matched_by_email: matchedByEmail,
+        cw_phone_keys: firstContactByPhone.size,
+        cw_email_keys: firstContactByEmail.size,
+        contacts_with_phone: phones.length,
+        contacts_with_email: emails.length,
+      },
       rows,
     };
 
