@@ -128,6 +128,18 @@ export default function LeadJourney() {
           </div>
         </div>
 
+        <Tabs defaultValue="pipeline">
+          <TabsList>
+            <TabsTrigger value="pipeline">Pipeline AC</TabsTrigger>
+            <TabsTrigger value="csv">Auditoria via CSV</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="csv" className="space-y-6 mt-4">
+            <CsvAuditTab />
+          </TabsContent>
+
+          <TabsContent value="pipeline" className="space-y-6 mt-4">
+
         {/* Filtros */}
         <Card>
           <CardContent className="pt-6">
