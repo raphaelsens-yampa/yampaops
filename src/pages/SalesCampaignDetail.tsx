@@ -1,0 +1,602 @@
+import { useState, useMemo, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
+import { Layout } from "@/components/Layout";
+import { ManagerOnly } from "@/components/ManagerOnly";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { CHANNEL_OPTIONS, STATUS_OPTIONS, CONTACT_STATUS_OPTIONS, statusBadgeClass } from "@/lib/salesCampaigns";
+
+type Campaign = any;
+type ContactRow = any;
+
+export default function SalesCampaignDetail() {
+  const { id = "" } = useParams();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const { data: campaign, isLoading } = useQuery({
+    queryKey: ["sales-campaign", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sales_campaigns").select("*").eq("id", id).single();
+      if (error) throw error;
+      return data as Campaign;
+    },
+  });
+
+  if (isLoading || !campaign) {
+    return (
+      <ManagerOnly><Layout><div className="text-muted-foreground p-6">Carregando...</div></Layout></ManagerOnly>
+    );
+  }
+
+  return (
+    <ManagerOnly>
+      <Layout>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/sales-campaigns")}>
+              <ArrowLeft className="h-4 w-4 mr-1" />Voltar
+            </Button>
+            <div className="flex-1">
+              <h1 className="font-heading font-bold text-2xl">{campaign.name}</h1>
+              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                <Badge className={statusBadgeClass(campaign.status)}>{STATUS_OPTIONS.find((o) => o.value === campaign.status)?.label}</Badge>
+                <span>{CHANNEL_OPTIONS.find((o) => o.value === campaign.channel)?.label}</span>
+                {campaign.segment && <span>· {campaign.segment}</span>}
+              </div>
+            </div>
+          </div>
+
+          <Tabs defaultValue="overview">
+            <TabsList>
+              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="base">Base</TabsTrigger>
+              <TabsTrigger value="evolution">Evolução</TabsTrigger>
+              <TabsTrigger value="config">Configuração</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview"><OverviewTab campaign={campaign} /></TabsContent>
+            <TabsContent value="base"><BaseTab campaign={campaign} onChange={() => qc.invalidateQueries({ queryKey: ["scc", id] })} /></TabsContent>
+            <TabsContent value="evolution"><EvolutionTab campaign={campaign} /></TabsContent>
+            <TabsContent value="config"><ConfigTab campaign={campaign} onSaved={() => qc.invalidateQueries({ queryKey: ["sales-campaign", id] })} /></TabsContent>
+          </Tabs>
+        </div>
+      </Layout>
+    </ManagerOnly>
+  );
+}
+
+// =============== OVERVIEW ===============
+function OverviewTab({ campaign }: { campaign: Campaign }) {
+  const { data: agg } = useQuery({
+    queryKey: ["scc-overview", campaign.id],
+    queryFn: async () => {
+      const { data: contacts } = await supabase
+        .from("sales_campaign_contacts")
+        .select("status, mrr_generated")
+        .eq("campaign_id", campaign.id);
+      const { data: snapshots } = await supabase
+        .from("sales_campaign_snapshots")
+        .select("snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
+        .eq("campaign_id", campaign.id)
+        .order("snapshot_date", { ascending: true });
+      let base = 0, contacted = 0, replies = 0, meetings = 0, conversions = 0, mrr = 0;
+      for (const c of contacts || []) {
+        base++;
+        if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) contacted++;
+        if (["respondeu", "agendado", "convertido"].includes(c.status)) replies++;
+        if (["agendado", "convertido"].includes(c.status)) meetings++;
+        if (c.status === "convertido") conversions++;
+        mrr += Number(c.mrr_generated || 0);
+      }
+      return { base, contacted, replies, meetings, conversions, mrr, snapshots: snapshots || [] };
+    },
+  });
+
+  const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, snapshots: [] };
+  const replyRate = a.contacted > 0 ? ((a.replies / a.contacted) * 100).toFixed(1) : "0.0";
+  const convRate = a.contacted > 0 ? ((a.conversions / a.contacted) * 100).toFixed(1) : "0.0";
+  const roi = Number(campaign.budget) > 0 ? ((a.mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
+
+  const funnel = [
+    { stage: "Base", value: a.base },
+    { stage: "Contatados", value: a.contacted },
+    { stage: "Respostas", value: a.replies },
+    { stage: "Reuniões", value: a.meetings },
+    { stage: "Conversões", value: a.conversions },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
+        <Kpi label="Contatados" value={a.contacted} target={campaign.target_contacted} />
+        <Kpi label="Respostas" value={a.replies} target={campaign.target_replies} sub={`${replyRate}%`} />
+        <Kpi label="Conversões" value={a.conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
+        <Kpi label="MRR" value={`R$ ${a.mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
+        <Kpi label="ROI MRR/Orç." value={`${roi}${roi === "—" ? "" : "%"}`} />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Funil</CardTitle></CardHeader>
+          <CardContent style={{ height: 240 }}>
+            <ResponsiveContainer>
+              <BarChart data={funnel} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis type="category" dataKey="stage" stroke="hsl(var(--muted-foreground))" fontSize={12} width={90} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-base">Evolução temporal</CardTitle></CardHeader>
+          <CardContent style={{ height: 240 }}>
+            {a.snapshots.length === 0 ? (
+              <div className="text-sm text-muted-foreground flex items-center justify-center h-full">Nenhum snapshot. Cadastre na aba Evolução.</div>
+            ) : (
+              <ResponsiveContainer>
+                <LineChart data={a.snapshots}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="snapshot_date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                  <Line type="monotone" dataKey="contacted" stroke="hsl(var(--primary))" name="Contatados" />
+                  <Line type="monotone" dataKey="replies" stroke="hsl(var(--secondary))" name="Respostas" />
+                  <Line type="monotone" dataKey="conversions" stroke="hsl(var(--success))" name="Conversões" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ label, value, target, sub, isCurrency }: { label: string; value: any; target?: number; sub?: string; isCurrency?: boolean }) {
+  const num = typeof value === "number" ? value : 0;
+  const pct = target && target > 0 ? Math.round((num / target) * 100) : null;
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="text-xl font-heading font-bold mt-1">{value}</div>
+        <div className="text-[11px] text-muted-foreground mt-0.5">
+          {sub && <>{sub}{pct !== null && " · "}</>}
+          {pct !== null && (isCurrency ? `${pct}% da meta` : `${pct}% / ${target}`)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// =============== BASE TAB ===============
+function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => void }) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const PAGE = 50;
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["scc", campaign.id, search, statusFilter, page],
+    queryFn: async () => {
+      let q = supabase
+        .from("sales_campaign_contacts")
+        .select("*", { count: "exact" })
+        .eq("campaign_id", campaign.id)
+        .order("created_at", { ascending: false })
+        .range(page * PAGE, page * PAGE + PAGE - 1);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (search) q = q.or(`name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`);
+      const { data, error, count } = await q;
+      if (error) throw error;
+      return { rows: data || [], count: count || 0 };
+    },
+  });
+
+  const updateStatus = async (rowId: string, status: string) => {
+    const { error } = await supabase.from("sales_campaign_contacts").update({ status }).eq("id", rowId);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else { refetch(); onChange(); }
+  };
+
+  const runMatch = async () => {
+    toast({ title: "Casando contatos..." });
+    const { data, error } = await supabase.functions.invoke("sales-campaign-match", { body: { campaign_id: campaign.id } });
+    if (error) toast({ title: "Erro no match", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: "Match concluído", description: `${data?.matched || 0} casados, ${data?.converted || 0} convertidos` });
+      refetch();
+    }
+  };
+
+  const exportCsv = () => {
+    if (!data?.rows.length) return;
+    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method"];
+    const csv = [cols.join(","), ...data.rows.map((r: any) => cols.map((c) => JSON.stringify(r[c] ?? "")).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${campaign.name}-contatos.csv`;
+    a.click();
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <ImportDialog campaign={campaign} onImported={() => { refetch(); onChange(); }} />
+        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe</Button>
+        <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
+        <div className="ml-auto flex gap-2">
+          <Input placeholder="Buscar..." value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} className="w-48" />
+          <Select value={statusFilter} onValueChange={(v) => { setPage(0); setStatusFilter(v); }}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              {CONTACT_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="border rounded-md overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Telefone</TableHead>
+              <TableHead>Empresa</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Match</TableHead>
+              <TableHead className="text-right">MRR</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {data?.rows.map((r: any) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">{r.name || "—"}</TableCell>
+                <TableCell className="text-xs">{r.email || "—"}</TableCell>
+                <TableCell className="text-xs">{r.phone || "—"}</TableCell>
+                <TableCell className="text-xs">{r.company || "—"}</TableCell>
+                <TableCell>
+                  <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
+                    <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>{CONTACT_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.matched_chatwoot_contact_id && <Badge variant="outline" className="mr-1">CW</Badge>}
+                  {r.matched_opportunity_id && <Badge variant="outline" className="mr-1">Stripe</Badge>}
+                  {!r.matched_chatwoot_contact_id && !r.matched_opportunity_id && "—"}
+                </TableCell>
+                <TableCell className="text-right">R$ {Number(r.mrr_generated || 0).toFixed(0)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{data?.count || 0} contatos · página {page + 1}</span>
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Anterior</Button>
+          <Button size="sm" variant="outline" disabled={(page + 1) * PAGE >= (data?.count || 0)} onClick={() => setPage(page + 1)}>Próxima</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============== IMPORT DIALOG ===============
+function ImportDialog({ campaign, onImported }: { campaign: Campaign; onImported: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"upload" | "map" | "uploading">("upload");
+  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [fileName, setFileName] = useState("");
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const reset = () => { setStep("upload"); setRawRows([]); setHeaders([]); setMapping({}); setFileName(""); };
+
+  const onFile = async (file: File) => {
+    setFileName(file.name);
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+    if (json.length === 0) { toast({ title: "Arquivo vazio", variant: "destructive" }); return; }
+    setRawRows(json);
+    const hdrs = Object.keys(json[0]);
+    setHeaders(hdrs);
+    // Auto-mapping heuristic
+    const auto: Record<string, string> = {};
+    for (const h of hdrs) {
+      const l = h.toLowerCase();
+      if (!auto.email && (l.includes("email") || l.includes("e-mail"))) auto.email = h;
+      else if (!auto.phone && (l.includes("phone") || l.includes("telefone") || l.includes("celular"))) auto.phone = h;
+      else if (!auto.name && (l === "nome" || l.includes("name"))) auto.name = h;
+      else if (!auto.company && (l.includes("empresa") || l.includes("company"))) auto.company = h;
+    }
+    setMapping(auto);
+    setStep("map");
+  };
+
+  const submit = async () => {
+    setStep("uploading");
+    const rows = rawRows.map((r) => {
+      const out: any = {
+        name: mapping.name ? r[mapping.name] : null,
+        email: mapping.email ? r[mapping.email] : null,
+        phone: mapping.phone ? r[mapping.phone] : null,
+        company: mapping.company ? r[mapping.company] : null,
+        extra: {},
+      };
+      // Put unmapped columns into extra
+      for (const h of headers) {
+        if (!Object.values(mapping).includes(h)) out.extra[h] = r[h];
+      }
+      return out;
+    });
+    const { data, error } = await supabase.functions.invoke("sales-campaign-import", {
+      body: { campaign_id: campaign.id, file_name: fileName, mapping, rows },
+    });
+    if (error) {
+      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+      setStep("map");
+      return;
+    }
+    toast({ title: "Base importada", description: `${data?.inserted || 0} contatos inseridos` });
+    setOpen(false);
+    reset();
+    onImported();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
+      <Button onClick={() => setOpen(true)}><Upload className="h-4 w-4 mr-2" />Subir base</Button>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Importar base ({step === "map" ? "mapear colunas" : "selecionar arquivo"})</DialogTitle></DialogHeader>
+        {step === "upload" && (
+          <div className="space-y-3">
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+            <Button onClick={() => fileRef.current?.click()}>Escolher arquivo Excel/CSV</Button>
+            <p className="text-xs text-muted-foreground">A primeira linha deve conter os cabeçalhos. Colunas não mapeadas ficam disponíveis no campo "extra".</p>
+          </div>
+        )}
+        {step === "map" && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{rawRows.length} linhas detectadas. Mapeie as colunas:</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(["name", "email", "phone", "company"] as const).map((field) => (
+                <div key={field}>
+                  <Label className="capitalize">{field === "name" ? "Nome" : field === "email" ? "E-mail" : field === "phone" ? "Telefone" : "Empresa"}</Label>
+                  <Select value={mapping[field] || "__none__"} onValueChange={(v) => setMapping({ ...mapping, [field]: v === "__none__" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— ignorar —</SelectItem>
+                      {headers.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep("upload")}>Voltar</Button>
+              <Button onClick={submit}>Importar {rawRows.length} contatos</Button>
+            </DialogFooter>
+          </div>
+        )}
+        {step === "uploading" && <div className="py-6 text-center text-muted-foreground">Enviando...</div>}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// =============== EVOLUTION TAB ===============
+function EvolutionTab({ campaign }: { campaign: Campaign }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    snapshot_date: new Date().toISOString().slice(0, 10),
+    contacted: "0", replies: "0", meetings: "0", conversions: "0",
+    mrr_generated: "0", notes: "",
+  });
+
+  const { data: snapshots = [], refetch } = useQuery({
+    queryKey: ["scs", campaign.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("sales_campaign_snapshots").select("*").eq("campaign_id", campaign.id).order("snapshot_date", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const autoFill = async () => {
+    const { data, error } = await supabase.functions.invoke("sales-campaign-auto-snapshot", { body: { campaign_id: campaign.id } });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    const p = data?.preview || {};
+    setForm({
+      ...form,
+      contacted: String(p.contacted || 0),
+      replies: String(p.replies || 0),
+      meetings: String(p.meetings || 0),
+      conversions: String(p.conversions || 0),
+      mrr_generated: String(p.mrr_generated || 0),
+    });
+    toast({ title: "Valores calculados", description: "Ajuste se necessário e salve." });
+  };
+
+  const save = async () => {
+    const { error } = await supabase.from("sales_campaign_snapshots").insert({
+      campaign_id: campaign.id,
+      snapshot_date: form.snapshot_date,
+      contacted: Number(form.contacted) || 0,
+      replies: Number(form.replies) || 0,
+      meetings: Number(form.meetings) || 0,
+      conversions: Number(form.conversions) || 0,
+      mrr_generated: Number(form.mrr_generated) || 0,
+      notes: form.notes || null,
+      created_by: user?.id,
+      source: "manual",
+    });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Snapshot salvo" });
+    refetch();
+    qc.invalidateQueries({ queryKey: ["scc-overview", campaign.id] });
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from("sales_campaign_snapshots").delete().eq("id", id);
+    refetch();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Registrar evolução</CardTitle>
+          <CardDescription>Preencha manualmente ou clique em "Calcular automaticamente" para puxar da base e cruzamentos.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+            <div><Label>Data</Label><Input type="date" value={form.snapshot_date} onChange={(e) => setForm({ ...form, snapshot_date: e.target.value })} /></div>
+            <div><Label>Contatados</Label><Input type="number" value={form.contacted} onChange={(e) => setForm({ ...form, contacted: e.target.value })} /></div>
+            <div><Label>Respostas</Label><Input type="number" value={form.replies} onChange={(e) => setForm({ ...form, replies: e.target.value })} /></div>
+            <div><Label>Reuniões</Label><Input type="number" value={form.meetings} onChange={(e) => setForm({ ...form, meetings: e.target.value })} /></div>
+            <div><Label>Conversões</Label><Input type="number" value={form.conversions} onChange={(e) => setForm({ ...form, conversions: e.target.value })} /></div>
+            <div><Label>MRR (R$)</Label><Input type="number" value={form.mrr_generated} onChange={(e) => setForm({ ...form, mrr_generated: e.target.value })} /></div>
+            <div className="flex items-end gap-1">
+              <Button variant="outline" onClick={autoFill} title="Calcular da base"><RefreshCw className="h-4 w-4" /></Button>
+              <Button onClick={save}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+            </div>
+          </div>
+          <div><Label>Observações</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Histórico</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Data</TableHead><TableHead className="text-right">Contatados</TableHead><TableHead className="text-right">Respostas</TableHead>
+              <TableHead className="text-right">Reuniões</TableHead><TableHead className="text-right">Conversões</TableHead><TableHead className="text-right">MRR</TableHead>
+              <TableHead>Origem</TableHead><TableHead></TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {snapshots.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
+              {snapshots.map((s: any) => (
+                <TableRow key={s.id}>
+                  <TableCell>{new Date(s.snapshot_date).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell className="text-right">{s.contacted}</TableCell>
+                  <TableCell className="text-right">{s.replies}</TableCell>
+                  <TableCell className="text-right">{s.meetings}</TableCell>
+                  <TableCell className="text-right">{s.conversions}</TableCell>
+                  <TableCell className="text-right">R$ {Number(s.mrr_generated).toFixed(0)}</TableCell>
+                  <TableCell><Badge variant="outline">{s.source}</Badge></TableCell>
+                  <TableCell><Button size="icon" variant="ghost" onClick={() => remove(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// =============== CONFIG TAB ===============
+function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => void }) {
+  const { toast } = useToast();
+  const [form, setForm] = useState({
+    name: campaign.name,
+    description: campaign.description || "",
+    channel: campaign.channel,
+    segment: campaign.segment || "",
+    status: campaign.status,
+    start_date: campaign.start_date || "",
+    end_date: campaign.end_date || "",
+    budget: String(campaign.budget),
+    target_contacted: String(campaign.target_contacted),
+    target_replies: String(campaign.target_replies),
+    target_conversions: String(campaign.target_conversions),
+    target_mrr: String(campaign.target_mrr),
+  });
+  const save = async () => {
+    const { error } = await supabase.from("sales_campaigns").update({
+      ...form,
+      budget: Number(form.budget) || 0,
+      target_contacted: Number(form.target_contacted) || 0,
+      target_replies: Number(form.target_replies) || 0,
+      target_conversions: Number(form.target_conversions) || 0,
+      target_mrr: Number(form.target_mrr) || 0,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+      segment: form.segment || null,
+      description: form.description || null,
+    }).eq("id", campaign.id);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Campanha atualizada" });
+    onSaved();
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Configuração</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+          <div><Label>Canal</Label>
+            <Select value={form.channel} onValueChange={(v) => setForm({ ...form, channel: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{CHANNEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div><Label>Status</Label>
+            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
+          <div><Label>Orçamento</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+          <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
+          <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
+          <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
+          <div><Label>Meta respostas</Label><Input type="number" value={form.target_replies} onChange={(e) => setForm({ ...form, target_replies: e.target.value })} /></div>
+          <div><Label>Meta conversões</Label><Input type="number" value={form.target_conversions} onChange={(e) => setForm({ ...form, target_conversions: e.target.value })} /></div>
+          <div><Label>Meta MRR</Label><Input type="number" value={form.target_mrr} onChange={(e) => setForm({ ...form, target_mrr: e.target.value })} /></div>
+        </div>
+        <div className="flex justify-end mt-4">
+          <Button onClick={save}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
