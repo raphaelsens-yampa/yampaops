@@ -129,12 +129,12 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   });
 
   const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, snapshots: [] };
-  const latest = a.snapshots.length > 0 ? a.snapshots[a.snapshots.length - 1] : null;
-  const contacted = latest ? Math.max(a.contacted, Number(latest.contacted) || 0) : a.contacted;
-  const replies = latest ? Math.max(a.replies, Number(latest.replies) || 0) : a.replies;
-  const meetings = latest ? Math.max(a.meetings, Number(latest.meetings) || 0) : a.meetings;
-  const conversions = latest ? Math.max(a.conversions, Number(latest.conversions) || 0) : a.conversions;
-  const mrr = latest ? Math.max(a.mrr, Number(latest.mrr_generated) || 0) : a.mrr;
+  const snapMax = (key: string) => a.snapshots.reduce((m: number, s: any) => Math.max(m, Number(s[key]) || 0), 0);
+  const contacted = Math.max(a.contacted, snapMax("contacted"));
+  const replies = Math.max(a.replies, snapMax("replies"));
+  const meetings = Math.max(a.meetings, snapMax("meetings"));
+  const conversions = Math.max(a.conversions, snapMax("conversions"));
+  const mrr = Math.max(a.mrr, snapMax("mrr_generated"));
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
   const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
