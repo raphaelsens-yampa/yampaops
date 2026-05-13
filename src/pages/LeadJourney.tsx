@@ -27,6 +27,9 @@ interface Row {
   opportunity_created_at: string;
   first_contact_at: string | null; hours_to_contact: number | null; bucket: Bucket;
   match_method: "phone" | "email" | null;
+  match_reason?: string;
+  matched_conversation_ids?: number[];
+  matched_conversations?: Array<{ id: number; contact_email: string | null; contact_phone: string | null; first_contact_message_at: string | null; opened_at: string | null }>;
   is_paying: boolean; mrr: number; converted_at: string | null;
 }
 
@@ -264,6 +267,9 @@ export default function LeadJourney() {
           </CardContent>
         </Card>
 
+        {/* Debug match Chatwoot */}
+        <DebugMatchSection rows={report?.rows || []} />
+
         {isLoading && <p className="text-sm text-muted-foreground text-center">Carregando relatório...</p>}
       </div>
     </Layout>
@@ -382,5 +388,147 @@ function DetailTable({ rows }: { rows: Row[] }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const CW_BASE = "https://chatwoot.yampa.com.br";
+const CW_ACCOUNT = 1;
+
+function DebugMatchSection({ rows }: { rows: Row[] }) {
+  const [filter, setFilter] = useState<"all" | "matched" | "unmatched">("all");
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const filtered = useMemo(() => {
+    let r = rows;
+    if (filter === "matched") r = r.filter((x) => x.match_method);
+    if (filter === "unmatched") r = r.filter((x) => !x.match_method);
+    if (search.trim()) {
+      const s = search.trim().toLowerCase();
+      r = r.filter((x) =>
+        (x.name || "").toLowerCase().includes(s) ||
+        (x.email || "").toLowerCase().includes(s) ||
+        (x.phone || "").toLowerCase().includes(s) ||
+        (x.matched_conversation_ids || []).some((id) => String(id).includes(s))
+      );
+    }
+    return r.slice(0, 200);
+  }, [rows, filter, search]);
+
+  const counts = useMemo(() => ({
+    total: rows.length,
+    matched: rows.filter((r) => r.match_method).length,
+    unmatched: rows.filter((r) => !r.match_method).length,
+    by_phone: rows.filter((r) => r.match_method === "phone").length,
+    by_email: rows.filter((r) => r.match_method === "email").length,
+  }), [rows]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>🔍 Debug: Match Chatwoot por lead</CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Mostra exatamente qual conversa do Chatwoot foi vinculada a cada lead e o motivo do match.
+          Total: {counts.total} · Match: {counts.matched} ({counts.by_phone} tel + {counts.by_email} email) · Sem match: {counts.unmatched}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="matched">Apenas com match</SelectItem>
+              <SelectItem value="unmatched">Apenas sem match</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Buscar nome, email, telefone, ID conversa..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-xs"
+          />
+          <span className="text-xs text-muted-foreground ml-auto">Mostrando {filtered.length} (limite 200)</span>
+        </div>
+
+        <div className="space-y-2">
+          {filtered.map((r) => {
+            const isOpen = !!expanded[r.id];
+            const convs = r.matched_conversations || [];
+            return (
+              <div key={r.id} className="border rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setExpanded((e) => ({ ...e, [r.id]: !isOpen }))}
+                  className="w-full text-left px-3 py-2 flex items-center gap-3 hover:bg-muted/40"
+                >
+                  <Badge variant={r.match_method ? "default" : "outline"} className="shrink-0">
+                    {r.match_method === "phone" ? "📱 tel" : r.match_method === "email" ? "✉️ email" : "— sem"}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{r.name || r.contact_name || "—"}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {r.email || "sem email"} · {r.phone || "sem telefone"} · {convs.length} conversa(s)
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{isOpen ? "▼" : "▶"}</span>
+                </button>
+                {isOpen && (
+                  <div className="px-3 py-3 border-t bg-muted/20 space-y-2 text-xs">
+                    <div><span className="font-semibold">Motivo:</span> {r.match_reason || "—"}</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div><span className="text-muted-foreground">Lead ID:</span> <code className="text-[10px]">{r.id}</code></div>
+                      <div><span className="text-muted-foreground">Criado:</span> {new Date(r.opportunity_created_at).toLocaleString("pt-BR")}</div>
+                      <div><span className="text-muted-foreground">1º contato:</span> {r.first_contact_at ? new Date(r.first_contact_at).toLocaleString("pt-BR") : "—"}</div>
+                      <div><span className="text-muted-foreground">Bucket:</span> {r.bucket}</div>
+                    </div>
+                    {convs.length > 0 ? (
+                      <div>
+                        <div className="font-semibold mb-1">Conversas Chatwoot vinculadas:</div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID</TableHead>
+                              <TableHead>Email contato</TableHead>
+                              <TableHead>Telefone contato</TableHead>
+                              <TableHead>1ª msg cliente</TableHead>
+                              <TableHead>Aberta em</TableHead>
+                              <TableHead></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {convs.map((cv) => (
+                              <TableRow key={cv.id}>
+                                <TableCell><code>{cv.id}</code></TableCell>
+                                <TableCell>{cv.contact_email || "—"}</TableCell>
+                                <TableCell>{cv.contact_phone || "—"}</TableCell>
+                                <TableCell>{cv.first_contact_message_at ? new Date(cv.first_contact_message_at).toLocaleString("pt-BR") : "—"}</TableCell>
+                                <TableCell>{cv.opened_at ? new Date(cv.opened_at).toLocaleString("pt-BR") : "—"}</TableCell>
+                                <TableCell>
+                                  <a
+                                    href={`${CW_BASE}/app/accounts/${CW_ACCOUNT}/conversations/${cv.id}`}
+                                    target="_blank" rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >abrir ↗</a>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground italic">Nenhuma conversa Chatwoot encontrada para este lead.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhum lead corresponde aos filtros.</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

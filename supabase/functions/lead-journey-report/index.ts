@@ -110,8 +110,9 @@ Deno.serve(async (req) => {
     }
 
     // 4) Chatwoot conversations matching email or phone
-    const firstContactByEmail = new Map<string, string>();
-    const firstContactByPhone = new Map<string, string>();
+    type CwInfo = { ts: string; convs: Array<{ id: number; contact_email: string | null; contact_phone: string | null; first_contact_message_at: string | null; opened_at: string | null }> };
+    const firstContactByEmail = new Map<string, CwInfo>();
+    const firstContactByPhone = new Map<string, CwInfo>();
 
     async function fetchCw(field: "contact_email" | "contact_phone", values: string[]) {
       if (!values.length) return [] as any[];
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
         const chunk = values.slice(i, i + CHUNK);
         const { data } = await admin
           .from("chatwoot_conversations")
-          .select(`${field}, first_contact_message_at, opened_at`)
+          .select(`chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at`)
           .in(field, chunk)
           .limit(20000);
         if (data) out.push(...data);
@@ -134,17 +135,22 @@ Deno.serve(async (req) => {
       const k = normEmail(r.contact_email);
       const ts = r.first_contact_message_at || r.opened_at;
       if (!k || !ts) continue;
+      const conv = { id: r.chatwoot_conversation_id, contact_email: r.contact_email, contact_phone: r.contact_phone, first_contact_message_at: r.first_contact_message_at, opened_at: r.opened_at };
       const cur = firstContactByEmail.get(k);
-      if (!cur || new Date(ts) < new Date(cur)) firstContactByEmail.set(k, ts);
+      if (!cur) {
+        firstContactByEmail.set(k, { ts, convs: [conv] });
+      } else {
+        cur.convs.push(conv);
+        if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
+      }
     }
 
     // For phone we need to compare normalized; fetch by raw and normalize client side
     const phoneSet = new Set(phones);
     if (phones.length) {
-      // We can't .in() on normalized; fetch all conversations with phone not null in window of 1 year and filter
       const { data: cwAll } = await admin
         .from("chatwoot_conversations")
-        .select("contact_phone, first_contact_message_at, opened_at")
+        .select("chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at")
         .not("contact_phone", "is", null)
         .limit(50000);
       for (const r of cwAll || []) {
@@ -152,8 +158,14 @@ Deno.serve(async (req) => {
         if (!np || !phoneSet.has(np)) continue;
         const ts = r.first_contact_message_at || r.opened_at;
         if (!ts) continue;
+        const conv = { id: r.chatwoot_conversation_id, contact_email: r.contact_email, contact_phone: r.contact_phone, first_contact_message_at: r.first_contact_message_at, opened_at: r.opened_at };
         const cur = firstContactByPhone.get(np);
-        if (!cur || new Date(ts) < new Date(cur)) firstContactByPhone.set(np, ts);
+        if (!cur) {
+          firstContactByPhone.set(np, { ts, convs: [conv] });
+        } else {
+          cur.convs.push(conv);
+          if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
+        }
       }
     }
 
@@ -202,15 +214,24 @@ Deno.serve(async (req) => {
       const phone = c?.phone || null;
       let firstContact: string | null = null;
       let matchMethod: "phone" | "email" | null = null;
+      let matchedConvs: Array<{ id: number; contact_email: string | null; contact_phone: string | null; first_contact_message_at: string | null; opened_at: string | null }> = [];
+      let matchedKey: string | null = null;
 
-      if (phone && firstContactByPhone.has(phone)) {
-        firstContact = firstContactByPhone.get(phone)!;
+      const phoneHit = phone ? firstContactByPhone.get(phone) : null;
+      const emailHit = email ? firstContactByEmail.get(email) : null;
+
+      if (phoneHit) {
+        firstContact = phoneHit.ts;
         matchMethod = "phone";
         matchedByPhone += 1;
-      } else if (email && firstContactByEmail.has(email)) {
-        firstContact = firstContactByEmail.get(email)!;
+        matchedConvs = phoneHit.convs;
+        matchedKey = phone;
+      } else if (emailHit) {
+        firstContact = emailHit.ts;
         matchMethod = "email";
         matchedByEmail += 1;
+        matchedConvs = emailHit.convs;
+        matchedKey = email;
       }
 
       const created = new Date(o.opportunity_created_at);
@@ -218,6 +239,14 @@ Deno.serve(async (req) => {
       const bucket = bucketOf(hoursToContact);
 
       const stripe = stripeByOpp.get(o.id) || (email ? stripeByEmail.get(email) : null);
+
+      let matchReason: string;
+      if (matchMethod === "phone") matchReason = `Telefone normalizado "${matchedKey}" bateu com ${matchedConvs.length} conversa(s) Chatwoot`;
+      else if (matchMethod === "email") matchReason = `Email "${matchedKey}" bateu com ${matchedConvs.length} conversa(s) Chatwoot (fallback, telefone não encontrou)`;
+      else if (!phone && !email) matchReason = "Lead sem telefone e sem email no contato";
+      else if (!phone) matchReason = `Sem telefone. Email "${email}" não encontrou nenhuma conversa`;
+      else if (!email) matchReason = `Sem email. Telefone "${phone}" não encontrou nenhuma conversa`;
+      else matchReason = `Telefone "${phone}" e email "${email}" não encontraram conversa`;
 
       return {
         id: o.id,
@@ -235,6 +264,9 @@ Deno.serve(async (req) => {
         hours_to_contact: hoursToContact,
         bucket,
         match_method: matchMethod,
+        match_reason: matchReason,
+        matched_conversation_ids: matchedConvs.map((cv) => cv.id),
+        matched_conversations: matchedConvs.slice(0, 10),
         is_paying: !!stripe,
         mrr: stripe?.mrr || 0,
         converted_at: stripe?.converted_at || null,
