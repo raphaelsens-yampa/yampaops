@@ -202,17 +202,17 @@ export default function SalesCampaigns() {
     return true;
   });
 
-  // Effective aggregate per campaign: prefer latest snapshot for funnel KPIs when available
+  // Effective aggregate per campaign: pega o MAX entre contatos derivados e snapshots
   const effective = (id: string) => {
     const a = (aggregates as any)[id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
-    const s = (latestSnapshots as any)[id];
+    const s = (snapshotMax as any)[id];
     if (!s) return a;
     return {
       base: a.base,
       contacted: Math.max(a.contacted, Number(s.contacted) || 0),
       replies: Math.max(a.replies, Number(s.replies) || 0),
       conversions: Math.max(a.conversions, Number(s.conversions) || 0),
-      mrr: Math.max(a.mrr, Number(s.mrr_generated) || 0),
+      mrr: Math.max(a.mrr, Number(s.mrr) || 0),
     };
   };
 
