@@ -166,7 +166,7 @@ export default function SalesCampaigns() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_snapshots" }, () => {
         qc.invalidateQueries({ queryKey: ["sales-campaigns-aggregates"] });
-        qc.invalidateQueries({ queryKey: ["sales-campaigns-latest-snapshots"] });
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-snapshot-max"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
