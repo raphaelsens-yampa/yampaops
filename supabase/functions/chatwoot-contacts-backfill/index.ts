@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
       page++;
     }
 
-    const done = totalCount > 0 ? (lastNonEmpty * 25) >= totalCount : (page > endPage ? false : true);
+    const done = !timedOut && (totalCount > 0 ? (lastNonEmpty * 25) >= totalCount : false);
     const nextPage = lastNonEmpty + 1;
 
     return new Response(JSON.stringify({
