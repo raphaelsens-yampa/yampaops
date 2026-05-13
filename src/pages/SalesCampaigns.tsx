@@ -172,20 +172,24 @@ export default function SalesCampaigns() {
     return () => { supabase.removeChannel(channel); };
   }, [qc]);
 
-  // Latest snapshot per campaign — overrides contact-derived KPIs when present
-  const { data: latestSnapshots = {} } = useQuery({
-    queryKey: ["sales-campaigns-latest-snapshots", campaigns.map((c: any) => c.id).join(",")],
+  // Snapshots agregados por campanha — pega o MAX de cada KPI entre todos os snapshots
+  const { data: snapshotMax = {} } = useQuery({
+    queryKey: ["sales-campaigns-snapshot-max", campaigns.map((c: any) => c.id).join(",")],
     enabled: campaigns.length > 0,
     queryFn: async () => {
       const ids = campaigns.map((c: any) => c.id);
       const { data } = await supabase
         .from("sales_campaign_snapshots")
-        .select("campaign_id, snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
-        .in("campaign_id", ids)
-        .order("snapshot_date", { ascending: false });
+        .select("campaign_id, contacted, replies, meetings, conversions, mrr_generated")
+        .in("campaign_id", ids);
       const map: Record<string, any> = {};
       for (const s of data || []) {
-        if (!map[s.campaign_id]) map[s.campaign_id] = s;
+        const m = map[s.campaign_id] || { contacted: 0, replies: 0, conversions: 0, mrr: 0 };
+        m.contacted = Math.max(m.contacted, Number(s.contacted) || 0);
+        m.replies = Math.max(m.replies, Number(s.replies) || 0);
+        m.conversions = Math.max(m.conversions, Number(s.conversions) || 0);
+        m.mrr = Math.max(m.mrr, Number(s.mrr_generated) || 0);
+        map[s.campaign_id] = m;
       }
       return map;
     },
