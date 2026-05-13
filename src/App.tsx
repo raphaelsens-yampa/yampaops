@@ -94,6 +94,7 @@ function AppRoutes() {
       <Route path="/atendimentos/auditoria/minhas" element={<ChatwootAuditMine />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/insights/conversions" element={<StripeConversions />} />
+      <Route path="/insights/lead-journey" element={<RequireArea area="dashboard"><LeadJourney /></RequireArea>} />
       <Route path="/settings/tags" element={<TagsSettings />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
