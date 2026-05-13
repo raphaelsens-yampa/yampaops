@@ -44,7 +44,13 @@ async function findUserByEmail(email: string | null | undefined): Promise<string
   return data?.user_id ?? null;
 }
 
-async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force = false) {
+async function writeProgress(progress: any) {
+  await service.from("integration_settings").update({
+    sync_log: { progress, ranAt: new Date().toISOString() },
+  }).neq("id", "00000000-0000-0000-0000-000000000000");
+}
+
+async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force = false, onProgress?: (p: any) => Promise<void>) {
   let stagesCount = 0, dealsCount = 0, contactsCount = 0, activitiesCount = 0;
 
   // 1. Upsert pipeline
@@ -204,6 +210,8 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force
 
     if (deals.length < limit) break;
     offset += limit;
+    const total = Number(dealsRes?.meta?.total ?? 0);
+    if (onProgress) await onProgress({ dealsProcessed: dealsCount + skipped, dealsTotal: total, currentPipeline: acPipelineTitle });
   }
 
   // 4. Notes sync skipped on initial pull (too expensive on big pipelines, comes via webhook)
@@ -257,10 +265,16 @@ Deno.serve(async (req) => {
     const backgroundWork = (async () => {
       const results: any[] = [];
       const totals = { stagesCount: 0, dealsCount: 0, contactsCount: 0, activitiesCount: 0 };
+      const totalPipelines = selected.length;
+      let pipelineIdx = 0;
 
       for (const sel of selected) {
+        pipelineIdx++;
         try {
-          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title, force);
+          await writeProgress({ phase: "running", pipelineIdx, totalPipelines, currentPipeline: sel.ac_pipeline_title, dealsProcessed: 0, dealsTotal: 0 });
+          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title, force, async (p) => {
+            await writeProgress({ phase: "running", pipelineIdx, totalPipelines, ...p });
+          });
           results.push({ pipeline: sel.ac_pipeline_title, ...r });
           totals.stagesCount += r.stagesCount;
           totals.dealsCount += r.dealsCount;
@@ -276,7 +290,7 @@ Deno.serve(async (req) => {
       await service.from("integration_settings").update({
         sync_status: "idle",
         last_full_sync_at: new Date().toISOString(),
-        sync_log: { results, totals, ranAt: new Date().toISOString(), force },
+        sync_log: { results, totals, ranAt: new Date().toISOString(), force, progress: { phase: "done", pipelineIdx: totalPipelines, totalPipelines, dealsProcessed: totals.dealsCount, dealsTotal: totals.dealsCount } },
       }).neq("id", "00000000-0000-0000-0000-000000000000");
     })();
 
