@@ -214,15 +214,24 @@ Deno.serve(async (req) => {
       const phone = c?.phone || null;
       let firstContact: string | null = null;
       let matchMethod: "phone" | "email" | null = null;
+      let matchedConvs: Array<{ id: number; contact_email: string | null; contact_phone: string | null; first_contact_message_at: string | null; opened_at: string | null }> = [];
+      let matchedKey: string | null = null;
 
-      if (phone && firstContactByPhone.has(phone)) {
-        firstContact = firstContactByPhone.get(phone)!;
+      const phoneHit = phone ? firstContactByPhone.get(phone) : null;
+      const emailHit = email ? firstContactByEmail.get(email) : null;
+
+      if (phoneHit) {
+        firstContact = phoneHit.ts;
         matchMethod = "phone";
         matchedByPhone += 1;
-      } else if (email && firstContactByEmail.has(email)) {
-        firstContact = firstContactByEmail.get(email)!;
+        matchedConvs = phoneHit.convs;
+        matchedKey = phone;
+      } else if (emailHit) {
+        firstContact = emailHit.ts;
         matchMethod = "email";
         matchedByEmail += 1;
+        matchedConvs = emailHit.convs;
+        matchedKey = email;
       }
 
       const created = new Date(o.opportunity_created_at);
@@ -230,6 +239,14 @@ Deno.serve(async (req) => {
       const bucket = bucketOf(hoursToContact);
 
       const stripe = stripeByOpp.get(o.id) || (email ? stripeByEmail.get(email) : null);
+
+      let matchReason: string;
+      if (matchMethod === "phone") matchReason = `Telefone normalizado "${matchedKey}" bateu com ${matchedConvs.length} conversa(s) Chatwoot`;
+      else if (matchMethod === "email") matchReason = `Email "${matchedKey}" bateu com ${matchedConvs.length} conversa(s) Chatwoot (fallback, telefone não encontrou)`;
+      else if (!phone && !email) matchReason = "Lead sem telefone e sem email no contato";
+      else if (!phone) matchReason = `Sem telefone. Email "${email}" não encontrou nenhuma conversa`;
+      else if (!email) matchReason = `Sem email. Telefone "${phone}" não encontrou nenhuma conversa`;
+      else matchReason = `Telefone "${phone}" e email "${email}" não encontraram conversa`;
 
       return {
         id: o.id,
@@ -247,6 +264,9 @@ Deno.serve(async (req) => {
         hours_to_contact: hoursToContact,
         bucket,
         match_method: matchMethod,
+        match_reason: matchReason,
+        matched_conversation_ids: matchedConvs.map((cv) => cv.id),
+        matched_conversations: matchedConvs.slice(0, 10),
         is_paying: !!stripe,
         mrr: stripe?.mrr || 0,
         converted_at: stripe?.converted_at || null,
