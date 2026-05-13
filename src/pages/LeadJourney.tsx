@@ -26,6 +26,7 @@ interface Row {
   origin: string | null; sub_origin: string | null; stage: string;
   opportunity_created_at: string;
   first_contact_at: string | null; hours_to_contact: number | null; bucket: Bucket;
+  match_method: "phone" | "email" | null;
   is_paying: boolean; mrr: number; converted_at: string | null;
 }
 
@@ -35,6 +36,7 @@ interface Report {
   timeseries: { date: string; leads: number; contacted: number; paying: number }[];
   by_consultant: { key: string; label: string; leads: number; contacted: number; in_sla: number; paying: number; mrr: number }[];
   by_origin: { key: string; label: string; leads: number; contacted: number; in_sla: number; paying: number; mrr: number }[];
+  match_stats?: { matched_by_phone: number; matched_by_email: number; cw_phone_keys: number; cw_email_keys: number; contacts_with_phone: number; contacts_with_email: number };
   rows: Row[];
 }
 
@@ -163,6 +165,15 @@ export default function LeadJourney() {
           <MetricCard title="Pagantes" value={k?.paying ?? 0} subtitle={k ? pct(k.paying_pct) : "—"} icon={<DollarSign className="h-5 w-5" />} />
           <MetricCard title="MRR Total" value={k ? brl(k.mrr_total) : "—"} icon={<DollarSign className="h-5 w-5" />} />
         </div>
+
+        {report?.match_stats && (
+          <div className="text-xs text-muted-foreground bg-muted/40 border rounded-md px-3 py-2">
+            <span className="font-medium">Match Chatwoot:</span>{" "}
+            {report.match_stats.matched_by_phone} por telefone · {report.match_stats.matched_by_email} por email (fallback) ·{" "}
+            base: {report.match_stats.contacts_with_phone} contatos com tel, {report.match_stats.contacts_with_email} com email ·{" "}
+            chaves Chatwoot: {report.match_stats.cw_phone_keys} tel / {report.match_stats.cw_email_keys} email
+          </div>
+        )}
 
         {/* Funil */}
         <Card>
@@ -331,6 +342,7 @@ function DetailTable({ rows }: { rows: Row[] }) {
               <TableHead>1ª conversa</TableHead>
               <TableHead className="text-right">Horas</TableHead>
               <TableHead>Bucket</TableHead>
+              <TableHead>Via</TableHead>
               <TableHead>Pagante</TableHead>
               <TableHead className="text-right">MRR</TableHead>
               <TableHead>Consultor</TableHead>
@@ -349,6 +361,9 @@ function DetailTable({ rows }: { rows: Row[] }) {
                   <Badge variant="outline" style={{ borderColor: BUCKET_COLORS[r.bucket], color: BUCKET_COLORS[r.bucket] }}>
                     {r.bucket}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.match_method === "phone" ? "📱 tel" : r.match_method === "email" ? "✉️ email" : "—"}
                 </TableCell>
                 <TableCell>{r.is_paying ? <Badge className="bg-success">Sim</Badge> : <span className="text-muted-foreground text-xs">Não</span>}</TableCell>
                 <TableCell className="text-right text-xs">{r.mrr ? brl(r.mrr) : "—"}</TableCell>
