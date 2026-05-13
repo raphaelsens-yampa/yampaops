@@ -27,6 +27,9 @@ interface Row {
   opportunity_created_at: string;
   first_contact_at: string | null; hours_to_contact: number | null; bucket: Bucket;
   match_method: "phone" | "email" | null;
+  match_reason?: string;
+  matched_conversation_ids?: number[];
+  matched_conversations?: Array<{ id: number; contact_email: string | null; contact_phone: string | null; first_contact_message_at: string | null; opened_at: string | null }>;
   is_paying: boolean; mrr: number; converted_at: string | null;
 }
 
