@@ -283,6 +283,8 @@ export default function LeadJourney() {
         <DebugMatchSection rows={report?.rows || []} />
 
         {isLoading && <p className="text-sm text-muted-foreground text-center">Carregando relatório...</p>}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
