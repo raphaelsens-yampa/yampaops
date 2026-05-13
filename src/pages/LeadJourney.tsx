@@ -410,7 +410,7 @@ const CW_BASE = "https://chatwoot.yampa.com.br";
 const CW_ACCOUNT = 1;
 
 function DebugMatchSection({ rows }: { rows: Row[] }) {
-  const [filter, setFilter] = useState<"all" | "matched" | "unmatched">("all");
+  const [filter, setFilter] = useState<"all" | "matched" | "unmatched" | "phone" | "email">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
