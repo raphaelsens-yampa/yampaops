@@ -265,10 +265,16 @@ Deno.serve(async (req) => {
     const backgroundWork = (async () => {
       const results: any[] = [];
       const totals = { stagesCount: 0, dealsCount: 0, contactsCount: 0, activitiesCount: 0 };
+      const totalPipelines = selected.length;
+      let pipelineIdx = 0;
 
       for (const sel of selected) {
+        pipelineIdx++;
         try {
-          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title, force);
+          await writeProgress({ phase: "running", pipelineIdx, totalPipelines, currentPipeline: sel.ac_pipeline_title, dealsProcessed: 0, dealsTotal: 0 });
+          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title, force, async (p) => {
+            await writeProgress({ phase: "running", pipelineIdx, totalPipelines, ...p });
+          });
           results.push({ pipeline: sel.ac_pipeline_title, ...r });
           totals.stagesCount += r.stagesCount;
           totals.dealsCount += r.dealsCount;
@@ -284,7 +290,7 @@ Deno.serve(async (req) => {
       await service.from("integration_settings").update({
         sync_status: "idle",
         last_full_sync_at: new Date().toISOString(),
-        sync_log: { results, totals, ranAt: new Date().toISOString(), force },
+        sync_log: { results, totals, ranAt: new Date().toISOString(), force, progress: { phase: "done", pipelineIdx: totalPipelines, totalPipelines, dealsProcessed: totals.dealsCount, dealsTotal: totals.dealsCount } },
       }).neq("id", "00000000-0000-0000-0000-000000000000");
     })();
 
