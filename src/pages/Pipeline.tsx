@@ -220,6 +220,9 @@ export default function PipelinePage() {
                 </button>
               )}
             </div>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+              <Download className="h-4 w-4 mr-1" /> Exportar Excel
+            </Button>
           </div>
         </div>
 
