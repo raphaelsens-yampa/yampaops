@@ -87,8 +87,13 @@ export default function PipelinePage() {
       if (settings?.sync_status === "idle" || elapsed >= 600) {
         clearInterval(interval);
         setSyncing(false);
+        setCancelling(false);
         await loadData();
-        toast({ title: "Sincronização concluída", description: "Pipeline atualizado com os dados do AC." });
+        const wasCancelled = (settings?.sync_log as any)?.cancelled || progress?.phase === "cancelled";
+        toast({
+          title: wasCancelled ? "Sincronização cancelada" : "Sincronização concluída",
+          description: wasCancelled ? "A sincronização foi interrompida." : "Pipeline atualizado com os dados do AC.",
+        });
       }
     }, 5000);
   };
