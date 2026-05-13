@@ -441,6 +441,7 @@ async function upsertConversation(
   const row: any = {
     chatwoot_conversation_id: convId,
     chatwoot_account_id: accountId,
+    chatwoot_contact_id: ctx.chatwootContactId,
     chatwoot_inbox_id: inboxId,
     inbox_name: inboxName || existing?.inbox_name || null,
     status,
