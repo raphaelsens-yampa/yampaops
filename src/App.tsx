@@ -25,6 +25,7 @@ import ChatwootIntegration from "./pages/ChatwootIntegration";
 import IntegrationAudit from "./pages/IntegrationAudit";
 import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
+import LeadJourney from "./pages/LeadJourney";
 import TagsSettings from "./pages/TagsSettings";
 import ChatwootReports from "./pages/ChatwootReports";
 import ChatwootAudit from "./pages/ChatwootAudit";
@@ -93,6 +94,7 @@ function AppRoutes() {
       <Route path="/atendimentos/auditoria/minhas" element={<ChatwootAuditMine />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/insights/conversions" element={<StripeConversions />} />
+      <Route path="/insights/lead-journey" element={<RequireArea area="dashboard"><LeadJourney /></RequireArea>} />
       <Route path="/settings/tags" element={<TagsSettings />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
