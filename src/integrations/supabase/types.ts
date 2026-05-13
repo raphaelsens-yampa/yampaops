@@ -1405,6 +1405,7 @@ export type Database = {
           notes: string | null
           opportunity_created_at: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
+          phone: string | null
           pipeline_id: string | null
           previous_stage: string | null
           probability: number | null
@@ -1442,6 +1443,7 @@ export type Database = {
           notes?: string | null
           opportunity_created_at?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
+          phone?: string | null
           pipeline_id?: string | null
           previous_stage?: string | null
           probability?: number | null
@@ -1479,6 +1481,7 @@ export type Database = {
           notes?: string | null
           opportunity_created_at?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
+          phone?: string | null
           pipeline_id?: string | null
           previous_stage?: string | null
           probability?: number | null
