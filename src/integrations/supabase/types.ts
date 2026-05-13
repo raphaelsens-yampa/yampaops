@@ -1112,6 +1112,152 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_import_rows: {
+        Row: {
+          created_at: string
+          cw_conversation_ids: number[]
+          cw_customer_replied: boolean
+          cw_first_agent_email: string | null
+          cw_first_agent_name: string | null
+          cw_first_contact_at: string | null
+          cw_last_label: string | null
+          cw_last_status: string | null
+          cw_match_method: string | null
+          cw_total_conversations: number
+          cw_total_messages: number
+          extra: Json
+          hours_to_first_contact: number | null
+          id: string
+          import_id: string
+          lead_campaign: string | null
+          lead_created_at: string | null
+          lead_email: string | null
+          lead_name: string | null
+          lead_origin: string | null
+          lead_phone_normalized: string | null
+          lead_phone_raw: string | null
+          row_index: number
+          sla_bucket: string | null
+          stripe_converted_at: string | null
+          stripe_mrr: number
+          stripe_paying: boolean
+          stripe_plan: string | null
+        }
+        Insert: {
+          created_at?: string
+          cw_conversation_ids?: number[]
+          cw_customer_replied?: boolean
+          cw_first_agent_email?: string | null
+          cw_first_agent_name?: string | null
+          cw_first_contact_at?: string | null
+          cw_last_label?: string | null
+          cw_last_status?: string | null
+          cw_match_method?: string | null
+          cw_total_conversations?: number
+          cw_total_messages?: number
+          extra?: Json
+          hours_to_first_contact?: number | null
+          id?: string
+          import_id: string
+          lead_campaign?: string | null
+          lead_created_at?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_origin?: string | null
+          lead_phone_normalized?: string | null
+          lead_phone_raw?: string | null
+          row_index: number
+          sla_bucket?: string | null
+          stripe_converted_at?: string | null
+          stripe_mrr?: number
+          stripe_paying?: boolean
+          stripe_plan?: string | null
+        }
+        Update: {
+          created_at?: string
+          cw_conversation_ids?: number[]
+          cw_customer_replied?: boolean
+          cw_first_agent_email?: string | null
+          cw_first_agent_name?: string | null
+          cw_first_contact_at?: string | null
+          cw_last_label?: string | null
+          cw_last_status?: string | null
+          cw_match_method?: string | null
+          cw_total_conversations?: number
+          cw_total_messages?: number
+          extra?: Json
+          hours_to_first_contact?: number | null
+          id?: string
+          import_id?: string
+          lead_campaign?: string | null
+          lead_created_at?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_origin?: string | null
+          lead_phone_normalized?: string | null
+          lead_phone_raw?: string | null
+          row_index?: number
+          sla_bucket?: string | null
+          stripe_converted_at?: string | null
+          stripe_mrr?: number
+          stripe_paying?: boolean
+          stripe_plan?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "lead_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_imports: {
+        Row: {
+          column_mapping: Json
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          id: string
+          matched_chatwoot: number
+          matched_paying: number
+          name: string
+          source_file_name: string | null
+          status: string
+          total_rows: number
+          updated_at: string
+        }
+        Insert: {
+          column_mapping?: Json
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          matched_chatwoot?: number
+          matched_paying?: number
+          name: string
+          source_file_name?: string | null
+          status?: string
+          total_rows?: number
+          updated_at?: string
+        }
+        Update: {
+          column_mapping?: Json
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          matched_chatwoot?: number
+          matched_paying?: number
+          name?: string
+          source_file_name?: string | null
+          status?: string
+          total_rows?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           ac_id: string | null
