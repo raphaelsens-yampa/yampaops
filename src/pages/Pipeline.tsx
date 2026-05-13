@@ -298,17 +298,24 @@ export default function PipelinePage() {
 
         {syncing && (
           <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between text-xs gap-2">
               <span className="font-medium">
-                Sincronizando ActiveCampaign
+                {cancelling ? "Cancelando sincronização..." : "Sincronizando ActiveCampaign"}
                 {syncProgress?.currentPipeline && ` — ${syncProgress.currentPipeline}`}
                 {syncProgress?.totalPipelines && syncProgress.totalPipelines > 1 && ` (${syncProgress.pipelineIdx}/${syncProgress.totalPipelines})`}
               </span>
-              <span className="text-muted-foreground">
-                {syncProgress?.dealsTotal && syncProgress.dealsTotal > 0
-                  ? `${syncProgress.dealsProcessed ?? 0} / ${syncProgress.dealsTotal} oportunidades`
-                  : `${syncProgress?.dealsProcessed ?? 0} processadas`}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-muted-foreground">
+                  {syncProgress?.dealsTotal && syncProgress.dealsTotal > 0
+                    ? `${syncProgress.dealsProcessed ?? 0} / ${syncProgress.dealsTotal} oportunidades`
+                    : `${syncProgress?.dealsProcessed ?? 0} processadas`}
+                </span>
+                {role === "admin" && (
+                  <Button variant="ghost" size="sm" onClick={handleCancelSync} disabled={cancelling} className="h-6 px-2 text-xs">
+                    <X className="h-3 w-3 mr-1" /> {cancelling ? "Cancelando..." : "Cancelar"}
+                  </Button>
+                )}
+              </div>
             </div>
             <Progress
               value={
