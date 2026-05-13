@@ -100,6 +100,12 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force
   const alreadySynced = new Set((existingOpps || []).map((o: any) => o.ac_id));
 
   outer: while (true) {
+    // Verifica solicitação de cancelamento
+    const { data: st } = await service.from("integration_settings").select("sync_status").limit(1).maybeSingle();
+    if (st?.sync_status === "cancelling") {
+      truncated = true;
+      break outer;
+    }
     let dealsRes: any;
     try {
       dealsRes = await acFetch(`/api/3/deals?filters[group]=${acPipelineId}&limit=${limit}&offset=${offset}&include=contact`);
@@ -268,8 +274,11 @@ Deno.serve(async (req) => {
       const totalPipelines = selected.length;
       let pipelineIdx = 0;
 
+      let cancelled = false;
       for (const sel of selected) {
         pipelineIdx++;
+        const { data: st } = await service.from("integration_settings").select("sync_status").limit(1).maybeSingle();
+        if (st?.sync_status === "cancelling") { cancelled = true; break; }
         try {
           await writeProgress({ phase: "running", pipelineIdx, totalPipelines, currentPipeline: sel.ac_pipeline_title, dealsProcessed: 0, dealsTotal: 0 });
           const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title, force, async (p) => {
@@ -287,10 +296,11 @@ Deno.serve(async (req) => {
         }
       }
 
+      const finalPhase = cancelled ? "cancelled" : "done";
       await service.from("integration_settings").update({
         sync_status: "idle",
         last_full_sync_at: new Date().toISOString(),
-        sync_log: { results, totals, ranAt: new Date().toISOString(), force, progress: { phase: "done", pipelineIdx: totalPipelines, totalPipelines, dealsProcessed: totals.dealsCount, dealsTotal: totals.dealsCount } },
+        sync_log: { results, totals, ranAt: new Date().toISOString(), force, cancelled, progress: { phase: finalPhase, pipelineIdx, totalPipelines, dealsProcessed: totals.dealsCount, dealsTotal: totals.dealsCount } },
       }).neq("id", "00000000-0000-0000-0000-000000000000");
     })();
 
