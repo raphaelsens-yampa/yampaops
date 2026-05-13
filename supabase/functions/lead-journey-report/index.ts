@@ -110,8 +110,9 @@ Deno.serve(async (req) => {
     }
 
     // 4) Chatwoot conversations matching email or phone
-    const firstContactByEmail = new Map<string, string>();
-    const firstContactByPhone = new Map<string, string>();
+    type CwInfo = { ts: string; convs: Array<{ id: number; contact_email: string | null; contact_phone: string | null; first_contact_message_at: string | null; opened_at: string | null }> };
+    const firstContactByEmail = new Map<string, CwInfo>();
+    const firstContactByPhone = new Map<string, CwInfo>();
 
     async function fetchCw(field: "contact_email" | "contact_phone", values: string[]) {
       if (!values.length) return [] as any[];
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
         const chunk = values.slice(i, i + CHUNK);
         const { data } = await admin
           .from("chatwoot_conversations")
-          .select(`${field}, first_contact_message_at, opened_at`)
+          .select(`chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at`)
           .in(field, chunk)
           .limit(20000);
         if (data) out.push(...data);
@@ -134,17 +135,22 @@ Deno.serve(async (req) => {
       const k = normEmail(r.contact_email);
       const ts = r.first_contact_message_at || r.opened_at;
       if (!k || !ts) continue;
+      const conv = { id: r.chatwoot_conversation_id, contact_email: r.contact_email, contact_phone: r.contact_phone, first_contact_message_at: r.first_contact_message_at, opened_at: r.opened_at };
       const cur = firstContactByEmail.get(k);
-      if (!cur || new Date(ts) < new Date(cur)) firstContactByEmail.set(k, ts);
+      if (!cur) {
+        firstContactByEmail.set(k, { ts, convs: [conv] });
+      } else {
+        cur.convs.push(conv);
+        if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
+      }
     }
 
     // For phone we need to compare normalized; fetch by raw and normalize client side
     const phoneSet = new Set(phones);
     if (phones.length) {
-      // We can't .in() on normalized; fetch all conversations with phone not null in window of 1 year and filter
       const { data: cwAll } = await admin
         .from("chatwoot_conversations")
-        .select("contact_phone, first_contact_message_at, opened_at")
+        .select("chatwoot_conversation_id, contact_email, contact_phone, first_contact_message_at, opened_at")
         .not("contact_phone", "is", null)
         .limit(50000);
       for (const r of cwAll || []) {
@@ -152,8 +158,14 @@ Deno.serve(async (req) => {
         if (!np || !phoneSet.has(np)) continue;
         const ts = r.first_contact_message_at || r.opened_at;
         if (!ts) continue;
+        const conv = { id: r.chatwoot_conversation_id, contact_email: r.contact_email, contact_phone: r.contact_phone, first_contact_message_at: r.first_contact_message_at, opened_at: r.opened_at };
         const cur = firstContactByPhone.get(np);
-        if (!cur || new Date(ts) < new Date(cur)) firstContactByPhone.set(np, ts);
+        if (!cur) {
+          firstContactByPhone.set(np, { ts, convs: [conv] });
+        } else {
+          cur.convs.push(conv);
+          if (new Date(ts) < new Date(cur.ts)) cur.ts = ts;
+        }
       }
     }
 
