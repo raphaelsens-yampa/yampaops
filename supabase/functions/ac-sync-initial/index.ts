@@ -44,7 +44,13 @@ async function findUserByEmail(email: string | null | undefined): Promise<string
   return data?.user_id ?? null;
 }
 
-async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force = false) {
+async function writeProgress(progress: any) {
+  await service.from("integration_settings").update({
+    sync_log: { progress, ranAt: new Date().toISOString() },
+  }).neq("id", "00000000-0000-0000-0000-000000000000");
+}
+
+async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force = false, onProgress?: (p: any) => Promise<void>) {
   let stagesCount = 0, dealsCount = 0, contactsCount = 0, activitiesCount = 0;
 
   // 1. Upsert pipeline
