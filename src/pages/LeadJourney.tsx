@@ -17,6 +17,7 @@ import {
   BarChart, Bar,
 } from "recharts";
 import { format, subDays } from "date-fns";
+import { CsvAuditTab } from "@/components/lead-journey/CsvAuditTab";
 
 type Bucket = "<24h" | "1-3d" | "4-7d" | ">7d" | "Sem contato";
 
@@ -127,6 +128,18 @@ export default function LeadJourney() {
             <p className="text-muted-foreground text-sm">ActiveCampaign → Chatwoot → Stripe</p>
           </div>
         </div>
+
+        <Tabs defaultValue="pipeline">
+          <TabsList>
+            <TabsTrigger value="pipeline">Pipeline AC</TabsTrigger>
+            <TabsTrigger value="csv">Auditoria via CSV</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="csv" className="space-y-6 mt-4">
+            <CsvAuditTab />
+          </TabsContent>
+
+          <TabsContent value="pipeline" className="space-y-6 mt-4">
 
         {/* Filtros */}
         <Card>
@@ -271,6 +284,8 @@ export default function LeadJourney() {
         <DebugMatchSection rows={report?.rows || []} />
 
         {isLoading && <p className="text-sm text-muted-foreground text-center">Carregando relatório...</p>}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
