@@ -212,7 +212,9 @@ Deno.serve(async (req) => {
     const errors: string[] = [];
     let lastNonEmpty = startPage - 1;
 
+    let timedOut = false;
     while (page <= endPage) {
+      if (Date.now() - startedAt > timeBudgetMs) { timedOut = true; break; }
       let resp: { items: any[]; meta: any };
       try {
         resp = await listContacts(baseUrl, accountId, page, pageSize);
