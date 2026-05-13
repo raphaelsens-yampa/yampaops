@@ -457,6 +457,8 @@ function DebugMatchSection({ rows }: { rows: Row[] }) {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="matched">Apenas com match</SelectItem>
               <SelectItem value="unmatched">Apenas sem match</SelectItem>
+              <SelectItem value="phone">Match por telefone</SelectItem>
+              <SelectItem value="email">Match por email</SelectItem>
             </SelectContent>
           </Select>
           <Input
