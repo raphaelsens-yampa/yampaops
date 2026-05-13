@@ -422,10 +422,10 @@ function CsvWizard({ onCancel, onDone }: { onCancel: () => void; onDone: (id: st
         {step === 3 && validation && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <MetricCard title="Linhas válidas" value={validation.valid} />
-              <MetricCard title="Descartadas" value={validation.invalid} />
-              <MetricCard title="Sem data" value={validation.noDate} />
-              <MetricCard title="Sem email/tel" value={validation.noContact} />
+              <MetricCard title="Linhas válidas" value={validation.valid} icon={<FileSpreadsheet className="h-5 w-5" />} />
+              <MetricCard title="Descartadas" value={validation.invalid} icon={<FileSpreadsheet className="h-5 w-5" />} />
+              <MetricCard title="Sem data" value={validation.noDate} icon={<Clock className="h-5 w-5" />} />
+              <MetricCard title="Sem email/tel" value={validation.noContact} icon={<Users className="h-5 w-5" />} />
             </div>
             <div className="text-xs text-muted-foreground">
               Ao processar, vamos buscar todas as conversas Chatwoot que casem por telefone (prioritário) ou email (fallback) e cruzar com pagamentos Stripe.
