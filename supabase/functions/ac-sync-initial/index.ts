@@ -44,7 +44,7 @@ async function findUserByEmail(email: string | null | undefined): Promise<string
   return data?.user_id ?? null;
 }
 
-async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
+async function syncPipeline(acPipelineId: string, acPipelineTitle: string, force = false) {
   let stagesCount = 0, dealsCount = 0, contactsCount = 0, activitiesCount = 0;
 
   // 1. Upsert pipeline
@@ -77,15 +77,15 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
   const stageBySlug = new Map((localStages || []).map((s: any) => [s.ac_id, s.slug]));
 
   // 3. Fetch deals (paginated). Background tasks can run for several minutes.
-  // We process up to 1500 deals per run and skip ones already synced (resume).
-  const MAX_DEALS_PER_RUN = 1500;
+  const MAX_DEALS_PER_RUN = force ? 50000 : 1500;
   let offset = 0;
   const limit = 100;
   const dealIds: string[] = [];
   let truncated = false;
   let skipped = 0;
 
-  // Preload set of already-synced AC deal ids for this pipeline (resume support)
+  // Preload set of already-synced AC deal ids for this pipeline (resume support).
+  // In force mode we don't skip — we re-upsert to update stage/title/value/phone.
   const { data: existingOpps } = await service
     .from("opportunities")
     .select("ac_id")
@@ -106,7 +106,8 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
     const contactsMap = new Map(includedContacts.map((c: any) => [c.id, c]));
 
     for (const d of deals) {
-      if (alreadySynced.has(String(d.id))) {
+      const isExisting = alreadySynced.has(String(d.id));
+      if (isExisting && !force) {
         skipped++;
         continue;
       }
@@ -115,6 +116,23 @@ async function syncPipeline(acPipelineId: string, acPipelineTitle: string) {
         break outer;
       }
       try {
+        // Em modo force para registros já existentes, pulamos o sync de contato (mais lento)
+        // e fazemos apenas o upsert de stage/título/valor/telefone.
+        if (isExisting && force) {
+          const stageSlug = stageBySlug.get(String(d.stage)) ?? "novo_lead";
+          const c: any = (d.contact && contactsMap.has(d.contact)) ? contactsMap.get(d.contact) : null;
+          const dealPhone = c?.phone || null;
+          const { error: dErr } = await service.from("opportunities").update({
+            name: d.title || `Deal ${d.id}`,
+            title: d.title || null,
+            stage: stageSlug,
+            estimated_mrr: d.value ? Number(d.value) / 100 : 0,
+            phone: dealPhone,
+          }).eq("ac_id", String(d.id));
+          if (dErr) await logError("deal", String(d.id), dErr.message, d);
+          else { dealsCount++; dealIds.push(String(d.id)); }
+          continue;
+        }
         // 3a. Sync contact first — lookup by ac_id OR email to avoid duplicates
         let localContactId: string | null = null;
         const acContactId = d.contact;
@@ -228,6 +246,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, message: "Nenhum pipeline selecionado", results: [] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Modo force: parâmetro ?force=1 ou body { force: true }
+    const url = new URL(req.url);
+    let force = url.searchParams.get("force") === "1" || url.searchParams.get("force") === "true";
+    if (!force && (req.method === "POST")) {
+      try { const b = await req.clone().json(); if (b?.force) force = true; } catch { /* ignore */ }
+    }
+
     // Run sync in background so HTTP doesn't time out (150s limit)
     const backgroundWork = (async () => {
       const results: any[] = [];
@@ -235,7 +260,7 @@ Deno.serve(async (req) => {
 
       for (const sel of selected) {
         try {
-          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title);
+          const r = await syncPipeline(sel.ac_pipeline_id, sel.ac_pipeline_title, force);
           results.push({ pipeline: sel.ac_pipeline_title, ...r });
           totals.stagesCount += r.stagesCount;
           totals.dealsCount += r.dealsCount;
@@ -251,7 +276,7 @@ Deno.serve(async (req) => {
       await service.from("integration_settings").update({
         sync_status: "idle",
         last_full_sync_at: new Date().toISOString(),
-        sync_log: { results, totals, ranAt: new Date().toISOString() },
+        sync_log: { results, totals, ranAt: new Date().toISOString(), force },
       }).neq("id", "00000000-0000-0000-0000-000000000000");
     })();
 
