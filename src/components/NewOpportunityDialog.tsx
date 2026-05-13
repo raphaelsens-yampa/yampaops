@@ -139,10 +139,12 @@ export function NewOpportunityDialog({ profiles, stageOrder, stageLabels, onCrea
 
     const contactName = showNewContact ? newContactName : selectedContact?.name || "";
     const contactCompany = showNewContact ? newContactCompany : selectedContact?.company || null;
+    const contactPhone = showNewContact ? newContactPhone : selectedContact?.phone || null;
 
     const { error } = await supabase.from("opportunities").insert({
       name: contactName,
       company: contactCompany,
+      phone: contactPhone || null,
       contact_id: contactId,
       title: oppTitle || null,
       origin: oppOrigin as any,
