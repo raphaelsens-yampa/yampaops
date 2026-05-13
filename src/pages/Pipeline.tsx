@@ -57,14 +57,28 @@ export default function PipelinePage() {
 
   const loadData = useCallback(async () => {
     if (!currentPipelineId) return;
-    const [leadsRes, profsRes] = await Promise.all([
-      supabase.from("opportunities").select("*, contacts:contact_id(name, company, email, phone)").eq("pipeline_id", currentPipelineId),
-      supabase.from("profiles").select("*"),
-    ]);
-    setLeads(leadsRes.data || []);
+    // Paginar oportunidades para contornar o limite de 1000 linhas do Supabase
+    const PAGE = 1000;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from("opportunities")
+        .select("*, contacts:contact_id(name, company, email, phone)")
+        .eq("pipeline_id", currentPipelineId)
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) { toast({ title: "Erro ao carregar oportunidades", description: error.message, variant: "destructive" }); break; }
+      const batch = data || [];
+      all.push(...batch);
+      if (batch.length < PAGE) break;
+      from += PAGE;
+    }
+    const profsRes = await supabase.from("profiles").select("*");
+    setLeads(all);
     setProfiles(profsRes.data || []);
     setLoading(false);
-  }, [currentPipelineId]);
+  }, [currentPipelineId, toast]);
 
   useEffect(() => { loadPipelines(); }, []);
   useEffect(() => { if (currentPipelineId) { setLoading(true); loadData(); refetch(); } }, [currentPipelineId]);
