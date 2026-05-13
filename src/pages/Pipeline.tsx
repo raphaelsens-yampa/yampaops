@@ -295,6 +295,31 @@ export default function PipelinePage() {
           </div>
         </div>
 
+        {syncing && (
+          <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">
+                Sincronizando ActiveCampaign
+                {syncProgress?.currentPipeline && ` — ${syncProgress.currentPipeline}`}
+                {syncProgress?.totalPipelines && syncProgress.totalPipelines > 1 && ` (${syncProgress.pipelineIdx}/${syncProgress.totalPipelines})`}
+              </span>
+              <span className="text-muted-foreground">
+                {syncProgress?.dealsTotal && syncProgress.dealsTotal > 0
+                  ? `${syncProgress.dealsProcessed ?? 0} / ${syncProgress.dealsTotal} oportunidades`
+                  : `${syncProgress?.dealsProcessed ?? 0} processadas`}
+              </span>
+            </div>
+            <Progress
+              value={
+                syncProgress?.dealsTotal && syncProgress.dealsTotal > 0
+                  ? Math.min(100, ((syncProgress.dealsProcessed ?? 0) / syncProgress.dealsTotal) * 100)
+                  : 0
+              }
+              className={!syncProgress?.dealsTotal ? "animate-pulse" : ""}
+            />
+          </div>
+        )}
+
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-4 pb-2 items-start h-full">
