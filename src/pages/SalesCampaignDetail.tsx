@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -37,6 +37,26 @@ export default function SalesCampaignDetail() {
       return data as Campaign;
     },
   });
+
+  // Realtime: invalidate detail/overview/evolution queries when related tables change
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`sales-campaign-${id}-realtime`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_snapshots", filter: `campaign_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["scc-overview", id] });
+        qc.invalidateQueries({ queryKey: ["scs", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_contacts", filter: `campaign_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["scc-overview", id] });
+        qc.invalidateQueries({ queryKey: ["scc", id] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaigns", filter: `id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaign", id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, qc]);
 
   if (isLoading || !campaign) {
     return (
@@ -109,26 +129,32 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   });
 
   const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, snapshots: [] };
-  const replyRate = a.contacted > 0 ? ((a.replies / a.contacted) * 100).toFixed(1) : "0.0";
-  const convRate = a.contacted > 0 ? ((a.conversions / a.contacted) * 100).toFixed(1) : "0.0";
-  const roi = Number(campaign.budget) > 0 ? ((a.mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
+  const latest = a.snapshots.length > 0 ? a.snapshots[a.snapshots.length - 1] : null;
+  const contacted = latest ? Math.max(a.contacted, Number(latest.contacted) || 0) : a.contacted;
+  const replies = latest ? Math.max(a.replies, Number(latest.replies) || 0) : a.replies;
+  const meetings = latest ? Math.max(a.meetings, Number(latest.meetings) || 0) : a.meetings;
+  const conversions = latest ? Math.max(a.conversions, Number(latest.conversions) || 0) : a.conversions;
+  const mrr = latest ? Math.max(a.mrr, Number(latest.mrr_generated) || 0) : a.mrr;
+  const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
+  const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
+  const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
 
   const funnel = [
     { stage: "Base", value: a.base },
-    { stage: "Contatados", value: a.contacted },
-    { stage: "Respostas", value: a.replies },
-    { stage: "Reuniões", value: a.meetings },
-    { stage: "Conversões", value: a.conversions },
+    { stage: "Contatados", value: contacted },
+    { stage: "Respostas", value: replies },
+    { stage: "Reuniões", value: meetings },
+    { stage: "Conversões", value: conversions },
   ];
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
-        <Kpi label="Contatados" value={a.contacted} target={campaign.target_contacted} />
-        <Kpi label="Respostas" value={a.replies} target={campaign.target_replies} sub={`${replyRate}%`} />
-        <Kpi label="Conversões" value={a.conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
-        <Kpi label="MRR" value={`R$ ${a.mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
+        <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} />
+        <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}%`} />
+        <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
+        <Kpi label="MRR" value={`R$ ${mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
         <Kpi label="ROI MRR/Orç." value={`${roi}${roi === "—" ? "" : "%"}`} />
       </div>
 

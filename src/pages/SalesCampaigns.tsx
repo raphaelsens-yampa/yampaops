@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
@@ -154,6 +154,43 @@ export default function SalesCampaigns() {
     },
   });
 
+  // Realtime: refresh list + aggregates when campaigns/contacts/snapshots change
+  useEffect(() => {
+    const channel = supabase
+      .channel("sales-campaigns-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaigns" }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaigns"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_contacts" }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-aggregates"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_snapshots" }, () => {
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-aggregates"] });
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-latest-snapshots"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
+  // Latest snapshot per campaign — overrides contact-derived KPIs when present
+  const { data: latestSnapshots = {} } = useQuery({
+    queryKey: ["sales-campaigns-latest-snapshots", campaigns.map((c: any) => c.id).join(",")],
+    enabled: campaigns.length > 0,
+    queryFn: async () => {
+      const ids = campaigns.map((c: any) => c.id);
+      const { data } = await supabase
+        .from("sales_campaign_snapshots")
+        .select("campaign_id, snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
+        .in("campaign_id", ids)
+        .order("snapshot_date", { ascending: false });
+      const map: Record<string, any> = {};
+      for (const s of data || []) {
+        if (!map[s.campaign_id]) map[s.campaign_id] = s;
+      }
+      return map;
+    },
+  });
+
   const filtered = campaigns.filter((c: any) => {
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
     if (filterChannel !== "all" && c.channel !== filterChannel) return false;
@@ -161,10 +198,24 @@ export default function SalesCampaigns() {
     return true;
   });
 
+  // Effective aggregate per campaign: prefer latest snapshot for funnel KPIs when available
+  const effective = (id: string) => {
+    const a = (aggregates as any)[id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
+    const s = (latestSnapshots as any)[id];
+    if (!s) return a;
+    return {
+      base: a.base,
+      contacted: Math.max(a.contacted, Number(s.contacted) || 0),
+      replies: Math.max(a.replies, Number(s.replies) || 0),
+      conversions: Math.max(a.conversions, Number(s.conversions) || 0),
+      mrr: Math.max(a.mrr, Number(s.mrr_generated) || 0),
+    };
+  };
+
   const totalActive = campaigns.filter((c: any) => c.status === "ativa").length;
-  const totalBase = Object.values(aggregates).reduce((a, b: any) => a + b.base, 0);
-  const totalConv = Object.values(aggregates).reduce((a, b: any) => a + b.conversions, 0);
-  const totalMrr = Object.values(aggregates).reduce((a, b: any) => a + b.mrr, 0);
+  const totalBase = campaigns.reduce((sum: number, c: any) => sum + effective(c.id).base, 0);
+  const totalConv = campaigns.reduce((sum: number, c: any) => sum + effective(c.id).conversions, 0);
+  const totalMrr = campaigns.reduce((sum: number, c: any) => sum + effective(c.id).mrr, 0);
 
   return (
     <ManagerOnly>
@@ -236,7 +287,7 @@ export default function SalesCampaigns() {
                     {isLoading && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
                     {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
                     {filtered.map((c: any) => {
-                      const agg = (aggregates as any)[c.id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
+                      const agg = effective(c.id);
                       const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
                       return (
                         <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
