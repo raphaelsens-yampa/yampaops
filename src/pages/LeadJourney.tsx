@@ -17,6 +17,7 @@ import {
   BarChart, Bar,
 } from "recharts";
 import { format, subDays } from "date-fns";
+import { CsvAuditTab } from "@/components/lead-journey/CsvAuditTab";
 
 type Bucket = "<24h" | "1-3d" | "4-7d" | ">7d" | "Sem contato";
 
