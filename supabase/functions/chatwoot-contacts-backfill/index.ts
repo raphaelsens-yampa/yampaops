@@ -188,8 +188,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const startPage: number = Number(body.page_start || 1);
-    const maxPages: number = Number(body.max_pages || 40);
+    const maxPages: number = Number(body.max_pages || 4);
     const pageSize: number = Number(body.page_size || 25);
+    const timeBudgetMs: number = Number(body.time_budget_ms || 120000);
+    const startedAt = Date.now();
 
     const { data: settings } = await service
       .from("integration_settings")
