@@ -48,6 +48,7 @@ export default function PipelinePage() {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ phase?: string; pipelineIdx?: number; totalPipelines?: number; currentPipeline?: string; dealsProcessed?: number; dealsTotal?: number } | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [lastSync, setLastSync] = useState<{ ranAt?: string; cancelled?: boolean; totals?: any; progress?: any; results?: any[] } | null>(null);
 
   const handleCancelSync = async () => {
     setCancelling(true);
@@ -57,23 +58,25 @@ export default function PipelinePage() {
       setCancelling(false);
       return;
     }
-    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida no próximo ciclo." });
+    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida em instantes." });
   };
 
-  // Detecta sync já em andamento ao montar
+  // Detecta sync em andamento e carrega último resultado ao montar
   useEffect(() => {
-    let cancelled = false;
+    let cancelledFlag = false;
     const checkSync = async () => {
       const { data } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-      if (cancelled) return;
-      if (data?.sync_status === "running") {
+      if (cancelledFlag) return;
+      setLastSync((data?.sync_log as any) ?? null);
+      if (data?.sync_status === "running" || data?.sync_status === "cancelling") {
         setSyncing(true);
+        setCancelling(data.sync_status === "cancelling");
         setSyncProgress((data.sync_log as any)?.progress ?? null);
         startPolling();
       }
     };
     checkSync();
-    return () => { cancelled = true; };
+    return () => { cancelledFlag = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -88,6 +91,7 @@ export default function PipelinePage() {
         clearInterval(interval);
         setSyncing(false);
         setCancelling(false);
+        setLastSync((settings?.sync_log as any) ?? null);
         await loadData();
         const wasCancelled = (settings?.sync_log as any)?.cancelled || progress?.phase === "cancelled";
         toast({
