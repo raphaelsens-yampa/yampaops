@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Phone } from "lucide-react";
 import { ACTIVITY_LABELS } from "@/lib/constants";
 import { useOpportunityTags, useTags } from "@/hooks/useTags";
 import { TagChip } from "@/components/tags/TagChip";
@@ -61,6 +61,11 @@ export function KanbanCard({
           <div>
             <p className="font-medium text-sm">{lead.title || lead.name}</p>
             {lead.company && <p className="text-xs text-muted-foreground">{lead.company}</p>}
+            {(lead as any).phone && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Phone className="h-3 w-3" /> {(lead as any).phone}
+              </p>
+            )}
           </div>
           {visibleTags.length > 0 && (
             <div className="flex flex-wrap gap-1">
