@@ -44,6 +44,30 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncAC = async () => {
+    setSyncing(true);
+    toast({ title: "Sincronização iniciada", description: "Trazendo dados do ActiveCampaign em segundo plano. Isso pode levar alguns minutos." });
+    const { data, error } = await supabase.functions.invoke("ac-sync-initial", { body: { force: true } });
+    if (error) {
+      toast({ title: "Erro ao iniciar sync", description: error.message, variant: "destructive" });
+      setSyncing(false);
+      return;
+    }
+    // Polling: a cada 15s recarrega dados; após 3 min libera o botão de qualquer forma
+    let elapsed = 0;
+    const interval = setInterval(async () => {
+      elapsed += 15;
+      await loadData();
+      const { data: settings } = await supabase.from("integration_settings").select("sync_status, last_full_sync_at").limit(1).maybeSingle();
+      if (settings?.sync_status === "idle" || elapsed >= 360) {
+        clearInterval(interval);
+        setSyncing(false);
+        toast({ title: "Sincronização concluída", description: "Pipeline atualizado com os dados do AC." });
+      }
+    }, 15000);
+  };
 
   const loadPipelines = useCallback(async () => {
     const { data } = await supabase.from("pipelines").select("*").order("is_default", { ascending: false }).order("name");
