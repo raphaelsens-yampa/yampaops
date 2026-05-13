@@ -349,6 +349,29 @@ export default function PipelinePage() {
           </div>
         )}
 
+        {!syncing && lastSync?.cancelled && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-xs">
+              <div className="font-medium text-foreground">Sincronização cancelada</div>
+              <div className="text-muted-foreground">
+                {lastSync?.progress?.dealsProcessed ?? lastSync?.totals?.dealsCount ?? 0} oportunidades processadas
+                {lastSync?.progress?.dealsTotal ? ` de ${lastSync.progress.dealsTotal}` : ""}
+                {lastSync?.ranAt && ` — ${format(new Date(lastSync.ranAt), "dd/MM HH:mm")}`}
+              </div>
+            </div>
+            {role === "admin" && (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setLastSync({ ...lastSync, cancelled: false })} className="h-7 text-xs">
+                  Dispensar
+                </Button>
+                <Button variant="default" size="sm" onClick={handleSyncAC} className="h-7 text-xs">
+                  <RefreshCw className="h-3 w-3 mr-1" /> Sincronizar novamente
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-4 pb-2 items-start h-full">
