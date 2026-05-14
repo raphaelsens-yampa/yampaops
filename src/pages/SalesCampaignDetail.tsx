@@ -392,8 +392,9 @@ function ImportDialog({ campaign, onImported }: { campaign: Campaign; onImported
     const { data, error } = await supabase.functions.invoke("sales-campaign-import", {
       body: { campaign_id: campaign.id, file_name: fileName, mapping, rows },
     });
-    if (error) {
-      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+    if (error || (data as any)?.error) {
+      const detail = (data as any)?.error ? JSON.stringify((data as any).error) : error?.message;
+      toast({ title: "Erro no upload", description: detail, variant: "destructive" });
       setStep("map");
       return;
     }
