@@ -16,7 +16,7 @@ import { Megaphone, Plus, Target as TargetIcon, TrendingUp, DollarSign, FileBarC
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { CHANNEL_OPTIONS, STATUS_OPTIONS, statusBadgeClass } from "@/lib/salesCampaigns";
+import { CHANNEL_OPTIONS, STATUS_OPTIONS, mergeCampaignProgress, statusBadgeClass, sumSnapshotMetrics } from "@/lib/salesCampaigns";
 
 function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
   const { user } = useAuth();
@@ -166,7 +166,7 @@ export default function SalesCampaigns() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "sales_campaign_snapshots" }, () => {
         qc.invalidateQueries({ queryKey: ["sales-campaigns-aggregates"] });
-        qc.invalidateQueries({ queryKey: ["sales-campaigns-snapshot-max"] });
+        qc.invalidateQueries({ queryKey: ["sales-campaigns-snapshot-totals"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
