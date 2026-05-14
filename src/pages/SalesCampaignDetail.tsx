@@ -19,7 +19,7 @@ import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { CHANNEL_OPTIONS, STATUS_OPTIONS, CONTACT_STATUS_OPTIONS, statusBadgeClass } from "@/lib/salesCampaigns";
+import { CHANNEL_OPTIONS, STATUS_OPTIONS, CONTACT_STATUS_OPTIONS, mergeCampaignProgress, statusBadgeClass, sumSnapshotMetrics } from "@/lib/salesCampaigns";
 
 type Campaign = any;
 type ContactRow = any;
@@ -129,12 +129,12 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   });
 
   const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, snapshots: [] };
-  const snapMax = (key: string) => a.snapshots.reduce((m: number, s: any) => Math.max(m, Number(s[key]) || 0), 0);
-  const contacted = Math.max(a.contacted, snapMax("contacted"));
-  const replies = Math.max(a.replies, snapMax("replies"));
-  const meetings = Math.max(a.meetings, snapMax("meetings"));
-  const conversions = Math.max(a.conversions, snapMax("conversions"));
-  const mrr = Math.max(a.mrr, snapMax("mrr_generated"));
+  const merged = mergeCampaignProgress(a, sumSnapshotMetrics(a.snapshots));
+  const contacted = merged.contacted;
+  const replies = merged.replies;
+  const meetings = merged.meetings || 0;
+  const conversions = merged.conversions;
+  const mrr = merged.mrr;
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
   const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
