@@ -2,11 +2,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "https://esm.sh/zod@3.23.8";
 
+const toStr = z.preprocess(
+  (v) => (v === null || v === undefined || v === "" ? null : String(v)),
+  z.string().nullable(),
+).optional();
+
 const RowSchema = z.object({
-  name: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  company: z.string().nullable().optional(),
+  name: toStr,
+  email: toStr,
+  phone: toStr,
+  company: toStr,
   extra: z.record(z.any()).optional(),
 });
 
