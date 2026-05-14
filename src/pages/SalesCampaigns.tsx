@@ -172,9 +172,9 @@ export default function SalesCampaigns() {
     return () => { supabase.removeChannel(channel); };
   }, [qc]);
 
-  // Snapshots agregados por campanha — pega o MAX de cada KPI entre todos os snapshots
-  const { data: snapshotMax = {} } = useQuery({
-    queryKey: ["sales-campaigns-snapshot-max", campaigns.map((c: any) => c.id).join(",")],
+  // Snapshots agregados por campanha — soma a evolução registrada e concilia com a base atual
+  const { data: snapshotTotals = {} } = useQuery({
+    queryKey: ["sales-campaigns-snapshot-totals", campaigns.map((c: any) => c.id).join(",")],
     enabled: campaigns.length > 0,
     queryFn: async () => {
       const ids = campaigns.map((c: any) => c.id);
@@ -182,14 +182,14 @@ export default function SalesCampaigns() {
         .from("sales_campaign_snapshots")
         .select("campaign_id, contacted, replies, meetings, conversions, mrr_generated")
         .in("campaign_id", ids);
+      const grouped: Record<string, any[]> = {};
+      for (const snapshot of data || []) {
+        grouped[snapshot.campaign_id] = grouped[snapshot.campaign_id] || [];
+        grouped[snapshot.campaign_id].push(snapshot);
+      }
       const map: Record<string, any> = {};
-      for (const s of data || []) {
-        const m = map[s.campaign_id] || { contacted: 0, replies: 0, conversions: 0, mrr: 0 };
-        m.contacted = Math.max(m.contacted, Number(s.contacted) || 0);
-        m.replies = Math.max(m.replies, Number(s.replies) || 0);
-        m.conversions = Math.max(m.conversions, Number(s.conversions) || 0);
-        m.mrr = Math.max(m.mrr, Number(s.mrr_generated) || 0);
-        map[s.campaign_id] = m;
+      for (const id of ids) {
+        map[id] = sumSnapshotMetrics(grouped[id] || []);
       }
       return map;
     },
@@ -202,18 +202,11 @@ export default function SalesCampaigns() {
     return true;
   });
 
-  // Effective aggregate per campaign: pega o MAX entre contatos derivados e snapshots
+  // Effective aggregate per campaign: usa o melhor valor entre base atual e evolução acumulada
   const effective = (id: string) => {
     const a = (aggregates as any)[id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
-    const s = (snapshotMax as any)[id];
-    if (!s) return a;
-    return {
-      base: a.base,
-      contacted: Math.max(a.contacted, Number(s.contacted) || 0),
-      replies: Math.max(a.replies, Number(s.replies) || 0),
-      conversions: Math.max(a.conversions, Number(s.conversions) || 0),
-      mrr: Math.max(a.mrr, Number(s.mrr) || 0),
-    };
+    const s = (snapshotTotals as any)[id];
+    return mergeCampaignProgress(a, s);
   };
 
   const totalActive = campaigns.filter((c: any) => c.status === "ativa").length;
