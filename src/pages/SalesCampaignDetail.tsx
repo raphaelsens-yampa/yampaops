@@ -374,13 +374,14 @@ function ImportDialog({ campaign, onImported }: { campaign: Campaign; onImported
 
   const submit = async () => {
     setStep("uploading");
+    const toStr = (v: any) => (v === null || v === undefined || v === "" ? null : String(v).trim());
     const rows = rawRows.map((r) => {
       const out: any = {
-        name: mapping.name ? r[mapping.name] : null,
-        email: mapping.email ? r[mapping.email] : null,
-        phone: mapping.phone ? r[mapping.phone] : null,
-        company: mapping.company ? r[mapping.company] : null,
-        extra: {},
+        name: mapping.name ? toStr(r[mapping.name]) : null,
+        email: mapping.email ? toStr(r[mapping.email]) : null,
+        phone: mapping.phone ? toStr(r[mapping.phone]) : null,
+        company: mapping.company ? toStr(r[mapping.company]) : null,
+        extra: {} as Record<string, any>,
       };
       // Put unmapped columns into extra
       for (const h of headers) {
