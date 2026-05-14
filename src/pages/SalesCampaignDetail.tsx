@@ -374,13 +374,14 @@ function ImportDialog({ campaign, onImported }: { campaign: Campaign; onImported
 
   const submit = async () => {
     setStep("uploading");
+    const toStr = (v: any) => (v === null || v === undefined || v === "" ? null : String(v).trim());
     const rows = rawRows.map((r) => {
       const out: any = {
-        name: mapping.name ? r[mapping.name] : null,
-        email: mapping.email ? r[mapping.email] : null,
-        phone: mapping.phone ? r[mapping.phone] : null,
-        company: mapping.company ? r[mapping.company] : null,
-        extra: {},
+        name: mapping.name ? toStr(r[mapping.name]) : null,
+        email: mapping.email ? toStr(r[mapping.email]) : null,
+        phone: mapping.phone ? toStr(r[mapping.phone]) : null,
+        company: mapping.company ? toStr(r[mapping.company]) : null,
+        extra: {} as Record<string, any>,
       };
       // Put unmapped columns into extra
       for (const h of headers) {
@@ -391,8 +392,9 @@ function ImportDialog({ campaign, onImported }: { campaign: Campaign; onImported
     const { data, error } = await supabase.functions.invoke("sales-campaign-import", {
       body: { campaign_id: campaign.id, file_name: fileName, mapping, rows },
     });
-    if (error) {
-      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+    if (error || (data as any)?.error) {
+      const detail = (data as any)?.error ? JSON.stringify((data as any).error) : error?.message;
+      toast({ title: "Erro no upload", description: detail, variant: "destructive" });
       setStep("map");
       return;
     }
