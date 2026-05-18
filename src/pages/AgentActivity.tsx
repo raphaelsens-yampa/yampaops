@@ -401,11 +401,6 @@ function CoberturaAC() {
   const { data: lists, isLoading: loadingLists, refetch: refetchLists } = useQuery({
     queryKey: ["ac-lists"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("ac-list-contacts", {
-        body: null,
-        // GET via query string
-      });
-      // Workaround: supabase.functions.invoke is POST by default; we use fetch directly:
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
       const session = (await supabase.auth.getSession()).data.session;
       const res = await fetch(`${projectUrl}/functions/v1/ac-list-contacts?action=lists`, {
