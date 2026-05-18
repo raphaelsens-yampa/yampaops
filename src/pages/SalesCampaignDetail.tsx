@@ -534,22 +534,27 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
             <TableHeader><TableRow>
               <TableHead>Data</TableHead><TableHead className="text-right">Contatados</TableHead><TableHead className="text-right">Respostas</TableHead>
               <TableHead className="text-right">Reuniões</TableHead><TableHead className="text-right">Conversões</TableHead><TableHead className="text-right">MRR</TableHead>
-              <TableHead>Origem</TableHead><TableHead></TableHead>
+              <TableHead>Origem</TableHead><TableHead>Observações</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {snapshots.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
-              {snapshots.map((s: any) => (
+              {snapshots.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
+              {snapshots.map((s: any) => {
+                const [y, m, d] = String(s.snapshot_date).slice(0, 10).split("-");
+                const dateLabel = y && m && d ? `${d}/${m}/${y}` : s.snapshot_date;
+                return (
                 <TableRow key={s.id}>
-                  <TableCell>{new Date(s.snapshot_date).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{dateLabel}</TableCell>
                   <TableCell className="text-right">{s.contacted}</TableCell>
                   <TableCell className="text-right">{s.replies}</TableCell>
                   <TableCell className="text-right">{s.meetings}</TableCell>
                   <TableCell className="text-right">{s.conversions}</TableCell>
                   <TableCell className="text-right">R$ {Number(s.mrr_generated).toFixed(0)}</TableCell>
                   <TableCell><Badge variant="outline">{s.source}</Badge></TableCell>
+                  <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm text-muted-foreground">{s.notes || <span className="text-muted-foreground/50">—</span>}</TableCell>
                   <TableCell><Button size="icon" variant="ghost" onClick={() => remove(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
