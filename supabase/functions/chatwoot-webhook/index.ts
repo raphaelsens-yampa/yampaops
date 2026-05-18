@@ -628,6 +628,27 @@ async function handleMessageCreated(payload: any) {
     userId,
   });
 
+  // Persistir mensagem individual (idempotente via UNIQUE chatwoot_message_id)
+  if (message.id) {
+    try {
+      await service.from("chatwoot_messages").upsert({
+        chatwoot_message_id: Number(message.id),
+        chatwoot_conversation_id: Number(conversation.id),
+        chatwoot_account_id: conversation.account_id ? Number(conversation.account_id) : null,
+        chatwoot_inbox_id: conversation.inbox_id ? Number(conversation.inbox_id) : null,
+        inbox_name: conversation.inbox?.name || null,
+        sender_type: activityType === "resposta_recebida" ? "client" : "agent",
+        sender_id: message.sender?.id ? Number(message.sender.id) : null,
+        sender_name: message.sender?.name || null,
+        sender_email: message.sender?.email || null,
+        message_type: typeof mt === "number" ? mt : null,
+        content_preview: content ? content.slice(0, 500) : null,
+        is_private: !!message.private,
+        message_created_at: tsToIso(message.created_at) || new Date().toISOString(),
+      }, { onConflict: "chatwoot_message_id" });
+    } catch (_e) { /* ignore */ }
+  }
+
   // Tag "Mensagem respondida" only on incoming (cliente respondeu)
   if (activityType === "resposta_recebida") {
     await applyTagForEvent(ctx.opportunityId, "message_replied");
