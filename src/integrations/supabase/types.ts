@@ -793,6 +793,60 @@ export type Database = {
         }
         Relationships: []
       }
+      chatwoot_messages: {
+        Row: {
+          chatwoot_account_id: number | null
+          chatwoot_conversation_id: number
+          chatwoot_inbox_id: number | null
+          chatwoot_message_id: number
+          content_preview: string | null
+          created_at: string
+          id: string
+          inbox_name: string | null
+          is_private: boolean
+          message_created_at: string
+          message_type: number | null
+          sender_email: string | null
+          sender_id: number | null
+          sender_name: string | null
+          sender_type: string
+        }
+        Insert: {
+          chatwoot_account_id?: number | null
+          chatwoot_conversation_id: number
+          chatwoot_inbox_id?: number | null
+          chatwoot_message_id: number
+          content_preview?: string | null
+          created_at?: string
+          id?: string
+          inbox_name?: string | null
+          is_private?: boolean
+          message_created_at: string
+          message_type?: number | null
+          sender_email?: string | null
+          sender_id?: number | null
+          sender_name?: string | null
+          sender_type: string
+        }
+        Update: {
+          chatwoot_account_id?: number | null
+          chatwoot_conversation_id?: number
+          chatwoot_inbox_id?: number | null
+          chatwoot_message_id?: number
+          content_preview?: string | null
+          created_at?: string
+          id?: string
+          inbox_name?: string | null
+          is_private?: boolean
+          message_created_at?: string
+          message_type?: number | null
+          sender_email?: string | null
+          sender_id?: number | null
+          sender_name?: string | null
+          sender_type?: string
+        }
+        Relationships: []
+      }
       commission_products: {
         Row: {
           area: string | null
