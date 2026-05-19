@@ -123,6 +123,8 @@ export default function SalesCampaigns() {
   const [filterChannel, setFilterChannel] = useState<string>("all");
   const [filterArea, setFilterArea] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns());
+  useEffect(() => { try { localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns)); } catch {} }, [columns]);
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ["sales-campaigns"],
