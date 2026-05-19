@@ -296,6 +296,7 @@ export default function SalesCampaigns() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
+                      <TableHead>Área</TableHead>
                       <TableHead>Canal</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Período</TableHead>
@@ -309,14 +310,15 @@ export default function SalesCampaigns() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
-                    {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
+                    {isLoading && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
+                    {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
                     {filtered.map((c: any) => {
                       const agg = effective(c.id) as any;
                       const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
                       return (
                         <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
                           <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>
                           <TableCell>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>
                           <TableCell><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>
                           <TableCell className="text-xs text-muted-foreground">
