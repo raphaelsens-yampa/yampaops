@@ -230,6 +230,47 @@ export default function SalesCampaigns() {
     return true;
   });
 
+  const sortValue = (c: any, key: ColumnKey): number | string => {
+    const a = (aggregates as any)[c.id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0, no_phone: 0 };
+    const s = (snapshotTotals as any)[c.id];
+    const agg = mergeCampaignProgress(a, s) as any;
+    const noPhone = a.no_phone ?? 0;
+    switch (key) {
+      case "name": return (c.name || "").toLowerCase();
+      case "priority": {
+        const p = Number(c.priority) || 0;
+        // 1 = mais urgente; 0/sem prioridade vai para o fim em ASC e início em DESC
+        return p === 0 ? Number.POSITIVE_INFINITY : p;
+      }
+      case "area": return (c.area || "").toLowerCase();
+      case "channel": return (c.channel || "").toLowerCase();
+      case "status": return (c.status || "").toLowerCase();
+      case "period": return c.start_date ? new Date(c.start_date).getTime() : 0;
+      case "base": return agg.base;
+      case "contacted": return agg.contacted;
+      case "replies": return agg.replies;
+      case "no_phone": return noPhone;
+      case "conversions": return agg.conversions;
+      case "mrr": return agg.mrr;
+      case "pct_mrr": return c.target_mrr > 0 ? (agg.mrr / Number(c.target_mrr)) : 0;
+      default: return 0;
+    }
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    const va = sortValue(a, sortKey);
+    const vb = sortValue(b, sortKey);
+    let cmp = 0;
+    if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+    else cmp = String(va).localeCompare(String(vb), "pt-BR");
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const toggleSort = (key: ColumnKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "priority" || key === "name" || key === "area" ? "asc" : "desc"); }
+  };
+
   // Effective aggregate per campaign: usa o melhor valor entre base atual e evolução acumulada
   const effective = (id: string) => {
     const a = (aggregates as any)[id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
