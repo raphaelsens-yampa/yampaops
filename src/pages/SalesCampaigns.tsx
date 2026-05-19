@@ -46,6 +46,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       budget: Number(form.budget) || 0,
+      priority: Number(form.priority) || 0,
       target_contacted: Number(form.target_contacted) || 0,
       target_replies: Number(form.target_replies) || 0,
       target_conversions: Number(form.target_conversions) || 0,
