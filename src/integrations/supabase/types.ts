@@ -1908,6 +1908,7 @@ export type Database = {
           area: string | null
           budget: number
           channel: string
+          churn_rate: number | null
           created_at: string
           created_by: string | null
           custom_field_defs: Json
@@ -1929,6 +1930,7 @@ export type Database = {
           area?: string | null
           budget?: number
           channel?: string
+          churn_rate?: number | null
           created_at?: string
           created_by?: string | null
           custom_field_defs?: Json
@@ -1950,6 +1952,7 @@ export type Database = {
           area?: string | null
           budget?: number
           channel?: string
+          churn_rate?: number | null
           created_at?: string
           created_by?: string | null
           custom_field_defs?: Json
