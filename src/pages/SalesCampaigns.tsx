@@ -282,6 +282,13 @@ export default function SalesCampaigns() {
                     {CHANNEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={filterArea} onValueChange={setFilterArea}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="Área" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas áreas</SelectItem>
+                    {areaOptions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="border rounded-md overflow-x-auto">
