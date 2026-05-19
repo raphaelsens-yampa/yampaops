@@ -644,6 +644,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     start_date: campaign.start_date || "",
     end_date: campaign.end_date || "",
     budget: String(campaign.budget),
+    churn_rate: campaign.churn_rate != null ? String(campaign.churn_rate) : "",
     target_contacted: String(campaign.target_contacted),
     target_replies: String(campaign.target_replies),
     target_conversions: String(campaign.target_conversions),
@@ -653,6 +654,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     const { error } = await supabase.from("sales_campaigns").update({
       ...form,
       budget: Number(form.budget) || 0,
+      churn_rate: form.churn_rate === "" ? null : Number(form.churn_rate),
       target_contacted: Number(form.target_contacted) || 0,
       target_replies: Number(form.target_replies) || 0,
       target_conversions: Number(form.target_conversions) || 0,
