@@ -77,6 +77,7 @@ export default function SalesCampaignDetail() {
               <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                 <Badge className={statusBadgeClass(campaign.status)}>{STATUS_OPTIONS.find((o) => o.value === campaign.status)?.label}</Badge>
                 <span>{CHANNEL_OPTIONS.find((o) => o.value === campaign.channel)?.label}</span>
+                {campaign.area && <span>· Área: {campaign.area}</span>}
                 {campaign.segment && <span>· {campaign.segment}</span>}
               </div>
             </div>
