@@ -122,7 +122,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
           base++;
           if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) contacted++;
           if (["respondeu", "agendado", "convertido"].includes(c.status)) replies++;
-          if (["agendado", "convertido"].includes(c.status)) meetings++;
+          if (c.status === "agendado") meetings++;
           if (c.status === "convertido") conversions++;
           if (!c.phone_digits) noPhone++;
           mrr += Number(c.mrr_generated || 0);
