@@ -691,7 +691,8 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
           </div>
           <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
           <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS, Parcerias" /></div>
-          <div><Label>Orçamento</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+          <div><Label>Investimento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+          <div><Label>Churn mensal (%)</Label><Input type="number" step="0.1" value={form.churn_rate} onChange={(e) => setForm({ ...form, churn_rate: e.target.value })} placeholder="Ex.: 5 (vazio = usa padrão financeiro)" /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
           <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
