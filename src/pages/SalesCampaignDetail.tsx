@@ -683,6 +683,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     end_date: campaign.end_date || "",
     budget: String(campaign.budget),
     churn_rate: campaign.churn_rate != null ? String(campaign.churn_rate) : "",
+    priority: String(campaign.priority ?? 0),
     target_contacted: String(campaign.target_contacted),
     target_replies: String(campaign.target_replies),
     target_conversions: String(campaign.target_conversions),
@@ -693,6 +694,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
       ...form,
       budget: Number(form.budget) || 0,
       churn_rate: form.churn_rate === "" ? null : Number(form.churn_rate),
+      priority: Number(form.priority) || 0,
       target_contacted: Number(form.target_contacted) || 0,
       target_replies: Number(form.target_replies) || 0,
       target_conversions: Number(form.target_conversions) || 0,
@@ -703,6 +705,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
       area: form.area || null,
       description: form.description || null,
     }).eq("id", campaign.id);
+
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Campanha atualizada" });
     onSaved();
