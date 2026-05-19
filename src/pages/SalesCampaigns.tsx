@@ -124,6 +124,8 @@ export default function SalesCampaigns() {
   const [filterArea, setFilterArea] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns());
+  const [sortKey, setSortKey] = useState<ColumnKey>("priority");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   useEffect(() => { try { localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns)); } catch {} }, [columns]);
 
   const { data: campaigns = [], isLoading } = useQuery({
@@ -132,7 +134,6 @@ export default function SalesCampaigns() {
       const { data, error } = await supabase
         .from("sales_campaigns")
         .select("*")
-        .order("priority", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
