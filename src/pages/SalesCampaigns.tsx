@@ -294,7 +294,9 @@ export default function SalesCampaigns() {
                     {areaOptions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <div className="ml-auto"><ColumnManager /></div>
               </div>
+
 
               <CampaignsTable
                 isLoading={isLoading}
