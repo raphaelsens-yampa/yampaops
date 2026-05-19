@@ -106,29 +106,40 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const { data: agg } = useQuery({
     queryKey: ["scc-overview", campaign.id],
     queryFn: async () => {
-      const { data: contacts } = await supabase
-        .from("sales_campaign_contacts")
-        .select("status, mrr_generated")
-        .eq("campaign_id", campaign.id);
+      // Paginate contacts to avoid 1000-row PostgREST cap
+      const PAGE = 1000;
+      let from = 0;
+      let base = 0, contacted = 0, replies = 0, meetings = 0, conversions = 0, mrr = 0, noPhone = 0;
+      while (true) {
+        const { data: contacts, error } = await supabase
+          .from("sales_campaign_contacts")
+          .select("status, mrr_generated, phone_digits")
+          .eq("campaign_id", campaign.id)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!contacts || contacts.length === 0) break;
+        for (const c of contacts) {
+          base++;
+          if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) contacted++;
+          if (["respondeu", "agendado", "convertido"].includes(c.status)) replies++;
+          if (["agendado", "convertido"].includes(c.status)) meetings++;
+          if (c.status === "convertido") conversions++;
+          if (!c.phone_digits) noPhone++;
+          mrr += Number(c.mrr_generated || 0);
+        }
+        if (contacts.length < PAGE) break;
+        from += PAGE;
+      }
       const { data: snapshots } = await supabase
         .from("sales_campaign_snapshots")
         .select("snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
         .eq("campaign_id", campaign.id)
         .order("snapshot_date", { ascending: true });
-      let base = 0, contacted = 0, replies = 0, meetings = 0, conversions = 0, mrr = 0;
-      for (const c of contacts || []) {
-        base++;
-        if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) contacted++;
-        if (["respondeu", "agendado", "convertido"].includes(c.status)) replies++;
-        if (["agendado", "convertido"].includes(c.status)) meetings++;
-        if (c.status === "convertido") conversions++;
-        mrr += Number(c.mrr_generated || 0);
-      }
-      return { base, contacted, replies, meetings, conversions, mrr, snapshots: snapshots || [] };
+      return { base, contacted, replies, meetings, conversions, mrr, noPhone, snapshots: snapshots || [] };
     },
   });
 
-  const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, snapshots: [] };
+  const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, snapshots: [] };
   const merged = mergeCampaignProgress(a, sumSnapshotMetrics(a.snapshots));
   const contacted = merged.contacted;
   const replies = merged.replies;
@@ -137,6 +148,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const mrr = merged.mrr;
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
+  const contactedRate = a.base > 0 ? ((contacted / a.base) * 100).toFixed(1) : "0.0";
   const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
 
   const funnel = [
@@ -151,11 +163,11 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
-        <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} />
+        <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} sub={`${contactedRate}% da base`} />
         <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}%`} />
+        <Kpi label="Sem telefone" value={a.noPhone} sub={a.base > 0 ? `${((a.noPhone / a.base) * 100).toFixed(1)}% da base` : undefined} />
         <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
         <Kpi label="MRR" value={`R$ ${mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
-        <Kpi label="ROI MRR/Orç." value={`${roi}${roi === "—" ? "" : "%"}`} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
