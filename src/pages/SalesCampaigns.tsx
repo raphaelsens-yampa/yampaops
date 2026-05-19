@@ -23,7 +23,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    name: "", description: "", channel: "outros", segment: "",
+    name: "", description: "", channel: "outros", segment: "", area: "",
     status: "planejada", start_date: "", end_date: "",
     budget: "0", target_contacted: "0", target_replies: "0",
     target_conversions: "0", target_mrr: "0",
