@@ -343,11 +343,15 @@ export default function SalesCampaigns() {
 
               <CampaignsTable
                 isLoading={isLoading}
-                filtered={filtered}
+                filtered={sorted}
                 effective={effective}
                 navigate={navigate}
                 columns={columns}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggleSort={toggleSort}
               />
+
 
 
             </CardContent>
