@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save } from "lucide-react";
+import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save, Pencil, X } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -462,11 +462,35 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     snapshot_date: new Date().toISOString().slice(0, 10),
     contacted: "0", replies: "0", meetings: "0", conversions: "0",
     mrr_generated: "0", notes: "",
   });
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm({
+      snapshot_date: new Date().toISOString().slice(0, 10),
+      contacted: "0", replies: "0", meetings: "0", conversions: "0",
+      mrr_generated: "0", notes: "",
+    });
+  };
+
+  const startEdit = (s: any) => {
+    setEditingId(s.id);
+    setForm({
+      snapshot_date: String(s.snapshot_date).slice(0, 10),
+      contacted: String(s.contacted ?? 0),
+      replies: String(s.replies ?? 0),
+      meetings: String(s.meetings ?? 0),
+      conversions: String(s.conversions ?? 0),
+      mrr_generated: String(s.mrr_generated ?? 0),
+      notes: s.notes || "",
+    });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const { data: snapshots = [], refetch } = useQuery({
     queryKey: ["scs", campaign.id],
@@ -492,8 +516,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
   };
 
   const save = async () => {
-    const { error } = await supabase.from("sales_campaign_snapshots").insert({
-      campaign_id: campaign.id,
+    const payload = {
       snapshot_date: form.snapshot_date,
       contacted: Number(form.contacted) || 0,
       replies: Number(form.replies) || 0,
@@ -501,17 +524,28 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
       conversions: Number(form.conversions) || 0,
       mrr_generated: Number(form.mrr_generated) || 0,
       notes: form.notes || null,
-      created_by: user?.id,
-      source: "manual",
-    });
+    };
+    let error;
+    if (editingId) {
+      ({ error } = await supabase.from("sales_campaign_snapshots").update(payload).eq("id", editingId));
+    } else {
+      ({ error } = await supabase.from("sales_campaign_snapshots").insert({
+        ...payload,
+        campaign_id: campaign.id,
+        created_by: user?.id,
+        source: "manual",
+      }));
+    }
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Snapshot salvo" });
+    toast({ title: editingId ? "Snapshot atualizado" : "Snapshot salvo" });
+    resetForm();
     refetch();
     qc.invalidateQueries({ queryKey: ["scc-overview", campaign.id] });
   };
 
   const remove = async (id: string) => {
     await supabase.from("sales_campaign_snapshots").delete().eq("id", id);
+    if (editingId === id) resetForm();
     refetch();
   };
 
@@ -519,7 +553,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Registrar evolução</CardTitle>
+          <CardTitle className="text-base">{editingId ? "Editar evolução" : "Registrar evolução"}</CardTitle>
           <CardDescription>Preencha manualmente ou clique em "Calcular automaticamente" para puxar da base e cruzamentos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -531,8 +565,9 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
             <div><Label>Conversões</Label><Input type="number" value={form.conversions} onChange={(e) => setForm({ ...form, conversions: e.target.value })} /></div>
             <div><Label>MRR (R$)</Label><Input type="number" value={form.mrr_generated} onChange={(e) => setForm({ ...form, mrr_generated: e.target.value })} /></div>
             <div className="flex items-end gap-1">
-              <Button variant="outline" onClick={autoFill} title="Calcular da base"><RefreshCw className="h-4 w-4" /></Button>
-              <Button onClick={save}><Save className="h-4 w-4 mr-1" />Salvar</Button>
+              {!editingId && <Button variant="outline" onClick={autoFill} title="Calcular da base"><RefreshCw className="h-4 w-4" /></Button>}
+              <Button onClick={save}><Save className="h-4 w-4 mr-1" />{editingId ? "Atualizar" : "Salvar"}</Button>
+              {editingId && <Button variant="ghost" onClick={resetForm} title="Cancelar edição"><X className="h-4 w-4" /></Button>}
             </div>
           </div>
           <div><Label>Observações</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
@@ -554,7 +589,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
                 const [y, m, d] = String(s.snapshot_date).slice(0, 10).split("-");
                 const dateLabel = y && m && d ? `${d}/${m}/${y}` : s.snapshot_date;
                 return (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} data-state={editingId === s.id ? "selected" : undefined}>
                   <TableCell>{dateLabel}</TableCell>
                   <TableCell className="text-right">{s.contacted}</TableCell>
                   <TableCell className="text-right">{s.replies}</TableCell>
@@ -563,7 +598,12 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
                   <TableCell className="text-right">R$ {Number(s.mrr_generated).toFixed(0)}</TableCell>
                   <TableCell><Badge variant="outline">{s.source}</Badge></TableCell>
                   <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm text-muted-foreground">{s.notes || <span className="text-muted-foreground/50">—</span>}</TableCell>
-                  <TableCell><Button size="icon" variant="ghost" onClick={() => remove(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => startEdit(s)} title="Editar"><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => remove(s.id)} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
                 );
               })}
@@ -574,6 +614,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
     </div>
   );
 }
+
 
 // =============== CONFIG TAB ===============
 function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => void }) {
