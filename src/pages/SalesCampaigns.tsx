@@ -41,6 +41,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
       description: form.description || null,
       channel: form.channel,
       segment: form.segment || null,
+      area: form.area || null,
       status: form.status,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
