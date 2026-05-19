@@ -153,13 +153,36 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const meetingRate = contacted > 0 ? ((meetings / contacted) * 100).toFixed(1) : "0.0";
   const contactedRate = a.base > 0 ? ((contacted / a.base) * 100).toFixed(1) : "0.0";
   const budget = Number(campaign.budget) || 0;
+  const fmtBRL = (n: number) => `R$ ${n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
   const roi = budget > 0 ? `${((mrr / budget) * 100).toFixed(0)}%` : "—";
   const cac = conversions > 0 && budget > 0 ? budget / conversions : 0;
-  const churnRate = Number(campaign.churn_rate) || a.fallbackChurn || 0;
-  const avgTicket = conversions > 0 ? mrr / conversions : 0;
-  const ltv = churnRate > 0 ? avgTicket / (churnRate / 100) : 0;
-  const ltvCacRatio = cac > 0 && ltv > 0 ? ltv / cac : 0;
-  const fmtBRL = (n: number) => `R$ ${n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const monthlyChurn = (Number(campaign.churn_rate) || a.fallbackChurn || 0) / 100;
+  const monthlyTicket = conversions > 0 ? mrr / conversions : 0;
+
+  const [ltvPeriod, setLtvPeriod] = useState<"mensal" | "anual" | "custom">("mensal");
+  const [ltvMonths, setLtvMonths] = useState<string>("12");
+
+  const ltvCalc = (() => {
+    if (monthlyTicket <= 0 || monthlyChurn <= 0) return { ltv: 0, label: "LTV / CAC", desc: "" };
+    if (ltvPeriod === "mensal") {
+      const ltv = monthlyTicket / monthlyChurn;
+      return { ltv, label: "LTV / CAC (Mensal)", desc: `LTV ${fmtBRL(ltv)} · vida ${(1 / monthlyChurn).toFixed(1)} meses` };
+    }
+    if (ltvPeriod === "anual") {
+      const annualTicket = monthlyTicket * 12;
+      const annualChurn = 1 - Math.pow(1 - monthlyChurn, 12);
+      const ltv = annualChurn > 0 ? annualTicket / annualChurn : 0;
+      return { ltv, label: "LTV / CAC (Anual)", desc: `LTV ${fmtBRL(ltv)} · churn anual ${(annualChurn * 100).toFixed(1)}%` };
+    }
+    const n = Math.max(1, Number(ltvMonths) || 12);
+    const maxLife = 1 / monthlyChurn;
+    const horizon = Math.min(n, maxLife);
+    const ltv = monthlyTicket * horizon;
+    return { ltv, label: `LTV / CAC (${n}m)`, desc: `LTV ${fmtBRL(ltv)} · horizonte ${horizon.toFixed(1)} meses` };
+  })();
+
+  const ltvCacRatio = cac > 0 && ltvCalc.ltv > 0 ? ltvCalc.ltv / cac : 0;
+  const churnPctLabel = monthlyChurn > 0 ? `${(monthlyChurn * 100).toFixed(1)}%` : "—";
 
   const funnel = [
     { stage: "Base", value: a.base },
@@ -171,6 +194,20 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <Label className="text-xs text-muted-foreground">Período LTV/CAC:</Label>
+        <Select value={ltvPeriod} onValueChange={(v) => setLtvPeriod(v as any)}>
+          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="mensal">Mensal</SelectItem>
+            <SelectItem value="anual">Anual</SelectItem>
+            <SelectItem value="custom">Personalizado</SelectItem>
+          </SelectContent>
+        </Select>
+        {ltvPeriod === "custom" && (
+          <Input type="number" min={1} value={ltvMonths} onChange={(e) => setLtvMonths(e.target.value)} className="w-24 h-8 text-xs" placeholder="meses" />
+        )}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
         <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} sub={`${contactedRate}% da base`} />
@@ -182,8 +219,9 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         <Kpi label="Investimento" value={fmtBRL(budget)} sub={budget === 0 ? "Defina em Configuração" : undefined} />
         <Kpi label="ROI" value={roi} sub={budget > 0 ? "MRR ÷ investimento" : "Sem investimento"} />
         <Kpi label="CAC" value={cac > 0 ? fmtBRL(cac) : "—"} sub={conversions > 0 ? `${conversions} conversões` : "Sem conversões"} />
-        <Kpi label="LTV / CAC" value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={churnRate > 0 ? `LTV ${fmtBRL(ltv)} · churn ${churnRate}%` : "Defina o churn"} />
+        <Kpi label={ltvCalc.label} value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={monthlyChurn > 0 ? `${ltvCalc.desc} · churn ${churnPctLabel}` : "Defina o churn"} />
       </div>
+
 
       <div className="grid md:grid-cols-2 gap-3">
         <Card>
