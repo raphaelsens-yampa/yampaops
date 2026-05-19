@@ -649,6 +649,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       segment: form.segment || null,
+      area: form.area || null,
       description: form.description || null,
     }).eq("id", campaign.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
