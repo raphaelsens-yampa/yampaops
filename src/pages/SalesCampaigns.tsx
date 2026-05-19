@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Megaphone, Plus, Target as TargetIcon, TrendingUp, DollarSign, FileBarChart, Settings2, ArrowUp, ArrowDown } from "lucide-react";
+import { Megaphone, Plus, Target as TargetIcon, TrendingUp, DollarSign, FileBarChart, Settings2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -99,7 +99,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
           <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
           <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS" /></div>
           <div><Label>Orçamento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
-          <div><Label>Prioridade</Label><Input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} placeholder="0 = padrão" /></div>
+          <div><Label>Prioridade</Label><Input type="number" min="0" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} placeholder="1 = mais urgente (0 = sem prioridade)" /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
           <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
@@ -124,6 +124,8 @@ export default function SalesCampaigns() {
   const [filterArea, setFilterArea] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns());
+  const [sortKey, setSortKey] = useState<ColumnKey>("priority");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   useEffect(() => { try { localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns)); } catch {} }, [columns]);
 
   const { data: campaigns = [], isLoading } = useQuery({
@@ -132,7 +134,6 @@ export default function SalesCampaigns() {
       const { data, error } = await supabase
         .from("sales_campaigns")
         .select("*")
-        .order("priority", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -229,6 +230,47 @@ export default function SalesCampaigns() {
     return true;
   });
 
+  const sortValue = (c: any, key: ColumnKey): number | string => {
+    const a = (aggregates as any)[c.id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0, no_phone: 0 };
+    const s = (snapshotTotals as any)[c.id];
+    const agg = mergeCampaignProgress(a, s) as any;
+    const noPhone = a.no_phone ?? 0;
+    switch (key) {
+      case "name": return (c.name || "").toLowerCase();
+      case "priority": {
+        const p = Number(c.priority) || 0;
+        // 1 = mais urgente; 0/sem prioridade vai para o fim em ASC e início em DESC
+        return p === 0 ? Number.POSITIVE_INFINITY : p;
+      }
+      case "area": return (c.area || "").toLowerCase();
+      case "channel": return (c.channel || "").toLowerCase();
+      case "status": return (c.status || "").toLowerCase();
+      case "period": return c.start_date ? new Date(c.start_date).getTime() : 0;
+      case "base": return agg.base;
+      case "contacted": return agg.contacted;
+      case "replies": return agg.replies;
+      case "no_phone": return noPhone;
+      case "conversions": return agg.conversions;
+      case "mrr": return agg.mrr;
+      case "pct_mrr": return c.target_mrr > 0 ? (agg.mrr / Number(c.target_mrr)) : 0;
+      default: return 0;
+    }
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    const va = sortValue(a, sortKey);
+    const vb = sortValue(b, sortKey);
+    let cmp = 0;
+    if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+    else cmp = String(va).localeCompare(String(vb), "pt-BR");
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const toggleSort = (key: ColumnKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "priority" || key === "name" || key === "area" ? "asc" : "desc"); }
+  };
+
   // Effective aggregate per campaign: usa o melhor valor entre base atual e evolução acumulada
   const effective = (id: string) => {
     const a = (aggregates as any)[id] || { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
@@ -301,11 +343,15 @@ export default function SalesCampaigns() {
 
               <CampaignsTable
                 isLoading={isLoading}
-                filtered={filtered}
+                filtered={sorted}
                 effective={effective}
                 navigate={navigate}
                 columns={columns}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggleSort={toggleSort}
               />
+
 
 
             </CardContent>
@@ -416,19 +462,22 @@ function ColumnManager({ value, onChange }: { value: ColumnState[]; onChange: (v
 
 // =============== TABLE ===============
 function CampaignsTable({
-  isLoading, filtered, effective, navigate, columns,
+  isLoading, filtered, effective, navigate, columns, sortKey, sortDir, onToggleSort,
 }: {
   isLoading: boolean;
   filtered: any[];
   effective: (id: string) => any;
   navigate: (path: string) => void;
   columns: ColumnState[];
+  sortKey: ColumnKey;
+  sortDir: "asc" | "desc";
+  onToggleSort: (key: ColumnKey) => void;
 }) {
   const visibleCols = columns.filter((c) => c.visible);
   const renderCell = (key: ColumnKey, c: any, agg: any, pct: number) => {
     switch (key) {
       case "name": return <TableCell key={key} className="font-medium">{c.name}</TableCell>;
-      case "priority": return <TableCell key={key} className="text-xs text-muted-foreground">{c.priority ?? 0}</TableCell>;
+      case "priority": return <TableCell key={key} className="text-xs text-muted-foreground">{c.priority ? c.priority : "—"}</TableCell>;
       case "area": return <TableCell key={key} className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>;
       case "channel": return <TableCell key={key}>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>;
       case "status": return <TableCell key={key}><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>;
@@ -452,11 +501,24 @@ function CampaignsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {visibleCols.map((col) => (
-              <TableHead key={col.key} className={numeric.includes(col.key) ? "text-right" : ""}>
-                {COLUMN_LABELS[col.key]}
-              </TableHead>
-            ))}
+            {visibleCols.map((col) => {
+              const isActive = sortKey === col.key;
+              const isNum = numeric.includes(col.key);
+              return (
+                <TableHead key={col.key} className={isNum ? "text-right" : ""}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSort(col.key)}
+                    className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${isNum ? "ml-auto" : ""} ${isActive ? "text-foreground font-semibold" : ""}`}
+                  >
+                    {COLUMN_LABELS[col.key]}
+                    {isActive
+                      ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+                      : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
