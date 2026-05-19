@@ -135,20 +135,31 @@ export default function SalesCampaigns() {
     enabled: campaigns.length > 0,
     queryFn: async () => {
       const ids = campaigns.map((c: any) => c.id);
-      const { data: contactsAgg } = await supabase
-        .from("sales_campaign_contacts")
-        .select("campaign_id, status, mrr_generated")
-        .in("campaign_id", ids);
       const map: Record<string, { base: number; contacted: number; replies: number; conversions: number; mrr: number }> = {};
       for (const id of ids) map[id] = { base: 0, contacted: 0, replies: 0, conversions: 0, mrr: 0 };
-      for (const c of contactsAgg || []) {
-        const m = map[c.campaign_id];
-        if (!m) continue;
-        m.base++;
-        if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) m.contacted++;
-        if (["respondeu", "agendado", "convertido"].includes(c.status)) m.replies++;
-        if (c.status === "convertido") m.conversions++;
-        m.mrr += Number(c.mrr_generated || 0);
+
+      // Paginate to avoid the 1000-row default cap from PostgREST
+      const PAGE = 1000;
+      let from = 0;
+      while (true) {
+        const { data: contactsAgg, error } = await supabase
+          .from("sales_campaign_contacts")
+          .select("campaign_id, status, mrr_generated")
+          .in("campaign_id", ids)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!contactsAgg || contactsAgg.length === 0) break;
+        for (const c of contactsAgg) {
+          const m = map[c.campaign_id];
+          if (!m) continue;
+          m.base++;
+          if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) m.contacted++;
+          if (["respondeu", "agendado", "convertido"].includes(c.status)) m.replies++;
+          if (c.status === "convertido") m.conversions++;
+          m.mrr += Number(c.mrr_generated || 0);
+        }
+        if (contactsAgg.length < PAGE) break;
+        from += PAGE;
       }
       return map;
     },
