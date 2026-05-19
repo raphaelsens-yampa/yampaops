@@ -210,9 +210,14 @@ export default function SalesCampaigns() {
     },
   });
 
+  const areaOptions = Array.from(
+    new Set(campaigns.map((c: any) => (c.area || "").trim()).filter(Boolean))
+  ).sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
+
   const filtered = campaigns.filter((c: any) => {
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
     if (filterChannel !== "all" && c.channel !== filterChannel) return false;
+    if (filterArea !== "all" && (c.area || "") !== filterArea) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
