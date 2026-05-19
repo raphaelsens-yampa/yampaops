@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Megaphone, Plus, Target as TargetIcon, TrendingUp, DollarSign, FileBarChart } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Megaphone, Plus, Target as TargetIcon, TrendingUp, DollarSign, FileBarChart, Settings2, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +27,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
   const [form, setForm] = useState({
     name: "", description: "", channel: "outros", segment: "", area: "",
     status: "planejada", start_date: "", end_date: "",
-    budget: "0", target_contacted: "0", target_replies: "0",
+    budget: "0", priority: "0", target_contacted: "0", target_replies: "0",
     target_conversions: "0", target_mrr: "0",
   });
   const [saving, setSaving] = useState(false);
@@ -46,6 +48,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       budget: Number(form.budget) || 0,
+      priority: Number(form.priority) || 0,
       target_contacted: Number(form.target_contacted) || 0,
       target_replies: Number(form.target_replies) || 0,
       target_conversions: Number(form.target_conversions) || 0,
@@ -96,6 +99,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
           <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
           <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS" /></div>
           <div><Label>Orçamento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+          <div><Label>Prioridade</Label><Input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} placeholder="0 = padrão" /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
           <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
@@ -119,6 +123,8 @@ export default function SalesCampaigns() {
   const [filterChannel, setFilterChannel] = useState<string>("all");
   const [filterArea, setFilterArea] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns());
+  useEffect(() => { try { localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns)); } catch {} }, [columns]);
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ["sales-campaigns"],
@@ -126,6 +132,7 @@ export default function SalesCampaigns() {
       const { data, error } = await supabase
         .from("sales_campaigns")
         .select("*")
+        .order("priority", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -289,54 +296,18 @@ export default function SalesCampaigns() {
                     {areaOptions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <div className="ml-auto"><ColumnManager value={columns} onChange={setColumns} /></div>
               </div>
 
-              <div className="border rounded-md overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Área</TableHead>
-                      <TableHead>Canal</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Período</TableHead>
-                      <TableHead className="text-right">Base</TableHead>
-                      <TableHead className="text-right">Contatados</TableHead>
-                      <TableHead className="text-right">Respostas</TableHead>
-                      <TableHead className="text-right">Sem telefone</TableHead>
-                      <TableHead className="text-right">Conv.</TableHead>
-                      <TableHead className="text-right">MRR</TableHead>
-                      <TableHead className="text-right">% Meta MRR</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
-                    {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
-                    {filtered.map((c: any) => {
-                      const agg = effective(c.id) as any;
-                      const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
-                      return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
-                          <TableCell className="font-medium">{c.name}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>
-                          <TableCell>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>
-                          <TableCell><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {c.start_date ? new Date(c.start_date).toLocaleDateString("pt-BR") : "-"} → {c.end_date ? new Date(c.end_date).toLocaleDateString("pt-BR") : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">{agg.base.toLocaleString("pt-BR")}</TableCell>
-                          <TableCell className="text-right">{agg.contacted}</TableCell>
-                          <TableCell className="text-right">{agg.replies}</TableCell>
-                          <TableCell className="text-right">{agg.no_phone ?? 0}</TableCell>
-                          <TableCell className="text-right">{agg.conversions}</TableCell>
-                          <TableCell className="text-right">R$ {agg.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
-                          <TableCell className="text-right">{pct}%</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <CampaignsTable
+                isLoading={isLoading}
+                filtered={filtered}
+                effective={effective}
+                navigate={navigate}
+                columns={columns}
+              />
+
+
             </CardContent>
           </Card>
         </div>
@@ -355,3 +326,154 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
     </Card>
   );
 }
+
+// =============== COLUMN MANAGER ===============
+type ColumnKey =
+  | "name" | "priority" | "area" | "channel" | "status" | "period"
+  | "base" | "contacted" | "replies" | "no_phone" | "conversions" | "mrr" | "pct_mrr";
+
+type ColumnState = { key: ColumnKey; visible: boolean };
+
+const COLUMNS_KEY = "sales-campaigns-columns-v1";
+
+const DEFAULT_COLUMNS: ColumnState[] = [
+  { key: "name", visible: true },
+  { key: "priority", visible: true },
+  { key: "area", visible: true },
+  { key: "channel", visible: true },
+  { key: "status", visible: true },
+  { key: "period", visible: true },
+  { key: "base", visible: true },
+  { key: "contacted", visible: true },
+  { key: "replies", visible: true },
+  { key: "no_phone", visible: true },
+  { key: "conversions", visible: true },
+  { key: "mrr", visible: true },
+  { key: "pct_mrr", visible: true },
+];
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  name: "Nome", priority: "Prioridade", area: "Área", channel: "Canal", status: "Status", period: "Período",
+  base: "Base", contacted: "Contatados", replies: "Respostas", no_phone: "Sem telefone",
+  conversions: "Conv.", mrr: "MRR", pct_mrr: "% Meta MRR",
+};
+
+function loadColumns(): ColumnState[] {
+  try {
+    const raw = localStorage.getItem(COLUMNS_KEY);
+    if (!raw) return DEFAULT_COLUMNS;
+    const parsed: ColumnState[] = JSON.parse(raw);
+    // merge with defaults to add any new keys
+    const map = new Map(parsed.map((c) => [c.key, c]));
+    const merged = DEFAULT_COLUMNS.map((d) => map.get(d.key) || d);
+    // append any extras (shouldn't happen)
+    for (const p of parsed) if (!merged.find((m) => m.key === p.key)) merged.push(p);
+    return merged;
+  } catch { return DEFAULT_COLUMNS; }
+}
+
+function ColumnManager({ value, onChange }: { value: ColumnState[]; onChange: (v: ColumnState[]) => void }) {
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...value];
+    const target = idx + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onChange(next);
+  };
+  const toggle = (idx: number) => {
+    const next = [...value];
+    next[idx] = { ...next[idx], visible: !next[idx].visible };
+    onChange(next);
+  };
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm"><Settings2 className="h-4 w-4 mr-2" />Colunas</Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="end">
+        <div className="text-xs text-muted-foreground px-2 py-1">Mostre, oculte e reordene as colunas</div>
+        <div className="max-h-80 overflow-y-auto">
+          {value.map((col, idx) => (
+            <div key={col.key} className="flex items-center gap-2 px-2 py-1 hover:bg-muted/50 rounded">
+              <Checkbox checked={col.visible} onCheckedChange={() => toggle(idx)} />
+              <span className="text-sm flex-1">{COLUMN_LABELS[col.key]}</span>
+              <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === 0} onClick={() => move(idx, -1)}>
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === value.length - 1} onClick={() => move(idx, 1)}>
+                <ArrowDown className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end pt-2 border-t mt-2">
+          <Button size="sm" variant="ghost" onClick={() => onChange(DEFAULT_COLUMNS)}>Restaurar padrão</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// =============== TABLE ===============
+function CampaignsTable({
+  isLoading, filtered, effective, navigate, columns,
+}: {
+  isLoading: boolean;
+  filtered: any[];
+  effective: (id: string) => any;
+  navigate: (path: string) => void;
+  columns: ColumnState[];
+}) {
+  const visibleCols = columns.filter((c) => c.visible);
+  const renderCell = (key: ColumnKey, c: any, agg: any, pct: number) => {
+    switch (key) {
+      case "name": return <TableCell key={key} className="font-medium">{c.name}</TableCell>;
+      case "priority": return <TableCell key={key} className="text-xs text-muted-foreground">{c.priority ?? 0}</TableCell>;
+      case "area": return <TableCell key={key} className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>;
+      case "channel": return <TableCell key={key}>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>;
+      case "status": return <TableCell key={key}><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>;
+      case "period": return (
+        <TableCell key={key} className="text-xs text-muted-foreground">
+          {c.start_date ? new Date(c.start_date).toLocaleDateString("pt-BR") : "-"} → {c.end_date ? new Date(c.end_date).toLocaleDateString("pt-BR") : "-"}
+        </TableCell>
+      );
+      case "base": return <TableCell key={key} className="text-right">{agg.base.toLocaleString("pt-BR")}</TableCell>;
+      case "contacted": return <TableCell key={key} className="text-right">{agg.contacted}</TableCell>;
+      case "replies": return <TableCell key={key} className="text-right">{agg.replies}</TableCell>;
+      case "no_phone": return <TableCell key={key} className="text-right">{agg.no_phone ?? 0}</TableCell>;
+      case "conversions": return <TableCell key={key} className="text-right">{agg.conversions}</TableCell>;
+      case "mrr": return <TableCell key={key} className="text-right">R$ {agg.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>;
+      case "pct_mrr": return <TableCell key={key} className="text-right">{pct}%</TableCell>;
+    }
+  };
+  const numeric: ColumnKey[] = ["base", "contacted", "replies", "no_phone", "conversions", "mrr", "pct_mrr"];
+  return (
+    <div className="border rounded-md overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {visibleCols.map((col) => (
+              <TableHead key={col.key} className={numeric.includes(col.key) ? "text-right" : ""}>
+                {COLUMN_LABELS[col.key]}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && <TableRow><TableCell colSpan={visibleCols.length} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
+          {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={visibleCols.length} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
+          {filtered.map((c: any) => {
+            const agg = effective(c.id) as any;
+            const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
+            return (
+              <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
+                {visibleCols.map((col) => renderCell(col.key, c, agg, pct))}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+

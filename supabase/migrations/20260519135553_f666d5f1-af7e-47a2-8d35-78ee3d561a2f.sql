@@ -1,0 +1,2 @@
+ALTER TABLE public.sales_campaigns ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_sales_campaigns_priority ON public.sales_campaigns (priority DESC, created_at DESC);

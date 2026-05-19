@@ -153,13 +153,36 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const meetingRate = contacted > 0 ? ((meetings / contacted) * 100).toFixed(1) : "0.0";
   const contactedRate = a.base > 0 ? ((contacted / a.base) * 100).toFixed(1) : "0.0";
   const budget = Number(campaign.budget) || 0;
+  const fmtBRL = (n: number) => `R$ ${n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
   const roi = budget > 0 ? `${((mrr / budget) * 100).toFixed(0)}%` : "—";
   const cac = conversions > 0 && budget > 0 ? budget / conversions : 0;
-  const churnRate = Number(campaign.churn_rate) || a.fallbackChurn || 0;
-  const avgTicket = conversions > 0 ? mrr / conversions : 0;
-  const ltv = churnRate > 0 ? avgTicket / (churnRate / 100) : 0;
-  const ltvCacRatio = cac > 0 && ltv > 0 ? ltv / cac : 0;
-  const fmtBRL = (n: number) => `R$ ${n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const monthlyChurn = (Number(campaign.churn_rate) || a.fallbackChurn || 0) / 100;
+  const monthlyTicket = conversions > 0 ? mrr / conversions : 0;
+
+  const [ltvPeriod, setLtvPeriod] = useState<"mensal" | "anual" | "custom">("mensal");
+  const [ltvMonths, setLtvMonths] = useState<string>("12");
+
+  const ltvCalc = (() => {
+    if (monthlyTicket <= 0 || monthlyChurn <= 0) return { ltv: 0, label: "LTV / CAC", desc: "" };
+    if (ltvPeriod === "mensal") {
+      const ltv = monthlyTicket / monthlyChurn;
+      return { ltv, label: "LTV / CAC (Mensal)", desc: `LTV ${fmtBRL(ltv)} · vida ${(1 / monthlyChurn).toFixed(1)} meses` };
+    }
+    if (ltvPeriod === "anual") {
+      const annualTicket = monthlyTicket * 12;
+      const annualChurn = 1 - Math.pow(1 - monthlyChurn, 12);
+      const ltv = annualChurn > 0 ? annualTicket / annualChurn : 0;
+      return { ltv, label: "LTV / CAC (Anual)", desc: `LTV ${fmtBRL(ltv)} · churn anual ${(annualChurn * 100).toFixed(1)}%` };
+    }
+    const n = Math.max(1, Number(ltvMonths) || 12);
+    const maxLife = 1 / monthlyChurn;
+    const horizon = Math.min(n, maxLife);
+    const ltv = monthlyTicket * horizon;
+    return { ltv, label: `LTV / CAC (${n}m)`, desc: `LTV ${fmtBRL(ltv)} · horizonte ${horizon.toFixed(1)} meses` };
+  })();
+
+  const ltvCacRatio = cac > 0 && ltvCalc.ltv > 0 ? ltvCalc.ltv / cac : 0;
+  const churnPctLabel = monthlyChurn > 0 ? `${(monthlyChurn * 100).toFixed(1)}%` : "—";
 
   const funnel = [
     { stage: "Base", value: a.base },
@@ -171,6 +194,20 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <Label className="text-xs text-muted-foreground">Período LTV/CAC:</Label>
+        <Select value={ltvPeriod} onValueChange={(v) => setLtvPeriod(v as any)}>
+          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="mensal">Mensal</SelectItem>
+            <SelectItem value="anual">Anual</SelectItem>
+            <SelectItem value="custom">Personalizado</SelectItem>
+          </SelectContent>
+        </Select>
+        {ltvPeriod === "custom" && (
+          <Input type="number" min={1} value={ltvMonths} onChange={(e) => setLtvMonths(e.target.value)} className="w-24 h-8 text-xs" placeholder="meses" />
+        )}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
         <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} sub={`${contactedRate}% da base`} />
@@ -182,8 +219,9 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         <Kpi label="Investimento" value={fmtBRL(budget)} sub={budget === 0 ? "Defina em Configuração" : undefined} />
         <Kpi label="ROI" value={roi} sub={budget > 0 ? "MRR ÷ investimento" : "Sem investimento"} />
         <Kpi label="CAC" value={cac > 0 ? fmtBRL(cac) : "—"} sub={conversions > 0 ? `${conversions} conversões` : "Sem conversões"} />
-        <Kpi label="LTV / CAC" value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={churnRate > 0 ? `LTV ${fmtBRL(ltv)} · churn ${churnRate}%` : "Defina o churn"} />
+        <Kpi label={ltvCalc.label} value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={monthlyChurn > 0 ? `${ltvCalc.desc} · churn ${churnPctLabel}` : "Defina o churn"} />
       </div>
+
 
       <div className="grid md:grid-cols-2 gap-3">
         <Card>
@@ -645,6 +683,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     end_date: campaign.end_date || "",
     budget: String(campaign.budget),
     churn_rate: campaign.churn_rate != null ? String(campaign.churn_rate) : "",
+    priority: String(campaign.priority ?? 0),
     target_contacted: String(campaign.target_contacted),
     target_replies: String(campaign.target_replies),
     target_conversions: String(campaign.target_conversions),
@@ -655,6 +694,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
       ...form,
       budget: Number(form.budget) || 0,
       churn_rate: form.churn_rate === "" ? null : Number(form.churn_rate),
+      priority: Number(form.priority) || 0,
       target_contacted: Number(form.target_contacted) || 0,
       target_replies: Number(form.target_replies) || 0,
       target_conversions: Number(form.target_conversions) || 0,
@@ -665,6 +705,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
       area: form.area || null,
       description: form.description || null,
     }).eq("id", campaign.id);
+
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Campanha atualizada" });
     onSaved();
@@ -693,6 +734,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
           <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS, Parcerias" /></div>
           <div><Label>Investimento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
           <div><Label>Churn mensal (%)</Label><Input type="number" step="0.1" value={form.churn_rate} onChange={(e) => setForm({ ...form, churn_rate: e.target.value })} placeholder="Ex.: 5 (vazio = usa padrão financeiro)" /></div>
+          <div><Label>Prioridade</Label><Input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} placeholder="0 = padrão. Maior = aparece primeiro" /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
           <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>

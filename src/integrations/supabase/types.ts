@@ -1917,6 +1917,7 @@ export type Database = {
           id: string
           name: string
           owner_id: string | null
+          priority: number
           segment: string | null
           start_date: string | null
           status: string
@@ -1939,6 +1940,7 @@ export type Database = {
           id?: string
           name: string
           owner_id?: string | null
+          priority?: number
           segment?: string | null
           start_date?: string | null
           status?: string
@@ -1961,6 +1963,7 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string | null
+          priority?: number
           segment?: string | null
           start_date?: string | null
           status?: string
