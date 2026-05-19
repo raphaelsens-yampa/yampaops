@@ -628,6 +628,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     description: campaign.description || "",
     channel: campaign.channel,
     segment: campaign.segment || "",
+    area: campaign.area || "",
     status: campaign.status,
     start_date: campaign.start_date || "",
     end_date: campaign.end_date || "",
