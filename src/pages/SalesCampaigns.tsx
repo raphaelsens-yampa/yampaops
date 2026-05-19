@@ -23,7 +23,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    name: "", description: "", channel: "outros", segment: "",
+    name: "", description: "", channel: "outros", segment: "", area: "",
     status: "planejada", start_date: "", end_date: "",
     budget: "0", target_contacted: "0", target_replies: "0",
     target_conversions: "0", target_mrr: "0",
@@ -41,6 +41,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
       description: form.description || null,
       channel: form.channel,
       segment: form.segment || null,
+      area: form.area || null,
       status: form.status,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
@@ -93,6 +94,7 @@ function CreateCampaignDialog({ onCreated }: { onCreated: () => void }) {
             </Select>
           </div>
           <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
+          <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS" /></div>
           <div><Label>Orçamento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
@@ -115,6 +117,7 @@ export default function SalesCampaigns() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterChannel, setFilterChannel] = useState<string>("all");
+  const [filterArea, setFilterArea] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const { data: campaigns = [], isLoading } = useQuery({
@@ -207,9 +210,14 @@ export default function SalesCampaigns() {
     },
   });
 
+  const areaOptions = Array.from(
+    new Set(campaigns.map((c: any) => (c.area || "").trim()).filter(Boolean))
+  ).sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
+
   const filtered = campaigns.filter((c: any) => {
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
     if (filterChannel !== "all" && c.channel !== filterChannel) return false;
+    if (filterArea !== "all" && (c.area || "") !== filterArea) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -274,6 +282,13 @@ export default function SalesCampaigns() {
                     {CHANNEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={filterArea} onValueChange={setFilterArea}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="Área" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas áreas</SelectItem>
+                    {areaOptions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="border rounded-md overflow-x-auto">
@@ -281,6 +296,7 @@ export default function SalesCampaigns() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
+                      <TableHead>Área</TableHead>
                       <TableHead>Canal</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Período</TableHead>
@@ -294,14 +310,15 @@ export default function SalesCampaigns() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
-                    {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
+                    {isLoading && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
+                    {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
                     {filtered.map((c: any) => {
                       const agg = effective(c.id) as any;
                       const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
                       return (
                         <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
                           <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>
                           <TableCell>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>
                           <TableCell><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>
                           <TableCell className="text-xs text-muted-foreground">

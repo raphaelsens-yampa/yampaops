@@ -1,0 +1,1 @@
+ALTER TABLE public.sales_campaigns ADD COLUMN IF NOT EXISTS area text;

@@ -77,6 +77,7 @@ export default function SalesCampaignDetail() {
               <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                 <Badge className={statusBadgeClass(campaign.status)}>{STATUS_OPTIONS.find((o) => o.value === campaign.status)?.label}</Badge>
                 <span>{CHANNEL_OPTIONS.find((o) => o.value === campaign.channel)?.label}</span>
+                {campaign.area && <span>· Área: {campaign.area}</span>}
                 {campaign.segment && <span>· {campaign.segment}</span>}
               </div>
             </div>
@@ -148,6 +149,8 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const mrr = merged.mrr;
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
+  const convOverReplies = replies > 0 ? ((conversions / replies) * 100).toFixed(1) : "0.0";
+  const meetingRate = contacted > 0 ? ((meetings / contacted) * 100).toFixed(1) : "0.0";
   const contactedRate = a.base > 0 ? ((contacted / a.base) * 100).toFixed(1) : "0.0";
   const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
 
@@ -161,12 +164,13 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
         <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} sub={`${contactedRate}% da base`} />
-        <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}%`} />
+        <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}% dos contatados`} />
         <Kpi label="Sem telefone" value={a.noPhone} sub={a.base > 0 ? `${((a.noPhone / a.base) * 100).toFixed(1)}% da base` : undefined} />
-        <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
+        <Kpi label="Reuniões" value={meetings} sub={`${meetingRate}% dos contatados`} />
+        <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}% contat. · ${convOverReplies}% resp.`} />
         <Kpi label="MRR" value={`R$ ${mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
       </div>
 
@@ -624,6 +628,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     description: campaign.description || "",
     channel: campaign.channel,
     segment: campaign.segment || "",
+    area: campaign.area || "",
     status: campaign.status,
     start_date: campaign.start_date || "",
     end_date: campaign.end_date || "",
@@ -644,6 +649,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       segment: form.segment || null,
+      area: form.area || null,
       description: form.description || null,
     }).eq("id", campaign.id);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
@@ -671,6 +677,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
             </Select>
           </div>
           <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
+          <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS, Parcerias" /></div>
           <div><Label>Orçamento</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>

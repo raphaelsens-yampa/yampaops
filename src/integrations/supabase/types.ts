@@ -1905,6 +1905,7 @@ export type Database = {
       }
       sales_campaigns: {
         Row: {
+          area: string | null
           budget: number
           channel: string
           created_at: string
@@ -1925,6 +1926,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          area?: string | null
           budget?: number
           channel?: string
           created_at?: string
@@ -1945,6 +1947,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          area?: string | null
           budget?: number
           channel?: string
           created_at?: string
