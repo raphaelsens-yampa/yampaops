@@ -149,6 +149,8 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const mrr = merged.mrr;
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
+  const convOverReplies = replies > 0 ? ((conversions / replies) * 100).toFixed(1) : "0.0";
+  const meetingRate = contacted > 0 ? ((meetings / contacted) * 100).toFixed(1) : "0.0";
   const contactedRate = a.base > 0 ? ((contacted / a.base) * 100).toFixed(1) : "0.0";
   const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
 
@@ -162,12 +164,13 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
         <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} sub={`${contactedRate}% da base`} />
-        <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}%`} />
+        <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}% dos contatados`} />
         <Kpi label="Sem telefone" value={a.noPhone} sub={a.base > 0 ? `${((a.noPhone / a.base) * 100).toFixed(1)}% da base` : undefined} />
-        <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}%`} />
+        <Kpi label="Reuniões" value={meetings} sub={`${meetingRate}% dos contatados`} />
+        <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}% contat. · ${convOverReplies}% resp.`} />
         <Kpi label="MRR" value={`R$ ${mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
       </div>
 
