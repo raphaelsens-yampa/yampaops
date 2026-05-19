@@ -130,6 +130,7 @@ export default function SalesCampaigns() {
       const { data, error } = await supabase
         .from("sales_campaigns")
         .select("*")
+        .order("priority", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
