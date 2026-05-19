@@ -296,16 +296,17 @@ export default function SalesCampaigns() {
                     {areaOptions.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <div className="ml-auto"><ColumnManager /></div>
+                <div className="ml-auto"><ColumnManager value={columns} onChange={setColumns} /></div>
               </div>
-
 
               <CampaignsTable
                 isLoading={isLoading}
                 filtered={filtered}
                 effective={effective}
                 navigate={navigate}
+                columns={columns}
               />
+
 
             </CardContent>
           </Card>
