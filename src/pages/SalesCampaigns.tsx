@@ -296,52 +296,13 @@ export default function SalesCampaigns() {
                 </Select>
               </div>
 
-              <div className="border rounded-md overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Área</TableHead>
-                      <TableHead>Canal</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Período</TableHead>
-                      <TableHead className="text-right">Base</TableHead>
-                      <TableHead className="text-right">Contatados</TableHead>
-                      <TableHead className="text-right">Respostas</TableHead>
-                      <TableHead className="text-right">Sem telefone</TableHead>
-                      <TableHead className="text-right">Conv.</TableHead>
-                      <TableHead className="text-right">MRR</TableHead>
-                      <TableHead className="text-right">% Meta MRR</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
-                    {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
-                    {filtered.map((c: any) => {
-                      const agg = effective(c.id) as any;
-                      const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
-                      return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
-                          <TableCell className="font-medium">{c.name}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>
-                          <TableCell>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>
-                          <TableCell><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {c.start_date ? new Date(c.start_date).toLocaleDateString("pt-BR") : "-"} → {c.end_date ? new Date(c.end_date).toLocaleDateString("pt-BR") : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">{agg.base.toLocaleString("pt-BR")}</TableCell>
-                          <TableCell className="text-right">{agg.contacted}</TableCell>
-                          <TableCell className="text-right">{agg.replies}</TableCell>
-                          <TableCell className="text-right">{agg.no_phone ?? 0}</TableCell>
-                          <TableCell className="text-right">{agg.conversions}</TableCell>
-                          <TableCell className="text-right">R$ {agg.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
-                          <TableCell className="text-right">{pct}%</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <CampaignsTable
+                isLoading={isLoading}
+                filtered={filtered}
+                effective={effective}
+                navigate={navigate}
+              />
+
             </CardContent>
           </Card>
         </div>
