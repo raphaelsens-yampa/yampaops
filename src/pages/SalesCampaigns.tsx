@@ -462,19 +462,22 @@ function ColumnManager({ value, onChange }: { value: ColumnState[]; onChange: (v
 
 // =============== TABLE ===============
 function CampaignsTable({
-  isLoading, filtered, effective, navigate, columns,
+  isLoading, filtered, effective, navigate, columns, sortKey, sortDir, onToggleSort,
 }: {
   isLoading: boolean;
   filtered: any[];
   effective: (id: string) => any;
   navigate: (path: string) => void;
   columns: ColumnState[];
+  sortKey: ColumnKey;
+  sortDir: "asc" | "desc";
+  onToggleSort: (key: ColumnKey) => void;
 }) {
   const visibleCols = columns.filter((c) => c.visible);
   const renderCell = (key: ColumnKey, c: any, agg: any, pct: number) => {
     switch (key) {
       case "name": return <TableCell key={key} className="font-medium">{c.name}</TableCell>;
-      case "priority": return <TableCell key={key} className="text-xs text-muted-foreground">{c.priority ?? 0}</TableCell>;
+      case "priority": return <TableCell key={key} className="text-xs text-muted-foreground">{c.priority ? c.priority : "—"}</TableCell>;
       case "area": return <TableCell key={key} className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>;
       case "channel": return <TableCell key={key}>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>;
       case "status": return <TableCell key={key}><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>;
@@ -498,11 +501,24 @@ function CampaignsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {visibleCols.map((col) => (
-              <TableHead key={col.key} className={numeric.includes(col.key) ? "text-right" : ""}>
-                {COLUMN_LABELS[col.key]}
-              </TableHead>
-            ))}
+            {visibleCols.map((col) => {
+              const isActive = sortKey === col.key;
+              const isNum = numeric.includes(col.key);
+              return (
+                <TableHead key={col.key} className={isNum ? "text-right" : ""}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSort(col.key)}
+                    className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${isNum ? "ml-auto" : ""} ${isActive ? "text-foreground font-semibold" : ""}`}
+                  >
+                    {COLUMN_LABELS[col.key]}
+                    {isActive
+                      ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+                      : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
+              );
+            })}
           </TableRow>
         </TableHeader>
         <TableBody>
