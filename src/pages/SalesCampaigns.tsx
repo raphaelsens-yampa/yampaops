@@ -117,6 +117,7 @@ export default function SalesCampaigns() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterChannel, setFilterChannel] = useState<string>("all");
+  const [filterArea, setFilterArea] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const { data: campaigns = [], isLoading } = useQuery({
