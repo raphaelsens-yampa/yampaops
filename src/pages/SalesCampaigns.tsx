@@ -326,3 +326,154 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
     </Card>
   );
 }
+
+// =============== COLUMN MANAGER ===============
+type ColumnKey =
+  | "name" | "priority" | "area" | "channel" | "status" | "period"
+  | "base" | "contacted" | "replies" | "no_phone" | "conversions" | "mrr" | "pct_mrr";
+
+type ColumnState = { key: ColumnKey; visible: boolean };
+
+const COLUMNS_KEY = "sales-campaigns-columns-v1";
+
+const DEFAULT_COLUMNS: ColumnState[] = [
+  { key: "name", visible: true },
+  { key: "priority", visible: true },
+  { key: "area", visible: true },
+  { key: "channel", visible: true },
+  { key: "status", visible: true },
+  { key: "period", visible: true },
+  { key: "base", visible: true },
+  { key: "contacted", visible: true },
+  { key: "replies", visible: true },
+  { key: "no_phone", visible: true },
+  { key: "conversions", visible: true },
+  { key: "mrr", visible: true },
+  { key: "pct_mrr", visible: true },
+];
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  name: "Nome", priority: "Prioridade", area: "Área", channel: "Canal", status: "Status", period: "Período",
+  base: "Base", contacted: "Contatados", replies: "Respostas", no_phone: "Sem telefone",
+  conversions: "Conv.", mrr: "MRR", pct_mrr: "% Meta MRR",
+};
+
+function loadColumns(): ColumnState[] {
+  try {
+    const raw = localStorage.getItem(COLUMNS_KEY);
+    if (!raw) return DEFAULT_COLUMNS;
+    const parsed: ColumnState[] = JSON.parse(raw);
+    // merge with defaults to add any new keys
+    const map = new Map(parsed.map((c) => [c.key, c]));
+    const merged = DEFAULT_COLUMNS.map((d) => map.get(d.key) || d);
+    // append any extras (shouldn't happen)
+    for (const p of parsed) if (!merged.find((m) => m.key === p.key)) merged.push(p);
+    return merged;
+  } catch { return DEFAULT_COLUMNS; }
+}
+
+function ColumnManager({ value, onChange }: { value: ColumnState[]; onChange: (v: ColumnState[]) => void }) {
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...value];
+    const target = idx + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onChange(next);
+  };
+  const toggle = (idx: number) => {
+    const next = [...value];
+    next[idx] = { ...next[idx], visible: !next[idx].visible };
+    onChange(next);
+  };
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm"><Settings2 className="h-4 w-4 mr-2" />Colunas</Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="end">
+        <div className="text-xs text-muted-foreground px-2 py-1">Mostre, oculte e reordene as colunas</div>
+        <div className="max-h-80 overflow-y-auto">
+          {value.map((col, idx) => (
+            <div key={col.key} className="flex items-center gap-2 px-2 py-1 hover:bg-muted/50 rounded">
+              <Checkbox checked={col.visible} onCheckedChange={() => toggle(idx)} />
+              <span className="text-sm flex-1">{COLUMN_LABELS[col.key]}</span>
+              <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === 0} onClick={() => move(idx, -1)}>
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-6 w-6" disabled={idx === value.length - 1} onClick={() => move(idx, 1)}>
+                <ArrowDown className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end pt-2 border-t mt-2">
+          <Button size="sm" variant="ghost" onClick={() => onChange(DEFAULT_COLUMNS)}>Restaurar padrão</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// =============== TABLE ===============
+function CampaignsTable({
+  isLoading, filtered, effective, navigate, columns,
+}: {
+  isLoading: boolean;
+  filtered: any[];
+  effective: (id: string) => any;
+  navigate: (path: string) => void;
+  columns: ColumnState[];
+}) {
+  const visibleCols = columns.filter((c) => c.visible);
+  const renderCell = (key: ColumnKey, c: any, agg: any, pct: number) => {
+    switch (key) {
+      case "name": return <TableCell key={key} className="font-medium">{c.name}</TableCell>;
+      case "priority": return <TableCell key={key} className="text-xs text-muted-foreground">{c.priority ?? 0}</TableCell>;
+      case "area": return <TableCell key={key} className="text-xs text-muted-foreground">{c.area || "—"}</TableCell>;
+      case "channel": return <TableCell key={key}>{CHANNEL_OPTIONS.find((o) => o.value === c.channel)?.label || c.channel}</TableCell>;
+      case "status": return <TableCell key={key}><Badge className={statusBadgeClass(c.status)}>{STATUS_OPTIONS.find((o) => o.value === c.status)?.label || c.status}</Badge></TableCell>;
+      case "period": return (
+        <TableCell key={key} className="text-xs text-muted-foreground">
+          {c.start_date ? new Date(c.start_date).toLocaleDateString("pt-BR") : "-"} → {c.end_date ? new Date(c.end_date).toLocaleDateString("pt-BR") : "-"}
+        </TableCell>
+      );
+      case "base": return <TableCell key={key} className="text-right">{agg.base.toLocaleString("pt-BR")}</TableCell>;
+      case "contacted": return <TableCell key={key} className="text-right">{agg.contacted}</TableCell>;
+      case "replies": return <TableCell key={key} className="text-right">{agg.replies}</TableCell>;
+      case "no_phone": return <TableCell key={key} className="text-right">{agg.no_phone ?? 0}</TableCell>;
+      case "conversions": return <TableCell key={key} className="text-right">{agg.conversions}</TableCell>;
+      case "mrr": return <TableCell key={key} className="text-right">R$ {agg.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>;
+      case "pct_mrr": return <TableCell key={key} className="text-right">{pct}%</TableCell>;
+    }
+  };
+  const numeric: ColumnKey[] = ["base", "contacted", "replies", "no_phone", "conversions", "mrr", "pct_mrr"];
+  return (
+    <div className="border rounded-md overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {visibleCols.map((col) => (
+              <TableHead key={col.key} className={numeric.includes(col.key) ? "text-right" : ""}>
+                {COLUMN_LABELS[col.key]}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && <TableRow><TableCell colSpan={visibleCols.length} className="text-center text-muted-foreground py-6">Carregando...</TableCell></TableRow>}
+          {!isLoading && filtered.length === 0 && <TableRow><TableCell colSpan={visibleCols.length} className="text-center text-muted-foreground py-6">Nenhuma campanha</TableCell></TableRow>}
+          {filtered.map((c: any) => {
+            const agg = effective(c.id) as any;
+            const pct = c.target_mrr > 0 ? Math.round((agg.mrr / Number(c.target_mrr)) * 100) : 0;
+            return (
+              <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/sales-campaigns/${c.id}`)}>
+                {visibleCols.map((col) => renderCell(col.key, c, agg, pct))}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
