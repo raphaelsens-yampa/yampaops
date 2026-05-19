@@ -107,7 +107,6 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const { data: agg } = useQuery({
     queryKey: ["scc-overview", campaign.id],
     queryFn: async () => {
-      // Paginate contacts to avoid 1000-row PostgREST cap
       const PAGE = 1000;
       let from = 0;
       let base = 0, contacted = 0, replies = 0, meetings = 0, conversions = 0, mrr = 0, noPhone = 0;
@@ -136,11 +135,12 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         .select("snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
         .eq("campaign_id", campaign.id)
         .order("snapshot_date", { ascending: true });
-      return { base, contacted, replies, meetings, conversions, mrr, noPhone, snapshots: snapshots || [] };
+      const { data: finance } = await supabase.from("finance_settings").select("avg_churn_rate").limit(1).maybeSingle();
+      return { base, contacted, replies, meetings, conversions, mrr, noPhone, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
     },
   });
 
-  const a = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, snapshots: [] };
+  const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, snapshots: [], fallbackChurn: 0 };
   const merged = mergeCampaignProgress(a, sumSnapshotMetrics(a.snapshots));
   const contacted = merged.contacted;
   const replies = merged.replies;
@@ -152,7 +152,14 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const convOverReplies = replies > 0 ? ((conversions / replies) * 100).toFixed(1) : "0.0";
   const meetingRate = contacted > 0 ? ((meetings / contacted) * 100).toFixed(1) : "0.0";
   const contactedRate = a.base > 0 ? ((contacted / a.base) * 100).toFixed(1) : "0.0";
-  const roi = Number(campaign.budget) > 0 ? ((mrr / Number(campaign.budget)) * 100).toFixed(0) : "—";
+  const budget = Number(campaign.budget) || 0;
+  const roi = budget > 0 ? `${((mrr / budget) * 100).toFixed(0)}%` : "—";
+  const cac = conversions > 0 && budget > 0 ? budget / conversions : 0;
+  const churnRate = Number(campaign.churn_rate) || a.fallbackChurn || 0;
+  const avgTicket = conversions > 0 ? mrr / conversions : 0;
+  const ltv = churnRate > 0 ? avgTicket / (churnRate / 100) : 0;
+  const ltvCacRatio = cac > 0 && ltv > 0 ? ltv / cac : 0;
+  const fmtBRL = (n: number) => `R$ ${n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
 
   const funnel = [
     { stage: "Base", value: a.base },
@@ -164,14 +171,18 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Kpi label="Base" value={a.base} target={campaign.target_contacted} />
         <Kpi label="Contatados" value={contacted} target={campaign.target_contacted} sub={`${contactedRate}% da base`} />
         <Kpi label="Respostas" value={replies} target={campaign.target_replies} sub={`${replyRate}% dos contatados`} />
         <Kpi label="Sem telefone" value={a.noPhone} sub={a.base > 0 ? `${((a.noPhone / a.base) * 100).toFixed(1)}% da base` : undefined} />
         <Kpi label="Reuniões" value={meetings} sub={`${meetingRate}% dos contatados`} />
         <Kpi label="Conversões" value={conversions} target={campaign.target_conversions} sub={`${convRate}% contat. · ${convOverReplies}% resp.`} />
-        <Kpi label="MRR" value={`R$ ${mrr.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} target={Number(campaign.target_mrr)} isCurrency />
+        <Kpi label="MRR" value={fmtBRL(mrr)} target={Number(campaign.target_mrr)} isCurrency />
+        <Kpi label="Investimento" value={fmtBRL(budget)} sub={budget === 0 ? "Defina em Configuração" : undefined} />
+        <Kpi label="ROI" value={roi} sub={budget > 0 ? "MRR ÷ investimento" : "Sem investimento"} />
+        <Kpi label="CAC" value={cac > 0 ? fmtBRL(cac) : "—"} sub={conversions > 0 ? `${conversions} conversões` : "Sem conversões"} />
+        <Kpi label="LTV / CAC" value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={churnRate > 0 ? `LTV ${fmtBRL(ltv)} · churn ${churnRate}%` : "Defina o churn"} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
@@ -633,6 +644,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     start_date: campaign.start_date || "",
     end_date: campaign.end_date || "",
     budget: String(campaign.budget),
+    churn_rate: campaign.churn_rate != null ? String(campaign.churn_rate) : "",
     target_contacted: String(campaign.target_contacted),
     target_replies: String(campaign.target_replies),
     target_conversions: String(campaign.target_conversions),
@@ -642,6 +654,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     const { error } = await supabase.from("sales_campaigns").update({
       ...form,
       budget: Number(form.budget) || 0,
+      churn_rate: form.churn_rate === "" ? null : Number(form.churn_rate),
       target_contacted: Number(form.target_contacted) || 0,
       target_replies: Number(form.target_replies) || 0,
       target_conversions: Number(form.target_conversions) || 0,
@@ -678,7 +691,8 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
           </div>
           <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
           <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS, Parcerias" /></div>
-          <div><Label>Orçamento</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+          <div><Label>Investimento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+          <div><Label>Churn mensal (%)</Label><Input type="number" step="0.1" value={form.churn_rate} onChange={(e) => setForm({ ...form, churn_rate: e.target.value })} placeholder="Ex.: 5 (vazio = usa padrão financeiro)" /></div>
           <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
           <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
           <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
