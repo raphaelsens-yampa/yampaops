@@ -315,7 +315,7 @@ function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("sales-campaign-sync-chatwoot-tag", {
-        body: { campaign_id: campaignId, label: selectedLabel, target_status: targetStatus, add_missing: true },
+        body: { campaign_id: campaignId, label: selectedLabel, target_status: targetStatus },
       });
       if (error) throw error;
       setResult(data);
