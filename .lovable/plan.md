@@ -1,63 +1,73 @@
-# Atividade de Agentes (Chatwoot + cruzamento AC)
+## Objetivo
 
-Nova seção dedicada para acompanhar diariamente o trabalho de prospecção dos agentes via Chatwoot, e garantir que 100% da base de Freetrials do ActiveCampaign foi falada.
+Adicionar um botão na aba **Visão Geral** da Campanha para varrer a integração do Chatwoot e marcar como **Contatado** / **Respondeu** os contatos da base da campanha que possuem uma tag (label) específica no Chatwoot — selecionada pelo usuário.
 
-## Fase 1 — Conversas (rápido, com dados que já temos)
+## Fluxo de uso
 
-### Nova página: `/atividade-agentes`
+1. Usuário abre a Visão Geral da campanha.
+2. Clica em **"Sincronizar com Chatwoot"**.
+3. Abre um diálogo com:
+  - Select de **tag** (lista de labels distintas vindas de `chatwoot_conversations.labels`).
+  - Opção: marcar como **Contatado** (default) ou **Respondeu** (default quando a tag indica resposta do cliente — sugerimos detectar a partir do nome, mas o usuário escolhe).
+4. Confirma → sistema faz match e atualiza `sales_campaign_contacts.status`.
+5. Cards **Contatados** e **Respostas** refletem os novos valores (já são reativos via realtime).
 
-Item novo no sidebar **"Atividade de Agentes"** (admin + tatico), com 3 abas:
+## Regras de match
 
-**1) Dashboard diário por agente**
-- Seletor de período (padrão: últimos 7 dias) + filtros por inbox/equipe.
-- KPIs no topo: conversas atendidas no período, agentes ativos, % com resposta do cliente, TM1R médio.
-- Tabela por agente × dia: conversas atendidas, conversas com resposta do cliente, taxa de resposta, TM1R médio.
-- Gráfico de linha: volume diário total por agente (top N).
-- Ranking de agentes por volume e por taxa de resposta.
+Para cada contato da campanha (`sales_campaign_contacts` do `campaign_id`):
 
-**2) Lista de clientes contactados**
-- Tabela paginada: contato (nome/email/telefone), agente, inbox, data da 1ª interação, status da conversa, respondeu? (sim/não), label de tabulação.
-- Filtros: período, agente, inbox, "respondeu", label.
-- Busca por nome/email/telefone.
-- Export CSV.
-- Link para abrir conversa no Chatwoot (reaproveita `useChatwootIntegration.buildConversationUrl`).
+1. **Primário — telefone**: `phone_digits` igual a `chatwoot_contacts.phone_digits` (ou últimos 10–11 dígitos).
+2. **Fallback — email**: `email_norm` igual a `chatwoot_contacts.email` (normalizado lowercase).
+3. Considera "tem a tag" se **alguma** `chatwoot_conversations` desse contato contém a label selecionada em `labels[]`.
 
-**3) Cobertura vs Freetrials AC**
-Duas fontes de base, conforme escolha do usuário:
-- **Upload CSV** (reaproveita `lead-csv-audit`): mantém o fluxo atual, mas com novo card de cobertura por agente: "X de Y leads do CSV foram contactados, faltam Z".
-- **Direto do AC** (novo): nova edge function `ac-list-contacts` puxa contatos de uma lista/tag do AC (ex: "Freetrial") e cruza com `chatwoot_contacts` por email/phone_digits. Mostra: total da lista, contactados, não contactados (com export), distribuição por agente.
+## Regras de atualização de status
 
-### Métricas — fórmulas (dados já existentes em `chatwoot_conversations`)
+- Se o status atual for `nao_trabalhado` → atualiza para o status escolhido (`contatado` ou `respondeu`).
+- Se já está `respondeu`, `agendado` ou `convertido` → **não rebaixa**.
+- Se escolheu `respondeu` e o atual é `contatado` → promove para `respondeu`.
+- Não toca em registros sem match.
 
-```text
-conversas_atendidas        = COUNT WHERE assignee_email = X AND created_at::date = D
-conversas_com_resposta     = mesmo filtro AND first_contact_message_at IS NOT NULL
-                             (proxy: cliente respondeu)
-tm1r_medio                 = AVG(tm1r_seconds) WHERE tm1r_seconds IS NOT NULL
-taxa_resposta              = conversas_com_resposta / conversas_atendidas
-```
+## Implementação técnica
 
-> Limitação conhecida: hoje contamos **conversas** (uma por contato), não mensagens individuais. Se um agente mandou 5 follow-ups na mesma conversa, conta como 1. Fase 2 resolve.
+**Edge function** `sales-campaign-sync-chatwoot-tag` (nova):
 
-## Fase 2 — Mensagens individuais (gancho preparado)
+- Input: `{ campaign_id, label, target_status: "contatado" | "respondeu" }`.
+- Carrega contatos da campanha (paginado).
+- Para cada lote, busca em `chatwoot_contacts` por `phone_digits IN (...)` e por `email IN (...)`.
+- Para os `chatwoot_contact_id` encontrados, busca `chatwoot_conversations` com `labels @> ARRAY[label]` (filtro server-side).
+- Aplica update em `sales_campaign_contacts` respeitando a hierarquia de status.
+- Retorna: `{ scanned, matched, updated_contatado, updated_respondeu }`.
 
-Para ter contagem real de "X mensagens enviadas por dia por agente":
+**Endpoint auxiliar** para listar labels disponíveis:
 
-- Nova tabela `chatwoot_messages`: `id`, `chatwoot_message_id`, `conversation_id`, `sender_type` (agent/contact), `sender_id`, `sender_email`, `content_hash`, `created_at`, `message_type`.
-- Nova edge function `chatwoot-messages-sync` (cron diário + manual): paginação por conversation, salva mensagens novas.
-- Webhook `chatwoot-webhook` passa a inserir mensagens em tempo real (já temos o webhook).
-- Dashboard ganha toggle "Conversas / Mensagens enviadas" que troca a fonte da contagem.
+- Query simples em `chatwoot_conversations`: `select distinct unnest(labels) as label order by 1`. Pode ser feita direto no client via `supabase.rpc` ou em uma function — usaremos uma RPC `get_chatwoot_labels()` (security definer, somente admin/tatico).
 
-Esta fase fica **planejada mas não implementada agora** — entrego o gancho (tabela + função stub) só se você confirmar depois da Fase 1.
+**Frontend (`src/pages/SalesCampaignDetail.tsx`)**:
 
-## Stack técnica
-- Página em `src/pages/AgentActivity.tsx` + componentes em `src/components/agent-activity/`.
-- Queries via TanStack Query direto em `chatwoot_conversations` + `chatwoot_contacts`.
-- Reaproveita: `MetricCard`, `Table`, `Tabs`, `useChatwootIntegration`, lógica de match de `lead-csv-audit`.
-- Nova edge function `ac-list-contacts` (Fase 1, opção AC direto) usando `AC_API_KEY` já configurada.
-- RLS: admin (ALL), tatico (SELECT) — sem novas tabelas na Fase 1.
+- Novo botão na barra de ações da Visão Geral: "Sincronizar com Chatwoot" (ícone `RefreshCw`).
+- Dialog com:
+  - `Select` de labels (Combobox com busca via `Command`).
+  - `RadioGroup` para target status (Contatado / Respondeu).
+  - Botão "Executar" → chama `supabase.functions.invoke('sales-campaign-sync-chatwoot-tag', ...)`.
+  - Mostra resultado (toast com contagens).
+- Após sucesso, invalida queries da campanha (os cards já recalculam).
 
-## Fora de escopo da Fase 1
-- Sync de mensagens individuais (Fase 2).
-- Envio de mensagens pela plataforma.
-- Cadência automática / lembretes de follow-up.
+## Migration
+
+Criar função `public.get_chatwoot_labels()` retornando `text[]` distintas, com `security definer` e check de role (admin OR tatico).
+
+## Arquivos afetados
+
+- **Novo**: `supabase/functions/sales-campaign-sync-chatwoot-tag/index.ts`
+- **Migration**: `get_chatwoot_labels()` RPC
+- **Editado**: `src/pages/SalesCampaignDetail.tsx` (botão + dialog + handler)
+
+## Pergunta antes de implementar
+
+Confirma estes pontos:
+
+1. Quando aplicar a tag, devo permitir escolher entre marcar como **Contatado** ou **Respondeu** — ou sempre marcar como **Respondeu** (já que o exemplo `duda_respondido_cliente_sales` indica resposta)? SIM
+2. A varredura deve ser **manual** (só quando clicar) ou também rodar automaticamente em algum intervalo? SIM, SÓ MANUAL  
+  
+- NÃO SOBREPOR REGISTROS  
+- ADICIONAR O REGISTRO NA TABELA DE BASE QUANDO DER MATCH  
