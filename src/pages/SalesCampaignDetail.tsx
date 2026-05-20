@@ -373,7 +373,7 @@ function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
                 <div>Contatos do Chatwoot com a tag: <b>{result.chatwoot_contacts_with_label}</b></div>
                 <div>Match na base: <b>{result.matched}</b></div>
                 <div>Atualizados: <b>{result.promoted}</b> · Já em status superior: {result.skipped_already_higher}</div>
-                <div>Novos adicionados à base: <b>{result.inserted_new}</b></div>
+                
               </div>
             )}
           </div>
