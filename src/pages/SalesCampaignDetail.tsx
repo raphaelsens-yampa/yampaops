@@ -321,7 +321,7 @@ function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
       setResult(data);
       toast({
         title: "Sincronização concluída",
-        description: `${data?.matched ?? 0} match · ${data?.promoted ?? 0} atualizados · ${data?.inserted_new ?? 0} novos`,
+        description: `${data?.matched ?? 0} match · ${data?.promoted ?? 0} atualizados`,
       });
       qc.invalidateQueries({ queryKey: ["scc-overview", campaignId] });
       qc.invalidateQueries({ queryKey: ["scc", campaignId] });
