@@ -195,6 +195,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 justify-end">
+        <ChatwootTagSyncButton campaignId={campaign.id} />
         <Label className="text-xs text-muted-foreground">Período LTV/CAC:</Label>
         <Select value={ltvPeriod} onValueChange={(v) => setLtvPeriod(v as any)}>
           <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
