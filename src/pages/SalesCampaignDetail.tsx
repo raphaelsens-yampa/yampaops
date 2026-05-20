@@ -411,9 +411,9 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         .range(page * PAGE, page * PAGE + PAGE - 1);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
       if (search) {
-        const s = search.replace(/,/g, "");
+        const s = search.replace(/[,()]/g, "");
         q = q.or(
-          `name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%,status.ilike.%${s}%,match_method.ilike.%${s}%,external_id.ilike.%${s}%,notes.ilike.%${s}%`
+          `name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,phone_digits.ilike.%${s}%,company.ilike.%${s}%,status.ilike.%${s}%,match_method.ilike.%${s}%,notes.ilike.%${s}%`
         );
       }
       const { data, error, count } = await q;
