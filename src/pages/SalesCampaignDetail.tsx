@@ -141,12 +141,11 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   });
 
   const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, snapshots: [], fallbackChurn: 0 };
-  const merged = mergeCampaignProgress(a, sumSnapshotMetrics(a.snapshots));
-  const contacted = merged.contacted;
-  const replies = merged.replies;
-  const meetings = merged.meetings || 0;
-  const conversions = merged.conversions;
-  const mrr = merged.mrr;
+  const contacted = a.contacted;
+  const replies = a.replies;
+  const meetings = a.meetings || 0;
+  const conversions = a.conversions;
+  const mrr = a.mrr;
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
   const convOverReplies = replies > 0 ? ((conversions / replies) * 100).toFixed(1) : "0.0";
