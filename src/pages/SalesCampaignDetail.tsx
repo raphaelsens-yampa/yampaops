@@ -195,6 +195,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 justify-end">
+        <ChatwootTagSyncButton campaignId={campaign.id} />
         <Label className="text-xs text-muted-foreground">Período LTV/CAC:</Label>
         <Select value={ltvPeriod} onValueChange={(v) => setLtvPeriod(v as any)}>
           <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -279,6 +280,117 @@ function Kpi({ label, value, target, sub, isCurrency }: { label: string; value: 
     </Card>
   );
 }
+
+function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [labels, setLabels] = useState<string[]>([]);
+  const [loadingLabels, setLoadingLabels] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState<string>("");
+  const [targetStatus, setTargetStatus] = useState<"contatado" | "respondeu">("respondeu");
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  async function loadLabels() {
+    setLoadingLabels(true);
+    try {
+      const { data, error } = await supabase.rpc("get_chatwoot_labels" as any);
+      if (error) throw error;
+      setLabels((data as string[]) || []);
+    } catch (e: any) {
+      toast({ title: "Erro ao carregar tags", description: e.message, variant: "destructive" });
+    } finally {
+      setLoadingLabels(false);
+    }
+  }
+
+  useEffect(() => { if (open) loadLabels(); }, [open]);
+
+  async function run() {
+    if (!selectedLabel) {
+      toast({ title: "Selecione uma tag", variant: "destructive" });
+      return;
+    }
+    setRunning(true);
+    setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("sales-campaign-sync-chatwoot-tag", {
+        body: { campaign_id: campaignId, label: selectedLabel, target_status: targetStatus, add_missing: true },
+      });
+      if (error) throw error;
+      setResult(data);
+      toast({
+        title: "Sincronização concluída",
+        description: `${data?.matched ?? 0} match · ${data?.promoted ?? 0} atualizados · ${data?.inserted_new ?? 0} novos`,
+      });
+      qc.invalidateQueries({ queryKey: ["scc-overview", campaignId] });
+      qc.invalidateQueries({ queryKey: ["scc", campaignId] });
+    } catch (e: any) {
+      toast({ title: "Erro ao sincronizar", description: e.message, variant: "destructive" });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" className="h-8" onClick={() => setOpen(true)}>
+        <RefreshCw className="h-3.5 w-3.5 mr-1" /> Sincronizar com Chatwoot
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sincronizar contatos via tag do Chatwoot</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Tag do Chatwoot</Label>
+              <Select value={selectedLabel} onValueChange={setSelectedLabel} disabled={loadingLabels}>
+                <SelectTrigger><SelectValue placeholder={loadingLabels ? "Carregando..." : "Selecione uma tag"} /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {labels.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Match por telefone (primário) e email (fallback).
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Marcar contatos como</Label>
+              <Select value={targetStatus} onValueChange={(v) => setTargetStatus(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contatado">Contatado</SelectItem>
+                  <SelectItem value="respondeu">Respondeu</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Não rebaixa quem já está em status superior. Contatos com a tag e ausentes da base serão adicionados.
+              </p>
+            </div>
+            {result && (
+              <div className="text-xs bg-muted/50 rounded p-2 space-y-0.5">
+                <div>Contatos do Chatwoot com a tag: <b>{result.chatwoot_contacts_with_label}</b></div>
+                <div>Match na base: <b>{result.matched}</b></div>
+                <div>Atualizados: <b>{result.promoted}</b> · Já em status superior: {result.skipped_already_higher}</div>
+                <div>Novos adicionados à base: <b>{result.inserted_new}</b></div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={running}>Fechar</Button>
+            <Button onClick={run} disabled={running || !selectedLabel}>
+              {running ? "Sincronizando..." : "Executar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+
 
 // =============== BASE TAB ===============
 function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => void }) {
