@@ -410,7 +410,12 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         .order("created_at", { ascending: false })
         .range(page * PAGE, page * PAGE + PAGE - 1);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      if (search) q = q.or(`name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`);
+      if (search) {
+        const s = search.replace(/,/g, "");
+        q = q.or(
+          `name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%,status.ilike.%${s}%,match_method.ilike.%${s}%,external_id.ilike.%${s}%,notes.ilike.%${s}%`
+        );
+      }
       const { data, error, count } = await q;
       if (error) throw error;
       return { rows: data || [], count: count || 0 };
