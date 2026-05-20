@@ -315,13 +315,13 @@ function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("sales-campaign-sync-chatwoot-tag", {
-        body: { campaign_id: campaignId, label: selectedLabel, target_status: targetStatus, add_missing: true },
+        body: { campaign_id: campaignId, label: selectedLabel, target_status: targetStatus },
       });
       if (error) throw error;
       setResult(data);
       toast({
         title: "Sincronização concluída",
-        description: `${data?.matched ?? 0} match · ${data?.promoted ?? 0} atualizados · ${data?.inserted_new ?? 0} novos`,
+        description: `${data?.matched ?? 0} match · ${data?.promoted ?? 0} atualizados`,
       });
       qc.invalidateQueries({ queryKey: ["scc-overview", campaignId] });
       qc.invalidateQueries({ queryKey: ["scc", campaignId] });
@@ -373,7 +373,7 @@ function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
                 <div>Contatos do Chatwoot com a tag: <b>{result.chatwoot_contacts_with_label}</b></div>
                 <div>Match na base: <b>{result.matched}</b></div>
                 <div>Atualizados: <b>{result.promoted}</b> · Já em status superior: {result.skipped_already_higher}</div>
-                <div>Novos adicionados à base: <b>{result.inserted_new}</b></div>
+                
               </div>
             )}
           </div>

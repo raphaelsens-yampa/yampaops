@@ -218,41 +218,6 @@ Deno.serve(async (req) => {
       from += PAGE;
     }
 
-    // 4) Adiciona à base os chatwoot contacts com tag que não estavam na base
-    let inserted = 0;
-    if (add_missing) {
-      const toInsert: any[] = [];
-      for (const rec of records) {
-        if (matchedCwIds.has(rec.cwId)) continue;
-        if (!rec.phoneDigits && !rec.email) continue;
-        toInsert.push({
-          campaign_id,
-          name: rec.name,
-          email: rec.email,
-          phone: rec.phone,
-          status: target_status,
-          matched_chatwoot_contact_id: rec.cwId,
-          match_method: rec.phoneDigits ? "phone" : "email",
-          last_touch_at: new Date().toISOString(),
-          extra: { source: "chatwoot_tag_sync", label },
-        });
-      }
-      if (toInsert.length > 0) {
-        const CHUNK = 500;
-        for (let i = 0; i < toInsert.length; i += CHUNK) {
-          const slice = toInsert.slice(i, i + CHUNK);
-          const { error, count } = await supa
-            .from("sales_campaign_contacts")
-            .insert(slice, { count: "exact" });
-          if (error) {
-            console.error("insert fail", error.message);
-          } else {
-            inserted += count ?? slice.length;
-          }
-        }
-      }
-    }
-
     return new Response(
       JSON.stringify({
         ok: true,
@@ -264,7 +229,6 @@ Deno.serve(async (req) => {
         matched,
         promoted,
         skipped_already_higher: skippedHigher,
-        inserted_new: inserted,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
