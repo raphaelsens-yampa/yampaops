@@ -1,7 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
-  FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset,
+  FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -229,6 +229,15 @@ export function AppSidebar() {
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
+      ],
+    },
+    {
+      key: "descontos",
+      label: "Descontos TPV",
+      items: [
+        { title: "Visão Geral", url: "/discounts/overview", icon: Percent, managerOnly: true },
+        { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase },
+        { title: "Configurar Faixas", url: "/discounts/rules", icon: Settings2, adminOnly: true },
       ],
     },
     {

@@ -1065,6 +1065,87 @@ export type Database = {
         }
         Relationships: []
       }
+      discount_clients: {
+        Row: {
+          cnpj: string | null
+          company_name: string
+          created_at: string
+          cs_user_id: string | null
+          embedded_software_value: number
+          id: string
+          is_active: boolean
+          opportunity_id: string | null
+          plan_type: Database["public"]["Enums"]["discount_plan_type"]
+          saas_base_price: number
+          saas_plan_name: string
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          company_name: string
+          created_at?: string
+          cs_user_id?: string | null
+          embedded_software_value?: number
+          id?: string
+          is_active?: boolean
+          opportunity_id?: string | null
+          plan_type?: Database["public"]["Enums"]["discount_plan_type"]
+          saas_base_price?: number
+          saas_plan_name?: string
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          company_name?: string
+          created_at?: string
+          cs_user_id?: string | null
+          embedded_software_value?: number
+          id?: string
+          is_active?: boolean
+          opportunity_id?: string | null
+          plan_type?: Database["public"]["Enums"]["discount_plan_type"]
+          saas_base_price?: number
+          saas_plan_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      discount_tiers: {
+        Row: {
+          created_at: string
+          discount_value: number
+          id: string
+          is_active: boolean
+          name: string
+          position: number
+          tpv_max: number | null
+          tpv_min: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          position?: number
+          tpv_max?: number | null
+          tpv_min: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          position?: number
+          tpv_max?: number | null
+          tpv_min?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       finance_settings: {
         Row: {
           avg_campaign_cost: number
@@ -1288,6 +1369,66 @@ export type Database = {
           resolved?: boolean
         }
         Relationships: []
+      }
+      invoice_log: {
+        Row: {
+          client_id: string
+          created_at: string
+          discount_applied: number
+          final_value: number
+          id: string
+          original_value: number
+          processed_at: string
+          processed_by: string | null
+          reference_month: string
+          tier_id: string | null
+          tpv_amount: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          discount_applied?: number
+          final_value?: number
+          id?: string
+          original_value?: number
+          processed_at?: string
+          processed_by?: string | null
+          reference_month: string
+          tier_id?: string | null
+          tpv_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          discount_applied?: number
+          final_value?: number
+          id?: string
+          original_value?: number
+          processed_at?: string
+          processed_by?: string | null
+          reference_month?: string
+          tier_id?: string | null
+          tpv_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_log_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "discount_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_log_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "discount_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_import_rows: {
         Row: {
@@ -2207,6 +2348,47 @@ export type Database = {
         }
         Relationships: []
       }
+      tpv_monthly: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          reference_month: string
+          sync_status: string
+          synced_at: string | null
+          tpv_amount: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          reference_month: string
+          sync_status?: string
+          synced_at?: string | null
+          tpv_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          reference_month?: string
+          sync_status?: string
+          synced_at?: string | null
+          tpv_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tpv_monthly_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "discount_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_access_levels: {
         Row: {
           access_level_id: string
@@ -2259,6 +2441,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_discount: {
+        Args: {
+          p_base_price: number
+          p_embedded_value: number
+          p_plan_type: Database["public"]["Enums"]["discount_plan_type"]
+          p_tpv: number
+        }
+        Returns: Json
+      }
       get_chatwoot_labels: { Args: never; Returns: string[] }
       has_role: {
         Args: {
@@ -2283,6 +2474,7 @@ export type Database = {
       attribution_model: "first_click" | "last_click"
       commission_status: "provisioned" | "paid" | "reversed"
       commission_type: "earned" | "clawback"
+      discount_plan_type: "software" | "consultoria_bpo"
       lead_origin:
         | "freetrial"
         | "cursos"
@@ -2439,6 +2631,7 @@ export const Constants = {
       attribution_model: ["first_click", "last_click"],
       commission_status: ["provisioned", "paid", "reversed"],
       commission_type: ["earned", "clawback"],
+      discount_plan_type: ["software", "consultoria_bpo"],
       lead_origin: [
         "freetrial",
         "cursos",
