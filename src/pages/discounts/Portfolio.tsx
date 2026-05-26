@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -230,7 +230,7 @@ function WhatsAppSheet({
   const [text, setText] = useState(message);
 
   // sincroniza quando muda cliente
-  useMemo(() => setText(message), [message]);
+  useEffect(() => setText(message), [message]);
 
   async function copy() {
     await navigator.clipboard.writeText(text);
