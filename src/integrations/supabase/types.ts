@@ -1579,6 +1579,7 @@ export type Database = {
       opportunities: {
         Row: {
           ac_id: string | null
+          ac_stage_changed_at: string | null
           attribution: Database["public"]["Enums"]["attribution_model"] | null
           billing_type: string
           cancellation_date: string | null
@@ -1617,6 +1618,7 @@ export type Database = {
         }
         Insert: {
           ac_id?: string | null
+          ac_stage_changed_at?: string | null
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           billing_type?: string
           cancellation_date?: string | null
@@ -1655,6 +1657,7 @@ export type Database = {
         }
         Update: {
           ac_id?: string | null
+          ac_stage_changed_at?: string | null
           attribution?: Database["public"]["Enums"]["attribution_model"] | null
           billing_type?: string
           cancellation_date?: string | null
@@ -1869,6 +1872,9 @@ export type Database = {
       }
       sales_campaign_contacts: {
         Row: {
+          ac_last_stage: string | null
+          ac_last_stage_at: string | null
+          ac_synced_at: string | null
           campaign_id: string
           company: string | null
           created_at: string
@@ -1878,6 +1884,7 @@ export type Database = {
           id: string
           last_touch_at: string | null
           match_method: string | null
+          matched_ac_deal_id: string | null
           matched_chatwoot_contact_id: number | null
           matched_contact_id: string | null
           matched_opportunity_id: string | null
@@ -1894,6 +1901,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ac_last_stage?: string | null
+          ac_last_stage_at?: string | null
+          ac_synced_at?: string | null
           campaign_id: string
           company?: string | null
           created_at?: string
@@ -1903,6 +1913,7 @@ export type Database = {
           id?: string
           last_touch_at?: string | null
           match_method?: string | null
+          matched_ac_deal_id?: string | null
           matched_chatwoot_contact_id?: number | null
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
@@ -1919,6 +1930,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ac_last_stage?: string | null
+          ac_last_stage_at?: string | null
+          ac_synced_at?: string | null
           campaign_id?: string
           company?: string | null
           created_at?: string
@@ -1928,6 +1942,7 @@ export type Database = {
           id?: string
           last_touch_at?: string | null
           match_method?: string | null
+          matched_ac_deal_id?: string | null
           matched_chatwoot_contact_id?: number | null
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null

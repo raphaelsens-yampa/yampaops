@@ -92,12 +92,43 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ActiveCampaign opportunities — match by contact email or phone
+      const acOppByEmail = new Map<string, any>();
+      const acOppByPhone = new Map<string, any>();
+      if (emails.length || phones.length) {
+        // Find local contacts that match email or phone, then their opportunities with ac_id
+        const orParts: string[] = [];
+        if (emails.length) orParts.push(`email.in.(${emails.map((e) => `"${e}"`).join(",")})`);
+        if (phones.length) orParts.push(`phone.in.(${phones.map((p) => `"${p}"`).join(",")})`);
+        const { data: matchedContacts } = await supabase
+          .from("contacts")
+          .select("id, email, phone")
+          .or(orParts.join(","));
+        const contactIds = (matchedContacts || []).map((c: any) => c.id);
+        if (contactIds.length) {
+          const { data: opps } = await supabase
+            .from("opportunities")
+            .select("id, ac_id, contact_id, phone")
+            .in("contact_id", contactIds)
+            .not("ac_id", "is", null);
+          const contactMap = new Map((matchedContacts || []).map((c: any) => [c.id, c]));
+          for (const o of opps || []) {
+            const c = contactMap.get(o.contact_id);
+            if (c?.email) acOppByEmail.set(String(c.email).toLowerCase(), o);
+            const ph = (c?.phone || o.phone || "").replace(/\D+/g, "");
+            const norm = ph.length > 11 ? ph.slice(-11) : ph;
+            if (norm) acOppByPhone.set(norm, o);
+          }
+        }
+      }
+
       // Build updates
       const updates: any[] = [];
       for (const c of contacts) {
         const cw = (c.email_norm && cwByEmail.get(c.email_norm)) || (c.phone_digits && cwByPhone.get(c.phone_digits));
         const stripe = c.email_norm && stripeByEmail.get(c.email_norm);
         const internal = c.email_norm && intByEmail.get(c.email_norm);
+        const acOpp = (c.email_norm && acOppByEmail.get(c.email_norm)) || (c.phone_digits && acOppByPhone.get(c.phone_digits));
         const update: any = { id: c.id };
         let touched = false;
         if (cw) {
@@ -118,6 +149,12 @@ Deno.serve(async (req) => {
           update.matched_contact_id = internal.id;
           touched = true;
         }
+        if (acOpp) {
+          // Don't override Stripe match if it set matched_opportunity_id already
+          if (!update.matched_opportunity_id) update.matched_opportunity_id = acOpp.id;
+          update.matched_ac_deal_id = String(acOpp.ac_id);
+          touched = true;
+        }
         if (touched) updates.push(update);
       }
 
@@ -130,6 +167,11 @@ Deno.serve(async (req) => {
       if (contacts.length < PAGE) break;
       from += PAGE;
     }
+
+    // Kick off ActiveCampaign stage sync for this campaign (best effort, don't block result)
+    try {
+      await supabase.functions.invoke("ac-sync-deal-stages", { body: { campaign_id } });
+    } catch (_) { /* ignore */ }
 
     return json({ ok: true, matched: totalMatched, converted: totalConverted, mrr: totalMrr });
   } catch (e) {

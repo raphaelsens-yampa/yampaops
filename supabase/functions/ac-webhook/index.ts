@@ -112,7 +112,12 @@ async function processDeal(payload: any) {
 
   const consultantId = await findUserByEmail(deal.owner_email || deal.ownerEmail);
 
-  const { error } = await service.from("opportunities").upsert({
+  // Detect prior stage to record ac_stage_changed_at when stage actually changed
+  const { data: existingOpp } = await service.from("opportunities")
+    .select("id, stage").eq("ac_id", acDealId).maybeSingle();
+  const stageChanged = !existingOpp || existingOpp.stage !== stageSlug;
+
+  const upsertPayload: any = {
     ac_id: acDealId,
     name: deal.title || `Deal ${acDealId}`,
     title: deal.title || null,
@@ -123,12 +128,32 @@ async function processDeal(payload: any) {
     stage: stageSlug,
     estimated_mrr: deal.value ? Number(deal.value) / 100 : 0,
     origin: "freetrial",
-  }, { onConflict: "ac_id" });
+  };
+  if (stageChanged) {
+    upsertPayload.ac_stage_changed_at = new Date().toISOString();
+    if (existingOpp) upsertPayload.previous_stage = existingOpp.stage;
+  }
+
+  const { error } = await service.from("opportunities").upsert(upsertPayload, { onConflict: "ac_id" });
 
   if (error) {
     await logError("deal", acDealId, error.message, deal);
     return { error: error.message };
   }
+
+  // Mirror stage info into campaign contacts linked to this deal
+  if (stageChanged) {
+    const nowIso = new Date().toISOString();
+    await service.from("sales_campaign_contacts")
+      .update({
+        ac_last_stage: stageSlug,
+        ac_last_stage_at: nowIso,
+        ac_synced_at: nowIso,
+        matched_ac_deal_id: acDealId,
+      })
+      .eq("matched_ac_deal_id", acDealId);
+  }
+
   return { ok: true };
 }
 

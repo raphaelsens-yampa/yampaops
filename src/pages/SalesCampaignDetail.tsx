@@ -415,7 +415,8 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
       if (contactFilter === "chatwoot") q = q.not("matched_chatwoot_contact_id", "is", null);
       if (contactFilter === "ops") q = q.eq("ops_contacted", true);
-      if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).eq("ops_contacted", false);
+      if (contactFilter === "ac") q = q.not("matched_ac_deal_id", "is", null);
+      if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).is("matched_ac_deal_id", null).eq("ops_contacted", false);
       if (search) {
         const s = search.replace(/[,()]/g, "");
         q = q.or(
@@ -479,9 +480,19 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
+  const runAcSync = async () => {
+    toast({ title: "Sincronizando com ActiveCampaign..." });
+    const { data, error } = await supabase.functions.invoke("ac-sync-deal-stages", { body: { campaign_id: campaign.id } });
+    if (error) toast({ title: "Erro no sync AC", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: "Sync AC concluído", description: `${data?.synced_deals || 0} deals · ${data?.updated_contacts || 0} contatos atualizados` });
+      refetch();
+    }
+  };
+
   const exportCsv = () => {
     if (!data?.rows.length) return;
-    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method", "ops_contacted", "ops_contacted_at"];
+    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method", "ops_contacted", "ops_contacted_at", "ac_last_stage", "ac_last_stage_at", "matched_ac_deal_id"];
     const csv = [cols.join(","), ...data.rows.map((r: any) => cols.map((c) => JSON.stringify(r[c] ?? "")).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
@@ -496,7 +507,8 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <ImportDialog campaign={campaign} onImported={() => { refetch(); onChange(); }} />
-        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe</Button>
+        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe/Active</Button>
+        <Button variant="outline" onClick={runAcSync}><RefreshCw className="h-4 w-4 mr-2" />Sincronizar com ActiveCampaign</Button>
         <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
         <div className="ml-auto flex flex-wrap gap-2">
           <Input placeholder="Buscar..." value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} className="w-48" />
@@ -506,6 +518,7 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               <SelectItem value="all">Todo contato prévio</SelectItem>
               <SelectItem value="chatwoot">Já teve Chatwoot</SelectItem>
               <SelectItem value="ops">Contatado por Ops</SelectItem>
+              <SelectItem value="ac">Vinculado ao Active</SelectItem>
               <SelectItem value="none">Sem contato prévio</SelectItem>
             </SelectContent>
           </Select>
@@ -530,13 +543,14 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               <TableHead>Empresa</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Contato prévio</TableHead>
+              <TableHead>AC</TableHead>
               <TableHead className="text-center">Ops</TableHead>
               <TableHead className="text-right">MRR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
-            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
             {data?.rows.map((r: any) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.name || "—"}</TableCell>
@@ -573,6 +587,22 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
                     )}
                     {!r.matched_chatwoot_contact_id && !r.matched_opportunity_id && !r.ops_contacted && "—"}
                   </div>
+                </TableCell>
+                <TableCell className="text-xs">
+                  {r.matched_ac_deal_id ? (
+                    <UITooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="cursor-help gap-1">
+                          {r.ac_last_stage || "vinculado"}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">
+                        <div>Deal AC: {r.matched_ac_deal_id}</div>
+                        <div>Última mudança: {fmtDate(r.ac_last_stage_at)}</div>
+                        <div>Sync: {fmtDate(r.ac_synced_at)}</div>
+                      </TooltipContent>
+                    </UITooltip>
+                  ) : "—"}
                 </TableCell>
                 <TableCell className="text-center">
                   <UITooltip>
