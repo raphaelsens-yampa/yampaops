@@ -233,7 +233,7 @@ export function AppSidebar() {
     },
     {
       key: "descontos",
-      label: "Descontos TPV",
+      label: "Estratégia Adquirência",
       items: [
         { title: "Visão Geral", url: "/discounts/overview", icon: Percent, managerOnly: true },
         { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase },
