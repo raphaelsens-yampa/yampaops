@@ -396,13 +396,15 @@ function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
 // =============== BASE TAB ===============
 function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => void }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [contactFilter, setContactFilter] = useState("all"); // all | chatwoot | ops | none
   const [page, setPage] = useState(0);
   const PAGE = 50;
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["scc", campaign.id, search, statusFilter, page],
+    queryKey: ["scc", campaign.id, search, statusFilter, contactFilter, page],
     queryFn: async () => {
       let q = supabase
         .from("sales_campaign_contacts")
@@ -411,6 +413,9 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         .order("created_at", { ascending: false })
         .range(page * PAGE, page * PAGE + PAGE - 1);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (contactFilter === "chatwoot") q = q.not("matched_chatwoot_contact_id", "is", null);
+      if (contactFilter === "ops") q = q.eq("ops_contacted", true);
+      if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).eq("ops_contacted", false);
       if (search) {
         const s = search.replace(/[,()]/g, "");
         q = q.or(
@@ -419,7 +424,24 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
       }
       const { data, error, count } = await q;
       if (error) throw error;
-      return { rows: data || [], count: count || 0 };
+
+      // Enrich with Chatwoot details for matched contacts
+      const cwIds = Array.from(
+        new Set((data || []).map((r: any) => r.matched_chatwoot_contact_id).filter(Boolean))
+      );
+      let cwMap = new Map<number, any>();
+      if (cwIds.length) {
+        const { data: cw } = await supabase
+          .from("chatwoot_contacts")
+          .select("chatwoot_contact_id, name, email, last_activity_at, conversations_count")
+          .in("chatwoot_contact_id", cwIds as any);
+        for (const c of cw || []) cwMap.set(c.chatwoot_contact_id as any, c);
+      }
+      const rows = (data || []).map((r: any) => ({
+        ...r,
+        _cw: r.matched_chatwoot_contact_id ? cwMap.get(r.matched_chatwoot_contact_id) : null,
+      }));
+      return { rows, count: count || 0 };
     },
   });
 
@@ -427,6 +449,24 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     const { error } = await supabase.from("sales_campaign_contacts").update({ status }).eq("id", rowId);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else { refetch(); onChange(); }
+  };
+
+  const toggleOpsContacted = async (row: any) => {
+    const next = !row.ops_contacted;
+    const { error } = await supabase
+      .from("sales_campaign_contacts")
+      .update({
+        ops_contacted: next,
+        ops_contacted_at: next ? new Date().toISOString() : null,
+        ops_contacted_by: next ? user?.id ?? null : null,
+      })
+      .eq("id", row.id);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: next ? "Marcado como contatado por Ops" : "Marcação removida" });
+      refetch();
+      onChange();
+    }
   };
 
   const runMatch = async () => {
@@ -441,7 +481,7 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
 
   const exportCsv = () => {
     if (!data?.rows.length) return;
-    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method"];
+    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method", "ops_contacted", "ops_contacted_at"];
     const csv = [cols.join(","), ...data.rows.map((r: any) => cols.map((c) => JSON.stringify(r[c] ?? "")).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
@@ -450,14 +490,25 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     a.click();
   };
 
+  const fmtDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <ImportDialog campaign={campaign} onImported={() => { refetch(); onChange(); }} />
         <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe</Button>
         <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
           <Input placeholder="Buscar..." value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} className="w-48" />
+          <Select value={contactFilter} onValueChange={(v) => { setPage(0); setContactFilter(v); }}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todo contato prévio</SelectItem>
+              <SelectItem value="chatwoot">Já teve Chatwoot</SelectItem>
+              <SelectItem value="ops">Contatado por Ops</SelectItem>
+              <SelectItem value="none">Sem contato prévio</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={(v) => { setPage(0); setStatusFilter(v); }}>
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -469,6 +520,7 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
       </div>
 
       <div className="border rounded-md overflow-x-auto">
+        <TooltipProvider delayDuration={150}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -477,13 +529,14 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               <TableHead>Telefone</TableHead>
               <TableHead>Empresa</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Match</TableHead>
+              <TableHead>Contato prévio</TableHead>
+              <TableHead className="text-center">Ops</TableHead>
               <TableHead className="text-right">MRR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
-            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
             {data?.rows.map((r: any) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.name || "—"}</TableCell>
@@ -497,15 +550,57 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
                   </Select>
                 </TableCell>
                 <TableCell className="text-xs">
-                  {r.matched_chatwoot_contact_id && <Badge variant="outline" className="mr-1">CW</Badge>}
-                  {r.matched_opportunity_id && <Badge variant="outline" className="mr-1">Stripe</Badge>}
-                  {!r.matched_chatwoot_contact_id && !r.matched_opportunity_id && "—"}
+                  <div className="flex flex-wrap gap-1 items-center">
+                    {r.matched_chatwoot_contact_id ? (
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="cursor-help gap-1">
+                            <MessageCircle className="h-3 w-3" /> CW
+                            {r.match_method && <span className="opacity-60">·{r.match_method}</span>}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-xs">
+                          <div className="font-medium">{r._cw?.name || "Contato Chatwoot"}</div>
+                          {r._cw?.email && <div>{r._cw.email}</div>}
+                          <div>Conversas: {r._cw?.conversations_count ?? 0}</div>
+                          <div>Última atividade: {fmtDate(r._cw?.last_activity_at)}</div>
+                        </TooltipContent>
+                      </UITooltip>
+                    ) : null}
+                    {r.matched_opportunity_id && <Badge variant="outline">Stripe</Badge>}
+                    {r.ops_contacted && (
+                      <Badge className="bg-success/15 text-success border-success/30 hover:bg-success/15">Ops</Badge>
+                    )}
+                    {!r.matched_chatwoot_contact_id && !r.matched_opportunity_id && !r.ops_contacted && "—"}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => toggleOpsContacted(r)}
+                      >
+                        {r.ops_contacted
+                          ? <CheckCircle2 className="h-4 w-4 text-success" />
+                          : <Circle className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs">
+                      {r.ops_contacted
+                        ? `Contatado por Ops em ${fmtDate(r.ops_contacted_at)} — clique para remover`
+                        : "Marcar como contatado por Operações"}
+                    </TooltipContent>
+                  </UITooltip>
                 </TableCell>
                 <TableCell className="text-right">R$ {Number(r.mrr_generated || 0).toFixed(0)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        </TooltipProvider>
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
