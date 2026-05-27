@@ -224,7 +224,7 @@ export function AppSidebar() {
     },
     {
       key: "comercial",
-      label: "Administrativo",
+      label: "Sales",
       items: [
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
