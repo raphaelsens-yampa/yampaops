@@ -415,7 +415,8 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
       if (contactFilter === "chatwoot") q = q.not("matched_chatwoot_contact_id", "is", null);
       if (contactFilter === "ops") q = q.eq("ops_contacted", true);
-      if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).eq("ops_contacted", false);
+      if (contactFilter === "ac") q = q.not("matched_ac_deal_id", "is", null);
+      if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).is("matched_ac_deal_id", null).eq("ops_contacted", false);
       if (search) {
         const s = search.replace(/[,()]/g, "");
         q = q.or(
