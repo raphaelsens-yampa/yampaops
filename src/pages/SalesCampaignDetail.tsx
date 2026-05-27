@@ -496,7 +496,8 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <ImportDialog campaign={campaign} onImported={() => { refetch(); onChange(); }} />
-        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe</Button>
+        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe/Active</Button>
+        <Button variant="outline" onClick={runAcSync}><RefreshCw className="h-4 w-4 mr-2" />Sincronizar com ActiveCampaign</Button>
         <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
         <div className="ml-auto flex flex-wrap gap-2">
           <Input placeholder="Buscar..." value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} className="w-48" />
@@ -506,6 +507,7 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               <SelectItem value="all">Todo contato prévio</SelectItem>
               <SelectItem value="chatwoot">Já teve Chatwoot</SelectItem>
               <SelectItem value="ops">Contatado por Ops</SelectItem>
+              <SelectItem value="ac">Vinculado ao Active</SelectItem>
               <SelectItem value="none">Sem contato prévio</SelectItem>
             </SelectContent>
           </Select>
