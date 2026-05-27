@@ -479,9 +479,19 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
+  const runAcSync = async () => {
+    toast({ title: "Sincronizando com ActiveCampaign..." });
+    const { data, error } = await supabase.functions.invoke("ac-sync-deal-stages", { body: { campaign_id: campaign.id } });
+    if (error) toast({ title: "Erro no sync AC", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: "Sync AC concluído", description: `${data?.synced_deals || 0} deals · ${data?.updated_contacts || 0} contatos atualizados` });
+      refetch();
+    }
+  };
+
   const exportCsv = () => {
     if (!data?.rows.length) return;
-    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method", "ops_contacted", "ops_contacted_at"];
+    const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method", "ops_contacted", "ops_contacted_at", "ac_last_stage", "ac_last_stage_at", "matched_ac_deal_id"];
     const csv = [cols.join(","), ...data.rows.map((r: any) => cols.map((c) => JSON.stringify(r[c] ?? "")).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
