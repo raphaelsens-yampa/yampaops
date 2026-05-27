@@ -588,6 +588,22 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
                     {!r.matched_chatwoot_contact_id && !r.matched_opportunity_id && !r.ops_contacted && "—"}
                   </div>
                 </TableCell>
+                <TableCell className="text-xs">
+                  {r.matched_ac_deal_id ? (
+                    <UITooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="cursor-help gap-1">
+                          {r.ac_last_stage || "vinculado"}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">
+                        <div>Deal AC: {r.matched_ac_deal_id}</div>
+                        <div>Última mudança: {fmtDate(r.ac_last_stage_at)}</div>
+                        <div>Sync: {fmtDate(r.ac_synced_at)}</div>
+                      </TooltipContent>
+                    </UITooltip>
+                  ) : "—"}
+                </TableCell>
                 <TableCell className="text-center">
                   <UITooltip>
                     <TooltipTrigger asChild>
