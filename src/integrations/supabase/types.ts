@@ -1884,6 +1884,10 @@ export type Database = {
           mrr_generated: number
           name: string | null
           notes: string | null
+          ops_contacted: boolean
+          ops_contacted_at: string | null
+          ops_contacted_by: string | null
+          ops_notes: string | null
           phone: string | null
           phone_digits: string | null
           status: string
@@ -1905,6 +1909,10 @@ export type Database = {
           mrr_generated?: number
           name?: string | null
           notes?: string | null
+          ops_contacted?: boolean
+          ops_contacted_at?: string | null
+          ops_contacted_by?: string | null
+          ops_notes?: string | null
           phone?: string | null
           phone_digits?: string | null
           status?: string
@@ -1926,6 +1934,10 @@ export type Database = {
           mrr_generated?: number
           name?: string | null
           notes?: string | null
+          ops_contacted?: boolean
+          ops_contacted_at?: string | null
+          ops_contacted_by?: string | null
+          ops_notes?: string | null
           phone?: string | null
           phone_digits?: string | null
           status?: string
