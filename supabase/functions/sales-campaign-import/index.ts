@@ -59,20 +59,68 @@ Deno.serve(async (req) => {
       .single();
     if (impErr) return json({ error: impErr.message }, 500);
 
-    // Dedupe within batch by email/phone
-    const seen = new Set<string>();
+    // Normalize phone to digits (last 11 if BR), matching SQL normalize_phone_digits
+    const normPhone = (p?: string | null) => {
+      if (!p) return null;
+      const d = String(p).replace(/\D+/g, "");
+      if (d.length < 8) return null;
+      return d.length > 11 ? d.slice(-11) : d;
+    };
+    const normEmail = (e?: string | null) => {
+      const v = e?.trim().toLowerCase() || null;
+      return v && v !== "" ? v : null;
+    };
+
+    // Fetch existing contacts in this campaign to dedupe incrementally
+    const existingEmails = new Set<string>();
+    const existingPhones = new Set<string>();
+    {
+      const PAGE = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("sales_campaign_contacts")
+          .select("email_norm, phone_digits")
+          .eq("campaign_id", campaign_id)
+          .range(from, from + PAGE - 1);
+        if (error) break;
+        if (!data || data.length === 0) break;
+        for (const r of data) {
+          if (r.email_norm) existingEmails.add(r.email_norm);
+          if (r.phone_digits) existingPhones.add(r.phone_digits);
+        }
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+    }
+
+    // Dedupe within batch AND against existing contacts (by email or phone)
+    const seenEmail = new Set<string>();
+    const seenPhone = new Set<string>();
+    let duplicatesSkipped = 0;
     const toInsert = rows
       .map((r) => {
-        const email = r.email?.trim().toLowerCase() || null;
-        const phone = r.phone || null;
-        const key = `${email || ""}|${phone || ""}`;
-        if (key !== "|" && seen.has(key)) return null;
-        seen.add(key);
+        const email = normEmail(r.email);
+        const phone_digits = normPhone(r.phone);
+
+        // Skip if matches existing contact in campaign
+        if ((email && existingEmails.has(email)) || (phone_digits && existingPhones.has(phone_digits))) {
+          duplicatesSkipped++;
+          return null;
+        }
+        // Skip if duplicated within current batch
+        if ((email && seenEmail.has(email)) || (phone_digits && seenPhone.has(phone_digits))) {
+          duplicatesSkipped++;
+          return null;
+        }
+        if (email) seenEmail.add(email);
+        if (phone_digits) seenPhone.add(phone_digits);
+
         return {
           campaign_id,
           name: r.name || null,
           email,
-          phone,
+          phone: r.phone || null,
           company: r.company || null,
           extra: r.extra || {},
         };
