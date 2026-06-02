@@ -155,9 +155,21 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
       }
       const { data: snapshots } = await supabase
         .from("sales_campaign_snapshots")
-        .select("snapshot_date, contacted, replies, meetings, conversions, mrr_generated")
+        .select("snapshot_date, contacted, replies, meetings, conversions, mrr_generated, handled_by")
         .eq("campaign_id", campaign.id)
         .order("snapshot_date", { ascending: true });
+      for (const s of snapshots || []) {
+        const hb = (s as any).handled_by || "unspecified";
+        const add = (b: any) => {
+          b.contacted += Number(s.contacted) || 0;
+          b.replies += Number(s.replies) || 0;
+          b.meetings += Number(s.meetings) || 0;
+          b.conversions += Number(s.conversions) || 0;
+          b.mrr += Number(s.mrr_generated) || 0;
+        };
+        if (hb === "ia" || hb === "mixed") add(ia);
+        if (hb === "human" || hb === "mixed") add(human);
+      }
       const { data: finance } = await supabase.from("finance_settings").select("avg_churn_rate").limit(1).maybeSingle();
       return { base, contacted, replies, meetings, conversions, mrr, noPhone, ia, human, unclassified, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
     },
