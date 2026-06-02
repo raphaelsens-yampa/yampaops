@@ -746,9 +746,24 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         </div>
       </div>
 
-      {iaFilter !== "all" && (
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-xs bg-primary/5 border border-primary/30 rounded-md px-3 py-2">
+          <span className="font-medium">{selectedIds.size} selecionado(s):</span>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_ia", true)}>
+            <Bot className="h-3 w-3 mr-1" />Marcar IA
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_ia", false)}>Desmarcar IA</Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_human", true)}>
+            <User className="h-3 w-3 mr-1" />Marcar Humano
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_human", false)}>Desmarcar Humano</Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection} className="ml-auto">Limpar seleção</Button>
+        </div>
+      )}
+
+      {iaFilter !== "all" && selectedIds.size === 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs bg-muted/40 border rounded-md px-3 py-2">
-          <span className="text-muted-foreground">Ações em massa no filtro atual:</span>
+          <span className="text-muted-foreground">Aplicar a todo o filtro atual:</span>
           <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_ia", true)}>
             <Bot className="h-3 w-3 mr-1" />Marcar IA
           </Button>
