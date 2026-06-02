@@ -602,6 +602,42 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const pageIds: string[] = (data?.rows || []).map((r: any) => r.id);
+  const pageAllSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const pageSomeSelected = pageIds.some((id) => selectedIds.has(id));
+  const togglePage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (pageAllSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  const bulkApplyToSelection = async (field: "handled_by_ia" | "handled_by_human", value: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulking(true);
+    const patch: any = { [field]: value };
+    if (field === "handled_by_ia" && value) patch.ia_source = "manual";
+    const { error } = await supabase.from("sales_campaign_contacts").update(patch).in("id", ids);
+    setBulking(false);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: `${value ? "Marcado" : "Desmarcado"} ${field === "handled_by_ia" ? "IA" : "Humano"}`, description: `${ids.length} contato(s) atualizado(s)` });
+      refetch();
+      onChange();
+    }
+  };
+
   const runMatch = async () => {
     toast({ title: "Casando contatos..." });
     const { data, error } = await supabase.functions.invoke("sales-campaign-match", { body: { campaign_id: campaign.id } });
@@ -710,9 +746,24 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         </div>
       </div>
 
-      {iaFilter !== "all" && (
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-xs bg-primary/5 border border-primary/30 rounded-md px-3 py-2">
+          <span className="font-medium">{selectedIds.size} selecionado(s):</span>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_ia", true)}>
+            <Bot className="h-3 w-3 mr-1" />Marcar IA
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_ia", false)}>Desmarcar IA</Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_human", true)}>
+            <User className="h-3 w-3 mr-1" />Marcar Humano
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApplyToSelection("handled_by_human", false)}>Desmarcar Humano</Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection} className="ml-auto">Limpar seleção</Button>
+        </div>
+      )}
+
+      {iaFilter !== "all" && selectedIds.size === 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs bg-muted/40 border rounded-md px-3 py-2">
-          <span className="text-muted-foreground">Ações em massa no filtro atual:</span>
+          <span className="text-muted-foreground">Aplicar a todo o filtro atual:</span>
           <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_ia", true)}>
             <Bot className="h-3 w-3 mr-1" />Marcar IA
           </Button>
@@ -730,6 +781,13 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={pageAllSelected ? true : pageSomeSelected ? "indeterminate" : false}
+                  onCheckedChange={togglePage}
+                  aria-label="Selecionar página"
+                />
+              </TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
@@ -744,10 +802,17 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
-            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
             {data?.rows.map((r: any) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.has(r.id)}
+                    onCheckedChange={() => toggleSelected(r.id)}
+                    aria-label="Selecionar contato"
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{r.name || "—"}</TableCell>
                 <TableCell className="text-xs">{r.email || "—"}</TableCell>
                 <TableCell className="text-xs">{r.phone || "—"}</TableCell>
