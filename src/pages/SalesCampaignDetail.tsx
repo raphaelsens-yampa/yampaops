@@ -819,6 +819,12 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
                     </TooltipContent>
                   </UITooltip>
                 </TableCell>
+                <TableCell className="text-center">
+                  <Checkbox checked={!!r.handled_by_ia} onCheckedChange={() => toggleHandled(r, "handled_by_ia")} aria-label="Marcar como atendido por IA" />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Checkbox checked={!!r.handled_by_human} onCheckedChange={() => toggleHandled(r, "handled_by_human")} aria-label="Marcar como atendido por humano" />
+                </TableCell>
                 <TableCell className="text-right">R$ {Number(r.mrr_generated || 0).toFixed(0)}</TableCell>
               </TableRow>
             ))}
