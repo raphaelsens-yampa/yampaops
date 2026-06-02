@@ -952,6 +952,8 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
 // =============== CONFIG TAB ===============
 function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => void }) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [form, setForm] = useState({
     name: campaign.name,
     description: campaign.description || "",
@@ -969,6 +971,7 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     target_conversions: String(campaign.target_conversions),
     target_mrr: String(campaign.target_mrr),
   });
+  const [deleting, setDeleting] = useState(false);
   const save = async () => {
     const { error } = await supabase.from("sales_campaigns").update({
       ...form,
@@ -991,41 +994,84 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     onSaved();
   };
 
+  const deleteCampaign = async () => {
+    setDeleting(true);
+    const { error } = await supabase.from("sales_campaigns").delete().eq("id", campaign.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Campanha excluída" });
+    qc.invalidateQueries({ queryKey: ["sales-campaigns"] });
+    navigate("/sales-campaigns");
+  };
+
   return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">Configuração</CardTitle></CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-          <div><Label>Canal</Label>
-            <Select value={form.channel} onValueChange={(v) => setForm({ ...form, channel: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{CHANNEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-            </Select>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader><CardTitle className="text-base">Configuração</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <div><Label>Canal</Label>
+              <Select value={form.channel} onValueChange={(v) => setForm({ ...form, channel: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{CHANNEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
+            <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS, Parcerias" /></div>
+            <div><Label>Investimento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
+            <div><Label>Churn mensal (%)</Label><Input type="number" step="0.1" value={form.churn_rate} onChange={(e) => setForm({ ...form, churn_rate: e.target.value })} placeholder="Ex.: 5 (vazio = usa padrão financeiro)" /></div>
+            <div><Label>Prioridade</Label><Input type="number" min="0" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} placeholder="1 = mais urgente (0 = sem prioridade)" /></div>
+            <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
+            <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
+            <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
+            <div><Label>Meta respostas</Label><Input type="number" value={form.target_replies} onChange={(e) => setForm({ ...form, target_replies: e.target.value })} /></div>
+            <div><Label>Meta conversões</Label><Input type="number" value={form.target_conversions} onChange={(e) => setForm({ ...form, target_conversions: e.target.value })} /></div>
+            <div><Label>Meta MRR</Label><Input type="number" value={form.target_mrr} onChange={(e) => setForm({ ...form, target_mrr: e.target.value })} /></div>
           </div>
-          <div><Label>Status</Label>
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-            </Select>
+          <div className="flex justify-end mt-4">
+            <Button onClick={save}><Save className="h-4 w-4 mr-1" />Salvar</Button>
           </div>
-          <div><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
-          <div><Label>Área</Label><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Ex.: Vendas, CS, Parcerias" /></div>
-          <div><Label>Investimento (R$)</Label><Input type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></div>
-          <div><Label>Churn mensal (%)</Label><Input type="number" step="0.1" value={form.churn_rate} onChange={(e) => setForm({ ...form, churn_rate: e.target.value })} placeholder="Ex.: 5 (vazio = usa padrão financeiro)" /></div>
-          <div><Label>Prioridade</Label><Input type="number" min="0" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} placeholder="1 = mais urgente (0 = sem prioridade)" /></div>
-          <div><Label>Início</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-          <div><Label>Término</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
-          <div><Label>Meta contatados</Label><Input type="number" value={form.target_contacted} onChange={(e) => setForm({ ...form, target_contacted: e.target.value })} /></div>
-          <div><Label>Meta respostas</Label><Input type="number" value={form.target_replies} onChange={(e) => setForm({ ...form, target_replies: e.target.value })} /></div>
-          <div><Label>Meta conversões</Label><Input type="number" value={form.target_conversions} onChange={(e) => setForm({ ...form, target_conversions: e.target.value })} /></div>
-          <div><Label>Meta MRR</Label><Input type="number" value={form.target_mrr} onChange={(e) => setForm({ ...form, target_mrr: e.target.value })} /></div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <Button onClick={save}><Save className="h-4 w-4 mr-1" />Salvar</Button>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive">Zona de perigo</CardTitle>
+          <CardDescription>Excluir a campanha remove todos os contatos, snapshots e histórico de importação.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" />Excluir campanha</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir campanha?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Essa ação não pode ser desfeita. Todos os contatos, snapshots e registros desta campanha serão removidos permanentemente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteCampaign} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                  {deleting ? "Excluindo..." : "Excluir"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
