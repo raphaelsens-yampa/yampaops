@@ -583,7 +583,9 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
   const [bulking, setBulking] = useState(false);
   const bulkApply = async (field: "handled_by_ia" | "handled_by_human", value: boolean) => {
     setBulking(true);
-    let q = supabase.from("sales_campaign_contacts").update({ [field]: value, ...(field === "handled_by_ia" && value ? { ia_source: "manual" } : {}) }).eq("campaign_id", campaign.id);
+    const patch: any = { [field]: value };
+    if (field === "handled_by_ia" && value) patch.ia_source = "manual";
+    let q = supabase.from("sales_campaign_contacts").update(patch).eq("campaign_id", campaign.id);
     if (statusFilter !== "all") q = q.eq("status", statusFilter);
     if (iaFilter === "ia") q = q.eq("handled_by_ia", true).eq("handled_by_human", false);
     if (iaFilter === "human") q = q.eq("handled_by_human", true).eq("handled_by_ia", false);
