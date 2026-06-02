@@ -386,6 +386,76 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome completo</Label>
+              <Input
+                value={createForm.full_name}
+                onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
+                placeholder="Nome do usuário"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                placeholder="usuario@empresa.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Senha provisória</Label>
+              <Input
+                type="text"
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                placeholder="Mínimo 6 caracteres"
+              />
+              <p className="text-xs text-muted-foreground">O usuário poderá alterar depois.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Papel Base</Label>
+              <Select value={createForm.role} onValueChange={(v) => setCreateForm({ ...createForm, role: v as AppRole })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="tatico">Tático</SelectItem>
+                  <SelectItem value="seller">Seller</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nível de Acesso</Label>
+              <Select
+                value={createForm.access_level_id}
+                onValueChange={(v) => setCreateForm({ ...createForm, access_level_id: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar nível..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {accessLevels.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Cancelar</Button>
+            <Button onClick={handleCreateUser} disabled={creating}>
+              {creating ? "Criando..." : "Criar usuário"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
