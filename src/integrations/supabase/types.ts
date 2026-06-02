@@ -2034,6 +2034,7 @@ export type Database = {
           conversions: number
           created_at: string
           created_by: string | null
+          handled_by: string
           id: string
           meetings: number
           mrr_generated: number
@@ -2048,6 +2049,7 @@ export type Database = {
           conversions?: number
           created_at?: string
           created_by?: string | null
+          handled_by?: string
           id?: string
           meetings?: number
           mrr_generated?: number
@@ -2062,6 +2064,7 @@ export type Database = {
           conversions?: number
           created_at?: string
           created_by?: string | null
+          handled_by?: string
           id?: string
           meetings?: number
           mrr_generated?: number

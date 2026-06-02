@@ -1028,7 +1028,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
   const [form, setForm] = useState({
     snapshot_date: new Date().toISOString().slice(0, 10),
     contacted: "0", replies: "0", meetings: "0", conversions: "0",
-    mrr_generated: "0", notes: "",
+    mrr_generated: "0", notes: "", handled_by: "unspecified",
   });
 
   const resetForm = () => {
@@ -1036,7 +1036,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
     setForm({
       snapshot_date: new Date().toISOString().slice(0, 10),
       contacted: "0", replies: "0", meetings: "0", conversions: "0",
-      mrr_generated: "0", notes: "",
+      mrr_generated: "0", notes: "", handled_by: "unspecified",
     });
   };
 
@@ -1050,6 +1050,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
       conversions: String(s.conversions ?? 0),
       mrr_generated: String(s.mrr_generated ?? 0),
       notes: s.notes || "",
+      handled_by: s.handled_by || "unspecified",
     });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1086,6 +1087,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
       conversions: Number(form.conversions) || 0,
       mrr_generated: Number(form.mrr_generated) || 0,
       notes: form.notes || null,
+      handled_by: form.handled_by || "unspecified",
     };
     let error;
     if (editingId) {
@@ -1119,13 +1121,25 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
           <CardDescription>Preencha manualmente ou clique em "Calcular automaticamente" para puxar da base e cruzamentos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
             <div><Label>Data</Label><Input type="date" value={form.snapshot_date} onChange={(e) => setForm({ ...form, snapshot_date: e.target.value })} /></div>
             <div><Label>Contatados</Label><Input type="number" value={form.contacted} onChange={(e) => setForm({ ...form, contacted: e.target.value })} /></div>
             <div><Label>Respostas</Label><Input type="number" value={form.replies} onChange={(e) => setForm({ ...form, replies: e.target.value })} /></div>
             <div><Label>Reuniões</Label><Input type="number" value={form.meetings} onChange={(e) => setForm({ ...form, meetings: e.target.value })} /></div>
             <div><Label>Conversões</Label><Input type="number" value={form.conversions} onChange={(e) => setForm({ ...form, conversions: e.target.value })} /></div>
             <div><Label>MRR (R$)</Label><Input type="number" value={form.mrr_generated} onChange={(e) => setForm({ ...form, mrr_generated: e.target.value })} /></div>
+            <div>
+              <Label>Atendimento</Label>
+              <Select value={form.handled_by} onValueChange={(v) => setForm({ ...form, handled_by: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Não especificado</SelectItem>
+                  <SelectItem value="ia">IA</SelectItem>
+                  <SelectItem value="human">Humano</SelectItem>
+                  <SelectItem value="mixed">Misto (IA + Humano)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end gap-1">
               {!editingId && <Button variant="outline" onClick={autoFill} title="Calcular da base"><RefreshCw className="h-4 w-4" /></Button>}
               <Button onClick={save}><Save className="h-4 w-4 mr-1" />{editingId ? "Atualizar" : "Salvar"}</Button>
@@ -1143,13 +1157,16 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
             <TableHeader><TableRow>
               <TableHead>Data</TableHead><TableHead className="text-right">Contatados</TableHead><TableHead className="text-right">Respostas</TableHead>
               <TableHead className="text-right">Reuniões</TableHead><TableHead className="text-right">Conversões</TableHead><TableHead className="text-right">MRR</TableHead>
-              <TableHead>Origem</TableHead><TableHead>Observações</TableHead><TableHead></TableHead>
+              <TableHead>Atendimento</TableHead><TableHead>Origem</TableHead><TableHead>Observações</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {snapshots.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
+              {snapshots.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
               {snapshots.map((s: any) => {
                 const [y, m, d] = String(s.snapshot_date).slice(0, 10).split("-");
                 const dateLabel = y && m && d ? `${d}/${m}/${y}` : s.snapshot_date;
+                const handled = s.handled_by || "unspecified";
+                const handledLabel = handled === "ia" ? "IA" : handled === "human" ? "Humano" : handled === "mixed" ? "Misto" : "—";
+                const handledIcon = handled === "ia" ? <Bot className="h-3 w-3" /> : handled === "human" ? <User className="h-3 w-3" /> : handled === "mixed" ? <><Bot className="h-3 w-3" /><User className="h-3 w-3" /></> : null;
                 return (
                 <TableRow key={s.id} data-state={editingId === s.id ? "selected" : undefined}>
                   <TableCell>{dateLabel}</TableCell>
@@ -1158,6 +1175,21 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
                   <TableCell className="text-right">{s.meetings}</TableCell>
                   <TableCell className="text-right">{s.conversions}</TableCell>
                   <TableCell className="text-right">R$ {Number(s.mrr_generated).toFixed(0)}</TableCell>
+                  <TableCell>
+                    <Select value={handled} onValueChange={async (v) => {
+                      const { error } = await supabase.from("sales_campaign_snapshots").update({ handled_by: v }).eq("id", s.id);
+                      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+                      refetch();
+                    }}>
+                      <SelectTrigger className="h-8 w-[140px]"><div className="flex items-center gap-1">{handledIcon}<span>{handledLabel}</span></div></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unspecified">Não especificado</SelectItem>
+                        <SelectItem value="ia">IA</SelectItem>
+                        <SelectItem value="human">Humano</SelectItem>
+                        <SelectItem value="mixed">Misto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Badge variant="outline">{s.source}</Badge></TableCell>
                   <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm text-muted-foreground">{s.notes || <span className="text-muted-foreground/50">—</span>}</TableCell>
                   <TableCell>
