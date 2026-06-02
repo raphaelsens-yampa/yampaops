@@ -247,6 +247,10 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         <Kpi label={ltvCalc.label} value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={monthlyChurn > 0 ? `${ltvCalc.desc} · churn ${churnPctLabel}` : "Defina o churn"} />
       </div>
 
+      <BucketComparisonCards base={a.base} ia={a.ia} human={a.human} unclassified={a.unclassified} fmtBRL={fmtBRL} />
+
+
+
 
       <div className="grid md:grid-cols-2 gap-3">
         <Card>
