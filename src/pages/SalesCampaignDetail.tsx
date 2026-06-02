@@ -1087,6 +1087,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
       conversions: Number(form.conversions) || 0,
       mrr_generated: Number(form.mrr_generated) || 0,
       notes: form.notes || null,
+      handled_by: form.handled_by || "unspecified",
     };
     let error;
     if (editingId) {
