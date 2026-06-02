@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, UserPlus, Pencil, Users } from "lucide-react";
@@ -28,7 +29,7 @@ interface UserRow {
 }
 
 export default function UsersPage() {
-  const { user } = useAuth();
+  const { user, role: currentRole } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [accessLevels, setAccessLevels] = useState<AccessLevel[]>([]);
@@ -37,6 +38,45 @@ export default function UsersPage() {
   const [newRole, setNewRole] = useState<AppRole>("seller");
   const [newAccessLevelId, setNewAccessLevelId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+    role: "seller" as AppRole,
+    access_level_id: "",
+  });
+
+  async function handleCreateUser() {
+    if (!createForm.email || createForm.password.length < 6) {
+      toast({ title: "Dados inválidos", description: "Informe email válido e senha com 6+ caracteres.", variant: "destructive" });
+      return;
+    }
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: {
+        email: createForm.email,
+        password: createForm.password,
+        full_name: createForm.full_name,
+        role: createForm.role,
+        access_level_id: createForm.access_level_id && createForm.access_level_id !== "none" ? createForm.access_level_id : null,
+      },
+    });
+    setCreating(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Erro ao criar usuário", description: (data as any)?.message || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Usuário criado" });
+    if (createForm.full_name && (data as any)?.user_id) {
+      await supabase.from("profiles").update({ full_name: createForm.full_name }).eq("user_id", (data as any).user_id);
+    }
+    setCreateOpen(false);
+    setCreateForm({ full_name: "", email: "", password: "", role: "seller", access_level_id: "" });
+    await loadData();
+  }
 
   async function loadData() {
     const [profilesRes, rolesRes, levelsRes, assignmentsRes] = await Promise.all([
@@ -131,7 +171,14 @@ export default function UsersPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-heading font-bold">Administração de Usuários</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-heading font-bold">Administração de Usuários</h1>
+          {currentRole === "admin" && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-1" /> Novo usuário
+            </Button>
+          )}
+        </div>
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -336,6 +383,76 @@ export default function UsersPage() {
             <Button variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
             <Button onClick={handleSaveUser} disabled={saving}>
               {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome completo</Label>
+              <Input
+                value={createForm.full_name}
+                onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
+                placeholder="Nome do usuário"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                placeholder="usuario@empresa.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Senha provisória</Label>
+              <Input
+                type="text"
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                placeholder="Mínimo 6 caracteres"
+              />
+              <p className="text-xs text-muted-foreground">O usuário poderá alterar depois.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Papel Base</Label>
+              <Select value={createForm.role} onValueChange={(v) => setCreateForm({ ...createForm, role: v as AppRole })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="tatico">Tático</SelectItem>
+                  <SelectItem value="seller">Seller</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nível de Acesso</Label>
+              <Select
+                value={createForm.access_level_id}
+                onValueChange={(v) => setCreateForm({ ...createForm, access_level_id: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar nível..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {accessLevels.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Cancelar</Button>
+            <Button onClick={handleCreateUser} disabled={creating}>
+              {creating ? "Criando..." : "Criar usuário"}
             </Button>
           </DialogFooter>
         </DialogContent>
