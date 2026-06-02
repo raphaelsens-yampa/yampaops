@@ -571,6 +571,35 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
+  const toggleHandled = async (row: any, field: "handled_by_ia" | "handled_by_human") => {
+    const next = !row[field];
+    const { error } = await supabase
+      .from("sales_campaign_contacts")
+      .update({ [field]: next, ia_source: field === "handled_by_ia" && next ? (row.ia_source || "manual") : row.ia_source })
+      .eq("id", row.id);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else { refetch(); onChange(); }
+  };
+
+  const [bulking, setBulking] = useState(false);
+  const bulkApply = async (field: "handled_by_ia" | "handled_by_human", value: boolean) => {
+    setBulking(true);
+    let q = supabase.from("sales_campaign_contacts").update({ [field]: value, ...(field === "handled_by_ia" && value ? { ia_source: "manual" } : {}) }).eq("campaign_id", campaign.id);
+    if (statusFilter !== "all") q = q.eq("status", statusFilter);
+    if (iaFilter === "ia") q = q.eq("handled_by_ia", true).eq("handled_by_human", false);
+    if (iaFilter === "human") q = q.eq("handled_by_human", true).eq("handled_by_ia", false);
+    if (iaFilter === "both") q = q.eq("handled_by_ia", true).eq("handled_by_human", true);
+    if (iaFilter === "unclassified") q = q.eq("handled_by_ia", false).eq("handled_by_human", false);
+    const { error } = await q;
+    setBulking(false);
+    if (error) toast({ title: "Erro no bulk", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: `${value ? "Marcado" : "Desmarcado"} ${field === "handled_by_ia" ? "IA" : "Humano"}`, description: "Aplicado ao filtro atual" });
+      refetch();
+      onChange();
+    }
+  };
+
   const runMatch = async () => {
     toast({ title: "Casando contatos..." });
     const { data, error } = await supabase.functions.invoke("sales-campaign-match", { body: { campaign_id: campaign.id } });
