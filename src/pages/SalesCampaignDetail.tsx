@@ -526,6 +526,27 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe/Active</Button>
         <Button variant="outline" onClick={runAcSync}><RefreshCw className="h-4 w-4 mr-2" />Sincronizar com ActiveCampaign</Button>
         <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="text-destructive hover:text-destructive">
+              <Eraser className="h-4 w-4 mr-2" />Excluir base
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir toda a base desta campanha?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação remove permanentemente todos os contatos importados em "{campaign.name}". Snapshots e configurações da campanha são preservados. Use quando a base foi subida com erro e precisa ser reimportada.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={clearBase} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir base
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <div className="ml-auto flex flex-wrap gap-2">
           <Input placeholder="Buscar..." value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} className="w-48" />
           <Select value={contactFilter} onValueChange={(v) => { setPage(0); setContactFilter(v); }}>
