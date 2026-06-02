@@ -496,11 +496,12 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [contactFilter, setContactFilter] = useState("all"); // all | chatwoot | ops | none
+  const [iaFilter, setIaFilter] = useState("all"); // all | ia | human | both | unclassified
   const [page, setPage] = useState(0);
   const PAGE = 50;
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["scc", campaign.id, search, statusFilter, contactFilter, page],
+    queryKey: ["scc", campaign.id, search, statusFilter, contactFilter, iaFilter, page],
     queryFn: async () => {
       let q = supabase
         .from("sales_campaign_contacts")
@@ -513,6 +514,10 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
       if (contactFilter === "ops") q = q.eq("ops_contacted", true);
       if (contactFilter === "ac") q = q.not("matched_ac_deal_id", "is", null);
       if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).is("matched_ac_deal_id", null).eq("ops_contacted", false);
+      if (iaFilter === "ia") q = q.eq("handled_by_ia", true).eq("handled_by_human", false);
+      if (iaFilter === "human") q = q.eq("handled_by_human", true).eq("handled_by_ia", false);
+      if (iaFilter === "both") q = q.eq("handled_by_ia", true).eq("handled_by_human", true);
+      if (iaFilter === "unclassified") q = q.eq("handled_by_ia", false).eq("handled_by_human", false);
       if (search) {
         const s = search.replace(/[,()]/g, "");
         q = q.or(
