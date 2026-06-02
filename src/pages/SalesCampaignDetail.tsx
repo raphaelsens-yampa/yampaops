@@ -309,6 +309,75 @@ function Kpi({ label, value, target, sub, isCurrency }: { label: string; value: 
   );
 }
 
+type Bucket = { count: number; contacted: number; replies: number; meetings: number; conversions: number; mrr: number };
+
+function BucketCard({ title, icon, accent, bucket, base, fmtBRL }: { title: string; icon: React.ReactNode; accent: string; bucket: Bucket; base: number; fmtBRL: (n: number) => string }) {
+  const pctBase = base > 0 ? ((bucket.count / base) * 100).toFixed(0) : "0";
+  const replyRate = bucket.contacted > 0 ? ((bucket.replies / bucket.contacted) * 100).toFixed(1) : "0.0";
+  const meetingRate = bucket.contacted > 0 ? ((bucket.meetings / bucket.contacted) * 100).toFixed(1) : "0.0";
+  const convRate = bucket.contacted > 0 ? ((bucket.conversions / bucket.contacted) * 100).toFixed(1) : "0.0";
+  const Row = ({ label, value, hint }: { label: string; value: any; hint?: string }) => (
+    <div className="flex items-baseline justify-between text-sm py-1 border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">
+        {value}
+        {hint && <span className="text-muted-foreground text-xs ml-2">{hint}</span>}
+      </span>
+    </div>
+  );
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className={`inline-flex items-center justify-center h-7 w-7 rounded-md ${accent}`}>{icon}</span>
+            {title}
+          </CardTitle>
+          <div className="text-right">
+            <div className="text-xl font-heading font-bold tabular-nums">{bucket.count}</div>
+            <div className="text-[11px] text-muted-foreground">{pctBase}% da base</div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <Row label="Contatados" value={bucket.contacted} />
+        <Row label="Respostas" value={bucket.replies} hint={`${replyRate}%`} />
+        <Row label="Reuniões" value={bucket.meetings} hint={`${meetingRate}%`} />
+        <Row label="Conversões" value={bucket.conversions} hint={`${convRate}%`} />
+        <Row label="MRR" value={fmtBRL(bucket.mrr)} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function BucketComparisonCards({ base, ia, human, unclassified, fmtBRL }: { base: number; ia: Bucket; human: Bucket; unclassified: number; fmtBRL: (n: number) => string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base">Atendimento: IA × Humano</CardTitle>
+            <CardDescription className="text-xs">
+              Marque cada contato como IA, Humano ou ambos (handoff) na aba Base. Contatos em handoff aparecem nos dois cards.
+            </CardDescription>
+          </div>
+          {unclassified > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {unclassified} sem classificação
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid md:grid-cols-2 gap-3">
+          <BucketCard title="Atendimento IA" icon={<Bot className="h-4 w-4" />} accent="bg-primary/15 text-primary" bucket={ia} base={base} fmtBRL={fmtBRL} />
+          <BucketCard title="Atendimento Humano" icon={<User className="h-4 w-4" />} accent="bg-secondary/15 text-secondary" bucket={human} base={base} fmtBRL={fmtBRL} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChatwootTagSyncButton({ campaignId }: { campaignId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
