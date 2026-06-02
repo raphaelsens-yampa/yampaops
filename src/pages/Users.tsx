@@ -170,7 +170,14 @@ export default function UsersPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-heading font-bold">Administração de Usuários</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-heading font-bold">Administração de Usuários</h1>
+          {currentRole === "admin" && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-1" /> Novo usuário
+            </Button>
+          )}
+        </div>
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
