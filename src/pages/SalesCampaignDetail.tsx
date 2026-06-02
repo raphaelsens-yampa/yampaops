@@ -1157,13 +1157,16 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
             <TableHeader><TableRow>
               <TableHead>Data</TableHead><TableHead className="text-right">Contatados</TableHead><TableHead className="text-right">Respostas</TableHead>
               <TableHead className="text-right">Reuniões</TableHead><TableHead className="text-right">Conversões</TableHead><TableHead className="text-right">MRR</TableHead>
-              <TableHead>Origem</TableHead><TableHead>Observações</TableHead><TableHead></TableHead>
+              <TableHead>Atendimento</TableHead><TableHead>Origem</TableHead><TableHead>Observações</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {snapshots.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
+              {snapshots.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhum snapshot</TableCell></TableRow>}
               {snapshots.map((s: any) => {
                 const [y, m, d] = String(s.snapshot_date).slice(0, 10).split("-");
                 const dateLabel = y && m && d ? `${d}/${m}/${y}` : s.snapshot_date;
+                const handled = s.handled_by || "unspecified";
+                const handledLabel = handled === "ia" ? "IA" : handled === "human" ? "Humano" : handled === "mixed" ? "Misto" : "—";
+                const handledIcon = handled === "ia" ? <Bot className="h-3 w-3" /> : handled === "human" ? <User className="h-3 w-3" /> : handled === "mixed" ? <><Bot className="h-3 w-3" /><User className="h-3 w-3" /></> : null;
                 return (
                 <TableRow key={s.id} data-state={editingId === s.id ? "selected" : undefined}>
                   <TableCell>{dateLabel}</TableCell>
@@ -1172,6 +1175,21 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
                   <TableCell className="text-right">{s.meetings}</TableCell>
                   <TableCell className="text-right">{s.conversions}</TableCell>
                   <TableCell className="text-right">R$ {Number(s.mrr_generated).toFixed(0)}</TableCell>
+                  <TableCell>
+                    <Select value={handled} onValueChange={async (v) => {
+                      const { error } = await supabase.from("sales_campaign_snapshots").update({ handled_by: v }).eq("id", s.id);
+                      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+                      refetch();
+                    }}>
+                      <SelectTrigger className="h-8 w-[140px]"><div className="flex items-center gap-1">{handledIcon}<span>{handledLabel}</span></div></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unspecified">Não especificado</SelectItem>
+                        <SelectItem value="ia">IA</SelectItem>
+                        <SelectItem value="human">Humano</SelectItem>
+                        <SelectItem value="mixed">Misto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell><Badge variant="outline">{s.source}</Badge></TableCell>
                   <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm text-muted-foreground">{s.notes || <span className="text-muted-foreground/50">—</span>}</TableCell>
                   <TableCell>
