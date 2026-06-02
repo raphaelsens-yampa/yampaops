@@ -1028,7 +1028,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
   const [form, setForm] = useState({
     snapshot_date: new Date().toISOString().slice(0, 10),
     contacted: "0", replies: "0", meetings: "0", conversions: "0",
-    mrr_generated: "0", notes: "",
+    mrr_generated: "0", notes: "", handled_by: "unspecified",
   });
 
   const resetForm = () => {
@@ -1036,7 +1036,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
     setForm({
       snapshot_date: new Date().toISOString().slice(0, 10),
       contacted: "0", replies: "0", meetings: "0", conversions: "0",
-      mrr_generated: "0", notes: "",
+      mrr_generated: "0", notes: "", handled_by: "unspecified",
     });
   };
 
@@ -1050,6 +1050,7 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
       conversions: String(s.conversions ?? 0),
       mrr_generated: String(s.mrr_generated ?? 0),
       notes: s.notes || "",
+      handled_by: s.handled_by || "unspecified",
     });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
