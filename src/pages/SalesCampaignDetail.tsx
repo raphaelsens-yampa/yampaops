@@ -696,8 +696,33 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               {CONTACT_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={iaFilter} onValueChange={(v) => { setPage(0); setIaFilter(v); }}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos (IA/Humano)</SelectItem>
+              <SelectItem value="ia">Só IA</SelectItem>
+              <SelectItem value="human">Só Humano</SelectItem>
+              <SelectItem value="both">Handoff (ambos)</SelectItem>
+              <SelectItem value="unclassified">Não classificados</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
+
+      {iaFilter !== "all" && (
+        <div className="flex flex-wrap items-center gap-2 text-xs bg-muted/40 border rounded-md px-3 py-2">
+          <span className="text-muted-foreground">Ações em massa no filtro atual:</span>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_ia", true)}>
+            <Bot className="h-3 w-3 mr-1" />Marcar IA
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_ia", false)}>Desmarcar IA</Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_human", true)}>
+            <User className="h-3 w-3 mr-1" />Marcar Humano
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_human", false)}>Desmarcar Humano</Button>
+        </div>
+      )}
+
 
       <div className="border rounded-md overflow-x-auto">
         <TooltipProvider delayDuration={150}>
