@@ -166,6 +166,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
           b.meetings += Number(s.meetings) || 0;
           b.conversions += Number(s.conversions) || 0;
           b.mrr += Number(s.mrr_generated) || 0;
+          b.count += Number(s.contacted) || 0;
         };
         if (hb === "ia" || hb === "mixed") add(ia);
         if (hb === "human" || hb === "mixed") add(human);
