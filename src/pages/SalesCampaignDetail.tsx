@@ -1121,13 +1121,25 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
           <CardDescription>Preencha manualmente ou clique em "Calcular automaticamente" para puxar da base e cruzamentos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
             <div><Label>Data</Label><Input type="date" value={form.snapshot_date} onChange={(e) => setForm({ ...form, snapshot_date: e.target.value })} /></div>
             <div><Label>Contatados</Label><Input type="number" value={form.contacted} onChange={(e) => setForm({ ...form, contacted: e.target.value })} /></div>
             <div><Label>Respostas</Label><Input type="number" value={form.replies} onChange={(e) => setForm({ ...form, replies: e.target.value })} /></div>
             <div><Label>Reuniões</Label><Input type="number" value={form.meetings} onChange={(e) => setForm({ ...form, meetings: e.target.value })} /></div>
             <div><Label>Conversões</Label><Input type="number" value={form.conversions} onChange={(e) => setForm({ ...form, conversions: e.target.value })} /></div>
             <div><Label>MRR (R$)</Label><Input type="number" value={form.mrr_generated} onChange={(e) => setForm({ ...form, mrr_generated: e.target.value })} /></div>
+            <div>
+              <Label>Atendimento</Label>
+              <Select value={form.handled_by} onValueChange={(v) => setForm({ ...form, handled_by: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Não especificado</SelectItem>
+                  <SelectItem value="ia">IA</SelectItem>
+                  <SelectItem value="human">Humano</SelectItem>
+                  <SelectItem value="mixed">Misto (IA + Humano)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end gap-1">
               {!editingId && <Button variant="outline" onClick={autoFill} title="Calcular da base"><RefreshCw className="h-4 w-4" /></Button>}
               <Button onClick={save}><Save className="h-4 w-4 mr-1" />{editingId ? "Atualizar" : "Salvar"}</Button>
