@@ -113,22 +113,42 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
       const PAGE = 1000;
       let from = 0;
       let base = 0, contacted = 0, replies = 0, meetings = 0, conversions = 0, mrr = 0, noPhone = 0;
+      const mkBucket = () => ({ count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 });
+      const ia = mkBucket();
+      const human = mkBucket();
+      let unclassified = 0;
       while (true) {
         const { data: contacts, error } = await supabase
           .from("sales_campaign_contacts")
-          .select("status, mrr_generated, phone_digits")
+          .select("status, mrr_generated, phone_digits, handled_by_ia, handled_by_human")
           .eq("campaign_id", campaign.id)
           .range(from, from + PAGE - 1);
         if (error) throw error;
         if (!contacts || contacts.length === 0) break;
         for (const c of contacts) {
           base++;
-          if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) contacted++;
-          if (["respondeu", "agendado", "convertido"].includes(c.status)) replies++;
-          if (c.status === "agendado") meetings++;
-          if (c.status === "convertido") conversions++;
+          const isContacted = ["contatado", "respondeu", "agendado", "convertido"].includes(c.status);
+          const isReply = ["respondeu", "agendado", "convertido"].includes(c.status);
+          const isMeeting = c.status === "agendado";
+          const isConv = c.status === "convertido";
+          const mrrVal = Number(c.mrr_generated || 0);
+          if (isContacted) contacted++;
+          if (isReply) replies++;
+          if (isMeeting) meetings++;
+          if (isConv) conversions++;
           if (!c.phone_digits) noPhone++;
-          mrr += Number(c.mrr_generated || 0);
+          mrr += mrrVal;
+          const accumulate = (b: any) => {
+            b.count++;
+            if (isContacted) b.contacted++;
+            if (isReply) b.replies++;
+            if (isMeeting) b.meetings++;
+            if (isConv) b.conversions++;
+            b.mrr += mrrVal;
+          };
+          if (c.handled_by_ia) accumulate(ia);
+          if (c.handled_by_human) accumulate(human);
+          if (!c.handled_by_ia && !c.handled_by_human) unclassified++;
         }
         if (contacts.length < PAGE) break;
         from += PAGE;
@@ -139,7 +159,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         .eq("campaign_id", campaign.id)
         .order("snapshot_date", { ascending: true });
       const { data: finance } = await supabase.from("finance_settings").select("avg_churn_rate").limit(1).maybeSingle();
-      return { base, contacted, replies, meetings, conversions, mrr, noPhone, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
+      return { base, contacted, replies, meetings, conversions, mrr, noPhone, ia, human, unclassified, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
     },
   });
 
