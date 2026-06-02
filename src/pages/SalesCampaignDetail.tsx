@@ -781,6 +781,13 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={pageAllSelected ? true : pageSomeSelected ? "indeterminate" : false}
+                  onCheckedChange={togglePage}
+                  aria-label="Selecionar página"
+                />
+              </TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
