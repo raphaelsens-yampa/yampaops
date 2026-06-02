@@ -491,6 +491,21 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
+  const clearBase = async () => {
+    const { error, count } = await supabase
+      .from("sales_campaign_contacts")
+      .delete({ count: "exact" })
+      .eq("campaign_id", campaign.id);
+    if (error) {
+      toast({ title: "Erro ao excluir base", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Base excluída", description: `${count ?? 0} contatos removidos` });
+    setPage(0);
+    refetch();
+    onChange();
+  };
+
   const exportCsv = () => {
     if (!data?.rows.length) return;
     const cols = ["name", "email", "phone", "company", "status", "mrr_generated", "match_method", "ops_contacted", "ops_contacted_at", "ac_last_stage", "ac_last_stage_at", "matched_ac_deal_id"];
