@@ -166,6 +166,7 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
           b.meetings += Number(s.meetings) || 0;
           b.conversions += Number(s.conversions) || 0;
           b.mrr += Number(s.mrr_generated) || 0;
+          b.count += Number(s.contacted) || 0;
         };
         if (hb === "ia" || hb === "mixed") add(ia);
         if (hb === "human" || hb === "mixed") add(human);
@@ -325,7 +326,7 @@ type Bucket = { count: number; contacted: number; replies: number; meetings: num
 
 function BucketCard({ title, icon, accent, bucket: bucketProp, base, fmtBRL }: { title: string; icon: React.ReactNode; accent: string; bucket?: Bucket; base: number; fmtBRL: (n: number) => string }) {
   const bucket: Bucket = bucketProp || { count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 };
-  const pctBase = base > 0 ? ((bucket.count / base) * 100).toFixed(0) : "0";
+  const pctBase = base > 0 ? Math.min(100, (bucket.count / base) * 100).toFixed(0) : "0";
   const replyRate = bucket.contacted > 0 ? ((bucket.replies / bucket.contacted) * 100).toFixed(1) : "0.0";
   const meetingRate = bucket.contacted > 0 ? ((bucket.meetings / bucket.contacted) * 100).toFixed(1) : "0.0";
   const convRate = bucket.contacted > 0 ? ((bucket.conversions / bucket.contacted) * 100).toFixed(1) : "0.0";
