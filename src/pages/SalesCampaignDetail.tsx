@@ -602,6 +602,42 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const pageIds: string[] = (data?.rows || []).map((r: any) => r.id);
+  const pageAllSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const pageSomeSelected = pageIds.some((id) => selectedIds.has(id));
+  const togglePage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (pageAllSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  const bulkApplyToSelection = async (field: "handled_by_ia" | "handled_by_human", value: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulking(true);
+    const patch: any = { [field]: value };
+    if (field === "handled_by_ia" && value) patch.ia_source = "manual";
+    const { error } = await supabase.from("sales_campaign_contacts").update(patch).in("id", ids);
+    setBulking(false);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: `${value ? "Marcado" : "Desmarcado"} ${field === "handled_by_ia" ? "IA" : "Humano"}`, description: `${ids.length} contato(s) atualizado(s)` });
+      refetch();
+      onChange();
+    }
+  };
+
   const runMatch = async () => {
     toast({ title: "Casando contatos..." });
     const { data, error } = await supabase.functions.invoke("sales-campaign-match", { body: { campaign_id: campaign.id } });
