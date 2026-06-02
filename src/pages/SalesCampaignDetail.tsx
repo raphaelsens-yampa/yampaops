@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save, Pencil, X, MessageCircle, CheckCircle2, Circle, Eraser } from "lucide-react";
+import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save, Pencil, X, MessageCircle, CheckCircle2, Circle, Eraser, Bot, User } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
@@ -112,22 +113,42 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
       const PAGE = 1000;
       let from = 0;
       let base = 0, contacted = 0, replies = 0, meetings = 0, conversions = 0, mrr = 0, noPhone = 0;
+      const mkBucket = () => ({ count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 });
+      const ia = mkBucket();
+      const human = mkBucket();
+      let unclassified = 0;
       while (true) {
         const { data: contacts, error } = await supabase
           .from("sales_campaign_contacts")
-          .select("status, mrr_generated, phone_digits")
+          .select("status, mrr_generated, phone_digits, handled_by_ia, handled_by_human")
           .eq("campaign_id", campaign.id)
           .range(from, from + PAGE - 1);
         if (error) throw error;
         if (!contacts || contacts.length === 0) break;
         for (const c of contacts) {
           base++;
-          if (["contatado", "respondeu", "agendado", "convertido"].includes(c.status)) contacted++;
-          if (["respondeu", "agendado", "convertido"].includes(c.status)) replies++;
-          if (c.status === "agendado") meetings++;
-          if (c.status === "convertido") conversions++;
+          const isContacted = ["contatado", "respondeu", "agendado", "convertido"].includes(c.status);
+          const isReply = ["respondeu", "agendado", "convertido"].includes(c.status);
+          const isMeeting = c.status === "agendado";
+          const isConv = c.status === "convertido";
+          const mrrVal = Number(c.mrr_generated || 0);
+          if (isContacted) contacted++;
+          if (isReply) replies++;
+          if (isMeeting) meetings++;
+          if (isConv) conversions++;
           if (!c.phone_digits) noPhone++;
-          mrr += Number(c.mrr_generated || 0);
+          mrr += mrrVal;
+          const accumulate = (b: any) => {
+            b.count++;
+            if (isContacted) b.contacted++;
+            if (isReply) b.replies++;
+            if (isMeeting) b.meetings++;
+            if (isConv) b.conversions++;
+            b.mrr += mrrVal;
+          };
+          if (c.handled_by_ia) accumulate(ia);
+          if (c.handled_by_human) accumulate(human);
+          if (!c.handled_by_ia && !c.handled_by_human) unclassified++;
         }
         if (contacts.length < PAGE) break;
         from += PAGE;
@@ -138,11 +159,12 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         .eq("campaign_id", campaign.id)
         .order("snapshot_date", { ascending: true });
       const { data: finance } = await supabase.from("finance_settings").select("avg_churn_rate").limit(1).maybeSingle();
-      return { base, contacted, replies, meetings, conversions, mrr, noPhone, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
+      return { base, contacted, replies, meetings, conversions, mrr, noPhone, ia, human, unclassified, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
     },
   });
 
-  const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, snapshots: [], fallbackChurn: 0 };
+  const emptyBucket = { count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 };
+  const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, ia: emptyBucket, human: emptyBucket, unclassified: 0, snapshots: [], fallbackChurn: 0 };
   const snapTotals = sumSnapshotMetrics(a.snapshots);
   const contacted = a.contacted + (snapTotals.contacted || 0);
   const replies = a.replies + (snapTotals.replies || 0);
@@ -225,6 +247,10 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         <Kpi label={ltvCalc.label} value={ltvCacRatio > 0 ? `${ltvCacRatio.toFixed(2)}x` : "—"} sub={monthlyChurn > 0 ? `${ltvCalc.desc} · churn ${churnPctLabel}` : "Defina o churn"} />
       </div>
 
+      <BucketComparisonCards base={a.base} ia={a.ia} human={a.human} unclassified={a.unclassified} fmtBRL={fmtBRL} />
+
+
+
 
       <div className="grid md:grid-cols-2 gap-3">
         <Card>
@@ -277,6 +303,75 @@ function Kpi({ label, value, target, sub, isCurrency }: { label: string; value: 
         <div className="text-[11px] text-muted-foreground mt-0.5">
           {sub && <>{sub}{pct !== null && " · "}</>}
           {pct !== null && (isCurrency ? `${pct}% da meta` : `${pct}% / ${target}`)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+type Bucket = { count: number; contacted: number; replies: number; meetings: number; conversions: number; mrr: number };
+
+function BucketCard({ title, icon, accent, bucket, base, fmtBRL }: { title: string; icon: React.ReactNode; accent: string; bucket: Bucket; base: number; fmtBRL: (n: number) => string }) {
+  const pctBase = base > 0 ? ((bucket.count / base) * 100).toFixed(0) : "0";
+  const replyRate = bucket.contacted > 0 ? ((bucket.replies / bucket.contacted) * 100).toFixed(1) : "0.0";
+  const meetingRate = bucket.contacted > 0 ? ((bucket.meetings / bucket.contacted) * 100).toFixed(1) : "0.0";
+  const convRate = bucket.contacted > 0 ? ((bucket.conversions / bucket.contacted) * 100).toFixed(1) : "0.0";
+  const Row = ({ label, value, hint }: { label: string; value: any; hint?: string }) => (
+    <div className="flex items-baseline justify-between text-sm py-1 border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">
+        {value}
+        {hint && <span className="text-muted-foreground text-xs ml-2">{hint}</span>}
+      </span>
+    </div>
+  );
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className={`inline-flex items-center justify-center h-7 w-7 rounded-md ${accent}`}>{icon}</span>
+            {title}
+          </CardTitle>
+          <div className="text-right">
+            <div className="text-xl font-heading font-bold tabular-nums">{bucket.count}</div>
+            <div className="text-[11px] text-muted-foreground">{pctBase}% da base</div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <Row label="Contatados" value={bucket.contacted} />
+        <Row label="Respostas" value={bucket.replies} hint={`${replyRate}%`} />
+        <Row label="Reuniões" value={bucket.meetings} hint={`${meetingRate}%`} />
+        <Row label="Conversões" value={bucket.conversions} hint={`${convRate}%`} />
+        <Row label="MRR" value={fmtBRL(bucket.mrr)} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function BucketComparisonCards({ base, ia, human, unclassified, fmtBRL }: { base: number; ia: Bucket; human: Bucket; unclassified: number; fmtBRL: (n: number) => string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base">Atendimento: IA × Humano</CardTitle>
+            <CardDescription className="text-xs">
+              Marque cada contato como IA, Humano ou ambos (handoff) na aba Base. Contatos em handoff aparecem nos dois cards.
+            </CardDescription>
+          </div>
+          {unclassified > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {unclassified} sem classificação
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid md:grid-cols-2 gap-3">
+          <BucketCard title="Atendimento IA" icon={<Bot className="h-4 w-4" />} accent="bg-primary/15 text-primary" bucket={ia} base={base} fmtBRL={fmtBRL} />
+          <BucketCard title="Atendimento Humano" icon={<User className="h-4 w-4" />} accent="bg-secondary/15 text-secondary" bucket={human} base={base} fmtBRL={fmtBRL} />
         </div>
       </CardContent>
     </Card>
@@ -401,11 +496,12 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [contactFilter, setContactFilter] = useState("all"); // all | chatwoot | ops | none
+  const [iaFilter, setIaFilter] = useState("all"); // all | ia | human | both | unclassified
   const [page, setPage] = useState(0);
   const PAGE = 50;
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["scc", campaign.id, search, statusFilter, contactFilter, page],
+    queryKey: ["scc", campaign.id, search, statusFilter, contactFilter, iaFilter, page],
     queryFn: async () => {
       let q = supabase
         .from("sales_campaign_contacts")
@@ -418,6 +514,10 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
       if (contactFilter === "ops") q = q.eq("ops_contacted", true);
       if (contactFilter === "ac") q = q.not("matched_ac_deal_id", "is", null);
       if (contactFilter === "none") q = q.is("matched_chatwoot_contact_id", null).is("matched_ac_deal_id", null).eq("ops_contacted", false);
+      if (iaFilter === "ia") q = q.eq("handled_by_ia", true).eq("handled_by_human", false);
+      if (iaFilter === "human") q = q.eq("handled_by_human", true).eq("handled_by_ia", false);
+      if (iaFilter === "both") q = q.eq("handled_by_ia", true).eq("handled_by_human", true);
+      if (iaFilter === "unclassified") q = q.eq("handled_by_ia", false).eq("handled_by_human", false);
       if (search) {
         const s = search.replace(/[,()]/g, "");
         q = q.or(
@@ -466,6 +566,36 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else {
       toast({ title: next ? "Marcado como contatado por Ops" : "Marcação removida" });
+      refetch();
+      onChange();
+    }
+  };
+
+  const toggleHandled = async (row: any, field: "handled_by_ia" | "handled_by_human") => {
+    const next = !row[field];
+    const patch: any = { [field]: next };
+    if (field === "handled_by_ia" && next && !row.ia_source) patch.ia_source = "manual";
+    const { error } = await supabase.from("sales_campaign_contacts").update(patch).eq("id", row.id);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else { refetch(); onChange(); }
+  };
+
+  const [bulking, setBulking] = useState(false);
+  const bulkApply = async (field: "handled_by_ia" | "handled_by_human", value: boolean) => {
+    setBulking(true);
+    const patch: any = { [field]: value };
+    if (field === "handled_by_ia" && value) patch.ia_source = "manual";
+    let q = supabase.from("sales_campaign_contacts").update(patch).eq("campaign_id", campaign.id);
+    if (statusFilter !== "all") q = q.eq("status", statusFilter);
+    if (iaFilter === "ia") q = q.eq("handled_by_ia", true).eq("handled_by_human", false);
+    if (iaFilter === "human") q = q.eq("handled_by_human", true).eq("handled_by_ia", false);
+    if (iaFilter === "both") q = q.eq("handled_by_ia", true).eq("handled_by_human", true);
+    if (iaFilter === "unclassified") q = q.eq("handled_by_ia", false).eq("handled_by_human", false);
+    const { error } = await q;
+    setBulking(false);
+    if (error) toast({ title: "Erro no bulk", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: `${value ? "Marcado" : "Desmarcado"} ${field === "handled_by_ia" ? "IA" : "Humano"}`, description: "Aplicado ao filtro atual" });
       refetch();
       onChange();
     }
@@ -566,8 +696,33 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               {CONTACT_STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={iaFilter} onValueChange={(v) => { setPage(0); setIaFilter(v); }}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos (IA/Humano)</SelectItem>
+              <SelectItem value="ia">Só IA</SelectItem>
+              <SelectItem value="human">Só Humano</SelectItem>
+              <SelectItem value="both">Handoff (ambos)</SelectItem>
+              <SelectItem value="unclassified">Não classificados</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
+
+      {iaFilter !== "all" && (
+        <div className="flex flex-wrap items-center gap-2 text-xs bg-muted/40 border rounded-md px-3 py-2">
+          <span className="text-muted-foreground">Ações em massa no filtro atual:</span>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_ia", true)}>
+            <Bot className="h-3 w-3 mr-1" />Marcar IA
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_ia", false)}>Desmarcar IA</Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_human", true)}>
+            <User className="h-3 w-3 mr-1" />Marcar Humano
+          </Button>
+          <Button size="sm" variant="outline" disabled={bulking} onClick={() => bulkApply("handled_by_human", false)}>Desmarcar Humano</Button>
+        </div>
+      )}
+
 
       <div className="border rounded-md overflow-x-auto">
         <TooltipProvider delayDuration={150}>
@@ -582,12 +737,14 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               <TableHead>Contato prévio</TableHead>
               <TableHead>AC</TableHead>
               <TableHead className="text-center">Ops</TableHead>
+              <TableHead className="text-center">IA</TableHead>
+              <TableHead className="text-center">Humano</TableHead>
               <TableHead className="text-right">MRR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
-            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
             {data?.rows.map((r: any) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.name || "—"}</TableCell>
@@ -661,6 +818,12 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
                         : "Marcar como contatado por Operações"}
                     </TooltipContent>
                   </UITooltip>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Checkbox checked={!!r.handled_by_ia} onCheckedChange={() => toggleHandled(r, "handled_by_ia")} aria-label="Marcar como atendido por IA" />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Checkbox checked={!!r.handled_by_human} onCheckedChange={() => toggleHandled(r, "handled_by_human")} aria-label="Marcar como atendido por humano" />
                 </TableCell>
                 <TableCell className="text-right">R$ {Number(r.mrr_generated || 0).toFixed(0)}</TableCell>
               </TableRow>

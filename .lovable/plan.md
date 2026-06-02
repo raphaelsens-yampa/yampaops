@@ -1,62 +1,65 @@
-# Sync de movimentação de deals do ActiveCampaign
+## Objetivo
+Adicionar uma visão na aba **Visão Geral** da campanha mostrando, lado a lado, a performance de **Atendimento IA** vs **Atendimento Humano**, mantendo a base total como uma única referência. A classificação de cada contato (IA, Humano ou ambos) será feita **manualmente na aba Evolução** agora, e ficará pronta para receber atribuição automática no futuro (integração com plataforma de IA).
 
-Sim, dá pra capturar a data/hora de cada movimentação. O ActiveCampaign expõe isso em dois lugares:
+## O que será entregue
 
-- **Webhook `deal_*`** (já recebemos em `ac-webhook`) — dispara no instante que alguém move o card. Hoje a gente atualiza o `stage` da `opportunity`, mas não grava **quando** aconteceu.
-- **API `GET /api/3/dealStageLogs?filters[deal]={id}`** — devolve o histórico completo de movimentações com `cdate` (timestamp). Usado pelo sync diário/manual para recuperar o que o webhook eventualmente perdeu.
+### 1. Marcação manual IA × Humano (aba Evolução)
+- Adicionar 2 colunas booleanas em `sales_campaign_contacts`:
+  - `handled_by_ia` (default false)
+  - `handled_by_human` (default false)
+- Um contato pode ter os dois marcados (caso de handoff IA → Humano).
+- Na **aba Evolução**, junto à lista/tabela de contatos:
+  - Dois checkboxes por linha: "IA" e "Humano".
+  - Ações em massa: selecionar contatos e marcar/desmarcar IA ou Humano de uma vez (útil para classificar lotes inteiros — ex: "todos esses 200 vieram do bot").
+  - Filtro rápido: Todos / Só IA / Só Humano / Ambos / Não classificados.
 
-## O que vai mudar
+### 2. Cards comparativos (aba Visão Geral)
+Logo abaixo dos KPIs atuais, adicionar uma seção **"Atendimento: IA × Humano"** com dois cards lado a lado, mesmo visual dos cards existentes.
 
-### 1. Banco
+Cada card mostra, para o seu universo (IA ou Humano):
 
-Migration adicionando colunas (sem mexer em estrutura existente):
+```text
+┌──────────────────────────┐  ┌──────────────────────────┐
+│ Atendimento IA           │  │ Atendimento Humano       │
+│ 412 contatos (36% base)  │  │ 724 contatos (64% base)  │
+│                          │  │                          │
+│ Contatados   320         │  │ Contatados   257         │
+│ Respostas     78  24%    │  │ Respostas     46  18%    │
+│ Reuniões       1   0,3%  │  │ Reuniões       2   0,8%  │
+│ Conversões     4   1,2%  │  │ Conversões     5   1,9%  │
+│ MRR        R$ 720        │  │ MRR        R$ 1.040      │
+└──────────────────────────┘  └──────────────────────────┘
+```
 
-- `opportunities.ac_stage_changed_at timestamptz` — última vez que o deal mudou de etapa no AC.
-- `sales_campaign_contacts.ac_last_stage text` — slug da etapa atual do deal vinculado.
-- `sales_campaign_contacts.ac_last_stage_at timestamptz` — quando essa etapa foi atingida.
-- `sales_campaign_contacts.ac_synced_at timestamptz` — última sincronização rodada para a linha.
-- `sales_campaign_contacts.matched_ac_deal_id text` — guarda o `ac_id` do deal vinculado (facilita o sync incremental).
+- Percentuais calculados sobre o próprio subconjunto (ex.: respostas / contatados do bucket).
+- Linha pequena de rodapé indicando "X contatos não classificados" se houver, com link para a aba Evolução.
+- Contatos com **ambos** marcados entram nos dois cards (handoff = aparece nos dois lados, o que é o comportamento desejado para comparar funil completo de cada via).
 
-### 2. Webhook em tempo real (`ac-webhook`)
+### 3. Preparação para integração futura
+- Adicionar coluna `ia_source` (text, nullable) em `sales_campaign_contacts` para no futuro identificar a origem do dado (ex.: "manual", "agent_x", "n8n"). Não usada na UI agora, só fica pronta para quando a integração com a plataforma de IA chegar — assim não precisamos de outra migration depois.
 
-Quando o evento for `deal_*` e a `stage` mudar em relação ao registro atual, gravar `ac_stage_changed_at = now()` junto com o `stage`. Nada novo no fluxo do usuário — só passa a registrar o quando.
+## Detalhes técnicos
 
-### 3. Nova edge function `ac-sync-deal-stages`
+### Migration
+```sql
+ALTER TABLE public.sales_campaign_contacts
+  ADD COLUMN handled_by_ia boolean NOT NULL DEFAULT false,
+  ADD COLUMN handled_by_human boolean NOT NULL DEFAULT false,
+  ADD COLUMN ia_source text;
 
-Body opcional: `{ campaign_id?: uuid }`.
+CREATE INDEX idx_sales_campaign_contacts_handled_ia
+  ON public.sales_campaign_contacts (campaign_id) WHERE handled_by_ia;
+CREATE INDEX idx_sales_campaign_contacts_handled_human
+  ON public.sales_campaign_contacts (campaign_id) WHERE handled_by_human;
+```
+RLS atual já cobre updates pelos papéis admin/tatico, então nada novo é necessário.
 
-Fluxo:
+### Frontend (`src/pages/SalesCampaignDetail.tsx`)
+- Estender o `useMemo` que calcula os totais para também produzir `aggregateByBucket = { ia, human, unclassified }` agregando `contacted/replies/meetings/conversions/mrr` apenas sobre as linhas com a flag correspondente.
+- Novo componente local `BucketSummaryCard` (IA/Humano) reaproveitando o estilo dos cards atuais.
+- Na aba Evolução: dois `<Checkbox>` por linha (`handled_by_ia`, `handled_by_human`) com update otimista via supabase; barra de ações em massa quando houver seleção; um `Select` de filtro acima da tabela.
+- Status e métricas existentes (contacted, replies, meetings, conversions, mrr) continuam derivando dos campos atuais (`status`, `mrr_generated`); apenas filtramos a base pelo bucket.
 
-1. Buscar `opportunities` com `ac_id` não-nulo. Se vier `campaign_id`, restringir aos `matched_opportunity_id` daquela campanha.
-2. Para cada deal, chamar `GET /api/3/dealStageLogs?filters[deal]={ac_id}&orders[cdate]=DESC&limit=1` na AC.
-3. Resolver o slug local via `pipeline_stages.ac_id` e atualizar `opportunities.stage`, `previous_stage` e `ac_stage_changed_at` com o `cdate` retornado.
-4. Em seguida, fazer um update em lote em `sales_campaign_contacts` populando `ac_last_stage`, `ac_last_stage_at` e `ac_synced_at` a partir das opportunities sincronizadas.
-5. Retornar `{ synced_deals, updated_contacts, errors }`.
-
-Usa `AC_API_URL` + `AC_API_KEY` já configurados. Throttle simples (lotes de 20 deals com pequeno delay) pra não estourar rate-limit.
-
-### 4. Cron diário 00:00
-
-Via `pg_cron` + `pg_net` (já é o padrão do projeto), agendar chamada HTTPS para a edge function todo dia às 00:00 sem `campaign_id` (sincroniza tudo). Criado via `supabase--insert`, não migration, porque embute URL/anon key específicos.
-
-### 5. Botão "Casar com Chatwoot/Stripe" passa a casar também com Active
-
-A função `sales-campaign-match` (a que esse botão chama hoje) ganha um passo extra de matching com ActiveCampaign:
-
-1. Para cada `sales_campaign_contact` sem `matched_opportunity_id`, procurar uma `opportunity` cujo `contact` tenha o mesmo `email_norm` ou `phone_digits` da linha da campanha.
-2. Se achar, gravar `matched_opportunity_id` e `matched_ac_deal_id` (o `ac_id` daquele opportunity).
-3. Logo na sequência, disparar `ac-sync-deal-stages` com o `campaign_id` atual pra já trazer o `ac_last_stage` / `ac_last_stage_at` na mesma ação do botão.
-
-Resultado pro usuário: um clique em "Casar com Chatwoot/Stripe" passa a popular Chatwoot + Stripe + Active de uma vez.
-
-### 6. UI — `src/pages/SalesCampaignDetail.tsx` (BaseTab)
-
-- Novo botão na barra de ações: **"Sincronizar com ActiveCampaign"** (ícone `RefreshCw`), invoca `ac-sync-deal-stages` com o `campaign_id` atual. Mostra toast com `updated_contacts`.
-- Nova coluna **"AC"** na tabela mostrando, quando houver, `ac_last_stage` em badge + data de `ac_last_stage_at` (`dd/MM HH:mm`). Tooltip com `ac_synced_at`.
-- Indicador discreto no header da aba: "Última sync AC: {max(ac_synced_at)}".
-- Filtro extra no dropdown já existente: **"Vinculado ao Active"** (linhas com `matched_ac_deal_id` não-nulo).
-
-## Fora do escopo
-
-- Histórico completo de movimentações por contato (guardamos só a última). Se precisar de auditoria full, dá pra criar uma `ac_stage_history` depois.
-- Criação de deals novos no Active a partir da campanha — o fluxo é só leitura/match, não escrita.
+## Fora de escopo
+- Atribuição automática IA × Humano (será feita quando a integração com a plataforma de IA estiver disponível — a coluna `ia_source` já fica preparada).
+- Mudanças na aba Configuração ou nos relatórios de campanhas.
