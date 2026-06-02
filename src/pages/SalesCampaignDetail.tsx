@@ -163,7 +163,8 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
     },
   });
 
-  const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, snapshots: [], fallbackChurn: 0 };
+  const emptyBucket = { count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 };
+  const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, ia: emptyBucket, human: emptyBucket, unclassified: 0, snapshots: [], fallbackChurn: 0 };
   const snapTotals = sumSnapshotMetrics(a.snapshots);
   const contacted = a.contacted + (snapTotals.contacted || 0);
   const replies = a.replies + (snapTotals.replies || 0);
