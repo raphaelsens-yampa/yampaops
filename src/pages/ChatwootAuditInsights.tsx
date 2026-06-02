@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,27 +12,40 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 import { format, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+const PERIOD_OPTIONS = [
+  { value: "7", label: "Últimos 7 dias" },
+  { value: "14", label: "Últimos 14 dias" },
+  { value: "30", label: "Últimos 30 dias" },
+  { value: "60", label: "Últimos 60 dias" },
+  { value: "84", label: "Últimas 12 semanas" },
+];
+
 export default function ChatwootAuditInsights() {
   const { role } = useAuth();
+  const [days, setDays] = useState<string>("14");
+  const [rowLimit, setRowLimit] = useState<string>("1000");
+
   if (role !== "admin" && role !== "tatico") return <Navigate to="/atendimentos/auditoria" replace />;
 
-  const since = subDays(new Date(), 84).toISOString();
+  const since = useMemo(() => subDays(new Date(), Number(days)).toISOString(), [days]);
+  const limit = Number(rowLimit);
 
-  const { data: audits = [], isLoading } = useQuery({
-    queryKey: ["audit-insights", since],
+  const { data: audits = [], isLoading, isFetching } = useQuery({
+    queryKey: ["audit-insights", since, limit],
     queryFn: async () => {
       const { data, error } = await supabase.from("chatwoot_conversation_audits")
         .select("assignee_email, assignee_name, severity, human_severity, overall_score, human_overall_score, playbook_checks, churn_signals, inbox_name, conversation_resolved_at")
         .gte("conversation_resolved_at", since)
-        .limit(5000);
+        .order("conversation_resolved_at", { ascending: false })
+        .limit(limit);
       if (error) throw error;
       return data || [];
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const eff = (a: any) => ({ score: Number(a.human_overall_score ?? a.overall_score) || 0, sev: a.human_severity || a.severity });
 
-  // Linha temporal: score médio semanal (geral)
   const weekly = useMemo(() => {
     const m = new Map<string, { sum: number; n: number; ok: number; attn: number; crit: number }>();
     for (const a of audits) {
@@ -53,7 +66,6 @@ export default function ChatwootAuditInsights() {
     }));
   }, [audits]);
 
-  // Heatmap playbook por atendente — mostramos como tabela tradicional
   const playbookHeatmap = useMemo(() => {
     const sellers = new Map<string, Map<string, { pass: number; total: number }>>();
     for (const a of audits) {
@@ -85,14 +97,38 @@ export default function ChatwootAuditInsights() {
   return (
     <Layout>
       <div className="space-y-5 p-6">
-        <div>
-          <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/atendimentos/auditoria"><ArrowLeft className="h-4 w-4 mr-1" /> Voltar</Link></Button>
-          <h1 className="text-2xl font-heading font-bold">Insights & Tendências</h1>
-          <p className="text-sm text-muted-foreground">Últimas 12 semanas. Usa nota humana quando disponível.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/atendimentos/auditoria"><ArrowLeft className="h-4 w-4 mr-1" /> Voltar</Link></Button>
+            <h1 className="text-2xl font-heading font-bold">Insights & Tendências</h1>
+            <p className="text-sm text-muted-foreground">
+              {audits.length} auditorias analisadas. Usa nota humana quando disponível.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={days} onValueChange={setDays}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={rowLimit} onValueChange={setRowLimit}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="500">500 registros</SelectItem>
+                <SelectItem value="1000">1000 registros</SelectItem>
+                <SelectItem value="2500">2500 registros</SelectItem>
+                <SelectItem value="5000">5000 registros</SelectItem>
+              </SelectContent>
+            </Select>
+            {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
         </div>
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : audits.length === 0 ? (
+          <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhuma auditoria no período selecionado.</CardContent></Card>
         ) : (
           <>
             <Card>
@@ -104,7 +140,7 @@ export default function ChatwootAuditInsights() {
                     <XAxis dataKey="week" />
                     <YAxis domain={[0, 100]} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2} />
+                    <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -120,9 +156,9 @@ export default function ChatwootAuditInsights() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="ok" stackId="a" fill="hsl(var(--success))" />
-                    <Bar dataKey="attention" stackId="a" fill="hsl(var(--warning))" />
-                    <Bar dataKey="critical" stackId="a" fill="hsl(var(--destructive))" />
+                    <Bar dataKey="ok" stackId="a" fill="hsl(var(--success))" isAnimationActive={false} />
+                    <Bar dataKey="attention" stackId="a" fill="hsl(var(--warning))" isAnimationActive={false} />
+                    <Bar dataKey="critical" stackId="a" fill="hsl(var(--destructive))" isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -165,7 +201,7 @@ export default function ChatwootAuditInsights() {
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" fill="hsl(var(--warning))" />
+                    <Bar dataKey="value" fill="hsl(var(--warning))" isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
