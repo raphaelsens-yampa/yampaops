@@ -311,7 +311,8 @@ function Kpi({ label, value, target, sub, isCurrency }: { label: string; value: 
 
 type Bucket = { count: number; contacted: number; replies: number; meetings: number; conversions: number; mrr: number };
 
-function BucketCard({ title, icon, accent, bucket, base, fmtBRL }: { title: string; icon: React.ReactNode; accent: string; bucket: Bucket; base: number; fmtBRL: (n: number) => string }) {
+function BucketCard({ title, icon, accent, bucket: bucketProp, base, fmtBRL }: { title: string; icon: React.ReactNode; accent: string; bucket?: Bucket; base: number; fmtBRL: (n: number) => string }) {
+  const bucket: Bucket = bucketProp || { count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 };
   const pctBase = base > 0 ? ((bucket.count / base) * 100).toFixed(0) : "0";
   const replyRate = bucket.contacted > 0 ? ((bucket.replies / bucket.contacted) * 100).toFixed(1) : "0.0";
   const meetingRate = bucket.contacted > 0 ? ((bucket.meetings / bucket.contacted) * 100).toFixed(1) : "0.0";
