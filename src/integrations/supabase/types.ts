@@ -1881,6 +1881,9 @@ export type Database = {
           email: string | null
           email_norm: string | null
           extra: Json
+          handled_by_human: boolean
+          handled_by_ia: boolean
+          ia_source: string | null
           id: string
           last_touch_at: string | null
           match_method: string | null
@@ -1910,6 +1913,9 @@ export type Database = {
           email?: string | null
           email_norm?: string | null
           extra?: Json
+          handled_by_human?: boolean
+          handled_by_ia?: boolean
+          ia_source?: string | null
           id?: string
           last_touch_at?: string | null
           match_method?: string | null
@@ -1939,6 +1945,9 @@ export type Database = {
           email?: string | null
           email_norm?: string | null
           extra?: Json
+          handled_by_human?: boolean
+          handled_by_ia?: boolean
+          ia_source?: string | null
           id?: string
           last_touch_at?: string | null
           match_method?: string | null
