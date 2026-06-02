@@ -28,7 +28,7 @@ interface UserRow {
 }
 
 export default function UsersPage() {
-  const { user } = useAuth();
+  const { user, role: currentRole } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [accessLevels, setAccessLevels] = useState<AccessLevel[]>([]);
@@ -37,6 +37,45 @@ export default function UsersPage() {
   const [newRole, setNewRole] = useState<AppRole>("seller");
   const [newAccessLevelId, setNewAccessLevelId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+    role: "seller" as AppRole,
+    access_level_id: "",
+  });
+
+  async function handleCreateUser() {
+    if (!createForm.email || createForm.password.length < 6) {
+      toast({ title: "Dados inválidos", description: "Informe email válido e senha com 6+ caracteres.", variant: "destructive" });
+      return;
+    }
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: {
+        email: createForm.email,
+        password: createForm.password,
+        full_name: createForm.full_name,
+        role: createForm.role,
+        access_level_id: createForm.access_level_id && createForm.access_level_id !== "none" ? createForm.access_level_id : null,
+      },
+    });
+    setCreating(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Erro ao criar usuário", description: (data as any)?.message || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Usuário criado" });
+    if (createForm.full_name && (data as any)?.user_id) {
+      await supabase.from("profiles").update({ full_name: createForm.full_name }).eq("user_id", (data as any).user_id);
+    }
+    setCreateOpen(false);
+    setCreateForm({ full_name: "", email: "", password: "", role: "seller", access_level_id: "" });
+    await loadData();
+  }
 
   async function loadData() {
     const [profilesRes, rolesRes, levelsRes, assignmentsRes] = await Promise.all([
