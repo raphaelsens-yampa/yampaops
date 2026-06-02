@@ -737,12 +737,14 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
               <TableHead>Contato prévio</TableHead>
               <TableHead>AC</TableHead>
               <TableHead className="text-center">Ops</TableHead>
+              <TableHead className="text-center">IA</TableHead>
+              <TableHead className="text-center">Humano</TableHead>
               <TableHead className="text-right">MRR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
-            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
             {data?.rows.map((r: any) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.name || "—"}</TableCell>
