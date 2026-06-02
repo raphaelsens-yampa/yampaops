@@ -573,10 +573,9 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
 
   const toggleHandled = async (row: any, field: "handled_by_ia" | "handled_by_human") => {
     const next = !row[field];
-    const { error } = await supabase
-      .from("sales_campaign_contacts")
-      .update({ [field]: next, ia_source: field === "handled_by_ia" && next ? (row.ia_source || "manual") : row.ia_source })
-      .eq("id", row.id);
+    const patch: any = { [field]: next };
+    if (field === "handled_by_ia" && next && !row.ia_source) patch.ia_source = "manual";
+    const { error } = await supabase.from("sales_campaign_contacts").update(patch).eq("id", row.id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else { refetch(); onChange(); }
   };
