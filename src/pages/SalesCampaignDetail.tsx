@@ -802,10 +802,17 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
-            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={11} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Carregando...</TableCell></TableRow>}
+            {!isLoading && data?.rows.length === 0 && <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Nenhum contato</TableCell></TableRow>}
             {data?.rows.map((r: any) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} data-state={selectedIds.has(r.id) ? "selected" : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.has(r.id)}
+                    onCheckedChange={() => toggleSelected(r.id)}
+                    aria-label="Selecionar contato"
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{r.name || "—"}</TableCell>
                 <TableCell className="text-xs">{r.email || "—"}</TableCell>
                 <TableCell className="text-xs">{r.phone || "—"}</TableCell>
