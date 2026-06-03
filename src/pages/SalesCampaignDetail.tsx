@@ -1454,6 +1454,96 @@ function CohortTab({ campaign }: { campaign: Campaign }) {
     },
   });
 
+  // Tick elapsed time + ETA every second while syncing
+  useEffect(() => {
+    if (!syncing) return;
+    const t = setInterval(() => {
+      if (startedAtRef.current == null) return;
+      const e = (Date.now() - startedAtRef.current) / 1000;
+      setElapsedSec(e);
+      setEtaSec(percent > 1 ? (e * (100 - percent)) / percent : null);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [syncing, percent]);
+
+  const updateProgress = (overall: number, label: string) => {
+    setPercent(Math.max(0, Math.min(100, overall)));
+    setPhaseLabel(label);
+  };
+
+  // Phase weights (sum = 100): backfill 45, repair 45, cohort 10
+  const PHASE_W = { backfill: 45, repair: 45, cohort: 10 };
+
+  const runFullSync = async () => {
+    setSyncing(true);
+    setPhase("backfill");
+    setPercent(0);
+    setElapsedSec(0);
+    setEtaSec(null);
+    startedAtRef.current = Date.now();
+    try {
+      // --- Phase 1: backfill de contatos do Chatwoot ---
+      setPhaseLabel("Backfill de contatos do Chatwoot");
+      let page = 1;
+      let totalCw = 0;
+      let safety = 0;
+      while (safety++ < 300) {
+        const { data, error } = await supabase.functions.invoke("chatwoot-contacts-backfill", {
+          body: { page_start: page, max_pages: 8, page_size: 25, time_budget_ms: 110000 },
+        });
+        if (error) throw new Error(`backfill: ${error.message}`);
+        const d: any = data || {};
+        if (d.total_in_chatwoot) totalCw = d.total_in_chatwoot;
+        const processedPages = (d.page_start || page) + (d.pages_processed || 0) - 1;
+        const localPct = totalCw > 0 ? Math.min(100, (processedPages * 25 * 100) / totalCw) : 0;
+        updateProgress((localPct * PHASE_W.backfill) / 100, `Backfill de contatos (${processedPages * 25}/${totalCw || "?"})`);
+        if (d.done || !d.next_page) break;
+        page = d.next_page;
+      }
+      updateProgress(PHASE_W.backfill, "Backfill concluído");
+
+      // --- Phase 2: reparar conversas (cwid/email/phone faltantes) ---
+      setPhase("repair");
+      setPhaseLabel("Reparando conversas do Chatwoot");
+      // total inicial de conversas quebradas para calcular %
+      const { count: brokenCount } = await supabase
+        .from("chatwoot_conversations")
+        .select("chatwoot_conversation_id", { count: "exact", head: true })
+        .or("chatwoot_contact_id.is.null,and(contact_email.is.null,contact_phone.is.null)");
+      const initialBroken = brokenCount || 0;
+      let repaired = 0;
+      safety = 0;
+      while (safety++ < 300) {
+        const { data, error } = await supabase.functions.invoke("chatwoot-repair-conversations", {
+          body: { batch_size: 40, max_iters: 20, time_budget_ms: 110000 },
+        });
+        if (error) throw new Error(`repair: ${error.message}`);
+        const d: any = data || {};
+        repaired += (d.repaired || 0) + (d.skipped || 0);
+        const localPct = initialBroken > 0 ? Math.min(100, (repaired * 100) / initialBroken) : 100;
+        updateProgress(PHASE_W.backfill + (localPct * PHASE_W.repair) / 100, `Reparando conversas (${repaired}/${initialBroken || "?"})`);
+        if ((d.fetched || 0) === 0) break;
+      }
+      updateProgress(PHASE_W.backfill + PHASE_W.repair, "Reparo concluído");
+
+      // --- Phase 3: recalcular cohort ---
+      setPhase("cohort");
+      setPhaseLabel("Recalculando cohort");
+      const { data: rpcData, error: rpcErr } = await (supabase as any).rpc("scc_refresh_first_contact", { p_campaign_id: campaign.id });
+      if (rpcErr) throw new Error(`cohort: ${rpcErr.message}`);
+      updateProgress(100, "Concluído");
+      setPhase("done");
+      await qc.invalidateQueries({ queryKey: ["scc-cohort", campaign.id] });
+      await refetch();
+      toast({ title: "Sincronização concluída", description: `${rpcData ?? 0} contato(s) recalculados.` });
+    } catch (e: any) {
+      setPhase("error");
+      toast({ title: "Erro na sincronização", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const agg = useMemo(() => {
     const list = rows || [];
     const items = list.map((r: any) => {
