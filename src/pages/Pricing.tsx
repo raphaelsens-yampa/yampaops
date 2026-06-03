@@ -97,60 +97,68 @@ export default function PricingPage() {
                 ))}
               </SelectContent>
             </Select>
-            <label>
-              <input
-                type="file"
-                accept=".xlsx"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && importXlsx(e.target.files[0])}
-              />
-              <Button asChild variant="outline" disabled={importing}>
-                <span>{importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}Importar XLSX</span>
-              </Button>
-            </label>
-            <Button variant="outline" onClick={exportXlsx} disabled={!selected}>
-              <Download className="h-4 w-4 mr-1" /> Exportar
-            </Button>
-            <Button onClick={editor.save} disabled={!editor.dirty || editor.saving}>
-              {editor.saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-              Salvar {editor.dirty && <Badge variant="secondary" className="ml-2">não salvo</Badge>}
-            </Button>
+            {canEditPricing && (
+              <>
+                <label>
+                  <input
+                    type="file"
+                    accept=".xlsx"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && importXlsx(e.target.files[0])}
+                  />
+                  <Button asChild variant="outline" disabled={importing}>
+                    <span>{importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}Importar XLSX</span>
+                  </Button>
+                </label>
+                <Button variant="outline" onClick={exportXlsx} disabled={!selected}>
+                  <Download className="h-4 w-4 mr-1" /> Exportar
+                </Button>
+                <Button onClick={editor.save} disabled={!editor.dirty || editor.saving}>
+                  {editor.saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                  Salvar {editor.dirty && <Badge variant="secondary" className="ml-2">não salvo</Badge>}
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
         {selected ? (
-          <Tabs defaultValue="overview">
+          <Tabs defaultValue={canEditPricing ? "overview" : "proposals"}>
             <TabsList className="flex-wrap h-auto">
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="fixed">Custos Fixos</TabsTrigger>
-              <TabsTrigger value="labor">Mão de Obra</TabsTrigger>
-              <TabsTrigger value="capacity">Capacidade</TabsTrigger>
-              <TabsTrigger value="markup">Markup</TabsTrigger>
-              <TabsTrigger value="inputs">Insumos & Subprodutos</TabsTrigger>
-              <TabsTrigger value="services">Serviços</TabsTrigger>
+              {canEditPricing && <TabsTrigger value="overview">Visão Geral</TabsTrigger>}
+              {canEditPricing && <TabsTrigger value="fixed">Custos Fixos</TabsTrigger>}
+              {canEditPricing && <TabsTrigger value="labor">Mão de Obra</TabsTrigger>}
+              {canEditPricing && <TabsTrigger value="capacity">Capacidade</TabsTrigger>}
+              {canEditPricing && <TabsTrigger value="markup">Markup</TabsTrigger>}
+              {canEditPricing && <TabsTrigger value="inputs">Insumos & Subprodutos</TabsTrigger>}
+              {canEditPricing && <TabsTrigger value="services">Serviços</TabsTrigger>}
               <TabsTrigger value="proposals">Propostas</TabsTrigger>
               <TabsTrigger value="versions">Versões</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="mt-4"><PricingOverview snap={editor.snap} /></TabsContent>
-            <TabsContent value="fixed" className="mt-4">
-              <CostListEditor title="Custos Fixos Mensais" field="fixed_costs" snap={editor.snap} update={editor.update} />
-            </TabsContent>
-            <TabsContent value="labor" className="mt-4">
-              <CostListEditor title="Mão de Obra Direta" field="labor_costs" snap={editor.snap} update={editor.update} />
-            </TabsContent>
-            <TabsContent value="capacity" className="mt-4">
-              <CapacityEditor snap={editor.snap} update={editor.update} />
-            </TabsContent>
-            <TabsContent value="markup" className="mt-4">
-              <MarkupEditor snap={editor.snap} update={editor.update} />
-            </TabsContent>
-            <TabsContent value="inputs" className="mt-4">
-              <InputsEditor snap={editor.snap} update={editor.update} />
-            </TabsContent>
-            <TabsContent value="services" className="mt-4">
-              <ServicesEditor snap={editor.snap} update={editor.update} />
-            </TabsContent>
+            {canEditPricing && (
+              <>
+                <TabsContent value="overview" className="mt-4"><PricingOverview snap={editor.snap} /></TabsContent>
+                <TabsContent value="fixed" className="mt-4">
+                  <CostListEditor title="Custos Fixos Mensais" field="fixed_costs" snap={editor.snap} update={editor.update} />
+                </TabsContent>
+                <TabsContent value="labor" className="mt-4">
+                  <CostListEditor title="Mão de Obra Direta" field="labor_costs" snap={editor.snap} update={editor.update} />
+                </TabsContent>
+                <TabsContent value="capacity" className="mt-4">
+                  <CapacityEditor snap={editor.snap} update={editor.update} />
+                </TabsContent>
+                <TabsContent value="markup" className="mt-4">
+                  <MarkupEditor snap={editor.snap} update={editor.update} />
+                </TabsContent>
+                <TabsContent value="inputs" className="mt-4">
+                  <InputsEditor snap={editor.snap} update={editor.update} />
+                </TabsContent>
+                <TabsContent value="services" className="mt-4">
+                  <ServicesEditor snap={editor.snap} update={editor.update} />
+                </TabsContent>
+              </>
+            )}
             <TabsContent value="proposals" className="mt-4">
               <ProposalsManager version={selected} />
             </TabsContent>
