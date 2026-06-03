@@ -113,6 +113,7 @@ function AppRoutes() {
       <Route path="/discounts/overview" element={<DiscountOverview />} />
       <Route path="/discounts/portfolio" element={<DiscountPortfolio />} />
       <Route path="/discounts/rules" element={<DiscountRules />} />
+      <Route path="/pricing" element={<PricingPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
