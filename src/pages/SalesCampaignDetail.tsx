@@ -1411,8 +1411,11 @@ function bucketOfDays(days: number | null): CohortBucket {
 
 function CohortTab({ campaign }: { campaign: Campaign }) {
   const [onlyWithFreetrial, setOnlyWithFreetrial] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const qc = useQueryClient();
+  const { toast } = useToast();
 
-  const { data: rows, isLoading } = useQuery({
+  const { data: rows, isLoading, refetch } = useQuery({
     queryKey: ["scc-cohort", campaign.id],
     queryFn: async () => {
       const PAGE = 1000;
