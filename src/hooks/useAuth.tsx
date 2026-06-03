@@ -17,7 +17,8 @@ export type CrmAreaKey =
   | "contacts"
   | "commissions"
   | "atendimentos"
-  | "auditoria_ia";
+  | "auditoria_ia"
+  | "pricing";
 export type Permissions = Partial<Record<CrmAreaKey, AreaPermission>>;
 
 interface AuthContext {
