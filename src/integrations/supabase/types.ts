@@ -2506,6 +2506,10 @@ export type Database = {
         Args: { p_email: string; p_phone: string }
         Returns: string
       }
+      scc_refresh_first_contact: {
+        Args: { p_campaign_id: string }
+        Returns: number
+      }
     }
     Enums: {
       activity_type:
