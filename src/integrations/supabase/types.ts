@@ -2097,6 +2097,7 @@ export type Database = {
           custom_field_defs: Json
           description: string | null
           end_date: string | null
+          funnel_stages: Json
           id: string
           name: string
           owner_id: string | null
@@ -2120,6 +2121,7 @@ export type Database = {
           custom_field_defs?: Json
           description?: string | null
           end_date?: string | null
+          funnel_stages?: Json
           id?: string
           name: string
           owner_id?: string | null
@@ -2143,6 +2145,7 @@ export type Database = {
           custom_field_defs?: Json
           description?: string | null
           end_date?: string | null
+          funnel_stages?: Json
           id?: string
           name?: string
           owner_id?: string | null
@@ -2505,6 +2508,22 @@ export type Database = {
       scc_compute_first_contact_for: {
         Args: { p_email: string; p_phone: string }
         Returns: string
+      }
+      scc_compute_tag_funnel: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          contact_count: number
+          contact_ids: string[]
+          mrr_total: number
+          stage_id: string
+        }[]
+      }
+      scc_list_campaign_tags: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          tag: string
+          usage_count: number
+        }[]
       }
       scc_refresh_first_contact: {
         Args: { p_campaign_id: string }
