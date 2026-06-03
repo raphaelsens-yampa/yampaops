@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fmtNum, fmtPct, markupRate, variableSum, LINE_LABEL } from "@/lib/pricing/engine";
+import { fmtNum, fmtPct, markupRate, variableSum } from "@/lib/pricing/engine";
+import { LINE_LABEL } from "@/lib/pricing/types";
 import type { MarkupLineKey, PricingSnapshot } from "@/lib/pricing/types";
 
 interface Props {
