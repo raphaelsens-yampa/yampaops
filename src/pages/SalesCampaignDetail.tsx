@@ -1410,9 +1410,25 @@ function bucketOfDays(days: number | null): CohortBucket {
   return "D15+";
 }
 
+type SyncPhase = "idle" | "backfill" | "repair" | "cohort" | "done" | "error";
+
+function formatDuration(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return "—";
+  const s = Math.round(seconds);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}m ${String(r).padStart(2, "0")}s`;
+}
+
 function CohortTab({ campaign }: { campaign: Campaign }) {
   const [onlyWithFreetrial, setOnlyWithFreetrial] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [phase, setPhase] = useState<SyncPhase>("idle");
+  const [phaseLabel, setPhaseLabel] = useState<string>("");
+  const [percent, setPercent] = useState(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [etaSec, setEtaSec] = useState<number | null>(null);
+  const startedAtRef = useRef<number | null>(null);
   const qc = useQueryClient();
   const { toast } = useToast();
 
