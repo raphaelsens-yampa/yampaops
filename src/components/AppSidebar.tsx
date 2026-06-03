@@ -236,6 +236,7 @@ export function AppSidebar() {
       defaultOpen: openComercial,
       items: [
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
+        { title: "Precificação Serviços", url: "/pricing", icon: Calculator, adminOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
       ],
