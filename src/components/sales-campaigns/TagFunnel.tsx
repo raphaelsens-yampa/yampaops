@@ -294,7 +294,7 @@ function TagMultiSelect({
               <CommandInput placeholder="Buscar ou digitar tag..." />
               <CommandList>
                 <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
-                <CommandGroup heading={`Tags vistas (${options.length})`}>
+                <CommandGroup heading={`Tags do Chatwoot (${options.length})`}>
                   {options.map((tag) => {
                     const active = value.includes(tag);
                     return (
