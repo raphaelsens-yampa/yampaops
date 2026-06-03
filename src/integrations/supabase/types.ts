@@ -1834,6 +1834,132 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_proposals: {
+        Row: {
+          client_doc: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          created_by: string | null
+          discount_pct: number
+          executive_summary: string | null
+          id: string
+          items: Json
+          opportunity_id: string | null
+          payment_terms: string | null
+          pdf_url: string | null
+          proposal_number: string | null
+          status: string
+          total_annual: number
+          total_monthly: number
+          total_setup: number
+          updated_at: string
+          valid_until: string | null
+          version_id: string
+        }
+        Insert: {
+          client_doc?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_pct?: number
+          executive_summary?: string | null
+          id?: string
+          items?: Json
+          opportunity_id?: string | null
+          payment_terms?: string | null
+          pdf_url?: string | null
+          proposal_number?: string | null
+          status?: string
+          total_annual?: number
+          total_monthly?: number
+          total_setup?: number
+          updated_at?: string
+          valid_until?: string | null
+          version_id: string
+        }
+        Update: {
+          client_doc?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_pct?: number
+          executive_summary?: string | null
+          id?: string
+          items?: Json
+          opportunity_id?: string | null
+          payment_terms?: string | null
+          pdf_url?: string | null
+          proposal_number?: string | null
+          status?: string
+          total_annual?: number
+          total_monthly?: number
+          total_setup?: number
+          updated_at?: string
+          valid_until?: string | null
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_proposals_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_proposals_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          snapshot: Json
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          snapshot?: Json
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          snapshot?: Json
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
