@@ -397,46 +397,56 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Grupos */}
-        {visibleGroups.map((g) => {
-          if (g.collapsible && !collapsed) {
-            const open = g.key === "gestao" ? openGestao : openIntegr;
-            const setOpen = g.key === "gestao" ? setOpenGestao : setOpenIntegr;
-            return (
-              <Collapsible key={g.key} open={open} onOpenChange={setOpen}>
-                <SidebarGroup>
-                  <CollapsibleTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
-                    >
-                      <span className="uppercase tracking-wide">{g.label}</span>
-                      <ChevronDown
-                        className={cn(
-                          "h-3.5 w-3.5 transition-transform",
-                          open ? "rotate-0" : "-rotate-90",
-                        )}
-                      />
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarGroupContent>
-                      <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </SidebarGroup>
-              </Collapsible>
-            );
-          }
+        {(() => {
+          const groupStateMap: Record<string, [boolean, (v: boolean) => void]> = {
+            overview: [openOverview, setOpenOverview],
+            vendas: [openVendas, setOpenVendas],
+            comercial: [openComercial, setOpenComercial],
+            descontos: [openDescontos, setOpenDescontos],
+            gestao: [openGestao, setOpenGestao],
+            integracoes: [openIntegr, setOpenIntegr],
+          };
 
-          return (
-            <SidebarGroup key={g.key}>
-              {!collapsed && <SidebarGroupLabel>{g.label}</SidebarGroupLabel>}
-              <SidebarGroupContent>
-                <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          );
-        })}
+          return visibleGroups.map((g) => {
+            if (!collapsed && g.collapsible) {
+              const [open, setOpen] = groupStateMap[g.key] ?? [true, () => {}];
+              return (
+                <Collapsible key={g.key} open={open} onOpenChange={setOpen}>
+                  <SidebarGroup>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
+                      >
+                        <span className="uppercase tracking-wide">{g.label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 transition-transform",
+                            open ? "rotate-0" : "-rotate-90",
+                          )}
+                        />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarGroupContent>
+                        <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
+                      </SidebarGroupContent>
+                    </CollapsibleContent>
+                  </SidebarGroup>
+                </Collapsible>
+              );
+            }
+
+            return (
+              <SidebarGroup key={g.key}>
+                {!collapsed && <SidebarGroupLabel>{g.label}</SidebarGroupLabel>}
+                <SidebarGroupContent>
+                  <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            );
+          });
+        })()}
       </SidebarContent>
 
       {/* Footer */}
