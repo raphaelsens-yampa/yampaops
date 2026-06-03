@@ -1516,27 +1516,31 @@ function CohortTab({ campaign }: { campaign: Campaign }) {
           <Button
             size="sm"
             variant="outline"
-            disabled={refreshing}
-            onClick={async () => {
-              setRefreshing(true);
-              try {
-                const { data, error } = await (supabase as any).rpc("scc_refresh_first_contact", { p_campaign_id: campaign.id });
-                if (error) throw error;
-                await qc.invalidateQueries({ queryKey: ["scc-cohort", campaign.id] });
-                await refetch();
-                toast({ title: "Atualizado", description: `${data ?? 0} contato(s) recalculados a partir do Chatwoot.` });
-              } catch (e: any) {
-                toast({ title: "Erro ao atualizar", description: e?.message || String(e), variant: "destructive" });
-              } finally {
-                setRefreshing(false);
-              }
-            }}
+            disabled={syncing}
+            onClick={runFullSync}
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? "Atualizando..." : "Atualizar"}
+            <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Sincronizando..." : "Sincronizar Chatwoot + Cohort"}
           </Button>
         </div>
       </div>
+
+      {(syncing || phase === "done" || phase === "error") && (
+        <Card className={phase === "error" ? "border-destructive" : ""}>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-sm font-medium">
+                {phase === "done" ? "Sincronização concluída" : phase === "error" ? "Falha na sincronização" : `Etapa: ${phaseLabel}`}
+              </div>
+              <div className="text-xs text-muted-foreground tabular-nums">
+                {percent.toFixed(0)}% • decorrido {formatDuration(elapsedSec)}
+                {syncing && etaSec !== null ? ` • restam ~${formatDuration(etaSec)}` : ""}
+              </div>
+            </div>
+            <Progress value={percent} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4">
