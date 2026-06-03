@@ -43,9 +43,18 @@ function useCampaignTags(campaignId: string) {
   return useQuery({
     queryKey: ["scc-campaign-tags", campaignId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("scc_list_campaign_tags", { p_campaign_id: campaignId });
-      if (error) throw error;
-      return (data ?? []) as { tag: string; usage_count: number }[];
+      const [campaignRes, globalRes] = await Promise.all([
+        (supabase as any).rpc("scc_list_campaign_tags", { p_campaign_id: campaignId }),
+        (supabase as any).rpc("get_chatwoot_labels"),
+      ]);
+      if (campaignRes.error) throw campaignRes.error;
+      if (globalRes.error) throw globalRes.error;
+      const campaignTags = (campaignRes.data ?? []) as { tag: string; usage_count: number }[];
+      const seen = new Set(campaignTags.map((t) => t.tag));
+      const globalTags = ((globalRes.data ?? []) as string[])
+        .filter((t) => t && !seen.has(t))
+        .map((t) => ({ tag: t, usage_count: 0 }));
+      return [...campaignTags, ...globalTags];
     },
     staleTime: 30_000,
   });
