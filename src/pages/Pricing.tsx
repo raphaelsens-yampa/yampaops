@@ -42,7 +42,7 @@ export default function PricingPage() {
   const selected = useMemo(() => versions.find((v) => v.id === selectedId) ?? null, [versions, selectedId]);
   const editor = useVersionEditor(selected);
 
-  if (role && role !== "admin") return <Layout><AccessDenied /></Layout>;
+  if (!canViewPricing) return <Layout><AccessDenied /></Layout>;
 
   const exportXlsx = async () => {
     if (!selected) return;
