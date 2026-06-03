@@ -158,6 +158,8 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
         .select("snapshot_date, contacted, replies, meetings, conversions, mrr_generated, handled_by")
         .eq("campaign_id", campaign.id)
         .order("snapshot_date", { ascending: true });
+      const iaSnap = mkBucket();
+      const humanSnap = mkBucket();
       for (const s of snapshots || []) {
         const hb = (s as any).handled_by || "unspecified";
         const add = (b: any) => {
@@ -168,9 +170,20 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
           b.mrr += Number(s.mrr_generated) || 0;
           b.count += Number(s.contacted) || 0;
         };
-        if (hb === "ia" || hb === "mixed") add(ia);
-        if (hb === "human" || hb === "mixed") add(human);
+        if (hb === "ia" || hb === "mixed") add(iaSnap);
+        if (hb === "human" || hb === "mixed") add(humanSnap);
       }
+      // Reconcile per-bucket: snapshots and contact-flags represent the same population.
+      const reconcile = (b: any, snap: any) => {
+        b.contacted = Math.max(b.contacted, snap.contacted);
+        b.replies = Math.max(b.replies, snap.replies);
+        b.meetings = Math.max(b.meetings, snap.meetings);
+        b.conversions = Math.max(b.conversions, snap.conversions);
+        b.mrr = Math.max(b.mrr, snap.mrr);
+        b.count = Math.max(b.count, snap.count);
+      };
+      reconcile(ia, iaSnap);
+      reconcile(human, humanSnap);
       const { data: finance } = await supabase.from("finance_settings").select("avg_churn_rate").limit(1).maybeSingle();
       return { base, contacted, replies, meetings, conversions, mrr, noPhone, ia, human, unclassified, snapshots: snapshots || [], fallbackChurn: Number(finance?.avg_churn_rate || 0) };
     },
@@ -179,11 +192,12 @@ function OverviewTab({ campaign }: { campaign: Campaign }) {
   const emptyBucket = { count: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0 };
   const a: any = agg || { base: 0, contacted: 0, replies: 0, meetings: 0, conversions: 0, mrr: 0, noPhone: 0, ia: emptyBucket, human: emptyBucket, unclassified: 0, snapshots: [], fallbackChurn: 0 };
   const snapTotals = sumSnapshotMetrics(a.snapshots);
-  const contacted = a.contacted + (snapTotals.contacted || 0);
-  const replies = a.replies + (snapTotals.replies || 0);
-  const meetings = (a.meetings || 0) + (snapTotals.meetings || 0);
-  const conversions = a.conversions + (snapTotals.conversions || 0);
-  const mrr = a.mrr + (snapTotals.mrr || 0);
+  const contacted = Math.min(a.base || Infinity, Math.max(a.contacted, snapTotals.contacted || 0));
+  const replies = Math.max(a.replies, snapTotals.replies || 0);
+  const meetings = Math.max(a.meetings || 0, snapTotals.meetings || 0);
+  const conversions = Math.max(a.conversions, snapTotals.conversions || 0);
+  const mrr = Math.max(a.mrr, snapTotals.mrr || 0);
+
   const replyRate = contacted > 0 ? ((replies / contacted) * 100).toFixed(1) : "0.0";
   const convRate = contacted > 0 ? ((conversions / contacted) * 100).toFixed(1) : "0.0";
   const convOverReplies = replies > 0 ? ((conversions / replies) * 100).toFixed(1) : "0.0";
