@@ -207,8 +207,8 @@ export function AppSidebar() {
       defaultOpen: openVendas,
       items: [
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
-        { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
+        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, managerOnly: true },
         {
           title: "Auditoria IA",
           url: "/atendimentos/auditoria",
@@ -226,8 +226,6 @@ export function AppSidebar() {
           ],
         },
         { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "dashboard" },
-        { title: "Metas", url: "/goals", icon: Target, area: "goals" },
-        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, managerOnly: true },
       ],
     },
     {
@@ -259,6 +257,7 @@ export function AppSidebar() {
       defaultOpen: openGestao,
       adminOnly: true,
       items: [
+        { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
         { title: "Importação", url: "/imports", icon: Upload, area: "import" },
