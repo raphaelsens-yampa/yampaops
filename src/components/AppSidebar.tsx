@@ -2,6 +2,7 @@ import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
   FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2,
+  Calculator,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -235,6 +236,7 @@ export function AppSidebar() {
       defaultOpen: openComercial,
       items: [
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
+        { title: "Precificação Serviços", url: "/pricing", icon: Calculator, adminOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
       ],
