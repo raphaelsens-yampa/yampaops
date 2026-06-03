@@ -1,34 +1,68 @@
-## Problema
+# Aba "Cohort D+N" — Freetrial × Primeira Conversa
 
-Hoje o painel soma:
-- Métricas derivadas da Base (status dos contatos individuais) **+**
-- Totais informados em lote nos snapshots de Evolução
+## Objetivo
+Dar visibilidade de quantos contatos da base tiveram a primeira conversa em D0, D1, D2, D3, D4–D7, D8–D14, D15+ ou "Sem contato", medindo o gap entre a criação do Freetrial e a primeira mensagem registrada no Chatwoot.
 
-Quando o usuário atualiza tudo via Evolução (lote, sem marcar IA/Humano contato a contato), os dois conjuntos representam a **mesma população**, então a soma estoura — por isso "Contatados (1541) > Base (1136)" e o percentual passa de 100%.
+## Dados disponíveis (sem mudar schema)
+- `sales_campaign_contacts.extra->>'Data Freetrial'` — número serial do Excel (ex.: `46142.874...`). Convertido em JS por: `new Date(Math.round((serial - 25569) * 86400 * 1000))`. Aceita também string ISO como fallback.
+- `sales_campaign_contacts.cw_first_contact_at` — já populado pelo match com Chatwoot (`first_contact_message_at`).
+- Fallback: se `cw_first_contact_at` não existir, usar `last_touch_at`.
 
-## Solução
+Nenhuma migração nova — tudo já está na tabela.
 
-Trocar a soma por **Math.max(derivadoDaBase, totalDeSnapshots)** em todos os agregados do `OverviewTab`. Mesma filosofia já usada em `mergeCampaignProgress`. Snapshots passam a representar um "piso" da realidade, não um delta somado.
+## Nova aba
+Adicionar `TabsTrigger value="cohort"` em `src/pages/SalesCampaignDetail.tsx`, ao lado de Evolução, com o título **"Cohort D+N"**.
 
-### Onde mudar (apenas `src/pages/SalesCampaignDetail.tsx`, `OverviewTab`)
+### Componente `CohortTab`
+Renderiza, para a campanha atual:
 
-1. **Cards principais (linhas ~181–186)**  
-   Substituir `a.contacted + snapTotals.contacted` (e equivalentes para replies, meetings, conversions, mrr) por `Math.max(a.contacted, snapTotals.contacted)`. Idem para os demais campos.
+1. **Cards de resumo**
+   - Total da base com Data Freetrial válida
+   - % com primeira conversa registrada
+   - Mediana de dias até primeiro contato
+   - % contatados em D0–D3 (janela "quente")
 
-2. **Buckets IA × Humano (linhas ~161–173)**  
-   Hoje o loop de snapshots faz `b.x += snapshot.x` em cima do que já veio da Base. Em vez disso:
-   - Acumular separadamente os totais de snapshots por bucket (`iaSnap`, `humanSnap`) — `mixed` continua contribuindo para os dois.
-   - Depois do loop, fazer para cada métrica do bucket:  
-     `ia.contacted = Math.max(ia.contacted, iaSnap.contacted)` (idem replies/meetings/conversions/mrr/count, onde `count` usa `iaSnap.contacted`).
+2. **Tabela de distribuição** (linhas = buckets, colunas = qtd, % da base, MRR gerado nesse bucket)
+   ```text
+   Bucket        Contatos   % base   Convertidos   MRR
+   D0            ...        ...      ...           ...
+   D1            ...
+   D2
+   D3
+   D4–D7
+   D8–D14
+   D15+
+   Sem contato
+   ```
 
-3. **Cap defensivo**  
-   Manter `Math.min(100, ...)` nos percentuais que usam a base como denominador, como rede de segurança caso alguém ainda informe um snapshot maior que a base.
+3. **Gráfico de barras** (Recharts) com a mesma distribuição para leitura rápida.
 
-### Fora de escopo
+4. **Filtro** simples: toggle "Considerar apenas contatos com Data Freetrial preenchida" (default on) — evita poluir o "Sem contato" com linhas sem data de origem.
 
-- Sem mudanças de schema, sem mudanças na aba Evolução, sem mudanças na aba Base.
-- Sem mudanças visuais — apenas os números recalculados.
+### Lógica de bucket (client-side, em memória)
+```ts
+function excelToDate(v: unknown): Date | null { /* serial OR ISO */ }
+function bucket(daysDiff: number | null): Bucket {
+  if (daysDiff === null) return "Sem contato";
+  if (daysDiff <= 0) return "D0";
+  if (daysDiff === 1) return "D1";
+  if (daysDiff === 2) return "D2";
+  if (daysDiff === 3) return "D3";
+  if (daysDiff <= 7) return "D4–D7";
+  if (daysDiff <= 14) return "D8–D14";
+  return "D15+";
+}
+```
+- `daysDiff = floor((cw_first_contact_at - dataFreetrial) / 86400000)`.
+- Linhas sem `dataFreetrial` são excluídas (a menos que o usuário desligue o filtro).
+- Linhas com `dataFreetrial` mas sem `cw_first_contact_at` caem em "Sem contato".
 
-### Efeito esperado no print
+## Detalhes técnicos
+- Reaproveita o array de `contacts` já carregado em `SalesCampaignDetail`. Sem queries novas.
+- `useMemo` para o agregado.
+- Sem alterações em backend, edge functions, migrations ou na aba Evolução.
 
-Com Base=1136 e snapshots de contatados acumulados em 1541, o card "Contatados" passará a exibir **1136** (max entre derivado-da-base e snapshot), e o percentual ficará em **100% da base** — eliminando o 135,7%.
+## Fora de escopo
+- Mudar mapeamento de import (continua usando a coluna "Data Freetrial" como está em `extra`).
+- Buckets configuráveis pelo usuário (pode virar follow-up).
+- Cruzar com IA/Humano dentro do mesmo gráfico (pode entrar como segmento depois).
