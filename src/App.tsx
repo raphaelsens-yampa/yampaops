@@ -43,6 +43,8 @@ import DiscountPortfolio from "./pages/discounts/Portfolio";
 import DiscountRules from "./pages/discounts/Rules";
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
+import { CohortSyncProvider } from "./contexts/CohortSyncContext";
+import { GlobalCohortSyncBanner } from "./components/GlobalCohortSyncBanner";
 
 const queryClient = new QueryClient();
 
@@ -124,7 +126,10 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AppRoutes />
+            <CohortSyncProvider>
+              <AppRoutes />
+              <GlobalCohortSyncBanner />
+            </CohortSyncProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
