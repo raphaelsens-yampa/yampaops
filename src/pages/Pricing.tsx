@@ -21,11 +21,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { AccessDenied } from "@/components/AccessDenied";
 
 export default function PricingPage() {
-  const { role } = useAuth();
+  const { role, canView, canEdit } = useAuth();
   const qc = useQueryClient();
   const { data: versions = [], isLoading } = usePricingVersions();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+
+  const isAdmin = role === "admin";
+  const canEditPricing = isAdmin || canEdit("pricing");
+  const canViewPricing = isAdmin || canView("pricing");
 
   // Auto-select active version on load
   useEffect(() => {
