@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { CHANNEL_OPTIONS, STATUS_OPTIONS, CONTACT_STATUS_OPTIONS, mergeCampaignProgress, statusBadgeClass, sumSnapshotMetrics } from "@/lib/salesCampaigns";
 import { useCohortSync } from "@/contexts/CohortSyncContext";
+import { TagFunnelTab, TagFunnelEditor } from "@/components/sales-campaigns/TagFunnel";
 
 type Campaign = any;
 type ContactRow = any;
