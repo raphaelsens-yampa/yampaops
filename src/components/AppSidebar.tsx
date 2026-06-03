@@ -173,6 +173,10 @@ export function AppSidebar() {
   const { role, profile, signOut, canView, accessLevelName } = useAuth();
   const { theme, toggle } = useTheme();
 
+  const [openOverview, setOpenOverview] = useLocalBool("sidebar:group:overview", true);
+  const [openVendas, setOpenVendas] = useLocalBool("sidebar:group:vendas", true);
+  const [openComercial, setOpenComercial] = useLocalBool("sidebar:group:comercial", true);
+  const [openDescontos, setOpenDescontos] = useLocalBool("sidebar:group:descontos", true);
   const [openGestao, setOpenGestao] = useLocalBool("sidebar:group:gestao", false);
   const [openIntegr, setOpenIntegr] = useLocalBool("sidebar:group:integracoes", false);
   const [openAuditoria, setOpenAuditoria] = useLocalBool(
