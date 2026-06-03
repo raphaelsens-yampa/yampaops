@@ -1878,6 +1878,7 @@ export type Database = {
           campaign_id: string
           company: string | null
           created_at: string
+          cw_first_contact_at: string | null
           email: string | null
           email_norm: string | null
           extra: Json
@@ -1910,6 +1911,7 @@ export type Database = {
           campaign_id: string
           company?: string | null
           created_at?: string
+          cw_first_contact_at?: string | null
           email?: string | null
           email_norm?: string | null
           extra?: Json
@@ -1942,6 +1944,7 @@ export type Database = {
           campaign_id?: string
           company?: string | null
           created_at?: string
+          cw_first_contact_at?: string | null
           email?: string | null
           email_norm?: string | null
           extra?: Json
@@ -2499,6 +2502,10 @@ export type Database = {
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
+      scc_compute_first_contact_for: {
+        Args: { p_email: string; p_phone: string }
+        Returns: string
+      }
     }
     Enums: {
       activity_type:
