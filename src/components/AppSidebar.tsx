@@ -225,6 +225,7 @@ export function AppSidebar() {
             ] : []),
           ],
         },
+        { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "dashboard" },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
         { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, managerOnly: true },
       ],
