@@ -126,7 +126,10 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AppRoutes />
+            <CohortSyncProvider>
+              <AppRoutes />
+              <GlobalCohortSyncBanner />
+            </CohortSyncProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
