@@ -91,12 +91,14 @@ export default function SalesCampaignDetail() {
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="base">Base</TabsTrigger>
               <TabsTrigger value="evolution">Evolução</TabsTrigger>
+              <TabsTrigger value="cohort">Cohort D+N</TabsTrigger>
               <TabsTrigger value="config">Configuração</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview"><OverviewTab campaign={campaign} /></TabsContent>
             <TabsContent value="base"><BaseTab campaign={campaign} onChange={() => qc.invalidateQueries({ queryKey: ["scc", id] })} /></TabsContent>
             <TabsContent value="evolution"><EvolutionTab campaign={campaign} /></TabsContent>
+            <TabsContent value="cohort"><CohortTab campaign={campaign} /></TabsContent>
             <TabsContent value="config"><ConfigTab campaign={campaign} onSaved={() => qc.invalidateQueries({ queryKey: ["sales-campaign", id] })} /></TabsContent>
           </Tabs>
         </div>
