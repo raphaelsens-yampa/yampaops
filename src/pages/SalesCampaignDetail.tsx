@@ -1510,31 +1510,20 @@ function CohortTab({ campaign }: { campaign: Campaign }) {
           <Button
             size="sm"
             variant="outline"
-            disabled={syncing}
-            onClick={runFullSync}
+            disabled={sync.syncing}
+            onClick={() => sync.start(campaign.id, campaign.name)}
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando..." : "Sincronizar Chatwoot + Cohort"}
+            <RefreshCw className={`h-4 w-4 mr-1 ${isSyncingThis ? "animate-spin" : ""}`} />
+            {isSyncingThis ? "Sincronizando..." : sync.syncing ? "Sincronização em andamento..." : "Sincronizar Chatwoot + Cohort"}
           </Button>
+          {isSyncingThis && (
+            <Button size="sm" variant="destructive" onClick={sync.cancel}>
+              Parar
+            </Button>
+          )}
         </div>
       </div>
 
-      {(syncing || phase === "done" || phase === "error") && (
-        <Card className={phase === "error" ? "border-destructive" : ""}>
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm font-medium">
-                {phase === "done" ? "Sincronização concluída" : phase === "error" ? "Falha na sincronização" : `Etapa: ${phaseLabel}`}
-              </div>
-              <div className="text-xs text-muted-foreground tabular-nums">
-                {percent.toFixed(0)}% • decorrido {formatDuration(elapsedSec)}
-                {syncing && etaSec !== null ? ` • restam ~${formatDuration(etaSec)}` : ""}
-              </div>
-            </div>
-            <Progress value={percent} />
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4">
