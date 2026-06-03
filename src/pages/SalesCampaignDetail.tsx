@@ -1365,3 +1365,195 @@ function ConfigTab({ campaign, onSaved }: { campaign: Campaign; onSaved: () => v
     </div>
   );
 }
+
+// =============== COHORT D+N ===============
+type CohortBucket = "D0" | "D1" | "D2" | "D3" | "D4–D7" | "D8–D14" | "D15+" | "Sem contato";
+const COHORT_BUCKETS: CohortBucket[] = ["D0", "D1", "D2", "D3", "D4–D7", "D8–D14", "D15+", "Sem contato"];
+
+function parseFreetrialDate(v: unknown): Date | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number" && isFinite(v)) {
+    const ms = Math.round((v - 25569) * 86400 * 1000);
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+    const asNum = Number(s.replace(",", "."));
+    if (isFinite(asNum) && asNum > 20000 && asNum < 80000) {
+      const ms = Math.round((asNum - 25569) * 86400 * 1000);
+      const d = new Date(ms);
+      if (!isNaN(d.getTime())) return d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+function diffDays(from: Date, to: Date): number {
+  const a = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
+  const b = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
+  return Math.floor((b - a) / 86400000);
+}
+
+function bucketOfDays(days: number | null): CohortBucket {
+  if (days === null) return "Sem contato";
+  if (days <= 0) return "D0";
+  if (days === 1) return "D1";
+  if (days === 2) return "D2";
+  if (days === 3) return "D3";
+  if (days <= 7) return "D4–D7";
+  if (days <= 14) return "D8–D14";
+  return "D15+";
+}
+
+function CohortTab({ campaign }: { campaign: Campaign }) {
+  const [onlyWithFreetrial, setOnlyWithFreetrial] = useState(true);
+
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ["scc-cohort", campaign.id],
+    queryFn: async () => {
+      const PAGE = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("sales_campaign_contacts")
+          .select("id, extra, cw_first_contact_at, last_touch_at, mrr_generated, matched_opportunity_id")
+          .eq("campaign_id", campaign.id)
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || !data.length) break;
+        all.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    },
+  });
+
+  const agg = useMemo(() => {
+    const list = rows || [];
+    const items = list.map((r: any) => {
+      const extra = r.extra || {};
+      const ft = parseFreetrialDate(extra["Data Freetrial"] ?? extra["data_freetrial"] ?? extra["Data freetrial"]);
+      const firstContactRaw = r.cw_first_contact_at || r.last_touch_at;
+      const fc = firstContactRaw ? new Date(firstContactRaw) : null;
+      const days = ft && fc ? diffDays(ft, fc) : null;
+      return {
+        hasFreetrial: !!ft,
+        hasFirstContact: !!fc,
+        days,
+        bucket: ft ? bucketOfDays(days) : ("Sem contato" as CohortBucket),
+        mrr: Number(r.mrr_generated || 0),
+        converted: !!r.matched_opportunity_id,
+      };
+    });
+    const filtered = onlyWithFreetrial ? items.filter((i) => i.hasFreetrial) : items;
+    const base = filtered.length;
+    const withoutFt = items.length - items.filter((i) => i.hasFreetrial).length;
+    const withContact = filtered.filter((i) => i.hasFirstContact).length;
+    const daysList = filtered.filter((i) => i.days !== null).map((i) => i.days as number).sort((a, b) => a - b);
+    const median = daysList.length ? (daysList.length % 2 === 1 ? daysList[(daysList.length - 1) / 2] : (daysList[daysList.length / 2 - 1] + daysList[daysList.length / 2]) / 2) : null;
+    const hotWindow = filtered.filter((i) => i.days !== null && (i.days as number) <= 3).length;
+
+    const byBucket = new Map<CohortBucket, { count: number; mrr: number; converted: number }>();
+    for (const b of COHORT_BUCKETS) byBucket.set(b, { count: 0, mrr: 0, converted: 0 });
+    for (const it of filtered) {
+      const cur = byBucket.get(it.bucket)!;
+      cur.count += 1;
+      cur.mrr += it.mrr;
+      if (it.converted) cur.converted += 1;
+    }
+    const distribution = COHORT_BUCKETS.map((b) => {
+      const v = byBucket.get(b)!;
+      return { bucket: b, count: v.count, mrr: v.mrr, converted: v.converted, pct: base ? (v.count / base) * 100 : 0 };
+    });
+
+    return { base, withContact, median, hotWindow, distribution, totalRows: items.length, withoutFt };
+  }, [rows, onlyWithFreetrial]);
+
+  if (isLoading) {
+    return <div className="text-muted-foreground p-6">Carregando cohort...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="font-heading font-semibold text-lg">Cohort D+N — Freetrial × Primeira Conversa</h3>
+          <p className="text-xs text-muted-foreground">
+            D0 = mesmo dia da criação do freetrial. {agg.withoutFt} contato(s) sem "Data Freetrial"{onlyWithFreetrial ? " estão excluídos." : "."}
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <Checkbox checked={onlyWithFreetrial} onCheckedChange={(v) => setOnlyWithFreetrial(!!v)} />
+          Apenas contatos com Data Freetrial
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Base considerada</div>
+          <div className="text-2xl font-bold">{agg.base.toLocaleString("pt-BR")}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Com 1ª conversa</div>
+          <div className="text-2xl font-bold">{agg.withContact.toLocaleString("pt-BR")}</div>
+          <div className="text-xs text-muted-foreground">{agg.base ? ((agg.withContact / agg.base) * 100).toFixed(1) : "0"}% da base</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Mediana dias até contato</div>
+          <div className="text-2xl font-bold">{agg.median === null ? "—" : `${agg.median}d`}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="text-xs text-muted-foreground">Janela quente (D0–D3)</div>
+          <div className="text-2xl font-bold">{agg.hotWindow.toLocaleString("pt-BR")}</div>
+          <div className="text-xs text-muted-foreground">{agg.base ? ((agg.hotWindow / agg.base) * 100).toFixed(1) : "0"}% da base</div>
+        </CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Distribuição por bucket</CardTitle></CardHeader>
+        <CardContent>
+          <div className="h-64 w-full mb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={agg.distribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="bucket" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Bucket</TableHead>
+                <TableHead className="text-right">Contatos</TableHead>
+                <TableHead className="text-right">% base</TableHead>
+                <TableHead className="text-right">Convertidos</TableHead>
+                <TableHead className="text-right">MRR</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agg.distribution.map((d) => (
+                <TableRow key={d.bucket}>
+                  <TableCell className="font-medium">{d.bucket}</TableCell>
+                  <TableCell className="text-right">{d.count.toLocaleString("pt-BR")}</TableCell>
+                  <TableCell className="text-right">{d.pct.toFixed(1)}%</TableCell>
+                  <TableCell className="text-right">{d.converted.toLocaleString("pt-BR")}</TableCell>
+                  <TableCell className="text-right">{d.mrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
