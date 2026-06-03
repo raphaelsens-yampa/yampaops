@@ -196,7 +196,7 @@ export function AppSidebar() {
           ? { title: "Meu Pipeline", url: "/", icon: Kanban }
           : { title: "Dashboard", url: "/", icon: BarChart3, area: "dashboard" },
         { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
-        { title: "Relatórios", url: "/reports", icon: FileBarChart },
+        { title: "Metas", url: "/goals", icon: Target, area: "goals" },
         { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart },
       ],
     },
