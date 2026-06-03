@@ -1,68 +1,47 @@
-# Aba "Cohort D+N" — Freetrial × Primeira Conversa
+# Funil de Tags do Chatwoot por Campanha
 
-## Objetivo
-Dar visibilidade de quantos contatos da base tiveram a primeira conversa em D0, D1, D2, D3, D4–D7, D8–D14, D15+ ou "Sem contato", medindo o gap entre a criação do Freetrial e a primeira mensagem registrada no Chatwoot.
+Nova aba **"Funil de Tags"** dentro de cada campanha em Sales Campaigns, com etapas configuráveis baseadas nas labels do Chatwoot. Cada campanha pode ter seu próprio funil (ex.: `msg_mornos` → `duda_respondido_cliente_sales` → `venda_realizada`).
 
-## Dados disponíveis (sem mudar schema)
-- `sales_campaign_contacts.extra->>'Data Freetrial'` — número serial do Excel (ex.: `46142.874...`). Convertido em JS por: `new Date(Math.round((serial - 25569) * 86400 * 1000))`. Aceita também string ISO como fallback.
-- `sales_campaign_contacts.cw_first_contact_at` — já populado pelo match com Chatwoot (`first_contact_message_at`).
-- Fallback: se `cw_first_contact_at` não existir, usar `last_touch_at`.
+## Como funcionará
 
-Nenhuma migração nova — tudo já está na tabela.
+1. Em **Configuração da Campanha** o usuário define uma lista ordenada de etapas. Cada etapa tem:
+   - Nome (ex.: "Mensagem enviada", "Cliente respondeu", "Vendido")
+   - Cor
+   - Conjunto de tags do Chatwoot
+   - Modo de match: **TODAS as tags** ou **QUALQUER tag**
+   - Flag "é conversão" (etapa final)
 
-## Nova aba
-Adicionar `TabsTrigger value="cohort"` em `src/pages/SalesCampaignDetail.tsx`, ao lado de Evolução, com o título **"Cohort D+N"**.
+2. Na aba **Funil de Tags** mostraremos:
+   - Visualização tipo funil (reaproveitando `PipelineFunnel`) com contagem e taxa de conversão entre etapas
+   - Total da base, % atingido por etapa
+   - Lista expandível de contatos em cada etapa
+   - Botão "Atualizar" — usa o mesmo banner global de sync já existente
 
-### Componente `CohortTab`
-Renderiza, para a campanha atual:
-
-1. **Cards de resumo**
-   - Total da base com Data Freetrial válida
-   - % com primeira conversa registrada
-   - Mediana de dias até primeiro contato
-   - % contatados em D0–D3 (janela "quente")
-
-2. **Tabela de distribuição** (linhas = buckets, colunas = qtd, % da base, MRR gerado nesse bucket)
-   ```text
-   Bucket        Contatos   % base   Convertidos   MRR
-   D0            ...        ...      ...           ...
-   D1            ...
-   D2
-   D3
-   D4–D7
-   D8–D14
-   D15+
-   Sem contato
-   ```
-
-3. **Gráfico de barras** (Recharts) com a mesma distribuição para leitura rápida.
-
-4. **Filtro** simples: toggle "Considerar apenas contatos com Data Freetrial preenchida" (default on) — evita poluir o "Sem contato" com linhas sem data de origem.
-
-### Lógica de bucket (client-side, em memória)
-```ts
-function excelToDate(v: unknown): Date | null { /* serial OR ISO */ }
-function bucket(daysDiff: number | null): Bucket {
-  if (daysDiff === null) return "Sem contato";
-  if (daysDiff <= 0) return "D0";
-  if (daysDiff === 1) return "D1";
-  if (daysDiff === 2) return "D2";
-  if (daysDiff === 3) return "D3";
-  if (daysDiff <= 7) return "D4–D7";
-  if (daysDiff <= 14) return "D8–D14";
-  return "D15+";
-}
-```
-- `daysDiff = floor((cw_first_contact_at - dataFreetrial) / 86400000)`.
-- Linhas sem `dataFreetrial` são excluídas (a menos que o usuário desligue o filtro).
-- Linhas com `dataFreetrial` mas sem `cw_first_contact_at` caem em "Sem contato".
+3. O cálculo casa cada contato da campanha (`sales_campaign_contacts`) com as labels presentes em **qualquer** `chatwoot_conversations` do mesmo contato (via email/phone, mesma lógica do `scc_compute_first_contact_for`). Um contato é alocado na **etapa mais avançada** cujo critério de tags é atendido pelo conjunto agregado de labels dele.
 
 ## Detalhes técnicos
-- Reaproveita o array de `contacts` já carregado em `SalesCampaignDetail`. Sem queries novas.
-- `useMemo` para o agregado.
-- Sem alterações em backend, edge functions, migrations ou na aba Evolução.
+
+### Banco
+- Nova coluna `funnel_stages jsonb not null default '[]'` em `sales_campaigns`, formato:
+  ```json
+  [{"id":"uuid","name":"...","color":"#...","tags":["msg_mornos"],"match":"all|any","is_conversion":false,"position":0}]
+  ```
+- Nova função `scc_compute_tag_funnel(p_campaign_id uuid)` SECURITY DEFINER que retorna `(stage_id text, contact_count int, contact_ids uuid[])` agregando contatos da campanha por etapa mais avançada atendida. Reusa joins email/phone + `chatwoot_contacts.additional_emails/phones`.
+- Nova função leve `scc_list_campaign_tags(p_campaign_id uuid)` retornando todas as labels distintas vistas nas conversas dos contatos da campanha (para autocompletar no editor).
+
+### Frontend (`src/pages/SalesCampaignDetail.tsx`)
+- Nova `TabsTrigger value="tag-funnel"` chamada **"Funil de Tags"**.
+- Componente `TagFunnelTab`:
+  - Carrega `campaign.funnel_stages` + chama RPC `scc_compute_tag_funnel`.
+  - Renderiza `PipelineFunnel` com `stageOrder`/`stageLabels` derivados das etapas configuradas (count + 0 em MRR, ou MRR somado na etapa de conversão).
+  - Sub-card "Contatos por etapa" colapsável com tabela paginada.
+- Componente `TagFunnelEditor` em `ConfigTab`:
+  - Lista drag-to-reorder de etapas, com inputs (nome, cor, multi-select de tags vindo de `scc_list_campaign_tags` + free text, toggle all/any, toggle conversão).
+  - Salva via `update sales_campaigns set funnel_stages = ...`.
+
+### Atualização
+- Reaproveita o sync global existente (`CohortSyncContext`). Ao final do refresh, invalida a query `["scc-tag-funnel", id]` para recomputar automaticamente.
 
 ## Fora de escopo
-- Mudar mapeamento de import (continua usando a coluna "Data Freetrial" como está em `extra`).
-- Buckets configuráveis pelo usuário (pode virar follow-up).
-- Cruzar com IA/Humano dentro do mesmo gráfico (pode entrar como segmento depois).
+- Não altera o cálculo do Cohort, Overview ou snapshots existentes.
+- Não cria etapas globais — funil é exclusivo da campanha.
