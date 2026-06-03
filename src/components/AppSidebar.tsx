@@ -189,6 +189,8 @@ export function AppSidebar() {
     {
       key: "overview",
       label: "Visão Geral",
+      collapsible: true,
+      defaultOpen: openOverview,
       items: [
         role === "seller"
           ? { title: "Meu Pipeline", url: "/", icon: Kanban }
@@ -202,6 +204,8 @@ export function AppSidebar() {
     {
       key: "vendas",
       label: "Operações",
+      collapsible: true,
+      defaultOpen: openVendas,
       items: [
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
@@ -229,6 +233,8 @@ export function AppSidebar() {
     {
       key: "comercial",
       label: "Sales",
+      collapsible: true,
+      defaultOpen: openComercial,
       items: [
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
@@ -238,6 +244,8 @@ export function AppSidebar() {
     {
       key: "descontos",
       label: "Estratégia Adquirência",
+      collapsible: true,
+      defaultOpen: openDescontos,
       items: [
         { title: "Visão Geral", url: "/discounts/overview", icon: Percent, managerOnly: true },
         { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase },
