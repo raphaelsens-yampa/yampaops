@@ -43,18 +43,19 @@ function useCampaignTags(campaignId: string) {
   return useQuery({
     queryKey: ["scc-campaign-tags", campaignId],
     queryFn: async () => {
-      const [campaignRes, globalRes] = await Promise.all([
+      const [campaignRes, chatwootRes] = await Promise.all([
         (supabase as any).rpc("scc_list_campaign_tags", { p_campaign_id: campaignId }),
-        (supabase as any).rpc("get_chatwoot_labels"),
+        supabase.functions.invoke("chatwoot-list-labels", { body: {} }),
       ]);
       if (campaignRes.error) throw campaignRes.error;
-      if (globalRes.error) throw globalRes.error;
       const campaignTags = (campaignRes.data ?? []) as { tag: string; usage_count: number }[];
       const seen = new Set(campaignTags.map((t) => t.tag));
-      const globalTags = ((globalRes.data ?? []) as string[])
+      const chatwootLabels = (chatwootRes.data?.labels ?? []) as { title: string }[];
+      const extra = chatwootLabels
+        .map((l) => l.title)
         .filter((t) => t && !seen.has(t))
         .map((t) => ({ tag: t, usage_count: 0 }));
-      return [...campaignTags, ...globalTags];
+      return [...campaignTags, ...extra];
     },
     staleTime: 30_000,
   });
