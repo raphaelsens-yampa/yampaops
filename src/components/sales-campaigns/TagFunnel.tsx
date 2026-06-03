@@ -43,19 +43,31 @@ function useCampaignTags(campaignId: string) {
   return useQuery({
     queryKey: ["scc-campaign-tags", campaignId],
     queryFn: async () => {
-      const [campaignRes, chatwootRes] = await Promise.all([
+      const [campaignRes, chatwootRes] = await Promise.allSettled([
         (supabase as any).rpc("scc_list_campaign_tags", { p_campaign_id: campaignId }),
         supabase.functions.invoke("chatwoot-list-labels", { body: {} }),
       ]);
-      if (campaignRes.error) throw campaignRes.error;
-      const campaignTags = (campaignRes.data ?? []) as { tag: string; usage_count: number }[];
-      const seen = new Set(campaignTags.map((t) => t.tag));
-      const chatwootLabels = (chatwootRes.data?.labels ?? []) as { title: string }[];
-      const extra = chatwootLabels
-        .map((l) => l.title)
-        .filter((t) => t && !seen.has(t))
-        .map((t) => ({ tag: t, usage_count: 0 }));
-      return [...campaignTags, ...extra];
+
+      const campaignTags =
+        campaignRes.status === "fulfilled" && !(campaignRes.value as any).error
+          ? (((campaignRes.value as any).data ?? []) as { tag: string; usage_count: number }[])
+          : [];
+
+      const chatwootLabels =
+        chatwootRes.status === "fulfilled"
+          ? (((chatwootRes.value as any)?.data?.labels ?? []) as { title: string }[])
+          : [];
+
+      if (chatwootRes.status === "rejected" || (chatwootRes.status === "fulfilled" && (chatwootRes.value as any)?.error)) {
+        console.warn("[TagFunnel] chatwoot-list-labels failed", chatwootRes);
+      }
+
+      const map = new Map<string, { tag: string; usage_count: number }>();
+      for (const t of campaignTags) if (t.tag) map.set(t.tag, t);
+      for (const l of chatwootLabels) {
+        if (l?.title && !map.has(l.title)) map.set(l.title, { tag: l.title, usage_count: 0 });
+      }
+      return Array.from(map.values()).sort((a, b) => a.tag.localeCompare(b.tag));
     },
     staleTime: 30_000,
   });
@@ -282,7 +294,7 @@ function TagMultiSelect({
               <CommandInput placeholder="Buscar ou digitar tag..." />
               <CommandList>
                 <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
-                <CommandGroup heading={`Tags vistas (${options.length})`}>
+                <CommandGroup heading={`Tags do Chatwoot (${options.length})`}>
                   {options.map((tag) => {
                     const active = value.includes(tag);
                     return (
