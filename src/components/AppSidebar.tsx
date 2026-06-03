@@ -198,7 +198,6 @@ export function AppSidebar() {
         { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
         { title: "Relatórios", url: "/reports", icon: FileBarChart },
         { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart },
-        { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "dashboard" },
       ],
     },
     {
