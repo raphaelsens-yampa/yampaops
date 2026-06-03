@@ -1878,6 +1878,7 @@ export type Database = {
           campaign_id: string
           company: string | null
           created_at: string
+          cw_first_contact_at: string | null
           email: string | null
           email_norm: string | null
           extra: Json
@@ -1910,6 +1911,7 @@ export type Database = {
           campaign_id: string
           company?: string | null
           created_at?: string
+          cw_first_contact_at?: string | null
           email?: string | null
           email_norm?: string | null
           extra?: Json
@@ -1942,6 +1944,7 @@ export type Database = {
           campaign_id?: string
           company?: string | null
           created_at?: string
+          cw_first_contact_at?: string | null
           email?: string | null
           email_norm?: string | null
           extra?: Json
