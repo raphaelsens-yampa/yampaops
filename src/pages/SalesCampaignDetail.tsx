@@ -1491,10 +1491,34 @@ function CohortTab({ campaign }: { campaign: Campaign }) {
             D0 = mesmo dia da criação do freetrial. {agg.withoutFt} contato(s) sem "Data Freetrial"{onlyWithFreetrial ? " estão excluídos." : "."}
           </p>
         </div>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <Checkbox checked={onlyWithFreetrial} onCheckedChange={(v) => setOnlyWithFreetrial(!!v)} />
-          Apenas contatos com Data Freetrial
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={onlyWithFreetrial} onCheckedChange={(v) => setOnlyWithFreetrial(!!v)} />
+            Apenas contatos com Data Freetrial
+          </label>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={refreshing}
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                const { data, error } = await (supabase as any).rpc("scc_refresh_first_contact", { p_campaign_id: campaign.id });
+                if (error) throw error;
+                await qc.invalidateQueries({ queryKey: ["scc-cohort", campaign.id] });
+                await refetch();
+                toast({ title: "Atualizado", description: `${data ?? 0} contato(s) recalculados a partir do Chatwoot.` });
+              } catch (e: any) {
+                toast({ title: "Erro ao atualizar", description: e?.message || String(e), variant: "destructive" });
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Atualizando..." : "Atualizar"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
