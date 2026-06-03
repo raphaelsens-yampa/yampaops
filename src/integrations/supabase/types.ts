@@ -2502,6 +2502,10 @@ export type Database = {
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
+      scc_compute_first_contact_for: {
+        Args: { p_email: string; p_phone: string }
+        Returns: string
+      }
     }
     Enums: {
       activity_type:
