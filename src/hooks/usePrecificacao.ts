@@ -38,6 +38,15 @@ export function calcIdealMensal(custo: number, meses: number, linhaKey: 'premium
   return (custo / Math.max(meses, 1)) * mk;
 }
 
+export function calcMinMensal(custo: number, meses: number, config: AppConfig): number {
+  const bd = config.base_deductions_for_markup;
+  const totalDed =
+    bd.impostos + bd.comissao + bd.gateway + bd.investimento +
+    bd.comissao_comercial + bd.despesa_fixa + bd.churn;
+  const mk = 1 / (1 - totalDed);
+  return (custo / Math.max(meses, 1)) * mk;
+}
+
 export function calcMC(preco_total: number, custo: number, config: AppConfig) {
   const { impostos, comissao, gateway, churn } = config.deductions;
   const dedRate = impostos + comissao + gateway + churn;
@@ -118,6 +127,14 @@ export function usePrecificacao() {
     localStorage.setItem(STORAGE_KEYS.overrides, JSON.stringify({}));
   }, []);
 
+  const updateLinha = useCallback((nome: string, novaLinha: 'Linha Premium' | 'Linha Gold' | 'Linha Prata') => {
+    setProductsState((prev) => {
+      const updated = prev.map((p) => p.nome === nome ? { ...p, linha: novaLinha } : p);
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return {
     products,
     config,
@@ -125,6 +142,7 @@ export function usePrecificacao() {
     setProducts,
     updateConfig,
     updatePrice,
+    updateLinha,
     saveChanges,
     resetChanges,
   };

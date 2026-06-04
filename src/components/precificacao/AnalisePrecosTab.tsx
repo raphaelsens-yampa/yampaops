@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil } from 'lucide-react';
-import { PrecificacaoHook, calcMC, calcIdealMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
-import { FilterMode } from '@/types/precificacao';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
+import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -23,7 +24,7 @@ const FILTERS: { key: FilterMode; label: string }[] = [
 ];
 
 export default function AnalisePrecosTab({
-  products, config, priceOverrides, updatePrice, saveChanges, resetChanges,
+  products, config, priceOverrides, updatePrice, updateLinha, saveChanges, resetChanges,
 }: PrecificacaoHook) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>('todos');
@@ -167,10 +168,13 @@ export default function AnalisePrecosTab({
                 <TableRow>
                   <TableHead className="w-32">Status</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="w-28">Linha</TableHead>
+                  <TableHead className="w-36">Linha</TableHead>
                   <TableHead className="w-20 text-center">Contrato</TableHead>
                   <TableHead className="w-28 text-right">Custo</TableHead>
+                  <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
+                  <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
                   <TableHead className="w-28 text-right">Preço Ideal/mês</TableHead>
+                  <TableHead className="w-28 text-right">Preço Ideal Total</TableHead>
                   <TableHead className="w-32 text-right">Preço/mês</TableHead>
                   <TableHead className="w-28 text-right">Total</TableHead>
                   <TableHead className="w-44">Margem</TableHead>
@@ -179,7 +183,7 @@ export default function AnalisePrecosTab({
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={12} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -187,7 +191,11 @@ export default function AnalisePrecosTab({
                   filtered.map((p) => {
                     const eff = getEffectivePrice(p, priceOverrides);
                     const { mc, pct } = calcMC(eff.preco_total, p.custo, config);
-                    const ideal = calcIdealMensal(p.custo, p.meses, getLinhaKey(p.linha), config);
+                    const linhaKey = getLinhaKey(p.linha);
+                    const ideal = calcIdealMensal(p.custo, p.meses, linhaKey, config);
+                    const idealTotal = ideal * p.meses;
+                    const minMensal = calcMinMensal(p.custo, p.meses, config);
+                    const minTotal = minMensal * p.meses;
                     const status = statusCheck(p, priceOverrides, config);
                     const changed = priceOverrides[p.nome] !== undefined;
 
@@ -217,20 +225,26 @@ export default function AnalisePrecosTab({
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={
-                              p.linha.includes('Gold') ? 'bg-blue-50 text-blue-700' :
-                              p.linha.includes('Premium') ? 'bg-amber-50 text-amber-700' :
-                              'bg-gray-100 text-gray-600'
-                            }
+                          <Select
+                            value={p.linha}
+                            onValueChange={(v) => updateLinha(p.nome, v as LinhaMarkup)}
                           >
-                            {p.linha.replace('Linha ', '')}
-                          </Badge>
+                            <SelectTrigger className="h-7 text-xs w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Linha Premium">{config.markup.premium.label} ({(config.markup.premium.target_margin*100).toFixed(0)}%)</SelectItem>
+                              <SelectItem value="Linha Gold">{config.markup.gold.label} ({(config.markup.gold.target_margin*100).toFixed(0)}%)</SelectItem>
+                              <SelectItem value="Linha Prata">{config.markup.prata.label} ({(config.markup.prata.target_margin*100).toFixed(0)}%)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-center text-sm text-gray-500">{p.meses}x</TableCell>
                         <TableCell className="text-right text-sm text-gray-500">{fmtBRL(p.custo)}</TableCell>
+                        <TableCell className="text-right text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
+                        <TableCell className="text-right text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
                         <TableCell className="text-right text-sm text-gray-400">{fmtBRL(ideal)}</TableCell>
+                        <TableCell className="text-right text-sm text-gray-400">{fmtBRL(idealTotal)}</TableCell>
                         <TableCell className="text-right">
                           <Input
                             type="number"
