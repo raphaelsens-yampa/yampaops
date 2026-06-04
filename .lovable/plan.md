@@ -1,86 +1,71 @@
-# Pivot da Precificação — foco no time Comercial
+## Objetivo
 
-A página deixa de ser uma "réplica da planilha" e passa a ser uma **ferramenta de montagem e envio de propostas**, escondendo a parte operacional/contábil.
+Adicionar um botão **"Novo Serviço"** no header da Tabela de Serviços (aba Análise de Preços) que abre um Dialog modal com formulário completo, refletindo todas as variáveis que compõem a precificação na planilha.
 
-## Nova estrutura de abas
+## Localização e fluxo
+
+- Botão `+ Novo Serviço` ao lado de Reverter/Salvar, no `CardHeader` de `AnalisePrecosTab.tsx`.
+- Ao clicar, abre `<Dialog>` com o componente novo `NewProductDialog.tsx`.
+- Ao confirmar, o produto é adicionado via `setProducts([novo, ...products])` (já existente no hook), persistindo em `localStorage`.
+
+## Estrutura do formulário
+
+Organizado em 4 blocos visuais, com cálculos em tempo real à direita (preview):
+
+### 1. Identificação
+- **Nome do Serviço** (text, obrigatório, max 200) — validado com zod
+- **Meses de Contrato** (number, 1–60, default 12)
+- **Linha de Markup** (Select com Premium/Gold/Prata vindo de `config.markup`, mostrando a margem alvo de cada uma)
+
+### 2. Custo das horas — Toggle entre dois modos
+
+**Modo Simples (default):**
+- Campo único `Custo total (R$)`
+
+**Modo Detalhado (composição por equipe):**
+- Tabela dinâmica de linhas: `Cargo` (text) · `Horas` (number) · `Valor/hora` (R$) · `Subtotal` (calculado) · botão remover
+- Botão `+ Adicionar item`
+- Total = soma dos subtotais, exibido em destaque e usado como `custo` final
+- A composição detalhada é salva em um novo campo opcional `custo_breakdown` no `Produto` (array), para auditoria/edição futura
+
+Toggle por `RadioGroup` ou `Tabs` no topo do bloco.
+
+### 3. Preço (com sugestão automática)
+- Bloco de preview exibe, calculados a partir de custo + meses + linha + config:
+  - **Preço Mínimo (0% lucro) /mês** e **Total**
+  - **Preço Ideal Sugerido /mês** e **Total** (destacado)
+- Campo `Preço/mês` pré-preenchido com o Preço Ideal Sugerido (atualizado automaticamente sempre que custo, meses ou linha mudam — só sobrescreve se o usuário ainda não editou manualmente)
+- Campo `Preço Total` exibido em readonly (= preço/mês × meses)
+
+### 4. Indicadores em tempo real
+Card lateral (ou rodapé do dialog) com:
+- Margem de Contribuição (R$ e %), com cor verde/amber/vermelha igual à tabela
+- Badge de status: "Preço bom" ou "Abaixo do ideal"
+- Comparação visual entre `Preço definido` vs `Mínimo` vs `Ideal`
+
+## Validações (zod)
 
 ```
-[ Visão Geral ] [ Nova Proposta ] [ Propostas ] [ Catálogo ] [ Markup ] [ Insumos & Subprodutos ] [ Versões ]
+nome: string trim, 1–200
+meses: int 1–60
+linha: enum
+custo: número > 0
+preco_mensal: número >= 0
+custo_breakdown[].horas/valor: > 0 quando modo detalhado
 ```
 
-- **Escondidas do front:** Custos Fixos, Mão de Obra, Capacidade, Cenário de Receita, Cenários de Capacidade.
-  - Continuam existindo no `snapshot` (engine usa para calcular CPM e markup), apenas sem UI. Importação via XLSX continua alimentando esses campos.
-- **Catálogo** = renomeação de "Serviços" (linguagem comercial).
-- **Nova Proposta** vira aba dedicada (hoje está dentro de "Propostas" como dialog).
+Bloqueia confirmação se nome já existir (case-insensitive).
 
-## Nova Visão Geral (focada em vendas)
+## Mudanças técnicas (resumo)
 
-Substitui os cards atuais (despesa fixa, mão de obra, CPM, contagem) por um painel orientado a vender:
+- `src/types/precificacao.ts`: adicionar `custo_breakdown?: { cargo: string; horas: number; valor_hora: number }[]` em `Produto`
+- `src/hooks/usePrecificacao.ts`: adicionar `addProduct(novo: Produto)` que faz `setProducts([novo, ...prev])`
+- `src/components/precificacao/NewProductDialog.tsx`: **novo** — formulário completo com zod, react-hook-form, preview ao vivo
+- `src/components/precificacao/AnalisePrecosTab.tsx`: botão `+ Novo Serviço` no header + integração do dialog
 
-1. **Cards de topo:**
-   - Versão ativa + data
-   - Nº de produtos/serviços no catálogo
-   - Propostas no mês (total / aceitas / valor)
-   - Ticket médio das últimas propostas
+Nenhuma alteração de banco — tudo permanece em `localStorage` (consistente com o hook atual).
 
-2. **Catálogo rápido:**
-   - Tabela enxuta com Nome, Linha (Premium/Gold/Prata), Prazo, Preço sugerido (ideal), Preço praticado, status (badge).
-   - Botão "Adicionar à proposta" por linha → abre o builder com o item já incluído.
+## Trade-offs
 
-3. **Últimas propostas:** lista das 5 mais recentes com cliente, valor, status e link para abrir/baixar PDF.
-
-4. **Atenção comercial:** apenas serviços com `status = prejuizo` (sem expor lógica de markup interna — texto tipo "preço abaixo do custo, revisar antes de propor").
-
-## Nova Proposta (aba dedicada, multi-passos numa única tela)
-
-Layout em duas colunas:
-
-**Esquerda — Builder:**
-- Dados do cliente (nome, doc, email, telefone) + oportunidade vinculada (opcional)
-- Catálogo selecionável: busca por nome, filtros por linha e prazo, botão "+" para adicionar
-- Itens adicionados: editar **quantidade**, **preço praticado** (override por item, com aviso visual se ficar abaixo do ideal), **prazo**, **observação**
-- Desconto global (% ou R$), validade, condições de pagamento, resumo executivo
-
-**Direita — Pré-visualização ao vivo:**
-- Totais (mensal e total contrato), economia do desconto, MRR estimado
-- Por item: subtotal, indicador "ok / abaixo do ideal / prejuízo" (sem expor markup cru)
-- Botões: **Salvar rascunho**, **Gerar PDF**, **Enviar ao cliente** (mantém função `pricing-proposal-pdf` existente)
-
-## Propostas (lista)
-
-Tabela com filtros (status, cliente, período), ações: ver, duplicar, baixar PDF, marcar aceita/recusada. Sem mudanças no schema da tabela `pricing_proposals`.
-
-## Markup / Insumos & Subprodutos / Versões
-
-Mantidos como estão hoje (apenas para `canEditPricing`). Markup volta a usar `fixed_expense_pct` manual (a UI de "auto" depende do card de Receita que estamos removendo — fica como valor estático editável, fiel ao que vem da planilha importada).
-
-## Permissões
-
-- `canEditPricing` → vê tudo (Markup, Insumos, Catálogo edição, Versões).
-- Vendedor (sem edit) → vê **Visão Geral**, **Nova Proposta**, **Propostas**, **Catálogo** (somente leitura).
-
----
-
-## Detalhes técnicos
-
-**Arquivos a alterar:**
-- `src/pages/Pricing.tsx` — remover abas Custos Fixos / Mão de Obra / Capacidade, adicionar "Nova Proposta" e "Catálogo", ajustar permissões.
-- `src/components/pricing/PricingOverview.tsx` — reescrever do zero com os 4 blocos acima. Remover `RevenueScenarioCard`.
-- `src/components/pricing/MarkupEditor.tsx` — voltar `fixed_expense_pct` a campo simples editável (remover dependência de `revenue.auto_fixed_expense`).
-- `src/components/pricing/ProposalsManager.tsx` — split em dois: `ProposalBuilder.tsx` (aba Nova Proposta, layout 2 colunas, com override de preço por item) e `ProposalsList.tsx` (lista). Reaproveita queries e mutations atuais.
-- `src/components/pricing/ServicesEditor.tsx` — reusado como "Catálogo" com flag `readOnly` para vendedores.
-
-**Arquivos a remover do fluxo (mantém o arquivo, só desplugar):**
-- `RevenueScenarioCard.tsx`, `CapacityScenarios.tsx`, `CapacityEditor.tsx`, `CostListEditor.tsx` — não importados na page, mas mantidos no repo caso queiramos rehabilitar.
-
-**Engine (`src/lib/pricing/engine.ts`):** sem mudança estrutural. `RevenueScenario` continua opcional no snapshot — engine só usa se `auto_fixed_expense=true`, então fica inerte sem UI.
-
-**Schema do banco:** nenhuma migração. `pricing_proposals` já suporta itens, desconto, validade, termos.
-
----
-
-## Pontos a confirmar
-
-1. **Override de preço na proposta:** vendedor pode digitar preço diferente do "praticado" do catálogo? (proposto: sim, com aviso visual se < ideal e bloqueio se < custo).
-2. **Catálogo somente leitura para vendedor:** ok ou vendedor também pode marcar/desmarcar serviços como "ativos para venda"?
-3. **"Atenção comercial" na Visão Geral:** mostro só `status=prejuizo` ou também `abaixo_ideal`?
+- O modo detalhado adiciona ~30% de complexidade no componente, mas é a única forma de manter paridade com a planilha original (que decompõe o custo por horas de equipe).
+- Sugerir o Preço Ideal automaticamente reduz erros, mas o usuário sempre pode sobrescrever — o preview de mínimo/ideal continua visível como guarda-corpo.
