@@ -146,8 +146,9 @@ export default function PricingPage() {
                 <TabsContent value="labor" className="mt-4">
                   <CostListEditor title="Mão de Obra Direta" field="labor_costs" snap={editor.snap} update={editor.update} />
                 </TabsContent>
-                <TabsContent value="capacity" className="mt-4">
+                <TabsContent value="capacity" className="mt-4 space-y-6">
                   <CapacityEditor snap={editor.snap} update={editor.update} />
+                  <CapacityScenarios snap={editor.snap} />
                 </TabsContent>
                 <TabsContent value="markup" className="mt-4">
                   <MarkupEditor snap={editor.snap} update={editor.update} />
