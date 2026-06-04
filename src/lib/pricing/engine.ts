@@ -223,6 +223,12 @@ export const emptySnapshot = (): PricingSnapshot => ({
   inputs: [],
   subproducts: [],
   services: [],
+  revenue: {
+    forecasted_monthly: 75000,
+    actual_monthly: 43526.1,
+    mode: "forecast",
+    auto_fixed_expense: false,
+  },
 });
 
 export function newId(prefix: string): string {
