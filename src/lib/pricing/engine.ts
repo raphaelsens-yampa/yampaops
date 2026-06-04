@@ -183,3 +183,119 @@ export const emptySnapshot = (): PricingSnapshot => ({
 export function newId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
+
+/**
+ * Memoized calculation context for a snapshot.
+ * Computes cost-per-minute, input costs and subproduct costs ONCE per snap,
+ * instead of recomputing inside every recipeRefCost/serviceCalc call.
+ */
+export interface PricingCtx {
+  snap: PricingSnapshot;
+  fixed: number;
+  cpm: number;
+  inputCost: (id: string) => number;
+  subproductCost: (id: string) => number;
+  recipeRefCost: (ref: RecipeRef) => number;
+  serviceCost: (svc: Service) => number;
+  serviceCalc: (svc: Service) => ServiceCalc;
+}
+
+export function createPricingCtx(snap: PricingSnapshot): PricingCtx {
+  const fixed = totalFixedCost(snap);
+  const c = snap.capacity;
+  const totalMinutes =
+    c.people * c.hours_per_day * 60 * c.work_days * c.productivity_pct;
+  const cpm = totalMinutes ? (fixed * 12) / totalMinutes : 0;
+
+  const inputCostMap = new Map<string, number>();
+  for (const i of snap.inputs) {
+    inputCostMap.set(i.id, (Number(i.minutes) || 0) * cpm);
+  }
+
+  const subCostMap = new Map<string, number>();
+  const visiting = new Set<string>();
+  const subById = new Map(snap.subproducts.map((s) => [s.id, s]));
+
+  const inputCost = (id: string) => inputCostMap.get(id) ?? 0;
+
+  const subproductCost = (id: string): number => {
+    const cached = subCostMap.get(id);
+    if (cached !== undefined) return cached;
+    if (visiting.has(id)) return 0; // cycle guard
+    const sub = subById.get(id);
+    if (!sub) return 0;
+    visiting.add(id);
+    let total = 0;
+    if (sub.items && sub.items.length > 0) {
+      for (const it of sub.items) total += refCost(it);
+    } else {
+      total = sub.cached_cost ?? 0;
+    }
+    visiting.delete(id);
+    subCostMap.set(id, total);
+    return total;
+  };
+
+  const refCost = (ref: RecipeRef): number => {
+    const qty = Number(ref.qty) || 0;
+    if (!qty) return 0;
+    if (ref.kind === "input") return qty * inputCost(ref.ref);
+    return qty * subproductCost(ref.ref);
+  };
+
+  // Pre-warm subproducts so later service calcs are O(1) per ref.
+  for (const sp of snap.subproducts) subproductCost(sp.id);
+
+  const serviceCost = (svc: Service): number =>
+    svc.recipe.reduce((s, r) => s + refCost(r), 0);
+
+  const markupCache = new Map<MarkupLineKey, number>();
+  const getMarkup = (k: MarkupLineKey): number => {
+    const c = markupCache.get(k);
+    if (c !== undefined) return c;
+    const m = markupRate(snap.markup_lines[k]);
+    markupCache.set(k, m);
+    return m;
+  };
+
+  const calc = (svc: Service): ServiceCalc => {
+    const months = Math.max(1, svc.contract_months);
+    const cost = serviceCost(svc);
+    const mk = getMarkup(svc.line);
+    const ideal = cost * mk;
+    const practiced = svc.practiced_price;
+    const margin_value = (practiced - cost) / months;
+    const margin_pct = practiced > 0 ? (practiced - cost) / practiced : 0;
+    const delta = ideal > 0 ? (practiced - ideal) / ideal : 0;
+    let status: ServiceCalc["status"];
+    if (practiced < cost) status = "prejuizo";
+    else if (delta < -0.05) status = "abaixo_ideal";
+    else if (delta > 0.1) status = "acima_ideal";
+    else status = "preco_bom";
+    return {
+      cost_total: cost,
+      cost_monthly: cost / months,
+      practiced_total: practiced,
+      practiced_monthly: practiced / months,
+      markup: mk,
+      ideal_price_total: ideal,
+      ideal_price_monthly: ideal / months,
+      margin_value,
+      margin_pct,
+      delta_vs_ideal_pct: delta,
+      status,
+    };
+  };
+
+  return {
+    snap,
+    fixed,
+    cpm,
+    inputCost,
+    subproductCost,
+    recipeRefCost: refCost,
+    serviceCost,
+    serviceCalc: calc,
+  };
+}
+
