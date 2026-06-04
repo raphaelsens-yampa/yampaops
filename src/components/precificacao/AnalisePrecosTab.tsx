@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil } from 'lucide-react';
-import { PrecificacaoHook, calcMC, calcIdealMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
-import { FilterMode } from '@/types/precificacao';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
+import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
