@@ -168,10 +168,13 @@ export default function AnalisePrecosTab({
                 <TableRow>
                   <TableHead className="w-32">Status</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="w-28">Linha</TableHead>
+                  <TableHead className="w-36">Linha</TableHead>
                   <TableHead className="w-20 text-center">Contrato</TableHead>
                   <TableHead className="w-28 text-right">Custo</TableHead>
+                  <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
+                  <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
                   <TableHead className="w-28 text-right">Preço Ideal/mês</TableHead>
+                  <TableHead className="w-28 text-right">Preço Ideal Total</TableHead>
                   <TableHead className="w-32 text-right">Preço/mês</TableHead>
                   <TableHead className="w-28 text-right">Total</TableHead>
                   <TableHead className="w-44">Margem</TableHead>
