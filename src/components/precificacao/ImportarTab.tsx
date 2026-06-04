@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Upload, CheckCircle, XCircle, FileSpreadsheet } from 'lucide-react';
 import { PrecificacaoHook } from '@/hooks/usePrecificacao';
 import { Produto, LinhaMarkup } from '@/types/precificacao';
+import { recordPricingVersion } from '@/lib/pricingVersions';
+import VersionHistory from './VersionHistory';
 import * as XLSX from 'xlsx';
 
 type UploadStatus = 'idle' | 'processing' | 'success' | 'error';
 
-export default function ImportarTab({ setProducts }: PrecificacaoHook) {
+export default function ImportarTab(hook: PrecificacaoHook) {
+  const { setProducts, config } = hook;
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [message, setMessage] = useState('');
   const [count, setCount] = useState(0);
