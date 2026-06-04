@@ -57,6 +57,40 @@ export function markupRate(l: MarkupLine): number {
   return 1 / denom;
 }
 
+/**
+ * Base de faturamento mensal a usar para derivar a despesa fixa %.
+ * Espelha a planilha: muda conforme o cenário (previsto vs. real).
+ */
+export function revenueBaseMonthly(snap: PricingSnapshot): number {
+  const r = snap.revenue;
+  if (!r) return 0;
+  return r.mode === "actual" ? r.actual_monthly : r.forecasted_monthly;
+}
+
+/** % despesa fixa derivado: despesa fixa mensal / faturamento mensal. */
+export function derivedFixedExpensePct(snap: PricingSnapshot): number {
+  const base = revenueBaseMonthly(snap);
+  if (!base) return 0;
+  return totalFixedCost(snap) / base;
+}
+
+/**
+ * Linha de markup "efetiva" — se `revenue.auto_fixed_expense` estiver ligado,
+ * sobrescreve `fixed_expense_pct` pelo valor derivado do faturamento atual.
+ */
+export function effectiveLine(snap: PricingSnapshot, l: MarkupLine): MarkupLine {
+  if (snap.revenue?.auto_fixed_expense) {
+    return { ...l, fixed_expense_pct: derivedFixedExpensePct(snap) };
+  }
+  return l;
+}
+
+/** Markup efetivo (já considera o cenário de receita). */
+export function effectiveMarkupRate(snap: PricingSnapshot, l: MarkupLine): number {
+  return markupRate(effectiveLine(snap, l));
+}
+
+
 /** Custo de um insumo individual (em R$) */
 export function inputCost(snap: PricingSnapshot, inputId: string): number {
   const i = snap.inputs.find((x) => x.id === inputId);
@@ -103,7 +137,7 @@ export function serviceCalc(snap: PricingSnapshot, svc: Service): ServiceCalc {
   const months = Math.max(1, svc.contract_months);
   const cost = serviceCost(snap, svc);
   const ml = snap.markup_lines[svc.line];
-  const mk = markupRate(ml);
+  const mk = effectiveMarkupRate(snap, ml);
   const ideal = cost * mk;
   const practiced = svc.practiced_price;
   const margin_value = (practiced - cost) / months;
@@ -189,6 +223,12 @@ export const emptySnapshot = (): PricingSnapshot => ({
   inputs: [],
   subproducts: [],
   services: [],
+  revenue: {
+    forecasted_monthly: 75000,
+    actual_monthly: 43526.1,
+    mode: "forecast",
+    auto_fixed_expense: false,
+  },
 });
 
 export function newId(prefix: string): string {
@@ -267,7 +307,7 @@ export function createPricingCtx(snap: PricingSnapshot): PricingCtx {
   const getMarkup = (k: MarkupLineKey): number => {
     const c = markupCache.get(k);
     if (c !== undefined) return c;
-    const m = markupRate(snap.markup_lines[k]);
+    const m = effectiveMarkupRate(snap, snap.markup_lines[k]);
     markupCache.set(k, m);
     return m;
   };

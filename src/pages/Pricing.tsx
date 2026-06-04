@@ -13,6 +13,7 @@ import { MarkupEditor } from "@/components/pricing/MarkupEditor";
 import { InputsEditor } from "@/components/pricing/InputsEditor";
 import { ServicesEditor } from "@/components/pricing/ServicesEditor";
 import { VersionsManager } from "@/components/pricing/VersionsManager";
+import { CapacityScenarios } from "@/components/pricing/CapacityScenarios";
 import { ProposalsManager } from "@/components/pricing/ProposalsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -138,15 +139,16 @@ export default function PricingPage() {
 
             {canEditPricing && (
               <>
-                <TabsContent value="overview" className="mt-4"><PricingOverview snap={editor.snap} /></TabsContent>
+                <TabsContent value="overview" className="mt-4"><PricingOverview snap={editor.snap} update={editor.update} /></TabsContent>
                 <TabsContent value="fixed" className="mt-4">
                   <CostListEditor title="Custos Fixos Mensais" field="fixed_costs" snap={editor.snap} update={editor.update} />
                 </TabsContent>
                 <TabsContent value="labor" className="mt-4">
                   <CostListEditor title="Mão de Obra Direta" field="labor_costs" snap={editor.snap} update={editor.update} />
                 </TabsContent>
-                <TabsContent value="capacity" className="mt-4">
+                <TabsContent value="capacity" className="mt-4 space-y-6">
                   <CapacityEditor snap={editor.snap} update={editor.update} />
+                  <CapacityScenarios snap={editor.snap} />
                 </TabsContent>
                 <TabsContent value="markup" className="mt-4">
                   <MarkupEditor snap={editor.snap} update={editor.update} />
