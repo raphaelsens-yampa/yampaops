@@ -137,7 +137,7 @@ export function serviceCalc(snap: PricingSnapshot, svc: Service): ServiceCalc {
   const months = Math.max(1, svc.contract_months);
   const cost = serviceCost(snap, svc);
   const ml = snap.markup_lines[svc.line];
-  const mk = markupRate(ml);
+  const mk = effectiveMarkupRate(snap, ml);
   const ideal = cost * mk;
   const practiced = svc.practiced_price;
   const margin_value = (practiced - cost) / months;
