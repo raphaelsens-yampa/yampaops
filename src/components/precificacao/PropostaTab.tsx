@@ -6,11 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Save } from 'lucide-react';
+import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Save, Layers, History, GitBranch, Check } from 'lucide-react';
 import { PrecificacaoHook, getEffectivePrice } from '@/hooks/usePrecificacao';
 import { PropostaForm } from '@/types/precificacao';
 import { usePrecificacaoProposals, SavedProposal } from '@/hooks/usePrecificacaoProposals';
 import SavedProposalsList from './SavedProposalsList';
+import { useProposalTemplates, ProposalTemplate } from '@/hooks/useProposalTemplates';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge as UiBadge } from '@/components/ui/badge';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
