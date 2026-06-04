@@ -41,6 +41,7 @@ import AgentActivity from "./pages/AgentActivity";
 import DiscountOverview from "./pages/discounts/Overview";
 import DiscountPortfolio from "./pages/discounts/Portfolio";
 import DiscountRules from "./pages/discounts/Rules";
+import Precificacao from "./pages/Precificacao";
 
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
@@ -113,7 +114,7 @@ function AppRoutes() {
       <Route path="/discounts/overview" element={<DiscountOverview />} />
       <Route path="/discounts/portfolio" element={<DiscountPortfolio />} />
       <Route path="/discounts/rules" element={<DiscountRules />} />
-      
+      <Route path="/precificacao" element={<Precificacao />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
