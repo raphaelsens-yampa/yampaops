@@ -1,5 +1,6 @@
 import { BarChart2, FileText, Settings, Upload } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Layout } from '@/components/Layout';
 import { usePrecificacao } from '@/hooks/usePrecificacao';
 import AnalisePrecosTab from '@/components/precificacao/AnalisePrecosTab';
 import PropostaTab from '@/components/precificacao/PropostaTab';
