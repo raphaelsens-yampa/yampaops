@@ -332,7 +332,7 @@ export default function AnalisePrecosTab({
         onOpenChange={setNewOpen}
         config={config}
         existingNames={products.map((p) => p.nome)}
-        onCreate={addProduct}
+        onCreate={handleAddProduct}
       />
     </div>
   );
