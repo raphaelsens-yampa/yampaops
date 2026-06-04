@@ -91,6 +91,16 @@ export default function ImportarTab(hook: PrecificacaoHook) {
         setCount(newProducts.length);
         setStatus('success');
         setMessage(`${newProducts.length} produtos importados da aba "${sheetName}".`);
+
+        recordPricingVersion({
+          source: 'import',
+          change_type: 'import_xlsx',
+          name: `Importação: ${file.name}`,
+          description: `${newProducts.length} produtos importados da aba "${sheetName}".`,
+          file_name: file.name,
+          snapshot: { products: newProducts, config },
+          setActive: true,
+        }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
       } catch (err) {
         setStatus('error');
         setMessage(err instanceof Error ? err.message : 'Erro ao processar o arquivo.');
