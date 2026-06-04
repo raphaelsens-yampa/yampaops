@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
-import { costPerMinute, fmtBRL, inputCost, newId, subproductCost } from "@/lib/pricing/engine";
+import { createPricingCtx, fmtBRL, newId } from "@/lib/pricing/engine";
 import type { PricingSnapshot } from "@/lib/pricing/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -13,7 +14,8 @@ interface Props {
 }
 
 export function InputsEditor({ snap, update }: Props) {
-  const cpm = costPerMinute(snap);
+  const ctx = useMemo(() => createPricingCtx(snap), [snap]);
+  const cpm = ctx.cpm;
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <Card>
