@@ -13,6 +13,7 @@ import { MarkupEditor } from "@/components/pricing/MarkupEditor";
 import { InputsEditor } from "@/components/pricing/InputsEditor";
 import { ServicesEditor } from "@/components/pricing/ServicesEditor";
 import { VersionsManager } from "@/components/pricing/VersionsManager";
+import { CapacityScenarios } from "@/components/pricing/CapacityScenarios";
 import { ProposalsManager } from "@/components/pricing/ProposalsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
