@@ -32,7 +32,7 @@ const BASE_DEDUCTIONS = [
   { key: 'churn'             as const, label: 'Churn' },
 ];
 
-export default function ConfiguracoesTab({ config, updateConfig }: PrecificacaoHook) {
+export default function ConfiguracoesTab({ config, updateConfig, products }: PrecificacaoHook) {
   const [draft, setDraft] = useState<AppConfig>(() => JSON.parse(JSON.stringify(config)));
   const [saved, setSaved] = useState(false);
 
