@@ -55,9 +55,28 @@ export function calcMC(preco_total: number, custo: number, config: AppConfig) {
   return { mc, pct };
 }
 
-export function calcLucroProjetado(preco_total: number, custo: number) {
+/**
+ * Lucro Projetado por Produto (coluna Y da planilha "Análise de Preços").
+ *
+ * Fórmula da planilha:
+ *   Y = (Preço Praticado Total − CUSTO UNITÁRIO TOTAL) / Preço Praticado Total
+ *
+ * Onde:
+ *   CUSTO UNITÁRIO TOTAL (M) = CVu TOTAL (K) + CF Unitário (L)
+ *   CVu TOTAL (K)            = CV S/ Venda (J) + Custo das horas
+ *   CV S/ Venda (J)          = (Impostos + Comissão + Gateway + Churn) × Preço Total
+ *   CF Unitário (L)          = Despesa Fixa (Markup!C13) × Preço Total
+ *
+ * Importante: a planilha NÃO inclui Investimento nem Comissão Comercial Média
+ * no cálculo de CV s/ Venda — apenas as 4 deduções acima + a despesa fixa.
+ */
+export function calcLucroProjetado(preco_total: number, custo: number, config: AppConfig) {
   if (preco_total <= 0) return 0;
-  return (preco_total - custo) / preco_total;
+  const bd = config.base_deductions_for_markup;
+  const cvRate = bd.impostos + bd.comissao + bd.gateway + bd.churn;
+  const cfRate = bd.despesa_fixa;
+  const custoUnitarioTotal = (cvRate + cfRate) * preco_total + custo;
+  return (preco_total - custoUnitarioTotal) / preco_total;
 }
 
 export function getEffectivePrice(p: Produto, overrides: Record<string, number>) {
