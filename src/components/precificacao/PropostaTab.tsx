@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon } from 'lucide-react';
+import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Save } from 'lucide-react';
 import { PrecificacaoHook, getEffectivePrice } from '@/hooks/usePrecificacao';
 import { PropostaForm } from '@/types/precificacao';
+import { usePrecificacaoProposals, SavedProposal } from '@/hooks/usePrecificacaoProposals';
+import SavedProposalsList from './SavedProposalsList';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
