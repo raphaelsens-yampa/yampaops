@@ -382,15 +382,27 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => { setSelected(new Set()); setForm((f) => ({ ...f, clientName: '', clientCompany: '', discount: 0, notes: '' })); }}>
+        {parent && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 flex items-center justify-between">
+            <span>Criando <strong>nova versão</strong> da proposta de {parent.client_name} (v{parent.version} → v{parent.version + 1})</span>
+            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setParent(null)}>Cancelar</Button>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => { setParent(null); setSelected(new Set()); setForm((f) => ({ ...f, clientName: '', clientCompany: '', discount: 0, notes: '' })); }}>
             <X className="h-3.5 w-3.5 mr-1.5" /> Limpar
           </Button>
-          <Button onClick={handlePrint} className="bg-green-600 hover:bg-green-700">
-            <Printer className="h-3.5 w-3.5 mr-1.5" /> Imprimir / Salvar PDF
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="h-3.5 w-3.5 mr-1.5" /> Imprimir / PDF
+          </Button>
+          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+            <Save className="h-3.5 w-3.5 mr-1.5" /> {parent ? 'Salvar Nova Versão' : 'Salvar Proposta'}
           </Button>
         </div>
       </div>
+
+
 
       {/* Preview column */}
       <div>
