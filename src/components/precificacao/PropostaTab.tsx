@@ -211,11 +211,91 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
       {/* Form column */}
       <div className="space-y-4 no-print">
-        {/* Branding / Logo */}
+        {/* Branding / Logo + Templates */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Identidade Visual</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm">Identidade Visual</CardTitle>
+              <div className="flex items-center gap-1.5">
+                {activeTemplate && (
+                  <UiBadge variant="outline" className="text-[10px]">
+                    {activeTemplate.name} · v{activeTemplate.version}
+                  </UiBadge>
+                )}
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setHistoryOpen(true)}>
+                  <History className="h-3.5 w-3.5 mr-1" /> Histórico
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Template picker */}
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" /> Template</Label>
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  value={activeTemplate?.id ?? ''}
+                  onValueChange={(id) => {
+                    const t = templatesHook.templates.find((x) => x.id === id);
+                    if (!t) return;
+                    setActiveTemplate(t);
+                    setLogo(t.logo ?? null);
+                    setBlocks(t.custom_blocks ?? []);
+                  }}
+                >
+                  <SelectTrigger className="h-9 flex-1 min-w-[200px]">
+                    <SelectValue placeholder={templatesHook.loading ? 'Carregando...' : 'Selecionar template salvo'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templatesHook.templates.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-gray-400">Nenhum template salvo</div>
+                    ) : (
+                      templatesHook.templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} · v{t.version}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSaveAsNew(true);
+                    setTplName('');
+                    setTplDesc('');
+                    setSaveTplOpen(true);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Novo template
+                </Button>
+                {activeTemplate && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSaveAsNew(false);
+                      setTplName(activeTemplate.name);
+                      setTplDesc(activeTemplate.description ?? '');
+                      setSaveTplOpen(true);
+                    }}
+                  >
+                    <GitBranch className="h-3.5 w-3.5 mr-1.5" /> Salvar nova versão
+                  </Button>
+                )}
+                {activeTemplate && (
+                  <Button size="sm" variant="ghost" onClick={() => setActiveTemplate(null)}>
+                    <X className="h-3.5 w-3.5 mr-1.5" /> Desvincular
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Templates reúnem logo + blocos customizáveis. Edite e salve uma nova versão para manter o histórico.
+              </p>
+            </div>
+
+            {/* Logo */}
+            <div className="flex items-center gap-4 pt-2 border-t">
               <div className="w-24 h-24 rounded-md border border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden flex-shrink-0">
                 {logo ? (
                   <img src={logo} alt="Logo" className="w-full h-full object-contain" />
