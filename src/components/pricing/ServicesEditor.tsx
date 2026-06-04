@@ -162,6 +162,7 @@ interface RowProps {
   onPatch: (id: string, p: Partial<Service>) => void;
   onRemove: (id: string) => void;
   lineKeys: MarkupLineKey[];
+  readOnly?: boolean;
 }
 
 const ServiceRow = memo(function ServiceRow({
@@ -174,6 +175,7 @@ const ServiceRow = memo(function ServiceRow({
   onPatch,
   onRemove,
   lineKeys,
+  readOnly = false,
 }: RowProps) {
   const c = ctx.serviceCalc(svc);
   return (
@@ -187,12 +189,14 @@ const ServiceRow = memo(function ServiceRow({
         <TableCell>
           <Input
             value={svc.name}
+            disabled={readOnly}
             onChange={(e) => onPatch(svc.id, { name: e.target.value })}
           />
         </TableCell>
         <TableCell>
           <Select
             value={svc.line}
+            disabled={readOnly}
             onValueChange={(v) => onPatch(svc.id, { line: v as MarkupLineKey })}
           >
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -206,6 +210,7 @@ const ServiceRow = memo(function ServiceRow({
         <TableCell>
           <Input
             type="number"
+            disabled={readOnly}
             value={svc.contract_months}
             onChange={(e) => onPatch(svc.id, { contract_months: Number(e.target.value) })}
           />
@@ -215,6 +220,7 @@ const ServiceRow = memo(function ServiceRow({
             type="number"
             step="0.01"
             className="text-right"
+            disabled={readOnly}
             value={svc.practiced_price}
             onChange={(e) => onPatch(svc.id, { practiced_price: Number(e.target.value) })}
           />
@@ -227,15 +233,17 @@ const ServiceRow = memo(function ServiceRow({
           <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
         </TableCell>
         <TableCell>
-          <Button variant="ghost" size="icon" onClick={() => onRemove(svc.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {!readOnly && (
+            <Button variant="ghost" size="icon" onClick={() => onRemove(svc.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </TableCell>
       </TableRow>
       {isOpen && (
         <TableRow>
           <TableCell colSpan={11} className="bg-muted/30">
-            <RecipeEditor snap={snap} ctx={ctx} update={update} svc={svc} onPatch={onPatch} />
+            <RecipeEditor snap={snap} ctx={ctx} update={update} svc={svc} onPatch={onPatch} readOnly={readOnly} />
           </TableCell>
         </TableRow>
       )}
