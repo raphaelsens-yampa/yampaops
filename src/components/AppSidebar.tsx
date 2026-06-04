@@ -170,7 +170,7 @@ const NAV_ACTIVE = "bg-sidebar-accent text-sidebar-primary font-medium border-l-
 const NAV_BASE = "hover:bg-sidebar-accent/50 border-l-2 border-transparent";
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const { role, profile, signOut, canView, canViewSection, accessLevelName } = useAuth();
   const { theme, toggle } = useTheme();
