@@ -15,6 +15,7 @@ export function PricingOverview({ snap }: { snap: PricingSnapshot }) {
   const ctx = useMemo(() => createPricingCtx(snap), [snap]);
   const cpm = ctx.cpm;
   const fixed = ctx.fixed;
+  const labor = ctx.labor;
   const calcs = useMemo(
     () => snap.services.map((s) => ({ svc: s, c: ctx.serviceCalc(s) })),
     [snap.services, ctx],
@@ -30,24 +31,27 @@ export function PricingOverview({ snap }: { snap: PricingSnapshot }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Custo fixo mensal</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Despesa fixa mensal</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fmtBRL(fixed)}</div>
-            <p className="text-xs text-muted-foreground">{snap.fixed_costs.length + snap.labor_costs.length} linhas</p>
+            <p className="text-xs text-muted-foreground">
+              {snap.fixed_costs.length} linhas · usada no markup
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Custo por minuto produtivo</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Mão de obra direta / mês</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fmtBRL(cpm)}</div>
+            <div className="text-2xl font-bold">{fmtBRL(labor)}</div>
             <p className="text-xs text-muted-foreground">
-              {fmtNum(snap.capacity.people, 1)} pessoas · {snap.capacity.hours_per_day}h/dia
+              CPM produtivo: <span className="font-medium">{fmtBRL(cpm)}</span>
             </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Serviços cadastrados</CardTitle>
