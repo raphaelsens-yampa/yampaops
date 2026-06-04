@@ -195,6 +195,7 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
   );
 
   return (
+    <div className="space-y-6">
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
       {/* Form column */}
       <div className="space-y-4 no-print">
