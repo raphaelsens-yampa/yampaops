@@ -254,40 +254,44 @@ const ServiceRow = memo(function ServiceRow({
 function RecipeEditor({
   snap,
   ctx,
-  update,
   svc,
   onPatch,
+  readOnly = false,
 }: {
   snap: PricingSnapshot;
   ctx: PricingCtx;
   update: Props["update"];
   svc: Service;
   onPatch: (id: string, p: Partial<Service>) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="p-3 space-y-2">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">Ficha técnica: {svc.name}</h4>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            onPatch(svc.id, {
-              recipe: [
-                ...svc.recipe,
-                { kind: "input", ref: snap.inputs[0]?.id ?? "", qty: 1 },
-              ],
-            })
-          }
-        >
-          <Plus className="h-3 w-3 mr-1" /> Item
-        </Button>
+        {!readOnly && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              onPatch(svc.id, {
+                recipe: [
+                  ...svc.recipe,
+                  { kind: "input", ref: snap.inputs[0]?.id ?? "", qty: 1 },
+                ],
+              })
+            }
+          >
+            <Plus className="h-3 w-3 mr-1" /> Item
+          </Button>
+        )}
       </div>
       <div className="space-y-1">
         {svc.recipe.map((r, idx) => (
           <div key={idx} className="flex gap-2 items-center">
             <Select
               value={`${r.kind}:${r.ref}`}
+              disabled={readOnly}
               onValueChange={(v) => {
                 const [kind, ref] = v.split(":") as ["input" | "subproduct", string];
                 onPatch(svc.id, {
@@ -308,6 +312,7 @@ function RecipeEditor({
             <Input
               type="number"
               className="w-20"
+              disabled={readOnly}
               value={r.qty}
               onChange={(e) =>
                 onPatch(svc.id, {
@@ -316,17 +321,19 @@ function RecipeEditor({
               }
             />
             <span className="text-sm font-medium w-28 text-right">{fmtBRL(ctx.recipeRefCost(r))}</span>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() =>
-                onPatch(svc.id, {
-                  recipe: svc.recipe.filter((_, i) => i !== idx),
-                })
-              }
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {!readOnly && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() =>
+                  onPatch(svc.id, {
+                    recipe: svc.recipe.filter((_, i) => i !== idx),
+                  })
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ))}
         {svc.recipe.length === 0 && (
