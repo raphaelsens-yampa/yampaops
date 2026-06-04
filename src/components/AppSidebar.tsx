@@ -33,6 +33,7 @@ type NavItem = {
 type Group = {
   key: string;
   label: string;
+  section?: import("@/hooks/useAuth").SectionKey;
   items: NavItem[];
   collapsible?: boolean;
   defaultOpen?: boolean;
