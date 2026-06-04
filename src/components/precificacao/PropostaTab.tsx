@@ -137,6 +137,59 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
 
   const handlePrint = () => window.print();
 
+  const handleSave = async () => {
+    if (!form.clientName.trim()) {
+      alert('Informe o nome do cliente antes de salvar.');
+      return;
+    }
+    if (selectedItems.length === 0) {
+      alert('Selecione ao menos um serviço.');
+      return;
+    }
+    const items = selectedItems.map((p) => {
+      const eff = getEffectivePrice(p, priceOverrides);
+      return {
+        nome: p.nome, meses: p.meses, linha: p.linha,
+        preco_mensal: eff.preco_mensal, preco_total: eff.preco_total,
+      };
+    });
+    await proposalsHook.save({
+      parent_id: parent?.id ?? null,
+      version: parent ? parent.version + 1 : 1,
+      proposal_number: propId,
+      client_name: form.clientName,
+      client_company: form.clientCompany || null,
+      consultant: form.consultant || null,
+      proposal_date: form.date,
+      validity: form.validity,
+      discount_pct: form.discount,
+      payment: form.payment,
+      notes: form.notes || null,
+      custom_blocks: blocks,
+      items,
+      total_annual: finalTotal,
+      total_monthly: monthlyEst,
+    });
+    setParent(null);
+  };
+
+  const loadAsNewVersion = (p: SavedProposal) => {
+    setParent(p);
+    setForm({
+      clientName: p.client_name,
+      clientCompany: p.client_company ?? '',
+      date: today,
+      validity: p.validity,
+      consultant: p.consultant ?? '',
+      discount: Number(p.discount_pct) || 0,
+      payment: p.payment ?? PAYMENT_OPTIONS[0],
+      notes: p.notes ?? '',
+    });
+    setBlocks(p.custom_blocks ?? []);
+    setSelected(new Set(p.items.map((i) => i.nome)));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const filteredProducts = products.filter((p) =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   );
