@@ -51,19 +51,20 @@ export async function recordPricingVersion(params: RecordParams): Promise<Pricin
       .eq('is_active', true);
   }
 
-  const { data, error } = await supabase
-    .from('pricing_versions')
-    .insert({
-      name: params.name,
-      description: params.description ?? null,
-      source: params.source,
-      change_type: params.change_type,
-      file_name: params.file_name ?? null,
-      snapshot: params.snapshot as unknown as Record<string, unknown>,
-      is_active: !!params.setActive,
-      status: 'committed',
-      created_by: uid,
-    })
+  const payload = {
+    name: params.name,
+    description: params.description ?? null,
+    source: params.source,
+    change_type: params.change_type,
+    file_name: params.file_name ?? null,
+    snapshot: params.snapshot as unknown as Record<string, unknown>,
+    is_active: !!params.setActive,
+    status: 'committed',
+    created_by: uid,
+  };
+
+  const { data, error } = await (supabase.from('pricing_versions') as any)
+    .insert(payload)
     .select()
     .single();
 
