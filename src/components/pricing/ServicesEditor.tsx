@@ -1,19 +1,17 @@
-import { useState } from "react";
+import { Fragment, memo, useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import {
+  createPricingCtx,
   fmtBRL,
-  fmtNum,
   fmtPct,
   newId,
-  recipeRefCost,
-  serviceCalc,
+  type PricingCtx,
 } from "@/lib/pricing/engine";
 import type { MarkupLineKey, PricingSnapshot, Service } from "@/lib/pricing/types";
 import { LINE_LABEL } from "@/lib/pricing/types";
@@ -39,24 +37,55 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function ServicesEditor({ snap, update }: Props) {
   const [open, setOpen] = useState<string | null>(null);
+  const ctx = useMemo(() => createPricingCtx(snap), [snap]);
 
-  const addService = () =>
-    update((s) => ({
-      ...s,
-      services: [
-        ...s.services,
-        {
-          id: newId("srv"),
-          name: "Novo serviço",
-          contract_months: 12,
-          line: "gold",
-          practiced_price: 0,
-          qty_sold: 0,
-          recipe: [],
-          active: true,
-        },
-      ],
-    }));
+  const lineKeys = useMemo(
+    () => Object.keys(snap.markup_lines) as MarkupLineKey[],
+    [snap.markup_lines],
+  );
+
+  const addService = useCallback(
+    () =>
+      update((s) => ({
+        ...s,
+        services: [
+          ...s.services,
+          {
+            id: newId("srv"),
+            name: "Novo serviço",
+            contract_months: 12,
+            line: "gold",
+            practiced_price: 0,
+            qty_sold: 0,
+            recipe: [],
+            active: true,
+          },
+        ],
+      })),
+    [update],
+  );
+
+  const onPatch = useCallback(
+    (id: string, p: Partial<Service>) => {
+      update((s) => ({
+        ...s,
+        services: s.services.map((x) => (x.id === id ? { ...x, ...p } : x)),
+      }));
+    },
+    [update],
+  );
+
+  const onRemove = useCallback(
+    (id: string) => {
+      update((s) => ({ ...s, services: s.services.filter((x) => x.id !== id) }));
+    },
+    [update],
+  );
+
+  const onToggle = useCallback(
+    (id: string) => setOpen((curr) => (curr === id ? null : id)),
+    [],
+  );
 
   return (
     <Card>
@@ -89,85 +118,20 @@ export function ServicesEditor({ snap, update }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {snap.services.map((svc) => {
-              const c = serviceCalc(snap, svc);
-              const isOpen = open === svc.id;
-              return (
-                <>
-                  <TableRow key={svc.id}>
-                    <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => setOpen(isOpen ? null : svc.id)}>
-                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={svc.name}
-                        onChange={(e) => patch(update, svc.id, { name: e.target.value })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={svc.line}
-                        onValueChange={(v) => patch(update, svc.id, { line: v as MarkupLineKey })}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(snap.markup_lines) as MarkupLineKey[]).map((k) => (
-                            <SelectItem key={k} value={k}>{LINE_LABEL[k]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={svc.contract_months}
-                        onChange={(e) =>
-                          patch(update, svc.id, { contract_months: Number(e.target.value) })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="text-right"
-                        value={svc.practiced_price}
-                        onChange={(e) =>
-                          patch(update, svc.id, { practiced_price: Number(e.target.value) })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">{fmtBRL(c.practiced_monthly)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(c.cost_total)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(c.ideal_price_total)}</TableCell>
-                    <TableCell className="text-right">{fmtPct(c.margin_pct)}</TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          update((s) => ({ ...s, services: s.services.filter((x) => x.id !== svc.id) }))
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  {isOpen && (
-                    <TableRow>
-                      <TableCell colSpan={11} className="bg-muted/30">
-                        <RecipeEditor snap={snap} update={update} svc={svc} />
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              );
-            })}
+            {snap.services.map((svc) => (
+              <ServiceRow
+                key={svc.id}
+                svc={svc}
+                ctx={ctx}
+                snap={snap}
+                update={update}
+                isOpen={open === svc.id}
+                onToggle={onToggle}
+                onPatch={onPatch}
+                onRemove={onRemove}
+                lineKeys={lineKeys}
+              />
+            ))}
             {snap.services.length === 0 && (
               <TableRow>
                 <TableCell colSpan={11} className="text-center text-muted-foreground py-6">
@@ -182,25 +146,109 @@ export function ServicesEditor({ snap, update }: Props) {
   );
 }
 
-function patch(
-  update: Props["update"],
-  id: string,
-  patch: Partial<Service>,
-) {
-  update((s) => ({
-    ...s,
-    services: s.services.map((x) => (x.id === id ? { ...x, ...patch } : x)),
-  }));
+interface RowProps {
+  svc: Service;
+  ctx: PricingCtx;
+  snap: PricingSnapshot;
+  update: Props["update"];
+  isOpen: boolean;
+  onToggle: (id: string) => void;
+  onPatch: (id: string, p: Partial<Service>) => void;
+  onRemove: (id: string) => void;
+  lineKeys: MarkupLineKey[];
 }
+
+const ServiceRow = memo(function ServiceRow({
+  svc,
+  ctx,
+  snap,
+  update,
+  isOpen,
+  onToggle,
+  onPatch,
+  onRemove,
+  lineKeys,
+}: RowProps) {
+  const c = ctx.serviceCalc(svc);
+  return (
+    <Fragment>
+      <TableRow>
+        <TableCell>
+          <Button size="icon" variant="ghost" onClick={() => onToggle(svc.id)}>
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+        </TableCell>
+        <TableCell>
+          <Input
+            value={svc.name}
+            onChange={(e) => onPatch(svc.id, { name: e.target.value })}
+          />
+        </TableCell>
+        <TableCell>
+          <Select
+            value={svc.line}
+            onValueChange={(v) => onPatch(svc.id, { line: v as MarkupLineKey })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {lineKeys.map((k) => (
+                <SelectItem key={k} value={k}>{LINE_LABEL[k]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            value={svc.contract_months}
+            onChange={(e) => onPatch(svc.id, { contract_months: Number(e.target.value) })}
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            step="0.01"
+            className="text-right"
+            value={svc.practiced_price}
+            onChange={(e) => onPatch(svc.id, { practiced_price: Number(e.target.value) })}
+          />
+        </TableCell>
+        <TableCell className="text-right">{fmtBRL(c.practiced_monthly)}</TableCell>
+        <TableCell className="text-right">{fmtBRL(c.cost_total)}</TableCell>
+        <TableCell className="text-right">{fmtBRL(c.ideal_price_total)}</TableCell>
+        <TableCell className="text-right">{fmtPct(c.margin_pct)}</TableCell>
+        <TableCell>
+          <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+        </TableCell>
+        <TableCell>
+          <Button variant="ghost" size="icon" onClick={() => onRemove(svc.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </TableCell>
+      </TableRow>
+      {isOpen && (
+        <TableRow>
+          <TableCell colSpan={11} className="bg-muted/30">
+            <RecipeEditor snap={snap} ctx={ctx} update={update} svc={svc} onPatch={onPatch} />
+          </TableCell>
+        </TableRow>
+      )}
+    </Fragment>
+  );
+});
 
 function RecipeEditor({
   snap,
+  ctx,
   update,
   svc,
+  onPatch,
 }: {
   snap: PricingSnapshot;
+  ctx: PricingCtx;
   update: Props["update"];
   svc: Service;
+  onPatch: (id: string, p: Partial<Service>) => void;
 }) {
   return (
     <div className="p-3 space-y-2">
@@ -210,7 +258,7 @@ function RecipeEditor({
           size="sm"
           variant="outline"
           onClick={() =>
-            patch(update, svc.id, {
+            onPatch(svc.id, {
               recipe: [
                 ...svc.recipe,
                 { kind: "input", ref: snap.inputs[0]?.id ?? "", qty: 1 },
@@ -228,7 +276,7 @@ function RecipeEditor({
               value={`${r.kind}:${r.ref}`}
               onValueChange={(v) => {
                 const [kind, ref] = v.split(":") as ["input" | "subproduct", string];
-                patch(update, svc.id, {
+                onPatch(svc.id, {
                   recipe: svc.recipe.map((x, i) => (i === idx ? { ...x, kind, ref } : x)),
                 });
               }}
@@ -248,17 +296,17 @@ function RecipeEditor({
               className="w-20"
               value={r.qty}
               onChange={(e) =>
-                patch(update, svc.id, {
+                onPatch(svc.id, {
                   recipe: svc.recipe.map((x, i) => (i === idx ? { ...x, qty: Number(e.target.value) } : x)),
                 })
               }
             />
-            <span className="text-sm font-medium w-28 text-right">{fmtBRL(recipeRefCost(snap, r))}</span>
+            <span className="text-sm font-medium w-28 text-right">{fmtBRL(ctx.recipeRefCost(r))}</span>
             <Button
               size="icon"
               variant="ghost"
               onClick={() =>
-                patch(update, svc.id, {
+                onPatch(svc.id, {
                   recipe: svc.recipe.filter((_, i) => i !== idx),
                 })
               }
