@@ -319,6 +319,11 @@ export default function AnalisePrecosTab({
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5 text-right">{fmtBRL(mc)}</p>
                         </TableCell>
+                        <TableCell className="text-right">
+                          <span className={`text-sm font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {fmtPct(lucroProj)}
+                          </span>
+                        </TableCell>
                       </TableRow>
                     );
                   })
