@@ -391,10 +391,22 @@ export function AppSidebar() {
               <span className="text-sidebar-primary-foreground font-heading font-bold text-sm">Y</span>
             </div>
             {!collapsed && (
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 flex-1">
                 <span className="font-heading font-bold text-lg text-sidebar-foreground leading-none">Yampa</span>
               </div>
             )}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className={cn(
+                "p-1 rounded hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors",
+                collapsed && "absolute top-3 right-2",
+              )}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              title={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
           </div>
           {!collapsed && (
             <div className="px-3 pb-2">
