@@ -278,7 +278,7 @@ export default function AnalisePrecosTab({
                         <TableCell>
                           <Select
                             value={p.linha}
-                            onValueChange={(v) => updateLinha(p.nome, v as LinhaMarkup)}
+                            onValueChange={(v) => handleLinhaChange(p.nome, v as LinhaMarkup)}
                           >
                             <SelectTrigger className="h-7 text-xs w-32">
                               <SelectValue />
