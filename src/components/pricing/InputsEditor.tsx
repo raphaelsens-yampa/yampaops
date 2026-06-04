@@ -74,7 +74,7 @@ export function InputsEditor({ snap, update }: Props) {
                       }
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{fmtBRL(inputCost(snap, it.id))}</TableCell>
+                  <TableCell className="font-medium">{fmtBRL(ctx.inputCost(it.id))}</TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -136,7 +136,7 @@ export function InputsEditor({ snap, update }: Props) {
                   }
                 />
                 <span className="text-sm font-medium whitespace-nowrap">
-                  {fmtBRL(subproductCost(snap, sub))}
+                  {fmtBRL(ctx.subproductCost(sub.id))}
                 </span>
                 <Button
                   variant="ghost"
