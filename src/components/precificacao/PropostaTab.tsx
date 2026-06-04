@@ -641,6 +641,137 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
       onNewVersion={loadAsNewVersion}
       onDelete={proposalsHook.remove}
     />
+
+    <Dialog open={saveTplOpen} onOpenChange={setSaveTplOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{saveAsNew ? 'Novo template' : `Nova versão · ${activeTemplate?.name}`}</DialogTitle>
+          <DialogDescription>
+            {saveAsNew
+              ? 'Salve a logo e os blocos atuais como um template reutilizável.'
+              : `Salva como v${(activeTemplate?.version ?? 0) + 1}. A versão atual (v${activeTemplate?.version}) fica preservada no histórico.`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome do template</Label>
+            <Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Ex: Yampa Padrão" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Descrição (opcional)</Label>
+            <Textarea value={tplDesc} onChange={(e) => setTplDesc(e.target.value)} placeholder="O que mudou nesta versão..." className="min-h-[70px]" />
+          </div>
+          <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
+            Inclui: logo {logo ? '✓' : '—'} · {blocks.length} bloco{blocks.length !== 1 ? 's' : ''} customizável{blocks.length !== 1 ? 'is' : ''}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSaveTplOpen(false)}>Cancelar</Button>
+          <Button
+            onClick={async () => {
+              if (!tplName.trim()) { alert('Informe um nome'); return; }
+              const created = await templatesHook.create(
+                { name: tplName.trim(), description: tplDesc.trim() || null, logo, custom_blocks: blocks },
+                saveAsNew ? null : activeTemplate,
+              );
+              if (created) {
+                setActiveTemplate(created);
+                setSaveTplOpen(false);
+              }
+            }}
+          >
+            <Save className="h-3.5 w-3.5 mr-1.5" /> Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Histórico de Templates</DialogTitle>
+          <DialogDescription>
+            Aplique uma versão para carregar logo e blocos. Edite e salve uma nova versão para preservar o histórico.
+          </DialogDescription>
+        </DialogHeader>
+        {templatesHook.loading ? (
+          <p className="text-xs text-gray-400 text-center py-6">Carregando...</p>
+        ) : templatesHook.templates.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-6">Nenhum template salvo ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {templatesHook.templates.map((t) => {
+              const isActive = activeTemplate?.id === t.id;
+              return (
+                <div key={t.id} className={`border rounded-md p-3 flex items-start gap-3 ${isActive ? 'border-blue-400 bg-blue-50/40' : ''}`}>
+                  <div className="w-12 h-12 rounded border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {t.logo ? <img src={t.logo} alt="" className="w-full h-full object-contain" /> : <ImageIcon className="h-5 w-5 text-gray-300" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium truncate">{t.name}</span>
+                      <UiBadge variant="outline" className="text-[10px]">v{t.version}</UiBadge>
+                      {isActive && <UiBadge className="text-[10px] bg-blue-600">Em uso</UiBadge>}
+                    </div>
+                    {t.description && <p className="text-xs text-gray-600 mt-0.5">{t.description}</p>}
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {new Date(t.created_at).toLocaleString('pt-BR')} · {t.author_name ?? '—'} · {(t.custom_blocks ?? []).length} bloco{(t.custom_blocks ?? []).length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="sm"
+                      variant={isActive ? 'secondary' : 'default'}
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setActiveTemplate(t);
+                        setLogo(t.logo ?? null);
+                        setBlocks(t.custom_blocks ?? []);
+                        setHistoryOpen(false);
+                      }}
+                    >
+                      <Check className="h-3 w-3 mr-1" /> Aplicar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setDeletingTpl(t)}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setHistoryOpen(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <AlertDialog open={!!deletingTpl} onOpenChange={(o) => !o && setDeletingTpl(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remove <strong>{deletingTpl?.name} (v{deletingTpl?.version})</strong>. Outras versões não são afetadas.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700"
+            onClick={async () => {
+              if (deletingTpl) {
+                await templatesHook.remove(deletingTpl.id);
+                if (activeTemplate?.id === deletingTpl.id) setActiveTemplate(null);
+              }
+              setDeletingTpl(null);
+            }}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }
