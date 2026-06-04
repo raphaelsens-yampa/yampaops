@@ -15,6 +15,7 @@ export function PricingOverview({ snap }: { snap: PricingSnapshot }) {
   const ctx = useMemo(() => createPricingCtx(snap), [snap]);
   const cpm = ctx.cpm;
   const fixed = ctx.fixed;
+  const labor = ctx.labor;
   const calcs = useMemo(
     () => snap.services.map((s) => ({ svc: s, c: ctx.serviceCalc(s) })),
     [snap.services, ctx],
