@@ -25,12 +25,13 @@ const FILTERS: { key: FilterMode; label: string }[] = [
 ];
 
 export default function AnalisePrecosTab({
-  products, config, priceOverrides, updatePrice, updateLinha, saveChanges, resetChanges,
+  products, config, priceOverrides, updatePrice, updateLinha, addProduct, saveChanges, resetChanges,
 }: PrecificacaoHook) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>('todos');
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
 
   const changedCount = Object.keys(priceOverrides).length;
 
