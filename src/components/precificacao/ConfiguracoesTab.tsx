@@ -61,6 +61,14 @@ export default function ConfiguracoesTab({ config, updateConfig, products }: Pre
     updateConfig(draft);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'config_update',
+      name: 'Configurações atualizadas',
+      description: 'Margens de markup e/ou deduções alteradas.',
+      snapshot: { products, config: draft },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
   };
 
   const totalDedMC = Object.values(draft.deductions).reduce((s, v) => s + v, 0);
