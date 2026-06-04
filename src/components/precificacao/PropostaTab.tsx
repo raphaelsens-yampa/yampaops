@@ -615,7 +615,7 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
 
                 {/* Footer */}
                 <div className="pt-3 border-t flex justify-between text-xs text-gray-400">
-                  <span>Yampa · Consultoria Financeira</span>
+                  <span>Yampa · Ecossistema de Inteligência Financeira</span>
                   <span>raphael@yampa.com.br</span>
                 </div>
               </div>
