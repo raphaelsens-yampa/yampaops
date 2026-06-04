@@ -171,7 +171,7 @@ const NAV_BASE = "hover:bg-sidebar-accent/50 border-l-2 border-transparent";
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { role, profile, signOut, canView, accessLevelName } = useAuth();
+  const { role, profile, signOut, canView, canViewSection, accessLevelName } = useAuth();
   const { theme, toggle } = useTheme();
 
   const [openOverview, setOpenOverview] = useLocalBool("sidebar:group:overview", true);
