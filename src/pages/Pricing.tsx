@@ -138,7 +138,7 @@ export default function PricingPage() {
 
             {canEditPricing && (
               <>
-                <TabsContent value="overview" className="mt-4"><PricingOverview snap={editor.snap} /></TabsContent>
+                <TabsContent value="overview" className="mt-4"><PricingOverview snap={editor.snap} update={editor.update} /></TabsContent>
                 <TabsContent value="fixed" className="mt-4">
                   <CostListEditor title="Custos Fixos Mensais" field="fixed_costs" snap={editor.snap} update={editor.update} />
                 </TabsContent>
