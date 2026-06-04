@@ -92,14 +92,18 @@ export function ServicesEditor({ snap, update, readOnly = false }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Cadastro de Serviços</CardTitle>
+          <CardTitle>{readOnly ? "Catálogo de Serviços" : "Cadastro de Serviços"}</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Defina a ficha técnica, o preço praticado e veja o preço ideal sugerido.
+            {readOnly
+              ? "Visualize os serviços disponíveis. Edição restrita a administradores."
+              : "Defina a ficha técnica, o preço praticado e veja o preço ideal sugerido."}
           </p>
         </div>
-        <Button size="sm" onClick={addService}>
-          <Plus className="h-4 w-4 mr-1" /> Novo serviço
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={addService}>
+            <Plus className="h-4 w-4 mr-1" /> Novo serviço
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <Table>
@@ -131,6 +135,7 @@ export function ServicesEditor({ snap, update, readOnly = false }: Props) {
                 onPatch={onPatch}
                 onRemove={onRemove}
                 lineKeys={lineKeys}
+                readOnly={readOnly}
               />
             ))}
             {snap.services.length === 0 && (
