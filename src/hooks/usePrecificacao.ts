@@ -135,6 +135,14 @@ export function usePrecificacao() {
     });
   }, []);
 
+  const addProduct = useCallback((novo: Produto) => {
+    setProductsState((prev) => {
+      const updated = [novo, ...prev];
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return {
     products,
     config,
@@ -143,6 +151,7 @@ export function usePrecificacao() {
     updateConfig,
     updatePrice,
     updateLinha,
+    addProduct,
     saveChanges,
     resetChanges,
   };

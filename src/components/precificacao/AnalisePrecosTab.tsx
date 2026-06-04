@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil } from 'lucide-react';
+import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import NewProductDialog from './NewProductDialog';
 import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
@@ -24,12 +25,13 @@ const FILTERS: { key: FilterMode; label: string }[] = [
 ];
 
 export default function AnalisePrecosTab({
-  products, config, priceOverrides, updatePrice, updateLinha, saveChanges, resetChanges,
+  products, config, priceOverrides, updatePrice, updateLinha, addProduct, saveChanges, resetChanges,
 }: PrecificacaoHook) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>('todos');
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
 
   const changedCount = Object.keys(priceOverrides).length;
 
@@ -122,10 +124,13 @@ export default function AnalisePrecosTab({
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="text-base">Tabela de Serviços</CardTitle>
             <div className="flex gap-2">
+              <Button size="sm" onClick={() => setNewOpen(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> Novo Serviço
+              </Button>
               <Button variant="outline" size="sm" onClick={resetChanges} disabled={changedCount === 0}>
                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reverter
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={changedCount === 0}>
+              <Button size="sm" variant="outline" onClick={handleSave} disabled={changedCount === 0}>
                 <Save className="h-3.5 w-3.5 mr-1.5" />
                 {saved ? 'Salvo ✓' : 'Salvar alterações'}
               </Button>
@@ -275,6 +280,14 @@ export default function AnalisePrecosTab({
           </div>
         </CardContent>
       </Card>
+
+      <NewProductDialog
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        config={config}
+        existingNames={products.map((p) => p.nome)}
+        onCreate={addProduct}
+      />
     </div>
   );
 }

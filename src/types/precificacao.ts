@@ -1,5 +1,11 @@
 export type LinhaMarkup = 'Linha Premium' | 'Linha Gold' | 'Linha Prata';
 
+export interface CustoBreakdownItem {
+  cargo: string;
+  horas: number;
+  valor_hora: number;
+}
+
 export interface Produto {
   nome: string;
   meses: number;
@@ -8,6 +14,7 @@ export interface Produto {
   preco_mensal: number;
   preco_total: number;
   ideal_mensal: number;
+  custo_breakdown?: CustoBreakdownItem[];
 }
 
 export interface DeducoesConfig {
