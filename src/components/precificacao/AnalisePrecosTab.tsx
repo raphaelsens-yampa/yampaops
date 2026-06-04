@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import NewProductDialog from './NewProductDialog';
 import { recordPricingVersion } from '@/lib/pricingVersions';
 import { Produto } from '@/types/precificacao';
-import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
+import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck, calcLucroProjetado } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
 const fmtBRL = (v: number) =>
@@ -229,12 +229,13 @@ export default function AnalisePrecosTab({
                   <TableHead className="w-32 text-right">Preço/mês</TableHead>
                   <TableHead className="w-28 text-right">Total</TableHead>
                   <TableHead className="w-44">Margem</TableHead>
+                  <TableHead className="w-36 text-right">Lucro Projetado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={13} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -242,6 +243,7 @@ export default function AnalisePrecosTab({
                   filtered.map((p) => {
                     const eff = getEffectivePrice(p, priceOverrides);
                     const { mc, pct } = calcMC(eff.preco_total, p.custo, config);
+                    const lucroProj = calcLucroProjetado(eff.preco_total, p.custo);
                     const linhaKey = getLinhaKey(p.linha);
                     const ideal = calcIdealMensal(p.custo, p.meses, linhaKey, config);
                     const idealTotal = ideal * p.meses;
@@ -316,6 +318,11 @@ export default function AnalisePrecosTab({
                             <span className={`text-xs font-bold w-12 text-right ${pctColor}`}>{fmtPct(pct)}</span>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5 text-right">{fmtBRL(mc)}</p>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={`text-sm font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {fmtPct(lucroProj)}
+                          </span>
                         </TableCell>
                       </TableRow>
                     );

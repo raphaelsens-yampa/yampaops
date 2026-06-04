@@ -55,6 +55,11 @@ export function calcMC(preco_total: number, custo: number, config: AppConfig) {
   return { mc, pct };
 }
 
+export function calcLucroProjetado(preco_total: number, custo: number) {
+  if (preco_total <= 0) return 0;
+  return (preco_total - custo) / preco_total;
+}
+
 export function getEffectivePrice(p: Produto, overrides: Record<string, number>) {
   if (overrides[p.nome] !== undefined) {
     const newMonthly = overrides[p.nome];
