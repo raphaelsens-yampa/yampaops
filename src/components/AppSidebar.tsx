@@ -386,7 +386,7 @@ export function AppSidebar() {
       <SidebarContent>
         {/* Header / Brand */}
         <SidebarGroup>
-          <div className={cn("flex items-center py-4", collapsed ? "justify-center px-0" : "gap-2 px-3")}>
+          <div className={cn("flex items-center", collapsed ? "justify-center px-0 pt-10 pb-4" : "gap-2 px-3 py-4")}>
             <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
               <span className="text-sidebar-primary-foreground font-heading font-bold text-sm">Y</span>
             </div>
