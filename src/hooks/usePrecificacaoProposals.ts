@@ -95,7 +95,7 @@ export function usePrecificacaoProposals() {
     const saved = data as unknown as SavedProposal;
     toast({ title: 'Proposta salva', description: `${payload.client_name} · v${payload.version}` });
     await fetchAll();
-    return data as SavedProposal;
+    return saved;
   }, [fetchAll]);
 
   const remove = useCallback(async (id: string) => {
