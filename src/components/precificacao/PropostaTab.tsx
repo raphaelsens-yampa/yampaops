@@ -64,8 +64,10 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
       return saved ? JSON.parse(saved) : DEFAULT_BLOCKS;
     } catch { return DEFAULT_BLOCKS; }
   });
+  const [parent, setParent] = useState<SavedProposal | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const proposalsHook = usePrecificacaoProposals();
 
   useEffect(() => {
     try {
