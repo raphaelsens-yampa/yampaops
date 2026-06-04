@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Save } from 'lucide-react';
 import { PrecificacaoHook, calcMarkup } from '@/hooks/usePrecificacao';
 import { AppConfig } from '@/types/precificacao';
+import { recordPricingVersion } from '@/lib/pricingVersions';
 
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
 
