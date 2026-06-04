@@ -19,6 +19,7 @@ import { LINE_LABEL } from "@/lib/pricing/types";
 interface Props {
   snap: PricingSnapshot;
   update: (u: (s: PricingSnapshot) => PricingSnapshot) => void;
+  readOnly?: boolean;
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -35,7 +36,7 @@ const STATUS_LABEL: Record<string, string> = {
   prejuizo: "Prejuízo",
 };
 
-export function ServicesEditor({ snap, update }: Props) {
+export function ServicesEditor({ snap, update, readOnly = false }: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const ctx = useMemo(() => createPricingCtx(snap), [snap]);
 
@@ -91,14 +92,18 @@ export function ServicesEditor({ snap, update }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Cadastro de Serviços</CardTitle>
+          <CardTitle>{readOnly ? "Catálogo de Serviços" : "Cadastro de Serviços"}</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Defina a ficha técnica, o preço praticado e veja o preço ideal sugerido.
+            {readOnly
+              ? "Visualize os serviços disponíveis. Edição restrita a administradores."
+              : "Defina a ficha técnica, o preço praticado e veja o preço ideal sugerido."}
           </p>
         </div>
-        <Button size="sm" onClick={addService}>
-          <Plus className="h-4 w-4 mr-1" /> Novo serviço
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={addService}>
+            <Plus className="h-4 w-4 mr-1" /> Novo serviço
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <Table>
@@ -130,6 +135,7 @@ export function ServicesEditor({ snap, update }: Props) {
                 onPatch={onPatch}
                 onRemove={onRemove}
                 lineKeys={lineKeys}
+                readOnly={readOnly}
               />
             ))}
             {snap.services.length === 0 && (
@@ -156,6 +162,7 @@ interface RowProps {
   onPatch: (id: string, p: Partial<Service>) => void;
   onRemove: (id: string) => void;
   lineKeys: MarkupLineKey[];
+  readOnly?: boolean;
 }
 
 const ServiceRow = memo(function ServiceRow({
@@ -168,6 +175,7 @@ const ServiceRow = memo(function ServiceRow({
   onPatch,
   onRemove,
   lineKeys,
+  readOnly = false,
 }: RowProps) {
   const c = ctx.serviceCalc(svc);
   return (
@@ -181,12 +189,14 @@ const ServiceRow = memo(function ServiceRow({
         <TableCell>
           <Input
             value={svc.name}
+            disabled={readOnly}
             onChange={(e) => onPatch(svc.id, { name: e.target.value })}
           />
         </TableCell>
         <TableCell>
           <Select
             value={svc.line}
+            disabled={readOnly}
             onValueChange={(v) => onPatch(svc.id, { line: v as MarkupLineKey })}
           >
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -200,6 +210,7 @@ const ServiceRow = memo(function ServiceRow({
         <TableCell>
           <Input
             type="number"
+            disabled={readOnly}
             value={svc.contract_months}
             onChange={(e) => onPatch(svc.id, { contract_months: Number(e.target.value) })}
           />
@@ -209,6 +220,7 @@ const ServiceRow = memo(function ServiceRow({
             type="number"
             step="0.01"
             className="text-right"
+            disabled={readOnly}
             value={svc.practiced_price}
             onChange={(e) => onPatch(svc.id, { practiced_price: Number(e.target.value) })}
           />
@@ -221,15 +233,17 @@ const ServiceRow = memo(function ServiceRow({
           <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
         </TableCell>
         <TableCell>
-          <Button variant="ghost" size="icon" onClick={() => onRemove(svc.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {!readOnly && (
+            <Button variant="ghost" size="icon" onClick={() => onRemove(svc.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </TableCell>
       </TableRow>
       {isOpen && (
         <TableRow>
           <TableCell colSpan={11} className="bg-muted/30">
-            <RecipeEditor snap={snap} ctx={ctx} update={update} svc={svc} onPatch={onPatch} />
+            <RecipeEditor snap={snap} ctx={ctx} update={update} svc={svc} onPatch={onPatch} readOnly={readOnly} />
           </TableCell>
         </TableRow>
       )}
@@ -240,40 +254,44 @@ const ServiceRow = memo(function ServiceRow({
 function RecipeEditor({
   snap,
   ctx,
-  update,
   svc,
   onPatch,
+  readOnly = false,
 }: {
   snap: PricingSnapshot;
   ctx: PricingCtx;
   update: Props["update"];
   svc: Service;
   onPatch: (id: string, p: Partial<Service>) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="p-3 space-y-2">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">Ficha técnica: {svc.name}</h4>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            onPatch(svc.id, {
-              recipe: [
-                ...svc.recipe,
-                { kind: "input", ref: snap.inputs[0]?.id ?? "", qty: 1 },
-              ],
-            })
-          }
-        >
-          <Plus className="h-3 w-3 mr-1" /> Item
-        </Button>
+        {!readOnly && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              onPatch(svc.id, {
+                recipe: [
+                  ...svc.recipe,
+                  { kind: "input", ref: snap.inputs[0]?.id ?? "", qty: 1 },
+                ],
+              })
+            }
+          >
+            <Plus className="h-3 w-3 mr-1" /> Item
+          </Button>
+        )}
       </div>
       <div className="space-y-1">
         {svc.recipe.map((r, idx) => (
           <div key={idx} className="flex gap-2 items-center">
             <Select
               value={`${r.kind}:${r.ref}`}
+              disabled={readOnly}
               onValueChange={(v) => {
                 const [kind, ref] = v.split(":") as ["input" | "subproduct", string];
                 onPatch(svc.id, {
@@ -294,6 +312,7 @@ function RecipeEditor({
             <Input
               type="number"
               className="w-20"
+              disabled={readOnly}
               value={r.qty}
               onChange={(e) =>
                 onPatch(svc.id, {
@@ -302,17 +321,19 @@ function RecipeEditor({
               }
             />
             <span className="text-sm font-medium w-28 text-right">{fmtBRL(ctx.recipeRefCost(r))}</span>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() =>
-                onPatch(svc.id, {
-                  recipe: svc.recipe.filter((_, i) => i !== idx),
-                })
-              }
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {!readOnly && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() =>
+                  onPatch(svc.id, {
+                    recipe: svc.recipe.filter((_, i) => i !== idx),
+                  })
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ))}
         {svc.recipe.length === 0 && (
