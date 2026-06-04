@@ -92,6 +92,7 @@ export function usePrecificacaoProposals() {
       toast({ title: 'Erro ao salvar proposta', description: error.message, variant: 'destructive' });
       return null;
     }
+    const saved = data as unknown as SavedProposal;
     toast({ title: 'Proposta salva', description: `${payload.client_name} · v${payload.version}` });
     await fetchAll();
     return data as SavedProposal;
