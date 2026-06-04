@@ -243,7 +243,7 @@ export default function AnalisePrecosTab({
                   filtered.map((p) => {
                     const eff = getEffectivePrice(p, priceOverrides);
                     const { mc, pct } = calcMC(eff.preco_total, p.custo, config);
-                    const lucroProj = calcLucroProjetado(eff.preco_total, p.custo);
+                    const lucroProj = calcLucroProjetado(eff.preco_total, p.custo, config);
                     const linhaKey = getLinhaKey(p.linha);
                     const ideal = calcIdealMensal(p.custo, p.meses, linhaKey, config);
                     const idealTotal = ideal * p.meses;
