@@ -91,29 +91,29 @@ function AppRoutes() {
       <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
       <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
       <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
-      <Route path="/link-builder" element={<LinkBuilder />} />
-      <Route path="/integrations/active-campaign" element={<ActiveCampaignIntegration />} />
-      <Route path="/integrations/stripe" element={<StripeIntegration />} />
-      <Route path="/integrations/chatwoot" element={<ChatwootIntegration />} />
-      <Route path="/integrations/audit" element={<IntegrationAudit />} />
+      <Route path="/link-builder" element={<RequireArea area="link_builder"><LinkBuilder /></RequireArea>} />
+      <Route path="/integrations/active-campaign" element={<RequireArea area="integration_ac"><ActiveCampaignIntegration /></RequireArea>} />
+      <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
+      <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
+      <Route path="/integrations/audit" element={<RequireArea area="integration_audit"><IntegrationAudit /></RequireArea>} />
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
-      <Route path="/atendimentos/auditoria" element={<RequireArea area="atendimentos"><ChatwootAudit /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/configuracoes" element={<ChatwootAuditSettings />} />
-      <Route path="/atendimentos/auditoria/revisao" element={<ChatwootAuditReview />} />
-      <Route path="/atendimentos/auditoria/insights" element={<ChatwootAuditInsights />} />
-      <Route path="/atendimentos/auditoria/golden-set" element={<ChatwootAuditGoldenSet />} />
-      <Route path="/atendimentos/auditoria/minhas" element={<ChatwootAuditMine />} />
+      <Route path="/atendimentos/auditoria" element={<RequireArea area="auditoria_ia"><ChatwootAudit /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/configuracoes" element={<RequireArea area="auditoria_ia"><ChatwootAuditSettings /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/revisao" element={<RequireArea area="auditoria_ia"><ChatwootAuditReview /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/insights" element={<RequireArea area="auditoria_ia"><ChatwootAuditInsights /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia"><ChatwootAuditGoldenSet /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/minhas" element={<RequireArea area="auditoria_ia"><ChatwootAuditMine /></RequireArea>} />
       <Route path="/reports" element={<Reports />} />
-      <Route path="/insights/conversions" element={<StripeConversions />} />
-      <Route path="/insights/lead-journey" element={<RequireArea area="dashboard"><LeadJourney /></RequireArea>} />
-      <Route path="/settings/tags" element={<TagsSettings />} />
-      <Route path="/sales-campaigns" element={<SalesCampaigns />} />
-      <Route path="/sales-campaigns/reports" element={<SalesCampaignReports />} />
-      <Route path="/sales-campaigns/:id" element={<SalesCampaignDetail />} />
-      <Route path="/atividade-agentes" element={<AgentActivity />} />
-      <Route path="/discounts/overview" element={<DiscountOverview />} />
-      <Route path="/discounts/portfolio" element={<DiscountPortfolio />} />
-      <Route path="/discounts/rules" element={<DiscountRules />} />
+      <Route path="/insights/conversions" element={<RequireArea area="conversions"><StripeConversions /></RequireArea>} />
+      <Route path="/insights/lead-journey" element={<RequireArea area="lead_journey"><LeadJourney /></RequireArea>} />
+      <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
+      <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
+      <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />
+      <Route path="/sales-campaigns/:id" element={<RequireArea area="sales_campaigns"><SalesCampaignDetail /></RequireArea>} />
+      <Route path="/atividade-agentes" element={<RequireArea area="agent_activity"><AgentActivity /></RequireArea>} />
+      <Route path="/discounts/overview" element={<RequireArea area="discounts_overview"><DiscountOverview /></RequireArea>} />
+      <Route path="/discounts/portfolio" element={<RequireArea area="discounts_portfolio"><DiscountPortfolio /></RequireArea>} />
+      <Route path="/discounts/rules" element={<RequireArea area="discounts_rules"><DiscountRules /></RequireArea>} />
       <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
