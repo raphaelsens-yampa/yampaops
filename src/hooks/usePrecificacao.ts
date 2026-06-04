@@ -38,6 +38,15 @@ export function calcIdealMensal(custo: number, meses: number, linhaKey: 'premium
   return (custo / Math.max(meses, 1)) * mk;
 }
 
+export function calcMinMensal(custo: number, meses: number, config: AppConfig): number {
+  const bd = config.base_deductions_for_markup;
+  const totalDed =
+    bd.impostos + bd.comissao + bd.gateway + bd.investimento +
+    bd.comissao_comercial + bd.despesa_fixa + bd.churn;
+  const mk = 1 / (1 - totalDed);
+  return (custo / Math.max(meses, 1)) * mk;
+}
+
 export function calcMC(preco_total: number, custo: number, config: AppConfig) {
   const { impostos, comissao, gateway, churn } = config.deductions;
   const dedRate = impostos + comissao + gateway + churn;
