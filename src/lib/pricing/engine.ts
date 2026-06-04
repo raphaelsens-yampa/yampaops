@@ -57,6 +57,40 @@ export function markupRate(l: MarkupLine): number {
   return 1 / denom;
 }
 
+/**
+ * Base de faturamento mensal a usar para derivar a despesa fixa %.
+ * Espelha a planilha: muda conforme o cenário (previsto vs. real).
+ */
+export function revenueBaseMonthly(snap: PricingSnapshot): number {
+  const r = snap.revenue;
+  if (!r) return 0;
+  return r.mode === "actual" ? r.actual_monthly : r.forecasted_monthly;
+}
+
+/** % despesa fixa derivado: despesa fixa mensal / faturamento mensal. */
+export function derivedFixedExpensePct(snap: PricingSnapshot): number {
+  const base = revenueBaseMonthly(snap);
+  if (!base) return 0;
+  return totalFixedCost(snap) / base;
+}
+
+/**
+ * Linha de markup "efetiva" — se `revenue.auto_fixed_expense` estiver ligado,
+ * sobrescreve `fixed_expense_pct` pelo valor derivado do faturamento atual.
+ */
+export function effectiveLine(snap: PricingSnapshot, l: MarkupLine): MarkupLine {
+  if (snap.revenue?.auto_fixed_expense) {
+    return { ...l, fixed_expense_pct: derivedFixedExpensePct(snap) };
+  }
+  return l;
+}
+
+/** Markup efetivo (já considera o cenário de receita). */
+export function effectiveMarkupRate(snap: PricingSnapshot, l: MarkupLine): number {
+  return markupRate(effectiveLine(snap, l));
+}
+
+
 /** Custo de um insumo individual (em R$) */
 export function inputCost(snap: PricingSnapshot, inputId: string): number {
   const i = snap.inputs.find((x) => x.id === inputId);
