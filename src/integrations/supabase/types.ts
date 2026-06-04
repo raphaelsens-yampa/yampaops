@@ -2100,6 +2100,56 @@ export type Database = {
         }
         Relationships: []
       }
+      proposal_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          custom_blocks: Json
+          description: string | null
+          id: string
+          is_default: boolean
+          logo: string | null
+          name: string
+          parent_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          custom_blocks?: Json
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          logo?: string | null
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          custom_blocks?: Json
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          logo?: string | null
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_templates_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_campaign_contacts: {
         Row: {
           ac_last_stage: string | null

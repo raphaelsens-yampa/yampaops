@@ -6,11 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Save } from 'lucide-react';
+import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Save, Layers, History, GitBranch, Check } from 'lucide-react';
 import { PrecificacaoHook, getEffectivePrice } from '@/hooks/usePrecificacao';
 import { PropostaForm } from '@/types/precificacao';
 import { usePrecificacaoProposals, SavedProposal } from '@/hooks/usePrecificacaoProposals';
 import SavedProposalsList from './SavedProposalsList';
+import { useProposalTemplates, ProposalTemplate } from '@/hooks/useProposalTemplates';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge as UiBadge } from '@/components/ui/badge';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -68,6 +72,14 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const proposalsHook = usePrecificacaoProposals();
+  const templatesHook = useProposalTemplates();
+  const [activeTemplate, setActiveTemplate] = useState<ProposalTemplate | null>(null);
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [saveAsNew, setSaveAsNew] = useState(true);
+  const [tplName, setTplName] = useState('');
+  const [tplDesc, setTplDesc] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [deletingTpl, setDeletingTpl] = useState<ProposalTemplate | null>(null);
 
   useEffect(() => {
     try {
@@ -199,11 +211,91 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
       {/* Form column */}
       <div className="space-y-4 no-print">
-        {/* Branding / Logo */}
+        {/* Branding / Logo + Templates */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Identidade Visual</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm">Identidade Visual</CardTitle>
+              <div className="flex items-center gap-1.5">
+                {activeTemplate && (
+                  <UiBadge variant="outline" className="text-[10px]">
+                    {activeTemplate.name} · v{activeTemplate.version}
+                  </UiBadge>
+                )}
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setHistoryOpen(true)}>
+                  <History className="h-3.5 w-3.5 mr-1" /> Histórico
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Template picker */}
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" /> Template</Label>
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  value={activeTemplate?.id ?? ''}
+                  onValueChange={(id) => {
+                    const t = templatesHook.templates.find((x) => x.id === id);
+                    if (!t) return;
+                    setActiveTemplate(t);
+                    setLogo(t.logo ?? null);
+                    setBlocks(t.custom_blocks ?? []);
+                  }}
+                >
+                  <SelectTrigger className="h-9 flex-1 min-w-[200px]">
+                    <SelectValue placeholder={templatesHook.loading ? 'Carregando...' : 'Selecionar template salvo'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templatesHook.templates.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-gray-400">Nenhum template salvo</div>
+                    ) : (
+                      templatesHook.templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} · v{t.version}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSaveAsNew(true);
+                    setTplName('');
+                    setTplDesc('');
+                    setSaveTplOpen(true);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Novo template
+                </Button>
+                {activeTemplate && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSaveAsNew(false);
+                      setTplName(activeTemplate.name);
+                      setTplDesc(activeTemplate.description ?? '');
+                      setSaveTplOpen(true);
+                    }}
+                  >
+                    <GitBranch className="h-3.5 w-3.5 mr-1.5" /> Salvar nova versão
+                  </Button>
+                )}
+                {activeTemplate && (
+                  <Button size="sm" variant="ghost" onClick={() => setActiveTemplate(null)}>
+                    <X className="h-3.5 w-3.5 mr-1.5" /> Desvincular
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Templates reúnem logo + blocos customizáveis. Edite e salve uma nova versão para manter o histórico.
+              </p>
+            </div>
+
+            {/* Logo */}
+            <div className="flex items-center gap-4 pt-2 border-t">
               <div className="w-24 h-24 rounded-md border border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden flex-shrink-0">
                 {logo ? (
                   <img src={logo} alt="Logo" className="w-full h-full object-contain" />
@@ -549,6 +641,137 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
       onNewVersion={loadAsNewVersion}
       onDelete={proposalsHook.remove}
     />
+
+    <Dialog open={saveTplOpen} onOpenChange={setSaveTplOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{saveAsNew ? 'Novo template' : `Nova versão · ${activeTemplate?.name}`}</DialogTitle>
+          <DialogDescription>
+            {saveAsNew
+              ? 'Salve a logo e os blocos atuais como um template reutilizável.'
+              : `Salva como v${(activeTemplate?.version ?? 0) + 1}. A versão atual (v${activeTemplate?.version}) fica preservada no histórico.`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome do template</Label>
+            <Input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Ex: Yampa Padrão" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Descrição (opcional)</Label>
+            <Textarea value={tplDesc} onChange={(e) => setTplDesc(e.target.value)} placeholder="O que mudou nesta versão..." className="min-h-[70px]" />
+          </div>
+          <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
+            Inclui: logo {logo ? '✓' : '—'} · {blocks.length} bloco{blocks.length !== 1 ? 's' : ''} customizável{blocks.length !== 1 ? 'is' : ''}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSaveTplOpen(false)}>Cancelar</Button>
+          <Button
+            onClick={async () => {
+              if (!tplName.trim()) { alert('Informe um nome'); return; }
+              const created = await templatesHook.create(
+                { name: tplName.trim(), description: tplDesc.trim() || null, logo, custom_blocks: blocks },
+                saveAsNew ? null : activeTemplate,
+              );
+              if (created) {
+                setActiveTemplate(created);
+                setSaveTplOpen(false);
+              }
+            }}
+          >
+            <Save className="h-3.5 w-3.5 mr-1.5" /> Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Histórico de Templates</DialogTitle>
+          <DialogDescription>
+            Aplique uma versão para carregar logo e blocos. Edite e salve uma nova versão para preservar o histórico.
+          </DialogDescription>
+        </DialogHeader>
+        {templatesHook.loading ? (
+          <p className="text-xs text-gray-400 text-center py-6">Carregando...</p>
+        ) : templatesHook.templates.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-6">Nenhum template salvo ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {templatesHook.templates.map((t) => {
+              const isActive = activeTemplate?.id === t.id;
+              return (
+                <div key={t.id} className={`border rounded-md p-3 flex items-start gap-3 ${isActive ? 'border-blue-400 bg-blue-50/40' : ''}`}>
+                  <div className="w-12 h-12 rounded border bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {t.logo ? <img src={t.logo} alt="" className="w-full h-full object-contain" /> : <ImageIcon className="h-5 w-5 text-gray-300" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium truncate">{t.name}</span>
+                      <UiBadge variant="outline" className="text-[10px]">v{t.version}</UiBadge>
+                      {isActive && <UiBadge className="text-[10px] bg-blue-600">Em uso</UiBadge>}
+                    </div>
+                    {t.description && <p className="text-xs text-gray-600 mt-0.5">{t.description}</p>}
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {new Date(t.created_at).toLocaleString('pt-BR')} · {t.author_name ?? '—'} · {(t.custom_blocks ?? []).length} bloco{(t.custom_blocks ?? []).length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="sm"
+                      variant={isActive ? 'secondary' : 'default'}
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setActiveTemplate(t);
+                        setLogo(t.logo ?? null);
+                        setBlocks(t.custom_blocks ?? []);
+                        setHistoryOpen(false);
+                      }}
+                    >
+                      <Check className="h-3 w-3 mr-1" /> Aplicar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setDeletingTpl(t)}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setHistoryOpen(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <AlertDialog open={!!deletingTpl} onOpenChange={(o) => !o && setDeletingTpl(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remove <strong>{deletingTpl?.name} (v{deletingTpl?.version})</strong>. Outras versões não são afetadas.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700"
+            onClick={async () => {
+              if (deletingTpl) {
+                await templatesHook.remove(deletingTpl.id);
+                if (activeTemplate?.id === deletingTpl.id) setActiveTemplate(null);
+              }
+              setDeletingTpl(null);
+            }}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }
