@@ -1,103 +1,124 @@
-## Objetivo
 
-Novo menu **Sales → Precificação Serviços** que reproduz fielmente a engine da planilha "Precificação Com Ficha Yampa", permitindo: (1) editar todos os parâmetros pela tela, (2) versionar a precificação inteira (snapshot), (3) importar/exportar a planilha .xlsx, (4) gerar proposta comercial em PDF com a marca da empresa, (5) opcionalmente vincular a uma Oportunidade do pipeline.
+# Integração BigQuery → Yampa (v1)
 
-## Estrutura do módulo (8 abas)
+Conectar o GCP `yampa-app` (dataset `n8n_yampa`) ao CRM via Lovable Connector, com uma tela "BigQuery Insights" na seção **Visão Geral**, cache em Lovable Cloud, refresh agendado, e tabelas detalhadas de Free Trials, Pré-churn e Churn — controlada pelo gerenciador de Níveis de Acesso.
 
-```text
-┌─ Visão Geral ─ KPIs: custo/min, markup por linha, # serviços, alerta de preço abaixo do ideal
-├─ 1. Custos Fixos ──── editor de despesas mensais (categorias 5.1…5.99) + total apurado
-├─ 2. Mão de Obra Direta ─ mesma estrutura, salários da equipe produtiva
-├─ 3. Capacidade Produtiva ─ pessoas, horas/dia, dias úteis, % produtividade → custo/min
-├─ 4. Markup ───────── 3 linhas (Premium/Gold/Prata): % impostos, comissão, gateway,
-│                       investimento, churn, despesa fixa, lucro desejado → Mark-up
-├─ 5. Insumos & Subprodutos ─ ações (min × custo/min) e combos de insumos
-├─ 6. Ficha Técnica ── cada Serviço = N insumos/subprodutos com qty → custo total
-├─ 7. Cadastro de Serviços ─ tabela principal: preço praticado, preço ideal sugerido,
-│                       CV unitário, CF unitário, M.C.%, lucro projetado, STATUS automático
-└─ 8. Propostas ────── builder de proposta (cliente, escopo, serviços, desconto) + PDF
-```
+---
 
-Cada aba mostra os campos calculados em tempo real (memoização React) e destaca em amarelo os campos editáveis (replicando convenção da planilha).
+## 1. Conexão (Connector Gateway)
 
-## Versionamento
+- Conectar o connector **BigQuery** via `standard_connectors--connect` (OAuth com Google).
+- Token e refresh são gerenciados pelo gateway Lovable — sem service account no código.
+- Variáveis injetadas automaticamente: `LOVABLE_API_KEY`, `BIGQUERY_API_KEY`.
+- Project ID alvo: `yampa-app`.
 
-- Tabela `pricing_versions` guarda um snapshot completo (JSONB) de TODA a precificação por data, com nome e status (`draft`/`active`/`archived`). Apenas uma `active` por vez.
-- Botões: **Nova versão**, **Duplicar atual**, **Importar de XLSX**, **Exportar para XLSX**, **Ativar**, **Comparar com versão X**.
-- Propostas ficam carimbadas com `version_id` para auditoria mesmo após mudanças futuras.
+## 2. Controle de acesso
 
-## Importação/Exportação XLSX
+- Adicionar nova área **`bigquery`** em `CRM_AREAS` (`AccessLevelManager.tsx`) e em `useAuth.tsx`.
+- Permissões: view (ver dashboards) / edit (rodar refresh manual, editar queries salvas).
+- Admin = full. Tático e Comercial = view por padrão (editável no gerenciador).
 
-- **Importar**: edge function `pricing-import-xlsx` lê o .xlsx no mesmo formato da planilha original (mesmos nomes de abas/colunas), valida, cria nova `pricing_versions` em status draft com tudo dentro.
-- **Exportar**: edge function `pricing-export-xlsx` gera .xlsx idêntico em layout para edição offline.
-- **Exportar Proposta (PDF)**: edge function `pricing-proposal-pdf` (pdf-lib + template estilizado com logo, paleta Yampa, capa, escopo, tabela de investimento mensal/anual, condições, rodapé).
+## 3. Schema (Lovable Cloud — cache)
 
-## Schema (resumo de tabelas)
+Migration única criando 4 tabelas + GRANTs + RLS (somente leitura para `authenticated`, write via `service_role` na edge function):
 
 ```text
-pricing_versions(id, name, status, is_active, snapshot jsonb, source: manual|import, created_by)
-pricing_fixed_costs(version_id, code, description, amount)
-pricing_labor_costs(version_id, code, description, amount)
-pricing_capacity(version_id, people, hours_per_day, work_days, productivity_pct)
-pricing_markup_lines(version_id, line: premium|gold|prata, tax_pct, commission_pct,
-                     gateway_pct, investment_pct, sales_commission_pct,
-                     fixed_expense_pct, churn_pct, profit_pct, reinvest_pct)
-pricing_inputs(version_id, name, minutes, unit)              -- insumos
-pricing_subproducts(version_id, name, items jsonb)           -- combos de insumos
-pricing_services(version_id, name, contract_months, line, practiced_price,
-                 recipe jsonb, qty_sold)                     -- ficha técnica + preço
-pricing_proposals(id, version_id, opportunity_id nullable, client_name, client_doc,
-                  items jsonb, discount_pct, total, status, pdf_url, created_by)
+bq_queries              definições versionadas de cada consulta (slug, sql, schedule_cron, last_run_at)
+bq_kpi_snapshots        snapshots de KPIs agregados (kpi_slug, period, value, breakdown jsonb, captured_at)
+bq_customer_status      linhas detalhadas (customer_id, email, plan, status [free_trial|pre_churn|churn|active],
+                                            trial_ends_at, mrr, last_event_at, raw jsonb, snapshot_at)
+bq_refresh_log          histórico de execuções (query_slug, status, rows, bytes_billed, duration_ms, error)
 ```
 
-Todas com RLS: leitura para `authenticated`, escrita para `admin` (parâmetros) e `admin`/`seller` autor (propostas). GRANTs explícitos. `pricing_versions.snapshot` permite "congelar" para auditoria histórica de propostas.
+`bq_customer_status` é truncada e reinserida a cada refresh (snapshot full). KPIs ficam em série temporal para gráficos de tendência.
 
-## Engine de cálculo (idêntica à planilha)
+## 4. Edge Functions
+
+### `bigquery-discover` (admin only)
+- Lista datasets/tabelas/colunas de `yampa-app` via `INFORMATION_SCHEMA` (consultas baratas).
+- Usada na tela de admin para mapear colunas reais antes de fixar as queries.
+
+### `bigquery-refresh`
+- Roda os SQLs salvos em `bq_queries` contra o gateway BigQuery.
+- Guardrails obrigatórios: `useLegacySql: false`, `maximumBytesBilled: "1073741824"` (1 GB), dry-run prévio quando `bytes_estimated > limite/2`.
+- Persiste resultados em `bq_kpi_snapshots` / `bq_customer_status`.
+- Loga em `bq_refresh_log` (sucesso, bytes faturados, duração, erro).
+- Invocável manualmente (botão "Atualizar agora" — admin/edit) ou via cron.
+
+### `bigquery-query` (admin only, fallback)
+- Endpoint para consultas ad-hoc seguras (lista branca de tabelas, mesmos guardrails). Usado se quisermos um SQL playground futuro — fica preparado mas sem UI no v1.
+
+### Agendamento
+- `pg_cron` + `pg_net` chamando `bigquery-refresh` a cada 1h (configurável).
+- SQL de agendamento aplicado via tool `supabase--insert` (contém anon key, não vai por migration).
+
+## 5. Queries iniciais (placeholders — ajustamos com as colunas reais via `bigquery-discover`)
+
+Salvas em `bq_queries` na seed:
+
+- `mrr_monthly` → MRR atual + série mensal últimos 12m.
+- `trials_active` → contagem de trials abertos + lista detalhada (vai para `bq_customer_status` com status=`free_trial`).
+- `conversions_monthly` → trials convertidos / iniciados por mês (taxa).
+- `pre_churn` → clientes ativos com sinais (sem login X dias, queda de uso etc.) → `bq_customer_status` status=`pre_churn`.
+- `churn` → cancelados nos últimos 90 dias → `bq_customer_status` status=`churn`.
+
+## 6. Frontend — `/bigquery-insights`
+
+Página nova na seção **Visão Geral** do `AppSidebar` (ícone `Database`), gated por `area: "bigquery"`.
+
+Layout em abas:
 
 ```text
-custo_minuto = custo_fixo_total / (pessoas * horas/dia * 60 * dias * produtividade)
-markup_line  = 1 / (1 - Σ(% variáveis) - lucro_desejado)
-custo_insumo = minutos × custo_minuto
-custo_subproduto = Σ custo_insumos do combo
-custo_servico = Σ (qty × custo_item) da ficha técnica
-preço_ideal  = custo_servico × markup_line  (mensalizado pelo contrato_meses)
-status_preço = preço_praticado vs preço_ideal (bom / abaixo / acima)
-MC%, lucro_projetado, faturamento_%, etc. — fórmulas exatas da planilha
+┌─ Visão Geral ─────────────────────────────────────────┐
+│ KPI cards: MRR | Trials ativos | Conversão (%) | Churn(%) │
+│ Gráfico MRR (12m)        Gráfico Trials → Conversões  │
+│ Última atualização: hh:mm  [Atualizar agora] (edit)   │
+├─ Free Trials ────────────────────────────────────────┤
+│ Tabela completa (busca, filtro por plano, export CSV) │
+├─ Pré-churn ──────────────────────────────────────────┤
+│ Tabela com motivo/score, ordenação por risco          │
+├─ Churn ──────────────────────────────────────────────┤
+│ Tabela com data de cancelamento, plano, MRR perdido   │
+└──────────────────────────────────────────────────────┘
 ```
 
-Implementação em `src/lib/pricing/engine.ts` com tipos fortes; UI consome via hook `usePricingVersion(id)` (TanStack Query) com `useMemo` para recálculos instantâneos.
+Componentes:
+- `src/pages/BigQueryInsights.tsx`
+- `src/components/bigquery/KpiCards.tsx`, `MrrChart.tsx`, `ConversionsChart.tsx`
+- `src/components/bigquery/CustomerStatusTable.tsx` (reutilizada nas 3 abas via prop `status`)
+- `src/components/bigquery/RefreshButton.tsx`
+- `src/hooks/useBigQueryInsights.ts` (consome as tabelas de cache, não chama BigQuery direto)
 
-## Proposta comercial (PDF)
+Tudo usa tokens semânticos (`primary` #01B8E0, `secondary` #2D094C), Sora/Manrope, em PT-BR.
 
-- Builder em `/sales/pricing/proposals/new`: passo 1 cliente, passo 2 escolha de serviços do Cadastro, passo 3 desconto/condições, passo 4 preview + gerar.
-- Template PDF estilizado: capa com logo, dados do cliente, resumo executivo (texto editável), tabela de serviços (qty, valor mensal, valor 12m), totais, condições de pagamento, validade, espaço para assinatura.
-- Opcional: campo "Vincular a Oportunidade" → atualiza `opportunities.estimated_value` / `estimated_mrr` quando proposta é enviada.
+## 7. Fluxo de descoberta de schema (1ª execução)
 
-## Sidebar
+1. Admin abre `/bigquery-insights` → vê banner "Mapear tabelas".
+2. Botão abre modal que chama `bigquery-discover` e lista as tabelas de `n8n_yampa`.
+3. Admin confirma quais tabelas representam clientes/assinaturas/eventos → eu ajusto os SQLs das 5 queries salvas em `bq_queries`.
+4. Refresh inicial roda e popula o dashboard.
 
-Adicionar em `AppSidebar.tsx` no grupo **Sales**, abaixo de "Campanhas de Sales":
+## 8. Segurança & custo
 
-```text
-Sales
-├─ Campanhas de Sales
-├─ Precificação Serviços   ← NOVO (icon: Calculator)
-├─ Comissões
-└─ Gerador de Ofertas
-```
+- Toda chamada ao BigQuery passa pela edge function (frontend nunca toca gateway).
+- RLS: `bq_*` legíveis por `authenticated`; escrita só por `service_role`.
+- `maximumBytesBilled` obrigatório; dry-run antes de queries amplas; alerta no `bq_refresh_log` se >50% do limite.
+- Sem `SELECT *`; sempre colunas explícitas.
 
-Acesso: `adminOnly` para edição de parâmetros; vendedores podem visualizar catálogo e criar propostas (controle via área `canView('pricing')` quando criada).
+## 9. Detalhes técnicos
 
-## Entregas em ordem
+- Gateway URL: `https://connector-gateway.lovable.dev/bigquery/bigquery/v2/projects/yampa-app/queries`.
+- Headers: `Authorization: Bearer ${LOVABLE_API_KEY}`, `X-Connection-Api-Key: ${BIGQUERY_API_KEY}`.
+- Edge functions em `supabase/functions/bigquery-*` com CORS padrão (`npm:@supabase/supabase-js@2/cors`).
+- Validação Zod nos bodies das functions.
+- Sem mudanças em código existente além de: `AppSidebar.tsx`, `App.tsx` (rota), `AccessLevelManager.tsx`, `useAuth.tsx`.
 
-1. Migração: tabelas + RLS + GRANTs + seed da versão atual (a partir da planilha enviada).
-2. Engine + tipos + hook.
-3. UI das 8 abas (editor + cálculos).
-4. Edge functions de import/export XLSX.
-5. Builder de proposta + edge function PDF.
-6. Item de menu + rota + ManagerOnly/AccessControl.
+## 10. Fora do escopo (v2+)
 
-## Pontos em aberto que valem confirmar depois de aprovar este plano
+- SQL playground UI (function já preparada).
+- Escrita de volta no BigQuery.
+- Enriquecimento automático de leads/contatos do CRM com dados BQ (pode ser próximo passo).
 
-- Identidade visual da proposta: usar logo "Y" atual ou o cliente vai fornecer um SVG?
-- Texto padrão do "Resumo executivo" e "Condições de pagamento" — quer que eu proponha um boilerplate em PT-BR ou prefere deixar 100% editável em branco?
-- Os números atuais da sua planilha devem virar a **versão "Ativa" v1** já no seed, certo?
+---
+
+**Próximo passo após aprovar**: conectar o connector BigQuery (vou abrir o prompt), rodar a migration das 4 tabelas, criar as edge functions, e montar a página. A primeira run vai exigir você confirmar os nomes reais das tabelas no `n8n_yampa`.
