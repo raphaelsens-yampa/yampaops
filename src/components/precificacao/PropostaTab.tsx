@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon } from 'lucide-react';
+import { Printer, Search, X, Upload, Plus, Trash2, GripVertical, Image as ImageIcon, Save } from 'lucide-react';
 import { PrecificacaoHook, getEffectivePrice } from '@/hooks/usePrecificacao';
 import { PropostaForm } from '@/types/precificacao';
+import { usePrecificacaoProposals, SavedProposal } from '@/hooks/usePrecificacaoProposals';
+import SavedProposalsList from './SavedProposalsList';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -62,8 +64,10 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
       return saved ? JSON.parse(saved) : DEFAULT_BLOCKS;
     } catch { return DEFAULT_BLOCKS; }
   });
+  const [parent, setParent] = useState<SavedProposal | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const proposalsHook = usePrecificacaoProposals();
 
   useEffect(() => {
     try {
@@ -133,11 +137,65 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
 
   const handlePrint = () => window.print();
 
+  const handleSave = async () => {
+    if (!form.clientName.trim()) {
+      alert('Informe o nome do cliente antes de salvar.');
+      return;
+    }
+    if (selectedItems.length === 0) {
+      alert('Selecione ao menos um serviço.');
+      return;
+    }
+    const items = selectedItems.map((p) => {
+      const eff = getEffectivePrice(p, priceOverrides);
+      return {
+        nome: p.nome, meses: p.meses, linha: p.linha,
+        preco_mensal: eff.preco_mensal, preco_total: eff.preco_total,
+      };
+    });
+    await proposalsHook.save({
+      parent_id: parent?.id ?? null,
+      version: parent ? parent.version + 1 : 1,
+      proposal_number: propId,
+      client_name: form.clientName,
+      client_company: form.clientCompany || null,
+      consultant: form.consultant || null,
+      proposal_date: form.date,
+      validity: form.validity,
+      discount_pct: form.discount,
+      payment: form.payment,
+      notes: form.notes || null,
+      custom_blocks: blocks,
+      items,
+      total_annual: finalTotal,
+      total_monthly: monthlyEst,
+    });
+    setParent(null);
+  };
+
+  const loadAsNewVersion = (p: SavedProposal) => {
+    setParent(p);
+    setForm({
+      clientName: p.client_name,
+      clientCompany: p.client_company ?? '',
+      date: today,
+      validity: p.validity,
+      consultant: p.consultant ?? '',
+      discount: Number(p.discount_pct) || 0,
+      payment: p.payment ?? PAYMENT_OPTIONS[0],
+      notes: p.notes ?? '',
+    });
+    setBlocks(p.custom_blocks ?? []);
+    setSelected(new Set(p.items.map((i) => i.nome)));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const filteredProducts = products.filter((p) =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
+    <div className="space-y-6">
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
       {/* Form column */}
       <div className="space-y-4 no-print">
@@ -325,15 +383,27 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => { setSelected(new Set()); setForm((f) => ({ ...f, clientName: '', clientCompany: '', discount: 0, notes: '' })); }}>
+        {parent && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 flex items-center justify-between">
+            <span>Criando <strong>nova versão</strong> da proposta de {parent.client_name} (v{parent.version} → v{parent.version + 1})</span>
+            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setParent(null)}>Cancelar</Button>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => { setParent(null); setSelected(new Set()); setForm((f) => ({ ...f, clientName: '', clientCompany: '', discount: 0, notes: '' })); }}>
             <X className="h-3.5 w-3.5 mr-1.5" /> Limpar
           </Button>
-          <Button onClick={handlePrint} className="bg-green-600 hover:bg-green-700">
-            <Printer className="h-3.5 w-3.5 mr-1.5" /> Imprimir / Salvar PDF
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="h-3.5 w-3.5 mr-1.5" /> Imprimir / PDF
+          </Button>
+          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+            <Save className="h-3.5 w-3.5 mr-1.5" /> {parent ? 'Salvar Nova Versão' : 'Salvar Proposta'}
           </Button>
         </div>
       </div>
+
+
 
       {/* Preview column */}
       <div>
@@ -471,6 +541,14 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
           .no-print { display: none !important; }
         }
       `}</style>
+    </div>
+
+    <SavedProposalsList
+      proposals={proposalsHook.proposals}
+      loading={proposalsHook.loading}
+      onNewVersion={loadAsNewVersion}
+      onDelete={proposalsHook.remove}
+    />
     </div>
   );
 }

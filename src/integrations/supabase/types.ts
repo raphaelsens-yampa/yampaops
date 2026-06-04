@@ -1834,6 +1834,104 @@ export type Database = {
         }
         Relationships: []
       }
+      precificacao_proposal_logs: {
+        Row: {
+          action: string
+          id: string
+          performed_at: string
+          performed_by: string | null
+          proposal_id: string
+          snapshot: Json
+        }
+        Insert: {
+          action: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          proposal_id: string
+          snapshot?: Json
+        }
+        Update: {
+          action?: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          proposal_id?: string
+          snapshot?: Json
+        }
+        Relationships: []
+      }
+      precificacao_proposals: {
+        Row: {
+          client_company: string | null
+          client_name: string
+          consultant: string | null
+          created_at: string
+          created_by: string | null
+          custom_blocks: Json
+          discount_pct: number
+          id: string
+          items: Json
+          notes: string | null
+          parent_id: string | null
+          payment: string | null
+          proposal_date: string | null
+          proposal_number: string | null
+          total_annual: number
+          total_monthly: number
+          validity: number
+          version: number
+        }
+        Insert: {
+          client_company?: string | null
+          client_name: string
+          consultant?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_blocks?: Json
+          discount_pct?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          parent_id?: string | null
+          payment?: string | null
+          proposal_date?: string | null
+          proposal_number?: string | null
+          total_annual?: number
+          total_monthly?: number
+          validity?: number
+          version?: number
+        }
+        Update: {
+          client_company?: string | null
+          client_name?: string
+          consultant?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_blocks?: Json
+          discount_pct?: number
+          id?: string
+          items?: Json
+          notes?: string | null
+          parent_id?: string | null
+          payment?: string | null
+          proposal_date?: string | null
+          proposal_number?: string | null
+          total_annual?: number
+          total_monthly?: number
+          validity?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "precificacao_proposals_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "precificacao_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_proposals: {
         Row: {
           client_doc: string | null
