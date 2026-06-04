@@ -203,6 +203,7 @@ export function newId(prefix: string): string {
 export interface PricingCtx {
   snap: PricingSnapshot;
   fixed: number;
+  labor: number;
   cpm: number;
   inputCost: (id: string) => number;
   subproductCost: (id: string) => number;
@@ -213,10 +214,12 @@ export interface PricingCtx {
 
 export function createPricingCtx(snap: PricingSnapshot): PricingCtx {
   const fixed = totalFixedCost(snap);
+  const labor = totalLaborCost(snap);
   const c = snap.capacity;
   const totalMinutes =
     c.people * c.hours_per_day * 60 * c.work_days * c.productivity_pct;
-  const cpm = totalMinutes ? (fixed * 12) / totalMinutes : 0;
+  const cpm = totalMinutes ? (labor * 12) / totalMinutes : 0;
+
 
   const inputCostMap = new Map<string, number>();
   for (const i of snap.inputs) {
