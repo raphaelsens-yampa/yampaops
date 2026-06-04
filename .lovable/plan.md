@@ -1,124 +1,86 @@
+# Pivot da Precificação — foco no time Comercial
 
-# Integração BigQuery → Yampa (v1)
+A página deixa de ser uma "réplica da planilha" e passa a ser uma **ferramenta de montagem e envio de propostas**, escondendo a parte operacional/contábil.
 
-Conectar o GCP `yampa-app` (dataset `n8n_yampa`) ao CRM via Lovable Connector, com uma tela "BigQuery Insights" na seção **Visão Geral**, cache em Lovable Cloud, refresh agendado, e tabelas detalhadas de Free Trials, Pré-churn e Churn — controlada pelo gerenciador de Níveis de Acesso.
+## Nova estrutura de abas
+
+```
+[ Visão Geral ] [ Nova Proposta ] [ Propostas ] [ Catálogo ] [ Markup ] [ Insumos & Subprodutos ] [ Versões ]
+```
+
+- **Escondidas do front:** Custos Fixos, Mão de Obra, Capacidade, Cenário de Receita, Cenários de Capacidade.
+  - Continuam existindo no `snapshot` (engine usa para calcular CPM e markup), apenas sem UI. Importação via XLSX continua alimentando esses campos.
+- **Catálogo** = renomeação de "Serviços" (linguagem comercial).
+- **Nova Proposta** vira aba dedicada (hoje está dentro de "Propostas" como dialog).
+
+## Nova Visão Geral (focada em vendas)
+
+Substitui os cards atuais (despesa fixa, mão de obra, CPM, contagem) por um painel orientado a vender:
+
+1. **Cards de topo:**
+   - Versão ativa + data
+   - Nº de produtos/serviços no catálogo
+   - Propostas no mês (total / aceitas / valor)
+   - Ticket médio das últimas propostas
+
+2. **Catálogo rápido:**
+   - Tabela enxuta com Nome, Linha (Premium/Gold/Prata), Prazo, Preço sugerido (ideal), Preço praticado, status (badge).
+   - Botão "Adicionar à proposta" por linha → abre o builder com o item já incluído.
+
+3. **Últimas propostas:** lista das 5 mais recentes com cliente, valor, status e link para abrir/baixar PDF.
+
+4. **Atenção comercial:** apenas serviços com `status = prejuizo` (sem expor lógica de markup interna — texto tipo "preço abaixo do custo, revisar antes de propor").
+
+## Nova Proposta (aba dedicada, multi-passos numa única tela)
+
+Layout em duas colunas:
+
+**Esquerda — Builder:**
+- Dados do cliente (nome, doc, email, telefone) + oportunidade vinculada (opcional)
+- Catálogo selecionável: busca por nome, filtros por linha e prazo, botão "+" para adicionar
+- Itens adicionados: editar **quantidade**, **preço praticado** (override por item, com aviso visual se ficar abaixo do ideal), **prazo**, **observação**
+- Desconto global (% ou R$), validade, condições de pagamento, resumo executivo
+
+**Direita — Pré-visualização ao vivo:**
+- Totais (mensal e total contrato), economia do desconto, MRR estimado
+- Por item: subtotal, indicador "ok / abaixo do ideal / prejuízo" (sem expor markup cru)
+- Botões: **Salvar rascunho**, **Gerar PDF**, **Enviar ao cliente** (mantém função `pricing-proposal-pdf` existente)
+
+## Propostas (lista)
+
+Tabela com filtros (status, cliente, período), ações: ver, duplicar, baixar PDF, marcar aceita/recusada. Sem mudanças no schema da tabela `pricing_proposals`.
+
+## Markup / Insumos & Subprodutos / Versões
+
+Mantidos como estão hoje (apenas para `canEditPricing`). Markup volta a usar `fixed_expense_pct` manual (a UI de "auto" depende do card de Receita que estamos removendo — fica como valor estático editável, fiel ao que vem da planilha importada).
+
+## Permissões
+
+- `canEditPricing` → vê tudo (Markup, Insumos, Catálogo edição, Versões).
+- Vendedor (sem edit) → vê **Visão Geral**, **Nova Proposta**, **Propostas**, **Catálogo** (somente leitura).
 
 ---
 
-## 1. Conexão (Connector Gateway)
+## Detalhes técnicos
 
-- Conectar o connector **BigQuery** via `standard_connectors--connect` (OAuth com Google).
-- Token e refresh são gerenciados pelo gateway Lovable — sem service account no código.
-- Variáveis injetadas automaticamente: `LOVABLE_API_KEY`, `BIGQUERY_API_KEY`.
-- Project ID alvo: `yampa-app`.
+**Arquivos a alterar:**
+- `src/pages/Pricing.tsx` — remover abas Custos Fixos / Mão de Obra / Capacidade, adicionar "Nova Proposta" e "Catálogo", ajustar permissões.
+- `src/components/pricing/PricingOverview.tsx` — reescrever do zero com os 4 blocos acima. Remover `RevenueScenarioCard`.
+- `src/components/pricing/MarkupEditor.tsx` — voltar `fixed_expense_pct` a campo simples editável (remover dependência de `revenue.auto_fixed_expense`).
+- `src/components/pricing/ProposalsManager.tsx` — split em dois: `ProposalBuilder.tsx` (aba Nova Proposta, layout 2 colunas, com override de preço por item) e `ProposalsList.tsx` (lista). Reaproveita queries e mutations atuais.
+- `src/components/pricing/ServicesEditor.tsx` — reusado como "Catálogo" com flag `readOnly` para vendedores.
 
-## 2. Controle de acesso
+**Arquivos a remover do fluxo (mantém o arquivo, só desplugar):**
+- `RevenueScenarioCard.tsx`, `CapacityScenarios.tsx`, `CapacityEditor.tsx`, `CostListEditor.tsx` — não importados na page, mas mantidos no repo caso queiramos rehabilitar.
 
-- Adicionar nova área **`bigquery`** em `CRM_AREAS` (`AccessLevelManager.tsx`) e em `useAuth.tsx`.
-- Permissões: view (ver dashboards) / edit (rodar refresh manual, editar queries salvas).
-- Admin = full. Tático e Comercial = view por padrão (editável no gerenciador).
+**Engine (`src/lib/pricing/engine.ts`):** sem mudança estrutural. `RevenueScenario` continua opcional no snapshot — engine só usa se `auto_fixed_expense=true`, então fica inerte sem UI.
 
-## 3. Schema (Lovable Cloud — cache)
-
-Migration única criando 4 tabelas + GRANTs + RLS (somente leitura para `authenticated`, write via `service_role` na edge function):
-
-```text
-bq_queries              definições versionadas de cada consulta (slug, sql, schedule_cron, last_run_at)
-bq_kpi_snapshots        snapshots de KPIs agregados (kpi_slug, period, value, breakdown jsonb, captured_at)
-bq_customer_status      linhas detalhadas (customer_id, email, plan, status [free_trial|pre_churn|churn|active],
-                                            trial_ends_at, mrr, last_event_at, raw jsonb, snapshot_at)
-bq_refresh_log          histórico de execuções (query_slug, status, rows, bytes_billed, duration_ms, error)
-```
-
-`bq_customer_status` é truncada e reinserida a cada refresh (snapshot full). KPIs ficam em série temporal para gráficos de tendência.
-
-## 4. Edge Functions
-
-### `bigquery-discover` (admin only)
-- Lista datasets/tabelas/colunas de `yampa-app` via `INFORMATION_SCHEMA` (consultas baratas).
-- Usada na tela de admin para mapear colunas reais antes de fixar as queries.
-
-### `bigquery-refresh`
-- Roda os SQLs salvos em `bq_queries` contra o gateway BigQuery.
-- Guardrails obrigatórios: `useLegacySql: false`, `maximumBytesBilled: "1073741824"` (1 GB), dry-run prévio quando `bytes_estimated > limite/2`.
-- Persiste resultados em `bq_kpi_snapshots` / `bq_customer_status`.
-- Loga em `bq_refresh_log` (sucesso, bytes faturados, duração, erro).
-- Invocável manualmente (botão "Atualizar agora" — admin/edit) ou via cron.
-
-### `bigquery-query` (admin only, fallback)
-- Endpoint para consultas ad-hoc seguras (lista branca de tabelas, mesmos guardrails). Usado se quisermos um SQL playground futuro — fica preparado mas sem UI no v1.
-
-### Agendamento
-- `pg_cron` + `pg_net` chamando `bigquery-refresh` a cada 1h (configurável).
-- SQL de agendamento aplicado via tool `supabase--insert` (contém anon key, não vai por migration).
-
-## 5. Queries iniciais (placeholders — ajustamos com as colunas reais via `bigquery-discover`)
-
-Salvas em `bq_queries` na seed:
-
-- `mrr_monthly` → MRR atual + série mensal últimos 12m.
-- `trials_active` → contagem de trials abertos + lista detalhada (vai para `bq_customer_status` com status=`free_trial`).
-- `conversions_monthly` → trials convertidos / iniciados por mês (taxa).
-- `pre_churn` → clientes ativos com sinais (sem login X dias, queda de uso etc.) → `bq_customer_status` status=`pre_churn`.
-- `churn` → cancelados nos últimos 90 dias → `bq_customer_status` status=`churn`.
-
-## 6. Frontend — `/bigquery-insights`
-
-Página nova na seção **Visão Geral** do `AppSidebar` (ícone `Database`), gated por `area: "bigquery"`.
-
-Layout em abas:
-
-```text
-┌─ Visão Geral ─────────────────────────────────────────┐
-│ KPI cards: MRR | Trials ativos | Conversão (%) | Churn(%) │
-│ Gráfico MRR (12m)        Gráfico Trials → Conversões  │
-│ Última atualização: hh:mm  [Atualizar agora] (edit)   │
-├─ Free Trials ────────────────────────────────────────┤
-│ Tabela completa (busca, filtro por plano, export CSV) │
-├─ Pré-churn ──────────────────────────────────────────┤
-│ Tabela com motivo/score, ordenação por risco          │
-├─ Churn ──────────────────────────────────────────────┤
-│ Tabela com data de cancelamento, plano, MRR perdido   │
-└──────────────────────────────────────────────────────┘
-```
-
-Componentes:
-- `src/pages/BigQueryInsights.tsx`
-- `src/components/bigquery/KpiCards.tsx`, `MrrChart.tsx`, `ConversionsChart.tsx`
-- `src/components/bigquery/CustomerStatusTable.tsx` (reutilizada nas 3 abas via prop `status`)
-- `src/components/bigquery/RefreshButton.tsx`
-- `src/hooks/useBigQueryInsights.ts` (consome as tabelas de cache, não chama BigQuery direto)
-
-Tudo usa tokens semânticos (`primary` #01B8E0, `secondary` #2D094C), Sora/Manrope, em PT-BR.
-
-## 7. Fluxo de descoberta de schema (1ª execução)
-
-1. Admin abre `/bigquery-insights` → vê banner "Mapear tabelas".
-2. Botão abre modal que chama `bigquery-discover` e lista as tabelas de `n8n_yampa`.
-3. Admin confirma quais tabelas representam clientes/assinaturas/eventos → eu ajusto os SQLs das 5 queries salvas em `bq_queries`.
-4. Refresh inicial roda e popula o dashboard.
-
-## 8. Segurança & custo
-
-- Toda chamada ao BigQuery passa pela edge function (frontend nunca toca gateway).
-- RLS: `bq_*` legíveis por `authenticated`; escrita só por `service_role`.
-- `maximumBytesBilled` obrigatório; dry-run antes de queries amplas; alerta no `bq_refresh_log` se >50% do limite.
-- Sem `SELECT *`; sempre colunas explícitas.
-
-## 9. Detalhes técnicos
-
-- Gateway URL: `https://connector-gateway.lovable.dev/bigquery/bigquery/v2/projects/yampa-app/queries`.
-- Headers: `Authorization: Bearer ${LOVABLE_API_KEY}`, `X-Connection-Api-Key: ${BIGQUERY_API_KEY}`.
-- Edge functions em `supabase/functions/bigquery-*` com CORS padrão (`npm:@supabase/supabase-js@2/cors`).
-- Validação Zod nos bodies das functions.
-- Sem mudanças em código existente além de: `AppSidebar.tsx`, `App.tsx` (rota), `AccessLevelManager.tsx`, `useAuth.tsx`.
-
-## 10. Fora do escopo (v2+)
-
-- SQL playground UI (function já preparada).
-- Escrita de volta no BigQuery.
-- Enriquecimento automático de leads/contatos do CRM com dados BQ (pode ser próximo passo).
+**Schema do banco:** nenhuma migração. `pricing_proposals` já suporta itens, desconto, validade, termos.
 
 ---
 
-**Próximo passo após aprovar**: conectar o connector BigQuery (vou abrir o prompt), rodar a migration das 4 tabelas, criar as edge functions, e montar a página. A primeira run vai exigir você confirmar os nomes reais das tabelas no `n8n_yampa`.
+## Pontos a confirmar
+
+1. **Override de preço na proposta:** vendedor pode digitar preço diferente do "praticado" do catálogo? (proposto: sim, com aviso visual se < ideal e bloqueio se < custo).
+2. **Catálogo somente leitura para vendedor:** ok ou vendedor também pode marcar/desmarcar serviços como "ativos para venda"?
+3. **"Atenção comercial" na Visão Geral:** mostro só `status=prejuizo` ou também `abaixo_ideal`?
