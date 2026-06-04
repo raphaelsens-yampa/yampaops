@@ -124,10 +124,13 @@ export default function AnalisePrecosTab({
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="text-base">Tabela de Serviços</CardTitle>
             <div className="flex gap-2">
+              <Button size="sm" onClick={() => setNewOpen(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> Novo Serviço
+              </Button>
               <Button variant="outline" size="sm" onClick={resetChanges} disabled={changedCount === 0}>
                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reverter
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={changedCount === 0}>
+              <Button size="sm" variant="outline" onClick={handleSave} disabled={changedCount === 0}>
                 <Save className="h-3.5 w-3.5 mr-1.5" />
                 {saved ? 'Salvo ✓' : 'Salvar alterações'}
               </Button>
