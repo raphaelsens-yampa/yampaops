@@ -542,5 +542,13 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
         }
       `}</style>
     </div>
+
+    <SavedProposalsList
+      proposals={proposalsHook.proposals}
+      loading={proposalsHook.loading}
+      onNewVersion={loadAsNewVersion}
+      onDelete={proposalsHook.remove}
+    />
+    </div>
   );
 }
