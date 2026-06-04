@@ -2,6 +2,7 @@ import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
   FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -169,7 +170,7 @@ const NAV_ACTIVE = "bg-sidebar-accent text-sidebar-primary font-medium border-l-
 const NAV_BASE = "hover:bg-sidebar-accent/50 border-l-2 border-transparent";
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const { role, profile, signOut, canView, canViewSection, accessLevelName } = useAuth();
   const { theme, toggle } = useTheme();
@@ -390,10 +391,22 @@ export function AppSidebar() {
               <span className="text-sidebar-primary-foreground font-heading font-bold text-sm">Y</span>
             </div>
             {!collapsed && (
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 flex-1">
                 <span className="font-heading font-bold text-lg text-sidebar-foreground leading-none">Yampa</span>
               </div>
             )}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className={cn(
+                "p-1 rounded hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors",
+                collapsed && "absolute top-3 right-2",
+              )}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              title={collapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
           </div>
           {!collapsed && (
             <div className="px-3 pb-2">
