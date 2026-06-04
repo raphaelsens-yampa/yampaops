@@ -166,6 +166,7 @@ export default function UsersPage() {
   }
 
   const adminCount = users.filter((u) => u.role === "admin").length;
+  const taticoCount = users.filter((u) => u.role === "tatico").length;
   const sellerCount = users.filter((u) => u.role === "seller").length;
 
   return (
