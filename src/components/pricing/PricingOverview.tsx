@@ -35,6 +35,7 @@ export function PricingOverview({
 
   return (
     <div className="space-y-6">
+      <RevenueScenarioCard snap={snap} update={update} />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
