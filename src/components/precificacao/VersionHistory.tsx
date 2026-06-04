@@ -33,8 +33,8 @@ const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 export default function VersionHistory({ setProducts, updateConfig }: PrecificacaoHook) {
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === 'admin';
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [versions, setVersions] = useState<PricingVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmTarget, setConfirmTarget] = useState<PricingVersion | null>(null);
