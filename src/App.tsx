@@ -114,7 +114,7 @@ function AppRoutes() {
       <Route path="/discounts/overview" element={<DiscountOverview />} />
       <Route path="/discounts/portfolio" element={<DiscountPortfolio />} />
       <Route path="/discounts/rules" element={<DiscountRules />} />
-      <Route path="/precificacao" element={<Precificacao />} />
+      <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
