@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Save } from 'lucide-react';
 import { PrecificacaoHook, calcMarkup } from '@/hooks/usePrecificacao';
 import { AppConfig } from '@/types/precificacao';
+import { recordPricingVersion } from '@/lib/pricingVersions';
 
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
 
@@ -31,7 +32,7 @@ const BASE_DEDUCTIONS = [
   { key: 'churn'             as const, label: 'Churn' },
 ];
 
-export default function ConfiguracoesTab({ config, updateConfig }: PrecificacaoHook) {
+export default function ConfiguracoesTab({ config, updateConfig, products }: PrecificacaoHook) {
   const [draft, setDraft] = useState<AppConfig>(() => JSON.parse(JSON.stringify(config)));
   const [saved, setSaved] = useState(false);
 
@@ -60,6 +61,14 @@ export default function ConfiguracoesTab({ config, updateConfig }: PrecificacaoH
     updateConfig(draft);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'config_update',
+      name: 'Configurações atualizadas',
+      description: 'Margens de markup e/ou deduções alteradas.',
+      snapshot: { products, config: draft },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
   };
 
   const totalDedMC = Object.values(draft.deductions).reduce((s, v) => s + v, 0);

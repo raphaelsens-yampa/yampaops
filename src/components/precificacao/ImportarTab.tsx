@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Upload, CheckCircle, XCircle, FileSpreadsheet } from 'lucide-react';
 import { PrecificacaoHook } from '@/hooks/usePrecificacao';
 import { Produto, LinhaMarkup } from '@/types/precificacao';
+import { recordPricingVersion } from '@/lib/pricingVersions';
+import VersionHistory from './VersionHistory';
 import * as XLSX from 'xlsx';
 
 type UploadStatus = 'idle' | 'processing' | 'success' | 'error';
 
-export default function ImportarTab({ setProducts }: PrecificacaoHook) {
+export default function ImportarTab(hook: PrecificacaoHook) {
+  const { setProducts, config } = hook;
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [message, setMessage] = useState('');
   const [count, setCount] = useState(0);
@@ -88,6 +91,16 @@ export default function ImportarTab({ setProducts }: PrecificacaoHook) {
         setCount(newProducts.length);
         setStatus('success');
         setMessage(`${newProducts.length} produtos importados da aba "${sheetName}".`);
+
+        recordPricingVersion({
+          source: 'import',
+          change_type: 'import_xlsx',
+          name: `Importação: ${file.name}`,
+          description: `${newProducts.length} produtos importados da aba "${sheetName}".`,
+          file_name: file.name,
+          snapshot: { products: newProducts, config },
+          setActive: true,
+        }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
       } catch (err) {
         setStatus('error');
         setMessage(err instanceof Error ? err.message : 'Erro ao processar o arquivo.');
@@ -110,91 +123,83 @@ export default function ImportarTab({ setProducts }: PrecificacaoHook) {
   };
 
   return (
-    <div className="max-w-xl space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4 text-green-600" />
-            Upload da Planilha
-          </CardTitle>
-          <p className="text-xs text-gray-500 mt-1">
-            Carregue uma nova versão do arquivo Excel para atualizar todos os produtos e preços.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-
-          {/* Drop zone */}
-          <div
-            className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
-              isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-            }`}
-            onClick={() => inputRef.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-          >
-            <Upload className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm font-medium text-gray-600">
-              <span className="text-blue-600">Clique para selecionar</span> ou arraste o arquivo aqui
-            </p>
-            <p className="text-xs text-gray-400 mt-1">Aceita arquivos .xlsx</p>
-          </div>
-          <input ref={inputRef} type="file" accept=".xlsx" className="hidden" onChange={handleChange} />
-
-          {/* Status */}
-          {status === 'processing' && (
-            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-              <div className="h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              {message}
-            </div>
-          )}
-          {status === 'success' && (
-            <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg text-sm text-green-700">
-              <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Importação concluída!</p>
-                <p>{message}</p>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="p-0 h-auto text-green-700 underline mt-1"
-                  onClick={() => setStatus('idle')}
-                >
-                  Importar outro arquivo
-                </Button>
-              </div>
-            </div>
-          )}
-          {status === 'error' && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg text-sm text-red-700">
-              <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Erro na importação</p>
-                <p>{message}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Info box */}
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 space-y-1">
-            <p className="font-semibold">📋 Requisitos da planilha:</p>
-            <ul className="space-y-0.5 text-blue-700">
-              <li>• Aba chamada <strong>Análise de Preços</strong></li>
-              <li>• Colunas: <strong>Nome do Produto, Meses de Contrato, Tipo Mkp, Custo das horas, Preço praticado mensalizado, Preço Praticado Total, Preço Ideal (Sugerido) Mensalizado</strong></li>
-              <li>• Linha marcadora <strong>FIM</strong> no final dos dados</li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* History placeholder */}
-      {count > 0 && (
+    <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
+      <div className="space-y-4">
         <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-gray-500">Última importação: <strong className="text-gray-800">{count} produtos</strong> carregados com sucesso.</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-green-600" />
+              Upload da Planilha
+            </CardTitle>
+            <p className="text-xs text-gray-500 mt-1">
+              Carregue uma nova versão do arquivo Excel para atualizar todos os produtos e preços.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+
+            <div
+              className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+                isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+              }`}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+            >
+              <Upload className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm font-medium text-gray-600">
+                <span className="text-blue-600">Clique para selecionar</span> ou arraste o arquivo aqui
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Aceita arquivos .xlsx</p>
+            </div>
+            <input ref={inputRef} type="file" accept=".xlsx" className="hidden" onChange={handleChange} />
+
+            {status === 'processing' && (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+                <div className="h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                {message}
+              </div>
+            )}
+            {status === 'success' && (
+              <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg text-sm text-green-700">
+                <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Importação concluída!</p>
+                  <p>{message}</p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 h-auto text-green-700 underline mt-1"
+                    onClick={() => setStatus('idle')}
+                  >
+                    Importar outro arquivo
+                  </Button>
+                </div>
+              </div>
+            )}
+            {status === 'error' && (
+              <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg text-sm text-red-700">
+                <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">Erro na importação</p>
+                  <p>{message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 space-y-1">
+              <p className="font-semibold">📋 Requisitos da planilha:</p>
+              <ul className="space-y-0.5 text-blue-700">
+                <li>• Aba chamada <strong>Análise de Preços</strong></li>
+                <li>• Colunas: <strong>Nome do Produto, Meses de Contrato, Tipo Mkp, Custo das horas, Preço praticado mensalizado, Preço Praticado Total, Preço Ideal (Sugerido) Mensalizado</strong></li>
+                <li>• Linha marcadora <strong>FIM</strong> no final dos dados</li>
+              </ul>
+            </div>
           </CardContent>
         </Card>
-      )}
+      </div>
+
+      <VersionHistory {...hook} />
     </div>
   );
 }

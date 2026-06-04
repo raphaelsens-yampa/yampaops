@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NewProductDialog from './NewProductDialog';
+import { recordPricingVersion } from '@/lib/pricingVersions';
+import { Produto } from '@/types/precificacao';
 import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
@@ -56,9 +58,53 @@ export default function AnalisePrecosTab({
   }, 0) / (products.length || 1);
 
   const handleSave = () => {
+    const changedNames = Object.keys(priceOverrides);
+    const updatedProducts = products.map((p) => {
+      if (priceOverrides[p.nome] !== undefined) {
+        const newMonthly = priceOverrides[p.nome];
+        return { ...p, preco_mensal: newMonthly, preco_total: newMonthly * p.meses };
+      }
+      return p;
+    });
     saveChanges();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+
+    if (changedNames.length > 0) {
+      recordPricingVersion({
+        source: 'edit',
+        change_type: 'price_update',
+        name: `Atualização de preços (${changedNames.length} ${changedNames.length === 1 ? 'item' : 'itens'})`,
+        description: changedNames.slice(0, 5).join(', ') + (changedNames.length > 5 ? '...' : ''),
+        snapshot: { products: updatedProducts, config },
+        setActive: true,
+      }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    }
+  };
+
+  const handleAddProduct = (novo: Produto) => {
+    addProduct(novo);
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'new_service',
+      name: `Novo serviço: ${novo.nome}`,
+      description: `Linha ${novo.linha} · ${novo.meses}x · ${novo.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
+      snapshot: { products: [novo, ...products], config },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+  };
+
+  const handleLinhaChange = (nome: string, novaLinha: LinhaMarkup) => {
+    updateLinha(nome, novaLinha);
+    const updated = products.map((p) => p.nome === nome ? { ...p, linha: novaLinha } : p);
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'line_update',
+      name: `Linha alterada: ${nome}`,
+      description: `Nova linha: ${novaLinha}`,
+      snapshot: { products: updated, config },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
   };
 
   const handlePriceChange = (nome: string, val: string) => {
@@ -232,7 +278,7 @@ export default function AnalisePrecosTab({
                         <TableCell>
                           <Select
                             value={p.linha}
-                            onValueChange={(v) => updateLinha(p.nome, v as LinhaMarkup)}
+                            onValueChange={(v) => handleLinhaChange(p.nome, v as LinhaMarkup)}
                           >
                             <SelectTrigger className="h-7 text-xs w-32">
                               <SelectValue />
@@ -286,7 +332,7 @@ export default function AnalisePrecosTab({
         onOpenChange={setNewOpen}
         config={config}
         existingNames={products.map((p) => p.nome)}
-        onCreate={addProduct}
+        onCreate={handleAddProduct}
       />
     </div>
   );

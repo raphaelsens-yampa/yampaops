@@ -2021,9 +2021,11 @@ export type Database = {
       }
       pricing_versions: {
         Row: {
+          change_type: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          file_name: string | null
           id: string
           is_active: boolean
           name: string
@@ -2033,9 +2035,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          change_type?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          file_name?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -2045,9 +2049,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          change_type?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          file_name?: string | null
           id?: string
           is_active?: boolean
           name?: string
