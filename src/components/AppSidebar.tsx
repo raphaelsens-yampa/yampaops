@@ -238,7 +238,7 @@ export function AppSidebar() {
         
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
-        { title: "Precificação", url: "/precificacao", icon: Calculator },
+        { title: "Precificação", url: "/precificacao", icon: Calculator, area: "precificacao" },
       ],
     },
     {
