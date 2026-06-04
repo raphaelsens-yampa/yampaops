@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NewProductDialog from './NewProductDialog';
+import { recordPricingVersion } from '@/lib/pricingVersions';
+import { Produto } from '@/types/precificacao';
 import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
