@@ -304,6 +304,7 @@ export function createPricingCtx(snap: PricingSnapshot): PricingCtx {
   return {
     snap,
     fixed,
+    labor,
     cpm,
     inputCost,
     subproductCost,
