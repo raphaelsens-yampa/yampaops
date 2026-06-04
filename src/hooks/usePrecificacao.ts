@@ -127,6 +127,14 @@ export function usePrecificacao() {
     localStorage.setItem(STORAGE_KEYS.overrides, JSON.stringify({}));
   }, []);
 
+  const updateLinha = useCallback((nome: string, novaLinha: 'Linha Premium' | 'Linha Gold' | 'Linha Prata') => {
+    setProductsState((prev) => {
+      const updated = prev.map((p) => p.nome === nome ? { ...p, linha: novaLinha } : p);
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return {
     products,
     config,
@@ -134,6 +142,7 @@ export function usePrecificacao() {
     setProducts,
     updateConfig,
     updatePrice,
+    updateLinha,
     saveChanges,
     resetChanges,
   };
