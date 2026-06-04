@@ -33,6 +33,7 @@ type NavItem = {
 type Group = {
   key: string;
   label: string;
+  section?: import("@/hooks/useAuth").SectionKey;
   items: NavItem[];
   collapsible?: boolean;
   defaultOpen?: boolean;
@@ -170,7 +171,7 @@ const NAV_BASE = "hover:bg-sidebar-accent/50 border-l-2 border-transparent";
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { role, profile, signOut, canView, accessLevelName } = useAuth();
+  const { role, profile, signOut, canView, canViewSection, accessLevelName } = useAuth();
   const { theme, toggle } = useTheme();
 
   const [openOverview, setOpenOverview] = useLocalBool("sidebar:group:overview", true);
@@ -189,6 +190,7 @@ export function AppSidebar() {
     {
       key: "overview",
       label: "Visão Geral",
+      section: "overview",
       collapsible: true,
       defaultOpen: openOverview,
       items: [
@@ -197,18 +199,19 @@ export function AppSidebar() {
           : { title: "Dashboard", url: "/", icon: BarChart3, area: "dashboard" },
         { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
-        { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart },
+        { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart, area: "conversions" },
       ],
     },
     {
       key: "vendas",
       label: "Operações",
+      section: "operations",
       collapsible: true,
       defaultOpen: openVendas,
       items: [
         { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
-        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, managerOnly: true },
+        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", managerOnly: true },
         {
           title: "Auditoria IA",
           url: "/atendimentos/auditoria",
@@ -225,36 +228,38 @@ export function AppSidebar() {
             ] : []),
           ],
         },
-        { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "dashboard" },
+        { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" },
       ],
     },
     {
       key: "comercial",
       label: "Sales",
+      section: "sales",
       collapsible: true,
       defaultOpen: openComercial,
       items: [
-        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, managerOnly: true },
-        
+        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
-        { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2 },
+        { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },
         { title: "Precificação", url: "/precificacao", icon: Calculator, area: "precificacao" },
       ],
     },
     {
       key: "descontos",
       label: "Estratégia Adquirência",
+      section: "discounts",
       collapsible: true,
       defaultOpen: openDescontos,
       items: [
-        { title: "Visão Geral", url: "/discounts/overview", icon: Percent, managerOnly: true },
-        { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase },
-        { title: "Configurar Faixas", url: "/discounts/rules", icon: Settings2, adminOnly: true },
+        { title: "Visão Geral", url: "/discounts/overview", icon: Percent, area: "discounts_overview", managerOnly: true },
+        { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase, area: "discounts_portfolio" },
+        { title: "Configurar Faixas", url: "/discounts/rules", icon: Settings2, area: "discounts_rules", adminOnly: true },
       ],
     },
     {
       key: "gestao",
       label: "Gestão",
+      section: "gestao",
       collapsible: true,
       defaultOpen: openGestao,
       adminOnly: true,
@@ -263,27 +268,29 @@ export function AppSidebar() {
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
         { title: "Importação", url: "/imports", icon: Upload, area: "import" },
-        { title: "Tags", url: "/settings/tags", icon: Tag, adminOnly: true },
+        { title: "Tags", url: "/settings/tags", icon: Tag, area: "tags", adminOnly: true },
       ],
     },
     {
       key: "integracoes",
       label: "Integrações",
+      section: "integracoes",
       collapsible: true,
       defaultOpen: openIntegr,
       adminOnly: true,
       items: [
-        { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug, adminOnly: true, rightSlot: "ac-status" },
-        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, adminOnly: true, rightSlot: "stripe-status" },
-        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, adminOnly: true, rightSlot: "chatwoot-status" },
-        { title: "Auditoria", url: "/integrations/audit", icon: Activity, adminOnly: true },
+        { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug, area: "integration_ac", adminOnly: true, rightSlot: "ac-status" },
+        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
+        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
+        { title: "Auditoria", url: "/integrations/audit", icon: Activity, area: "integration_audit", adminOnly: true },
       ],
     },
   ];
 
-  // Filtra itens visíveis em cada grupo
+  // Filtra itens visíveis em cada grupo (respeitando section + área)
   const visibleGroups = groups
     .filter((g) => !g.adminOnly || role === "admin")
+    .filter((g) => !g.section || role === "admin" || canViewSection(g.section))
     .map((g) => ({
       ...g,
       items: g.items

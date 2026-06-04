@@ -2,24 +2,11 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { CRM_SECTIONS, getSectionForArea, type CrmAreaKey, type AreaPermission, type Permissions, type SectionKey } from "@/components/AccessLevelManager";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
-export type AreaPermission = { view: boolean; create: boolean; edit: boolean };
-export type CrmAreaKey =
-  | "dashboard"
-  | "pipeline"
-  | "forecast"
-  | "goals"
-  | "team"
-  | "import"
-  | "users"
-  | "contacts"
-  | "commissions"
-  | "atendimentos"
-  | "auditoria_ia"
-  | "precificacao";
-export type Permissions = Partial<Record<CrmAreaKey, AreaPermission>>;
+export type { CrmAreaKey, AreaPermission, Permissions, SectionKey };
 
 interface AuthContext {
   session: Session | null;
@@ -33,6 +20,7 @@ interface AuthContext {
   canView: (area: CrmAreaKey) => boolean;
   canCreate: (area: CrmAreaKey) => boolean;
   canEdit: (area: CrmAreaKey) => boolean;
+  canViewSection: (section: SectionKey) => boolean;
 }
 
 const EMPTY_PERMS: Permissions = {};
@@ -42,9 +30,62 @@ const AuthCtx = createContext<AuthContext>({
   permissions: EMPTY_PERMS, accessLevelName: null, loading: true,
   signOut: async () => {},
   canView: () => false, canCreate: () => false, canEdit: () => false,
+  canViewSection: () => false,
 });
 
 export const useAuth = () => useContext(AuthCtx);
+
+// Constrói defaults baseados no papel; mantém compatibilidade com bases antigas
+// onde a access_level não inclui novas chaves.
+function defaultsForRole(role: AppRole): Permissions {
+  const all: AreaPermission = { view: true, create: true, edit: true };
+  const ro: AreaPermission = { view: true, create: false, edit: false };
+  const none: AreaPermission = { view: false, create: false, edit: false };
+
+  if (role === "admin") {
+    const p: Permissions = {};
+    for (const s of CRM_SECTIONS) {
+      p[s.key as CrmAreaKey] = all;
+      for (const a of s.areas) p[a.key as CrmAreaKey] = all;
+    }
+    return p;
+  }
+
+  if (role === "tatico") {
+    return {
+      overview: ro, dashboard: ro, forecast: ro, goals: ro, conversions: ro,
+      operations: ro, pipeline: { view: true, create: true, edit: true }, atendimentos: ro,
+      agent_activity: ro, auditoria_ia: ro, lead_journey: ro,
+      sales: ro, sales_campaigns: ro, commissions: ro, link_builder: ro, precificacao: ro,
+      discounts: ro, discounts_overview: ro, discounts_portfolio: ro, discounts_rules: none,
+      gestao: ro, contacts: { view: true, create: true, edit: true }, team: ro, users: none, import: ro, tags: none,
+      integracoes: none, integration_ac: none, integration_stripe: none, integration_chatwoot: none, integration_audit: none,
+    };
+  }
+
+  // seller
+  return {
+    overview: ro, dashboard: none, forecast: none, goals: ro, conversions: none,
+    operations: ro, pipeline: { view: true, create: true, edit: true }, atendimentos: ro,
+    agent_activity: none, auditoria_ia: ro, lead_journey: none,
+    sales: ro, sales_campaigns: none, commissions: ro, link_builder: ro, precificacao: ro,
+    discounts: ro, discounts_overview: none, discounts_portfolio: ro, discounts_rules: none,
+    gestao: none, contacts: none, team: none, users: none, import: none, tags: none,
+    integracoes: none, integration_ac: none, integration_stripe: none, integration_chatwoot: none, integration_audit: none,
+  };
+}
+
+// Mescla permissões do nível de acesso com defaults do papel: chaves não definidas
+// no nível herdam o valor do default do papel (compat. retroativa).
+function mergePermissions(levelPerms: Permissions | null | undefined, role: AppRole): Permissions {
+  const defaults = defaultsForRole(role);
+  if (!levelPerms) return defaults;
+  const merged: Permissions = { ...defaults };
+  for (const [k, v] of Object.entries(levelPerms)) {
+    if (v) merged[k as CrmAreaKey] = v as AreaPermission;
+  }
+  return merged;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -73,11 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) {
-        fetchUserData(s.user.id);
-      } else {
-        setLoading(false);
-      }
+      if (s?.user) fetchUserData(s.user.id);
+      else setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -99,66 +137,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(profileRes.data ?? null);
 
     const level = (accessRes.data as any)?.access_levels;
-    if (level?.permissions) {
-      setPermissions(level.permissions as Permissions);
-      setAccessLevelName(level.name ?? null);
-    } else {
-      // Fallback: admin vê e gerencia tudo; tático vê tudo mas não cria/edita amplo;
-      // seller só pipeline/goals/commissions
-      if (resolvedRole === "admin") {
-        setPermissions({
-          dashboard: { view: true, create: true, edit: true },
-          pipeline: { view: true, create: true, edit: true },
-          forecast: { view: true, create: true, edit: true },
-          goals: { view: true, create: true, edit: true },
-          team: { view: true, create: true, edit: true },
-          import: { view: true, create: true, edit: true },
-          users: { view: true, create: true, edit: true },
-          contacts: { view: true, create: true, edit: true },
-          commissions: { view: true, create: true, edit: true },
-          atendimentos: { view: true, create: true, edit: true },
-          auditoria_ia: { view: true, create: true, edit: true },
-          precificacao: { view: true, create: true, edit: true },
-        });
-      } else if (resolvedRole === "tatico") {
-        setPermissions({
-          dashboard: { view: true, create: false, edit: false },
-          pipeline: { view: true, create: true, edit: true },
-          forecast: { view: true, create: false, edit: false },
-          goals: { view: true, create: false, edit: false },
-          team: { view: true, create: false, edit: false },
-          contacts: { view: true, create: true, edit: true },
-          commissions: { view: true, create: false, edit: false },
-          atendimentos: { view: true, create: false, edit: false },
-          auditoria_ia: { view: true, create: false, edit: false },
-        });
-      } else {
-        setPermissions({
-          pipeline: { view: true, create: true, edit: true },
-          goals: { view: true, create: false, edit: false },
-          commissions: { view: true, create: false, edit: false },
-          precificacao: { view: true, create: false, edit: false },
-        });
-      }
-      setAccessLevelName(null);
-    }
+    setPermissions(mergePermissions(level?.permissions as Permissions | undefined, resolvedRole));
+    setAccessLevelName(level?.name ?? null);
     setLoading(false);
   }
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut = async () => { await supabase.auth.signOut(); };
+
+  // Admin sempre tem acesso total
+  const isAdmin = role === "admin";
+
+  const canViewSection = (section: SectionKey) => {
+    if (isAdmin) return true;
+    return !!permissions[section as CrmAreaKey]?.view;
   };
 
-  const canView = (area: CrmAreaKey) => !!permissions[area]?.view;
-  const canCreate = (area: CrmAreaKey) => !!permissions[area]?.create;
-  const canEdit = (area: CrmAreaKey) => !!permissions[area]?.edit;
+  const checkArea = (area: CrmAreaKey, perm: keyof AreaPermission) => {
+    if (isAdmin) return true;
+    // Se a área pertence a uma seção, a seção precisa estar habilitada
+    const section = getSectionForArea(area);
+    if (section && section !== area) {
+      if (!permissions[section as CrmAreaKey]?.view) return false;
+    }
+    return !!permissions[area]?.[perm];
+  };
+
+  const canView = (area: CrmAreaKey) => checkArea(area, "view");
+  const canCreate = (area: CrmAreaKey) => checkArea(area, "create");
+  const canEdit = (area: CrmAreaKey) => checkArea(area, "edit");
 
   return (
     <AuthCtx.Provider
       value={{
         session, user, role, profile,
         permissions, accessLevelName, loading,
-        signOut, canView, canCreate, canEdit,
+        signOut, canView, canCreate, canEdit, canViewSection,
       }}
     >
       {children}
