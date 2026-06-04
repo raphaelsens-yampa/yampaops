@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import NewProductDialog from './NewProductDialog';
 import { recordPricingVersion } from '@/lib/pricingVersions';
 import { Produto } from '@/types/precificacao';
-import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck } from '@/hooks/usePrecificacao';
+import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck, calcLucroProjetado } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
 const fmtBRL = (v: number) =>
