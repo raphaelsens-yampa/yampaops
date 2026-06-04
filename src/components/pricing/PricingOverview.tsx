@@ -10,8 +10,15 @@ import {
 } from "@/lib/pricing/engine";
 import type { PricingSnapshot } from "@/lib/pricing/types";
 import { AlertTriangle, CheckCircle2, TrendingDown, TrendingUp } from "lucide-react";
+import { RevenueScenarioCard } from "./RevenueScenarioCard";
 
-export function PricingOverview({ snap }: { snap: PricingSnapshot }) {
+export function PricingOverview({
+  snap,
+  update,
+}: {
+  snap: PricingSnapshot;
+  update: (u: (s: PricingSnapshot) => PricingSnapshot) => void;
+}) {
   const ctx = useMemo(() => createPricingCtx(snap), [snap]);
   const cpm = ctx.cpm;
   const fixed = ctx.fixed;
