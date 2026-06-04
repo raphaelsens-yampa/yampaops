@@ -60,6 +60,18 @@ export interface Service {
   active: boolean;
 }
 
+/**
+ * Cenário de faturamento — espelha o que está na planilha:
+ * a despesa fixa % é derivada de (despesa_fixa_mensal / faturamento_mensal),
+ * portanto o markup muda conforme o faturamento previsto ou o real.
+ */
+export interface RevenueScenario {
+  forecasted_monthly: number; // meta / capacidade
+  actual_monthly: number;     // realizado atual
+  mode: "forecast" | "actual";
+  auto_fixed_expense: boolean; // se true, sobrescreve fixed_expense_pct das linhas
+}
+
 export interface PricingSnapshot {
   version: number;
   currency: string;
@@ -70,6 +82,7 @@ export interface PricingSnapshot {
   inputs: InputItem[];
   subproducts: Subproduct[];
   services: Service[];
+  revenue?: RevenueScenario;
 }
 
 export interface PricingVersionRow {
