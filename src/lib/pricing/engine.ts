@@ -301,7 +301,7 @@ export function createPricingCtx(snap: PricingSnapshot): PricingCtx {
   const getMarkup = (k: MarkupLineKey): number => {
     const c = markupCache.get(k);
     if (c !== undefined) return c;
-    const m = markupRate(snap.markup_lines[k]);
+    const m = effectiveMarkupRate(snap, snap.markup_lines[k]);
     markupCache.set(k, m);
     return m;
   };
