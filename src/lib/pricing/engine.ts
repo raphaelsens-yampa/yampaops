@@ -11,20 +11,31 @@ export function sumCosts(items: { amount: number }[]): number {
   return items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
 }
 
+/** Soma das despesas fixas mensais (não inclui mão de obra). */
 export function totalFixedCost(snap: PricingSnapshot): number {
-  return sumCosts(snap.fixed_costs) + sumCosts(snap.labor_costs);
+  return sumCosts(snap.fixed_costs);
 }
 
-/** Custo por minuto produtivo */
+/** Soma da mão de obra direta mensal. */
+export function totalLaborCost(snap: PricingSnapshot): number {
+  return sumCosts(snap.labor_costs);
+}
+
+/**
+ * Custo por minuto produtivo — fiel à planilha:
+ *   (mão de obra direta mensal × 12) ÷ minutos produtivos anuais
+ * A despesa fixa NÃO entra aqui — ela é absorvida via `fixed_expense_pct`
+ * no markup (despesa fixa ÷ faturamento previsto).
+ */
 export function costPerMinute(snap: PricingSnapshot): number {
   const c = snap.capacity;
-  const totalMinutes = c.people * c.hours_per_day * 60 * c.work_days * c.productivity_pct;
+  const totalMinutes =
+    c.people * c.hours_per_day * 60 * c.work_days * c.productivity_pct;
   if (!totalMinutes) return 0;
-  // 12 = mensal (custo fixo mensal) ÷ minutos do ano? Na planilha original o cálculo é anual
-  // Mas como a despesa é mensal, multiplicamos por 12 para anual
-  const annualFixed = totalFixedCost(snap) * 12;
-  return annualFixed / totalMinutes;
+  const annualLabor = totalLaborCost(snap) * 12;
+  return annualLabor / totalMinutes;
 }
+
 
 /** Soma de % variáveis (todos exceto profit) */
 export function variableSum(l: MarkupLine): number {
