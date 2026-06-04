@@ -182,7 +182,7 @@ export default function UsersPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -202,6 +202,17 @@ export default function UsersPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Administradores</p>
                 <p className="text-2xl font-bold">{adminCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-secondary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Táticos</p>
+                <p className="text-2xl font-bold">{taticoCount}</p>
               </div>
             </CardContent>
           </Card>
