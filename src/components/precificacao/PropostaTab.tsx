@@ -72,6 +72,14 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const proposalsHook = usePrecificacaoProposals();
+  const templatesHook = useProposalTemplates();
+  const [activeTemplate, setActiveTemplate] = useState<ProposalTemplate | null>(null);
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [saveAsNew, setSaveAsNew] = useState(true);
+  const [tplName, setTplName] = useState('');
+  const [tplDesc, setTplDesc] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [deletingTpl, setDeletingTpl] = useState<ProposalTemplate | null>(null);
 
   useEffect(() => {
     try {
