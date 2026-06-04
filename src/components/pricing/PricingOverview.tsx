@@ -2,10 +2,8 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  costPerMinute,
-  totalFixedCost,
+  createPricingCtx,
   markupRate,
-  serviceCalc,
   fmtBRL,
   fmtPct,
   fmtNum,
@@ -14,11 +12,12 @@ import type { PricingSnapshot } from "@/lib/pricing/types";
 import { AlertTriangle, CheckCircle2, TrendingDown, TrendingUp } from "lucide-react";
 
 export function PricingOverview({ snap }: { snap: PricingSnapshot }) {
-  const cpm = useMemo(() => costPerMinute(snap), [snap]);
-  const fixed = useMemo(() => totalFixedCost(snap), [snap]);
+  const ctx = useMemo(() => createPricingCtx(snap), [snap]);
+  const cpm = ctx.cpm;
+  const fixed = ctx.fixed;
   const calcs = useMemo(
-    () => snap.services.map((s) => ({ svc: s, c: serviceCalc(snap, s) })),
-    [snap],
+    () => snap.services.map((s) => ({ svc: s, c: ctx.serviceCalc(s) })),
+    [snap.services, ctx],
   );
   const counts = useMemo(() => {
     const r = { preco_bom: 0, abaixo_ideal: 0, acima_ideal: 0, prejuizo: 0 };
