@@ -1,160 +1,241 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  createPricingCtx,
-  markupRate,
-  fmtBRL,
-  fmtPct,
-  fmtNum,
-} from "@/lib/pricing/engine";
-import type { PricingSnapshot } from "@/lib/pricing/types";
-import { AlertTriangle, CheckCircle2, TrendingDown, TrendingUp } from "lucide-react";
-import { RevenueScenarioCard } from "./RevenueScenarioCard";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { createPricingCtx, fmtBRL } from "@/lib/pricing/engine";
+import { LINE_LABEL } from "@/lib/pricing/types";
+import type { PricingSnapshot, PricingVersionRow, Service } from "@/lib/pricing/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, FileDown, AlertTriangle, Package, FileText, TrendingUp, Calendar } from "lucide-react";
 
-export function PricingOverview({
-  snap,
-  update,
-}: {
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  preco_bom: "default",
+  abaixo_ideal: "secondary",
+  acima_ideal: "outline",
+  prejuizo: "destructive",
+};
+const STATUS_LABEL: Record<string, string> = {
+  preco_bom: "OK",
+  abaixo_ideal: "Abaixo do ideal",
+  acima_ideal: "Acima do ideal",
+  prejuizo: "Prejuízo",
+};
+
+interface Props {
+  version: PricingVersionRow;
   snap: PricingSnapshot;
-  update: (u: (s: PricingSnapshot) => PricingSnapshot) => void;
-}) {
+  onAddToProposal: (svc: Service) => void;
+  onDownloadPdf: (id: string) => void;
+}
+
+export function PricingOverview({ version, snap, onAddToProposal, onDownloadPdf }: Props) {
   const ctx = useMemo(() => createPricingCtx(snap), [snap]);
-  const cpm = ctx.cpm;
-  const fixed = ctx.fixed;
-  const labor = ctx.labor;
+
+  const { data: proposals = [] } = useQuery({
+    queryKey: ["pricing-proposals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pricing_proposals")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const monthly = useMemo(() => {
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    const list = proposals.filter((p: any) => new Date(p.created_at) >= start);
+    const accepted = list.filter((p: any) => p.status === "accepted");
+    const totalMonthly = list.reduce((s: number, p: any) => s + Number(p.total_monthly || 0), 0);
+    const avg = list.length ? list.reduce((s: number, p: any) => s + Number(p.total_annual || 0), 0) / list.length : 0;
+    return { count: list.length, accepted: accepted.length, totalMonthly, avg };
+  }, [proposals]);
+
+  const activeServices = useMemo(() => snap.services.filter((s) => s.active), [snap.services]);
   const calcs = useMemo(
-    () => snap.services.map((s) => ({ svc: s, c: ctx.serviceCalc(s) })),
-    [snap.services, ctx],
+    () => activeServices.map((s) => ({ svc: s, c: ctx.serviceCalc(s) })),
+    [activeServices, ctx],
   );
-  const counts = useMemo(() => {
-    const r = { preco_bom: 0, abaixo_ideal: 0, acima_ideal: 0, prejuizo: 0 };
-    calcs.forEach((x) => (r[x.c.status] += 1));
-    return r;
-  }, [calcs]);
+  const prejuizoList = calcs.filter((x) => x.c.status === "prejuizo");
 
   return (
     <div className="space-y-6">
-      <RevenueScenarioCard snap={snap} update={update} />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Despesa fixa mensal</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <Calendar className="h-4 w-4" /> Versão ativa
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fmtBRL(fixed)}</div>
+            <div className="text-lg font-bold truncate">{version.name}</div>
             <p className="text-xs text-muted-foreground">
-              {snap.fixed_costs.length} linhas · usada no markup
+              Atualizada {new Date(version.updated_at).toLocaleDateString("pt-BR")}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Mão de obra direta / mês</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <Package className="h-4 w-4" /> Catálogo
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fmtBRL(labor)}</div>
+            <div className="text-2xl font-bold">{activeServices.length}</div>
+            <p className="text-xs text-muted-foreground">produtos/serviços ativos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Propostas no mês
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{monthly.count}</div>
             <p className="text-xs text-muted-foreground">
-              CPM produtivo: <span className="font-medium">{fmtBRL(cpm)}</span>
+              {monthly.accepted} aceitas · {fmtBRL(monthly.totalMonthly)}/mês
             </p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Serviços cadastrados</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Ticket médio
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{snap.services.length}</div>
-            <div className="flex gap-1 mt-1 flex-wrap">
-              {counts.preco_bom > 0 && (
-                <Badge variant="default" className="text-xs">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  {counts.preco_bom} bons
-                </Badge>
-              )}
-              {counts.abaixo_ideal > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                  {counts.abaixo_ideal} abaixo
-                </Badge>
-              )}
-              {counts.prejuizo > 0 && (
-                <Badge variant="destructive" className="text-xs">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {counts.prejuizo} prejuízo
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Insumos / Subprodutos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {snap.inputs.length} / {snap.subproducts.length}
-            </div>
+            <div className="text-2xl font-bold">{fmtBRL(monthly.avg)}</div>
+            <p className="text-xs text-muted-foreground">total contrato (mês corrente)</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Markup por linha</CardTitle>
+          <CardTitle>Catálogo rápido</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Adicione itens diretamente para montar uma proposta.
+          </p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(Object.keys(snap.markup_lines) as Array<keyof typeof snap.markup_lines>).map((k) => {
-              const l = snap.markup_lines[k];
-              const mk = markupRate(l);
-              return (
-                <div key={k} className="rounded-lg border p-4">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Linha {k}
-                  </div>
-                  <div className="text-3xl font-bold mt-1">{fmtNum(mk, 2)}x</div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Lucro desejado: {fmtPct(l.profit_pct)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Serviço</TableHead>
+                <TableHead>Linha</TableHead>
+                <TableHead className="w-20 text-right">Prazo</TableHead>
+                <TableHead className="text-right">Sugerido /mês</TableHead>
+                <TableHead className="text-right">Praticado /mês</TableHead>
+                <TableHead className="w-32">Status</TableHead>
+                <TableHead className="w-32 text-right">Ação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {calcs.map(({ svc, c }) => (
+                <TableRow key={svc.id}>
+                  <TableCell className="font-medium">{svc.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{LINE_LABEL[svc.line]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{svc.contract_months}m</TableCell>
+                  <TableCell className="text-right">{fmtBRL(c.ideal_price_monthly)}</TableCell>
+                  <TableCell className="text-right">{fmtBRL(c.practiced_monthly)}</TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="outline" onClick={() => onAddToProposal(svc)}>
+                      <Plus className="h-3 w-3 mr-1" /> Proposta
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {calcs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                    Nenhum serviço ativo no catálogo.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Atenção: preços que merecem revisão</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {calcs.filter((x) => x.c.status === "prejuizo" || x.c.status === "abaixo_ideal").length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Últimas propostas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {proposals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma proposta ainda.</p>
+            ) : (
+              <div className="space-y-2">
+                {proposals.slice(0, 5).map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between border-b pb-2 last:border-0">
+                    <div>
+                      <div className="font-medium">{p.client_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(p.created_at).toLocaleDateString("pt-BR")} ·{" "}
+                        {fmtBRL(Number(p.total_monthly || 0))}/mês
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={p.status === "accepted" ? "default" : "secondary"}>
+                        {p.status}
+                      </Badge>
+                      <Button size="sm" variant="ghost" onClick={() => onDownloadPdf(p.id)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Atenção comercial
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Todos os serviços estão precificados acima do mínimo. <TrendingUp className="inline h-4 w-4" />
+              Serviços com preço praticado abaixo do custo — revisar antes de propor.
             </p>
-          ) : (
-            <div className="space-y-2">
-              {calcs
-                .filter((x) => x.c.status === "prejuizo" || x.c.status === "abaixo_ideal")
-                .map(({ svc, c }) => (
-                  <div key={svc.id} className="flex items-center justify-between border-b pb-2">
+          </CardHeader>
+          <CardContent>
+            {prejuizoList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Tudo certo. Todos os serviços ativos cobrem o custo.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {prejuizoList.map(({ svc, c }) => (
+                  <div key={svc.id} className="flex items-center justify-between border-b pb-2 last:border-0">
                     <div>
                       <div className="font-medium">{svc.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        Praticado {fmtBRL(c.practiced_monthly)}/mês · Ideal {fmtBRL(c.ideal_price_monthly)}/mês
+                        Praticado {fmtBRL(c.practiced_monthly)}/mês ·{" "}
+                        Custo {fmtBRL(c.cost_monthly)}/mês
                       </div>
                     </div>
-                    <Badge variant={c.status === "prejuizo" ? "destructive" : "secondary"}>
-                      {fmtPct(c.delta_vs_ideal_pct)}
-                    </Badge>
+                    <Badge variant="destructive">Prejuízo</Badge>
                   </div>
                 ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
