@@ -44,7 +44,7 @@ export const CRM_SECTIONS = [
       { key: "sales_campaigns", label: "Campanhas de Sales" },
       { key: "commissions", label: "Comissões" },
       { key: "link_builder", label: "Gerador de Ofertas" },
-      { key: "precificacao", label: "Precificação" },
+      { key: "precificacao", label: "Precificação Serviços" },
     ],
   },
   {
