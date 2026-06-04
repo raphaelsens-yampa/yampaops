@@ -19,6 +19,7 @@ import { LINE_LABEL } from "@/lib/pricing/types";
 interface Props {
   snap: PricingSnapshot;
   update: (u: (s: PricingSnapshot) => PricingSnapshot) => void;
+  readOnly?: boolean;
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -35,7 +36,7 @@ const STATUS_LABEL: Record<string, string> = {
   prejuizo: "Prejuízo",
 };
 
-export function ServicesEditor({ snap, update }: Props) {
+export function ServicesEditor({ snap, update, readOnly = false }: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const ctx = useMemo(() => createPricingCtx(snap), [snap]);
 
