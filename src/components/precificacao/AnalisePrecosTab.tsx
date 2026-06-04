@@ -280,6 +280,14 @@ export default function AnalisePrecosTab({
           </div>
         </CardContent>
       </Card>
+
+      <NewProductDialog
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        config={config}
+        existingNames={products.map((p) => p.nome)}
+        onCreate={addProduct}
+      />
     </div>
   );
 }
