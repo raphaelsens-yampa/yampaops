@@ -229,6 +229,7 @@ export default function AnalisePrecosTab({
                   <TableHead className="w-32 text-right">Preço/mês</TableHead>
                   <TableHead className="w-28 text-right">Total</TableHead>
                   <TableHead className="w-44">Margem</TableHead>
+                  <TableHead className="w-36 text-right">Lucro Projetado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
