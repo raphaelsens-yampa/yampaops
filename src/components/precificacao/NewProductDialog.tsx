@@ -54,6 +54,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
     { cargo: '', horas: 0, valor_hora: 0 },
   ]);
   const [selectedInsumos, setSelectedInsumos] = useState<Record<string, number>>({}); // id -> qty
+  const [horasMode, setHorasMode] = useState<'total' | 'mensal'>('total');
   const [insumoFilter, setInsumoFilter] = useState('');
   const [preco, setPreco] = useState(0);
   const [precoTouched, setPrecoTouched] = useState(false);
