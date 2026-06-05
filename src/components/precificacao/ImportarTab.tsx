@@ -24,7 +24,7 @@ export default function ImportarTab(hook: PrecificacaoHook) {
     setMessage(`Processando ${file.name}...`);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const wb = XLSX.read(e.target?.result, { type: 'array' });
 
