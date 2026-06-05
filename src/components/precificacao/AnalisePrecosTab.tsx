@@ -41,6 +41,7 @@ export default function AnalisePrecosTab({
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Produto | null>(null);
   const [showMin, setShowMin] = useState(false);
+  const [showCusto, setShowCusto] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
   const changedCount = Object.keys(priceOverrides).length;
@@ -74,6 +75,8 @@ export default function AnalisePrecosTab({
       case 'nome': return p.nome.toLowerCase();
       case 'linha': return p.linha.toLowerCase();
       case 'meses': return p.meses;
+      case 'custo_mes': return p.custo / Math.max(p.meses, 1);
+      case 'custo_total': return p.custo;
       case 'ideal_mes': return calcIdealMensal(p.custo, p.meses, linhaKey, config);
       case 'ideal_total': return calcIdealMensal(p.custo, p.meses, linhaKey, config) * p.meses;
       case 'min_mes': return calcMinMensal(p.custo, p.meses, config);
@@ -288,7 +291,7 @@ export default function AnalisePrecosTab({
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className={showMin ? 'overflow-x-auto' : ''}>
+          <div className={showMin || showCusto ? 'overflow-x-auto' : ''}>
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
@@ -311,6 +314,31 @@ export default function AnalisePrecosTab({
                       {sortConfig.key === 'meses' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
                     </div>
                   </TableHead>
+                  <TableHead className="w-[28px] text-center p-0">
+                    <button
+                      onClick={() => setShowCusto((v) => !v)}
+                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
+                      title={showCusto ? 'Ocultar Custo' : 'Mostrar Custo'}
+                    >
+                      {showCusto ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 -rotate-90" />}
+                    </button>
+                  </TableHead>
+                  {showCusto && (
+                    <>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_mes')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Custo/mês
+                          {sortConfig.key === 'custo_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_total')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Custo Tot.
+                          {sortConfig.key === 'custo_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
+                    </>
+                  )}
                   <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_mes')}>
                     <div className="flex items-center justify-center gap-1">
                       Ideal/mês
@@ -378,7 +406,7 @@ export default function AnalisePrecosTab({
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={showMin ? 14 : 12} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={13 + (showMin ? 2 : 0) + (showCusto ? 2 : 0)} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -436,6 +464,13 @@ export default function AnalisePrecosTab({
                           </Select>
                         </TableCell>
                         <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
+                        <TableCell className="p-0" />
+                        {showCusto && (
+                          <>
+                            <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo / Math.max(p.meses, 1))}</TableCell>
+                            <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>
+                          </>
+                        )}
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
                         <TableCell className="p-0" />
