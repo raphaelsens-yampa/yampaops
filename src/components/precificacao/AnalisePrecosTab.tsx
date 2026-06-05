@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus } from 'lucide-react';
+import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import NewProductDialog from './NewProductDialog';
 import { recordPricingVersion } from '@/lib/pricingVersions';
@@ -34,6 +34,7 @@ export default function AnalisePrecosTab({
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [showMin, setShowMin] = useState(false);
 
   const changedCount = Object.keys(priceOverrides).length;
 
@@ -221,11 +222,23 @@ export default function AnalisePrecosTab({
                   <TableHead>Produto</TableHead>
                   <TableHead className="w-36">Linha</TableHead>
                   <TableHead className="w-20 text-center">Contrato</TableHead>
-                  <TableHead className="w-28 text-right">Custo</TableHead>
-                  <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
-                  <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
                   <TableHead className="w-28 text-right">Preço Ideal/mês</TableHead>
                   <TableHead className="w-28 text-right">Preço Ideal Total</TableHead>
+                  <TableHead className="w-10 text-center p-1">
+                    <button
+                      onClick={() => setShowMin((v) => !v)}
+                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
+                      title={showMin ? 'Ocultar Mín. (0%)' : 'Mostrar Mín. (0%)'}
+                    >
+                      {showMin ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 -rotate-90" />}
+                    </button>
+                  </TableHead>
+                  {showMin && (
+                    <>
+                      <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
+                      <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
+                    </>
+                  )}
                   <TableHead className="w-32 text-right">Preço/mês</TableHead>
                   <TableHead className="w-28 text-right">Total</TableHead>
                   <TableHead className="w-44">Margem</TableHead>
@@ -235,7 +248,7 @@ export default function AnalisePrecosTab({
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={showMin ? 13 : 11} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -293,11 +306,15 @@ export default function AnalisePrecosTab({
                           </Select>
                         </TableCell>
                         <TableCell className="text-center text-sm text-gray-500">{p.meses}x</TableCell>
-                        <TableCell className="text-right text-sm text-gray-500">{fmtBRL(p.custo)}</TableCell>
-                        <TableCell className="text-right text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
-                        <TableCell className="text-right text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
                         <TableCell className="text-right text-sm text-gray-400">{fmtBRL(ideal)}</TableCell>
                         <TableCell className="text-right text-sm text-gray-400">{fmtBRL(idealTotal)}</TableCell>
+                        <TableCell className="p-1" />
+                        {showMin && (
+                          <>
+                            <TableCell className="text-right text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
+                            <TableCell className="text-right text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
+                          </>
+                        )}
                         <TableCell className="text-right">
                           <Input
                             type="number"
