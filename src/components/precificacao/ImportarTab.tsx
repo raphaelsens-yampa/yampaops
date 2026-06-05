@@ -5,6 +5,7 @@ import { Upload, CheckCircle, XCircle, FileSpreadsheet } from 'lucide-react';
 import { PrecificacaoHook } from '@/hooks/usePrecificacao';
 import { Produto, LinhaMarkup } from '@/types/precificacao';
 import { recordPricingVersion } from '@/lib/pricingVersions';
+import { syncInsumos, InsumoUpsert } from '@/hooks/useInsumos';
 import VersionHistory from './VersionHistory';
 import * as XLSX from 'xlsx';
 
