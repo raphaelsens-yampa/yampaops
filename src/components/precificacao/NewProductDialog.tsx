@@ -101,8 +101,9 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   const custo = useMemo(() => {
     if (mode === 'simples') return custoSimples;
     if (mode === 'insumos') return insumosCusto;
-    return breakdown.reduce((s, b) => s + (b.horas || 0) * (b.valor_hora || 0), 0);
-  }, [mode, custoSimples, breakdown, insumosCusto]);
+    const base = breakdown.reduce((s, b) => s + (b.horas || 0) * (b.valor_hora || 0), 0);
+    return horasMode === 'mensal' ? base * meses : base;
+  }, [mode, custoSimples, breakdown, insumosCusto, horasMode, meses]);
 
   const linhaKey = getLinhaKey(linha);
   const ideal = useMemo(() => calcIdealMensal(custo, meses, linhaKey, config), [custo, meses, linhaKey, config]);
