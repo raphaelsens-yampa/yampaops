@@ -1834,6 +1834,45 @@ export type Database = {
         }
         Relationships: []
       }
+      precificacao_insumos: {
+        Row: {
+          created_at: string
+          custo_acao: number | null
+          custo_minuto: number | null
+          id: string
+          nome: string
+          qntde_minutos: number | null
+          source_file: string | null
+          tipo: string
+          updated_at: string
+          valor_insumo: number | null
+        }
+        Insert: {
+          created_at?: string
+          custo_acao?: number | null
+          custo_minuto?: number | null
+          id?: string
+          nome: string
+          qntde_minutos?: number | null
+          source_file?: string | null
+          tipo: string
+          updated_at?: string
+          valor_insumo?: number | null
+        }
+        Update: {
+          created_at?: string
+          custo_acao?: number | null
+          custo_minuto?: number | null
+          id?: string
+          nome?: string
+          qntde_minutos?: number | null
+          source_file?: string | null
+          tipo?: string
+          updated_at?: string
+          valor_insumo?: number | null
+        }
+        Relationships: []
+      }
       precificacao_proposal_logs: {
         Row: {
           action: string
