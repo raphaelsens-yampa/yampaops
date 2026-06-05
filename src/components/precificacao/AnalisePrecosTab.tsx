@@ -278,6 +278,7 @@ export default function AnalisePrecosTab({
                   <TableHead className="w-28 text-center">Total</TableHead>
                   <TableHead className="w-44 text-center">Margem</TableHead>
                   <TableHead className="w-36 text-center">Lucro Projetado</TableHead>
+                  <TableHead className="w-24 text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
