@@ -284,7 +284,7 @@ export default function AnalisePrecosTab({
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={showMin ? 13 : 11} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={showMin ? 14 : 12} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
