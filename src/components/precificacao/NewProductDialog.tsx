@@ -418,9 +418,16 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                           })}
                         </div>
                       </ScrollArea>
-                      <div className="flex justify-end pt-1 text-sm">
-                        <span className="text-gray-500 mr-2">Custo total:</span>
-                        <span className="font-bold">{fmtBRL(insumosCusto)}</span>
+                      <div className="flex justify-between items-center pt-1 text-sm">
+                        <p className="text-[11px] text-gray-500 italic">
+                          {horasMode === 'mensal'
+                            ? `Custo já multiplicado por ${meses} meses do contrato.`
+                            : 'Quantidades representam o total do contrato inteiro.'}
+                        </p>
+                        <div>
+                          <span className="text-gray-500 mr-2">Custo total:</span>
+                          <span className="font-bold">{fmtBRL(custo)}</span>
+                        </div>
                       </div>
                     </>
                   )}
