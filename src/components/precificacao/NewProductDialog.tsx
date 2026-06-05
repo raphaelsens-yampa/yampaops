@@ -253,6 +253,96 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                   </div>
                 </TabsContent>
               </Tabs>
+                </TabsContent>
+                <TabsContent value="insumos" className="pt-3 space-y-2">
+                  {loadingInsumos ? (
+                    <p className="text-xs text-gray-500">Carregando insumos...</p>
+                  ) : insumos.length === 0 ? (
+                    <p className="text-xs text-amber-600">
+                      Nenhum insumo cadastrado. Importe uma planilha com a aba "Custos dos Insumos".
+                    </p>
+                  ) : (
+                    <>
+                      <Input
+                        className="h-8 text-xs"
+                        placeholder="Buscar insumo..."
+                        value={insumoFilter}
+                        onChange={(e) => setInsumoFilter(e.target.value)}
+                      />
+                      <ScrollArea className="h-64 border rounded-md">
+                        <div className="p-2 space-y-1">
+                          {(['item', 'subproduto'] as const).map((grupo) => {
+                            const filtered = insumos.filter(
+                              (i) =>
+                                i.tipo === grupo &&
+                                (insumoFilter === '' ||
+                                  i.nome.toLowerCase().includes(insumoFilter.toLowerCase()))
+                            );
+                            if (filtered.length === 0) return null;
+                            return (
+                              <div key={grupo} className="space-y-1">
+                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1 pt-1">
+                                  {grupo === 'item' ? 'Itens (mão de obra / ações)' : 'Subprodutos'}
+                                </p>
+                                {filtered.map((i: Insumo) => {
+                                  const qty = selectedInsumos[i.id] ?? 0;
+                                  const checked = qty > 0;
+                                  const unit = insumoCusto(i);
+                                  return (
+                                    <div
+                                      key={i.id}
+                                      className="grid grid-cols-[24px_1fr_70px_90px] gap-2 items-center px-1 py-1 hover:bg-gray-50 rounded"
+                                    >
+                                      <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={(c) =>
+                                          setSelectedInsumos((prev) => {
+                                            const next = { ...prev };
+                                            if (c) next[i.id] = next[i.id] || 1;
+                                            else delete next[i.id];
+                                            return next;
+                                          })
+                                        }
+                                      />
+                                      <div className="min-w-0">
+                                        <p className="text-xs truncate" title={i.nome}>{i.nome}</p>
+                                        <p className="text-[10px] text-gray-400">{fmtBRL(unit)} / un</p>
+                                      </div>
+                                      <Input
+                                        className="h-7 text-xs text-right"
+                                        type="number"
+                                        min={0}
+                                        step="1"
+                                        value={qty}
+                                        onChange={(e) => {
+                                          const v = parseFloat(e.target.value) || 0;
+                                          setSelectedInsumos((prev) => {
+                                            const next = { ...prev };
+                                            if (v > 0) next[i.id] = v;
+                                            else delete next[i.id];
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                      <div className="text-right text-xs font-medium pr-1">
+                                        {fmtBRL(unit * qty)}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                      <div className="flex justify-end pt-1 text-sm">
+                        <span className="text-gray-500 mr-2">Custo total:</span>
+                        <span className="font-bold">{fmtBRL(insumosCusto)}</span>
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
+              </Tabs>
               {errors.custo && <p className="text-xs text-red-600">{errors.custo}</p>}
             </section>
 
