@@ -116,6 +116,9 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
     if (mode === 'simples') {
       if (custoSimples <= 0) errs.custo = 'Custo deve ser > 0';
+    } else if (mode === 'insumos') {
+      if (Object.keys(selectedInsumos).length === 0) errs.custo = 'Selecione ao menos um insumo';
+      else if (custo <= 0) errs.custo = 'Custo total dos insumos deve ser > 0';
     } else {
       const bErrs = breakdown.map((b) => breakdownItemSchema.safeParse(b));
       if (bErrs.some((r) => !r.success)) errs.custo = 'Verifique os itens da composição';
@@ -128,6 +131,17 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       return;
     }
 
+    // Quando o usuário compõe via insumos, transformamos em breakdown para registro
+    const insumoBreakdown: CustoBreakdownItem[] | undefined = mode === 'insumos'
+      ? insumos
+          .filter((i) => selectedInsumos[i.id])
+          .map((i) => ({
+            cargo: `${i.tipo === 'subproduto' ? '[Sub] ' : ''}${i.nome}`,
+            horas: selectedInsumos[i.id],
+            valor_hora: insumoCusto(i),
+          }))
+      : undefined;
+
     const novo: Produto = {
       nome: nome.trim(),
       meses,
@@ -137,6 +151,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       preco_total: precoTotal,
       ideal_mensal: ideal,
       ...(mode === 'detalhado' ? { custo_breakdown: breakdown } : {}),
+      ...(insumoBreakdown ? { custo_breakdown: insumoBreakdown } : {}),
     };
 
     onCreate(novo);
