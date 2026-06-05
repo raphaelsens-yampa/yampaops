@@ -37,9 +37,9 @@ interface CustomBlock {
 const DEFAULT_BLOCKS: CustomBlock[] = [
   {
     id: 'sobre',
-    title: 'Sobre a Yampa',
+    title: 'Sobre o Yampa',
     content:
-      'A Yampa é uma consultoria financeira especializada em apoiar empresas em crescimento com gestão estratégica, BPO financeiro e inteligência de dados.',
+      'Somos uma empresa focada em simplificar o financeiro do seu negócio. Nosso propósito é construir um futuro de finanças simples e empresas fortes e acreditamos que através de tecnologia, processos e acompanhamento sua empresa pode ser tornar altamente lucrativa!',
   },
   {
     id: 'condicoes',
