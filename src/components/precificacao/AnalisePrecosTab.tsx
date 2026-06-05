@@ -306,11 +306,15 @@ export default function AnalisePrecosTab({
                           </Select>
                         </TableCell>
                         <TableCell className="text-center text-sm text-gray-500">{p.meses}x</TableCell>
-                        <TableCell className="text-right text-sm text-gray-500">{fmtBRL(p.custo)}</TableCell>
-                        <TableCell className="text-right text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
-                        <TableCell className="text-right text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
                         <TableCell className="text-right text-sm text-gray-400">{fmtBRL(ideal)}</TableCell>
                         <TableCell className="text-right text-sm text-gray-400">{fmtBRL(idealTotal)}</TableCell>
+                        <TableCell className="p-1" />
+                        {showMin && (
+                          <>
+                            <TableCell className="text-right text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
+                            <TableCell className="text-right text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
+                          </>
+                        )}
                         <TableCell className="text-right">
                           <Input
                             type="number"
