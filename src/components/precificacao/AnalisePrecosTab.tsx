@@ -249,17 +249,17 @@ export default function AnalisePrecosTab({
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
+          <div className={showMin ? 'overflow-x-auto' : ''}>
+            <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32 text-center">Status</TableHead>
-                  <TableHead className="text-center">Produto</TableHead>
-                  <TableHead className="w-36 text-center">Linha</TableHead>
-                  <TableHead className="w-20 text-center">Contrato</TableHead>
-                  <TableHead className="w-28 text-center">Preço Ideal/mês</TableHead>
-                  <TableHead className="w-28 text-center">Preço Ideal Total</TableHead>
-                  <TableHead className="w-10 text-center p-1">
+                  <TableHead className="w-[88px] text-center px-2">Status</TableHead>
+                  <TableHead className="text-center px-2">Produto</TableHead>
+                  <TableHead className="w-[110px] text-center px-1">Linha</TableHead>
+                  <TableHead className="w-[60px] text-center px-1">Contrato</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Ideal/mês</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Ideal Total</TableHead>
+                  <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowMin((v) => !v)}
                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
@@ -270,15 +270,15 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-28 text-center">Mín. (0%) /mês</TableHead>
-                      <TableHead className="w-28 text-center">Mín. (0%) Total</TableHead>
+                      <TableHead className="w-[90px] text-center px-1">Mín./mês</TableHead>
+                      <TableHead className="w-[90px] text-center px-1">Mín. Total</TableHead>
                     </>
                   )}
-                  <TableHead className="w-32 text-center">Preço/mês</TableHead>
-                  <TableHead className="w-28 text-center">Total</TableHead>
-                  <TableHead className="w-44 text-center">Margem</TableHead>
-                  <TableHead className="w-36 text-center">Lucro Projetado</TableHead>
-                  <TableHead className="w-24 text-center">Ações</TableHead>
+                  <TableHead className="w-[100px] text-center px-1">Preço/mês</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Total</TableHead>
+                  <TableHead className="w-[140px] text-center px-1">Margem</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Lucro Proj.</TableHead>
+                  <TableHead className="w-[70px] text-center px-1">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
