@@ -362,40 +362,40 @@ export default function AnalisePrecosTab({
                             min={0}
                           />
                         </TableCell>
-                        <TableCell className="text-center text-sm font-bold">{fmtBRL(eff.preco_total)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
+                        <TableCell className="text-center text-xs font-bold px-1 py-2">{fmtBRL(eff.preco_total)}</TableCell>
+                        <TableCell className="px-1 py-2">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[70px]">
                               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barW}%` }} />
                             </div>
-                            <span className={`text-xs font-bold w-12 text-right ${pctColor}`}>{fmtPct(pct)}</span>
+                            <span className={`text-[11px] font-bold w-10 text-right ${pctColor}`}>{fmtPct(pct)}</span>
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <span className={`text-sm font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
+                        <TableCell className="text-center px-1 py-2">
+                          <span className={`text-xs font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
+                        <TableCell className="text-center px-1 py-2">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7"
+                              className="h-6 w-6"
                               onClick={() => setEditingProduct(p)}
                               title="Editar serviço"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Pencil className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
                               onClick={() => setDeleteTarget(p)}
                               title="Excluir serviço"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </TableCell>
