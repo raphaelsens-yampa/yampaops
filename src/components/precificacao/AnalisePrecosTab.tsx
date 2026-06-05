@@ -75,6 +75,8 @@ export default function AnalisePrecosTab({
       case 'nome': return p.nome.toLowerCase();
       case 'linha': return p.linha.toLowerCase();
       case 'meses': return p.meses;
+      case 'custo_mes': return p.custo / Math.max(p.meses, 1);
+      case 'custo_total': return p.custo;
       case 'ideal_mes': return calcIdealMensal(p.custo, p.meses, linhaKey, config);
       case 'ideal_total': return calcIdealMensal(p.custo, p.meses, linhaKey, config) * p.meses;
       case 'min_mes': return calcMinMensal(p.custo, p.meses, config);
