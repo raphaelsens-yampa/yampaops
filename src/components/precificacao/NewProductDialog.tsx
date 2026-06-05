@@ -100,7 +100,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
   const custo = useMemo(() => {
     if (mode === 'simples') return custoSimples;
-    if (mode === 'insumos') return insumosCusto;
+    if (mode === 'insumos') return horasMode === 'mensal' ? insumosCusto * meses : insumosCusto;
     const base = breakdown.reduce((s, b) => s + (b.horas || 0) * (b.valor_hora || 0), 0);
     return horasMode === 'mensal' ? base * meses : base;
   }, [mode, custoSimples, breakdown, insumosCusto, horasMode, meses]);
@@ -166,7 +166,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
           .filter((i) => selectedInsumos[i.id])
           .map((i) => ({
             cargo: `${i.tipo === 'subproduto' ? '[Sub] ' : ''}${i.nome}`,
-            horas: selectedInsumos[i.id],
+            horas: horasMode === 'mensal' ? selectedInsumos[i.id] * meses : selectedInsumos[i.id],
             valor_hora: insumoCusto(i),
           }))
       : undefined;
@@ -327,6 +327,25 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                     </p>
                   ) : (
                     <>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-500">As quantidades são:</span>
+                        <div className="inline-flex rounded-md border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setHorasMode('total')}
+                            className={`px-2 py-1 text-xs ${horasMode === 'total' ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            Totais do contrato
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHorasMode('mensal')}
+                            className={`px-2 py-1 text-xs border-l ${horasMode === 'mensal' ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            Por mês (× {meses})
+                          </button>
+                        </div>
+                      </div>
                       <Input
                         className="h-8 text-xs"
                         placeholder="Buscar insumo..."
@@ -399,9 +418,16 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                           })}
                         </div>
                       </ScrollArea>
-                      <div className="flex justify-end pt-1 text-sm">
-                        <span className="text-gray-500 mr-2">Custo total:</span>
-                        <span className="font-bold">{fmtBRL(insumosCusto)}</span>
+                      <div className="flex justify-between items-center pt-1 text-sm">
+                        <p className="text-[11px] text-gray-500 italic">
+                          {horasMode === 'mensal'
+                            ? `Custo já multiplicado por ${meses} meses do contrato.`
+                            : 'Quantidades representam o total do contrato inteiro.'}
+                        </p>
+                        <div>
+                          <span className="text-gray-500 mr-2">Custo total:</span>
+                          <span className="font-bold">{fmtBRL(custo)}</span>
+                        </div>
                       </div>
                     </>
                   )}
