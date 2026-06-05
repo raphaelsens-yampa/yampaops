@@ -167,6 +167,38 @@ export function usePrecificacao() {
     });
   }, []);
 
+  const updateProduct = useCallback((originalName: string, atualizado: Produto) => {
+    setProductsState((prev) => {
+      const updated = prev.map((p) => (p.nome === originalName ? atualizado : p));
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(updated));
+      return updated;
+    });
+    if (originalName !== atualizado.nome) {
+      setPriceOverrides((prev) => {
+        if (prev[originalName] === undefined) return prev;
+        const next = { ...prev };
+        delete next[originalName];
+        localStorage.setItem(STORAGE_KEYS.overrides, JSON.stringify(next));
+        return next;
+      });
+    }
+  }, []);
+
+  const removeProduct = useCallback((nome: string) => {
+    setProductsState((prev) => {
+      const updated = prev.filter((p) => p.nome !== nome);
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(updated));
+      return updated;
+    });
+    setPriceOverrides((prev) => {
+      if (prev[nome] === undefined) return prev;
+      const next = { ...prev };
+      delete next[nome];
+      localStorage.setItem(STORAGE_KEYS.overrides, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return {
     products,
     config,
@@ -176,6 +208,8 @@ export function usePrecificacao() {
     updatePrice,
     updateLinha,
     addProduct,
+    updateProduct,
+    removeProduct,
     saveChanges,
     resetChanges,
   };
