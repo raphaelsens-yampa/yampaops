@@ -135,28 +135,28 @@ export default function AnalisePrecosTab({
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total de Serviços</p>
             <p className="text-2xl font-bold mt-1">{products.length}</p>
             <p className="text-xs text-gray-500 mt-1">{goodCount} com preço adequado</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Abaixo do Ideal</p>
             <p className="text-2xl font-bold mt-1 text-red-600">{products.length - goodCount}</p>
             <p className="text-xs text-gray-500 mt-1">{Math.round(((products.length - goodCount) / products.length) * 100)}% do portfólio</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">M.C. Média</p>
             <p className="text-2xl font-bold mt-1 text-green-600">{fmtPct(avgMC)}</p>
             <p className="text-xs text-gray-500 mt-1">Após deduções variáveis</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alterações</p>
             <p className={`text-2xl font-bold mt-1 ${changedCount > 0 ? 'text-amber-600' : ''}`}>{changedCount}</p>
@@ -166,7 +166,7 @@ export default function AnalisePrecosTab({
       </div>
 
       {/* Table Card */}
-      <Card>
+      <Card className="text-center">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="text-base">Tabela de Serviços</CardTitle>
