@@ -133,7 +133,11 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       parsed.error.issues.forEach((i) => (errs[i.path[0] as string] = i.message));
     }
 
-    if (existingNames.some((n) => n.toLowerCase() === nome.trim().toLowerCase())) {
+    const nameLower = nome.trim().toLowerCase();
+    const dup = existingNames.some(
+      (n) => n.toLowerCase() === nameLower && (!isEdit || n.toLowerCase() !== editing!.nome.toLowerCase())
+    );
+    if (dup) {
       errs.nome = 'Já existe um serviço com este nome';
     }
 
