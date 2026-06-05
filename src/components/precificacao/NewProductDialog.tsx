@@ -327,6 +327,25 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                     </p>
                   ) : (
                     <>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-500">As quantidades são:</span>
+                        <div className="inline-flex rounded-md border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setHorasMode('total')}
+                            className={`px-2 py-1 text-xs ${horasMode === 'total' ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            Totais do contrato
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHorasMode('mensal')}
+                            className={`px-2 py-1 text-xs border-l ${horasMode === 'mensal' ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            Por mês (× {meses})
+                          </button>
+                        </div>
+                      </div>
                       <Input
                         className="h-8 text-xs"
                         placeholder="Buscar insumo..."
