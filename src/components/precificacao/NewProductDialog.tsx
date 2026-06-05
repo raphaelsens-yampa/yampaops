@@ -166,7 +166,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
           .filter((i) => selectedInsumos[i.id])
           .map((i) => ({
             cargo: `${i.tipo === 'subproduto' ? '[Sub] ' : ''}${i.nome}`,
-            horas: selectedInsumos[i.id],
+            horas: horasMode === 'mensal' ? selectedInsumos[i.id] * meses : selectedInsumos[i.id],
             valor_hora: insumoCusto(i),
           }))
       : undefined;
