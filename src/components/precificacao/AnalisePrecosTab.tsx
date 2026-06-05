@@ -108,7 +108,7 @@ export default function AnalisePrecosTab({
       source: 'edit',
       change_type: 'service_update',
       name: `Serviço editado: ${atualizado.nome}`,
-      description: `Linha ${atualizado.linha} · ${atualizado.meses}x · ${atualizado.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
+      description: `${atualizado.linha} · ${atualizado.meses}x · ${atualizado.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
       snapshot: { products: updated, config },
       setActive: true,
     }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
