@@ -377,6 +377,28 @@ export default function AnalisePrecosTab({
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setEditingProduct(p)}
+                              title="Editar serviço"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setDeleteTarget(p)}
+                              title="Excluir serviço"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })
