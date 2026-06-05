@@ -222,11 +222,23 @@ export default function AnalisePrecosTab({
                   <TableHead>Produto</TableHead>
                   <TableHead className="w-36">Linha</TableHead>
                   <TableHead className="w-20 text-center">Contrato</TableHead>
-                  <TableHead className="w-28 text-right">Custo</TableHead>
-                  <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
-                  <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
                   <TableHead className="w-28 text-right">Preço Ideal/mês</TableHead>
                   <TableHead className="w-28 text-right">Preço Ideal Total</TableHead>
+                  <TableHead className="w-10 text-center p-1">
+                    <button
+                      onClick={() => setShowMin((v) => !v)}
+                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
+                      title={showMin ? 'Ocultar Mín. (0%)' : 'Mostrar Mín. (0%)'}
+                    >
+                      {showMin ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 -rotate-90" />}
+                    </button>
+                  </TableHead>
+                  {showMin && (
+                    <>
+                      <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
+                      <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
+                    </>
+                  )}
                   <TableHead className="w-32 text-right">Preço/mês</TableHead>
                   <TableHead className="w-28 text-right">Total</TableHead>
                   <TableHead className="w-44">Margem</TableHead>
