@@ -181,8 +181,13 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       ...(insumoBreakdown ? { custo_breakdown: insumoBreakdown } : {}),
     };
 
-    onCreate(novo);
-    toast({ title: 'Serviço criado', description: novo.nome });
+    if (isEdit && onUpdate) {
+      onUpdate(editing!.nome, novo);
+      toast({ title: 'Serviço atualizado', description: novo.nome });
+    } else {
+      onCreate(novo);
+      toast({ title: 'Serviço criado', description: novo.nome });
+    }
     onOpenChange(false);
   };
 
