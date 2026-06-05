@@ -101,6 +101,35 @@ export default function AnalisePrecosTab({
     }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
   };
 
+  const handleUpdateProduct = (originalName: string, atualizado: Produto) => {
+    updateProduct(originalName, atualizado);
+    const updated = products.map((p) => (p.nome === originalName ? atualizado : p));
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'service_update',
+      name: `Serviço editado: ${atualizado.nome}`,
+      description: `Linha ${atualizado.linha} · ${atualizado.meses}x · ${atualizado.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
+      snapshot: { products: updated, config },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    const nome = deleteTarget.nome;
+    removeProduct(nome);
+    const updated = products.filter((p) => p.nome !== nome);
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'service_delete',
+      name: `Serviço excluído: ${nome}`,
+      description: `${deleteTarget.linha} · ${deleteTarget.meses}x`,
+      snapshot: { products: updated, config },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    setDeleteTarget(null);
+  };
+
   const handleLinhaChange = (nome: string, novaLinha: LinhaMarkup) => {
     updateLinha(nome, novaLinha);
     const updated = products.map((p) => p.nome === nome ? { ...p, linha: novaLinha } : p);
