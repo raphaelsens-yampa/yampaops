@@ -8,9 +8,9 @@ export const DEFAULT_CONFIG: AppConfig = {
     churn: 0.06,
   },
   markup: {
-    premium: { target_margin: 0.30, label: 'Linha Premium' },
-    gold:    { target_margin: 0.20, label: 'Linha Gold' },
-    prata:   { target_margin: 0.10, label: 'Linha Prata' },
+    premium: { target_margin: 0.30, label: 'Premium' },
+    gold:    { target_margin: 0.20, label: 'Gold' },
+    prata:   { target_margin: 0.10, label: 'Prata' },
   },
   base_deductions_for_markup: {
     impostos: 0.08,
