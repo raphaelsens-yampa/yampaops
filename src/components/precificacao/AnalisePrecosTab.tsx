@@ -249,17 +249,17 @@ export default function AnalisePrecosTab({
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
+          <div className={showMin ? 'overflow-x-auto' : ''}>
+            <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32 text-center">Status</TableHead>
-                  <TableHead className="text-center">Produto</TableHead>
-                  <TableHead className="w-36 text-center">Linha</TableHead>
-                  <TableHead className="w-20 text-center">Contrato</TableHead>
-                  <TableHead className="w-28 text-center">Preço Ideal/mês</TableHead>
-                  <TableHead className="w-28 text-center">Preço Ideal Total</TableHead>
-                  <TableHead className="w-10 text-center p-1">
+                  <TableHead className="w-[88px] text-center px-2">Status</TableHead>
+                  <TableHead className="text-center px-2">Produto</TableHead>
+                  <TableHead className="w-[110px] text-center px-1">Linha</TableHead>
+                  <TableHead className="w-[60px] text-center px-1">Contrato</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Ideal/mês</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Ideal Total</TableHead>
+                  <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowMin((v) => !v)}
                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
@@ -270,15 +270,15 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-28 text-center">Mín. (0%) /mês</TableHead>
-                      <TableHead className="w-28 text-center">Mín. (0%) Total</TableHead>
+                      <TableHead className="w-[90px] text-center px-1">Mín./mês</TableHead>
+                      <TableHead className="w-[90px] text-center px-1">Mín. Total</TableHead>
                     </>
                   )}
-                  <TableHead className="w-32 text-center">Preço/mês</TableHead>
-                  <TableHead className="w-28 text-center">Total</TableHead>
-                  <TableHead className="w-44 text-center">Margem</TableHead>
-                  <TableHead className="w-36 text-center">Lucro Projetado</TableHead>
-                  <TableHead className="w-24 text-center">Ações</TableHead>
+                  <TableHead className="w-[100px] text-center px-1">Preço/mês</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Total</TableHead>
+                  <TableHead className="w-[140px] text-center px-1">Margem</TableHead>
+                  <TableHead className="w-[90px] text-center px-1">Lucro Proj.</TableHead>
+                  <TableHead className="w-[70px] text-center px-1">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -307,31 +307,31 @@ export default function AnalisePrecosTab({
 
                     return (
                       <TableRow key={p.nome} className={changed ? 'bg-amber-50/50' : ''}>
-                        <TableCell>
+                        <TableCell className="px-2 py-2">
                           {status === 'Preço bom' ? (
-                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 gap-1 text-xs">
-                              <TrendingUp className="h-3 w-3" /> Preço bom
+                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 gap-1 text-[10px] px-1.5">
+                              <TrendingUp className="h-3 w-3" /> Bom
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 gap-1 text-xs">
+                            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 gap-1 text-[10px] px-1.5">
                               <AlertTriangle className="h-3 w-3" /> Abaixo
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <p className="text-xs font-medium leading-snug max-w-xs">{p.nome}</p>
+                        <TableCell className="px-2 py-2">
+                          <p className="text-xs font-medium leading-snug break-words">{p.nome}</p>
                           {changed && (
-                            <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
-                              <Pencil className="h-2.5 w-2.5" /> preço alterado
+                            <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
+                              <Pencil className="h-2.5 w-2.5" /> alterado
                             </p>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-1 py-2">
                           <Select
                             value={p.linha}
                             onValueChange={(v) => handleLinhaChange(p.nome, v as LinhaMarkup)}
                           >
-                            <SelectTrigger className="h-7 text-xs w-32">
+                            <SelectTrigger className="h-7 text-xs w-full px-2">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -341,20 +341,20 @@ export default function AnalisePrecosTab({
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-center text-sm text-gray-500">{p.meses}x</TableCell>
-                        <TableCell className="text-center text-sm text-gray-400">{fmtBRL(ideal)}</TableCell>
-                        <TableCell className="text-center text-sm text-gray-400">{fmtBRL(idealTotal)}</TableCell>
-                        <TableCell className="p-1" />
+                        <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
+                        <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
+                        <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
+                        <TableCell className="p-0" />
                         {showMin && (
                           <>
-                            <TableCell className="text-center text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
-                            <TableCell className="text-center text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
+                            <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minMensal)}</TableCell>
+                            <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>
                           </>
                         )}
-                        <TableCell className="text-center">
+                        <TableCell className="text-center px-1 py-2">
                           <Input
                             type="number"
-                            className={`h-7 w-24 text-right text-sm font-semibold mx-auto ${changed ? 'border-amber-400 bg-amber-50' : ''}`}
+                            className={`h-7 w-full text-right text-xs font-semibold px-2 ${changed ? 'border-amber-400 bg-amber-50' : ''}`}
                             value={getDisplayPrice(p.nome, eff.preco_mensal)}
                             onChange={(e) => handlePriceChange(p.nome, e.target.value)}
                             onBlur={() => handlePriceBlur(p.nome)}
@@ -362,40 +362,40 @@ export default function AnalisePrecosTab({
                             min={0}
                           />
                         </TableCell>
-                        <TableCell className="text-center text-sm font-bold">{fmtBRL(eff.preco_total)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
+                        <TableCell className="text-center text-xs font-bold px-1 py-2">{fmtBRL(eff.preco_total)}</TableCell>
+                        <TableCell className="px-1 py-2">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[70px]">
                               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barW}%` }} />
                             </div>
-                            <span className={`text-xs font-bold w-12 text-right ${pctColor}`}>{fmtPct(pct)}</span>
+                            <span className={`text-[11px] font-bold w-10 text-right ${pctColor}`}>{fmtPct(pct)}</span>
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <span className={`text-sm font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
+                        <TableCell className="text-center px-1 py-2">
+                          <span className={`text-xs font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
+                        <TableCell className="text-center px-1 py-2">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7"
+                              className="h-6 w-6"
                               onClick={() => setEditingProduct(p)}
                               title="Editar serviço"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Pencil className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
                               onClick={() => setDeleteTarget(p)}
                               title="Excluir serviço"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </TableCell>
