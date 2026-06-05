@@ -391,7 +391,7 @@ export default function PropostaTab({ products, priceOverrides }: PrecificacaoHo
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{p.nome}</p>
-                        <p className="text-xs text-gray-400">{p.meses}x · {p.linha}</p>
+                        <p className="text-xs text-gray-400">{p.meses}x · {p.linha.replace(/^Linha\s+/, '')}</p>
                       </div>
                     </div>
                     <span className="text-xs font-bold text-blue-700 ml-2 flex-shrink-0">{fmtBRL(eff.preco_mensal)}/mês</span>
