@@ -99,9 +99,16 @@ export function usePrecificacao() {
   const [products, setProductsState] = useState<Produto[]>(() =>
     loadFromStorage(STORAGE_KEYS.products, DEFAULT_PRODUCTS)
   );
-  const [config, setConfigState] = useState<AppConfig>(() =>
-    loadFromStorage(STORAGE_KEYS.config, DEFAULT_CONFIG)
-  );
+  const [config, setConfigState] = useState<AppConfig>(() => {
+    const loaded = loadFromStorage(STORAGE_KEYS.config, DEFAULT_CONFIG);
+    // Migration: strip "Linha " prefix from line labels
+    (['premium', 'gold', 'prata'] as const).forEach((k) => {
+      if (loaded?.markup?.[k]?.label) {
+        loaded.markup[k].label = loaded.markup[k].label.replace(/^Linha\s+/, '');
+      }
+    });
+    return loaded;
+  });
   const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(() =>
     loadFromStorage(STORAGE_KEYS.overrides, {})
   );
