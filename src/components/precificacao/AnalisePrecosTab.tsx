@@ -383,7 +383,7 @@ export default function AnalisePrecosTab({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((p) => {
+                  sortedProducts.map((p) => {
                     const eff = getEffectivePrice(p, priceOverrides);
                     const { mc, pct } = calcMC(eff.preco_total, p.custo, config);
                     const lucroProj = calcLucroProjetado(eff.preco_total, p.custo, config);
