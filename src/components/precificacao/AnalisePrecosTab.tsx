@@ -293,11 +293,36 @@ export default function AnalisePrecosTab({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[88px] text-center px-2">Status</TableHead>
-                  <TableHead className="text-center px-2">Produto</TableHead>
-                  <TableHead className="w-[110px] text-center px-1">Linha</TableHead>
-                  <TableHead className="w-[60px] text-center px-1">Contrato</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Ideal/mês</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Ideal Total</TableHead>
+                  <TableHead className="text-center px-2 cursor-pointer select-none" onClick={() => requestSort('nome')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Produto
+                      {sortConfig.key === 'nome' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[110px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('linha')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Linha
+                      {sortConfig.key === 'linha' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[60px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('meses')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Contr.
+                      {sortConfig.key === 'meses' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_mes')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Ideal/mês
+                      {sortConfig.key === 'ideal_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_total')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Ideal Tot.
+                      {sortConfig.key === 'ideal_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowMin((v) => !v)}
@@ -309,14 +334,44 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-[90px] text-center px-1">Mín./mês</TableHead>
-                      <TableHead className="w-[90px] text-center px-1">Mín. Total</TableHead>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_mes')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Mín./mês
+                          {sortConfig.key === 'min_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_total')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Mín. Tot.
+                          {sortConfig.key === 'min_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
                     </>
                   )}
-                  <TableHead className="w-[100px] text-center px-1">Preço/mês</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Total</TableHead>
-                  <TableHead className="w-[140px] text-center px-1">Margem</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Lucro Proj.</TableHead>
+                  <TableHead className="w-[100px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_mes')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Preço/mês
+                      {sortConfig.key === 'preco_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_total')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Total
+                      {sortConfig.key === 'preco_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[140px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('margem')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Margem
+                      {sortConfig.key === 'margem' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('lucro_proj')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Lucro Proj.
+                      {sortConfig.key === 'lucro_proj' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[70px] text-center px-1">Ações</TableHead>
                 </TableRow>
               </TableHeader>
