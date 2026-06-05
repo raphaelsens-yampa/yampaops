@@ -41,6 +41,7 @@ export default function AnalisePrecosTab({
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Produto | null>(null);
   const [showMin, setShowMin] = useState(false);
+  const [showCusto, setShowCusto] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
   const changedCount = Object.keys(priceOverrides).length;
