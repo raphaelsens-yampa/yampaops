@@ -252,8 +252,6 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                     <span className="font-bold">{fmtBRL(custo)}</span>
                   </div>
                 </TabsContent>
-              </Tabs>
-                </TabsContent>
                 <TabsContent value="insumos" className="pt-3 space-y-2">
                   {loadingInsumos ? (
                     <p className="text-xs text-gray-500">Carregando insumos...</p>
