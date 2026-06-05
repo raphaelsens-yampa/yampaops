@@ -135,28 +135,28 @@ export default function AnalisePrecosTab({
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total de Serviços</p>
             <p className="text-2xl font-bold mt-1">{products.length}</p>
             <p className="text-xs text-gray-500 mt-1">{goodCount} com preço adequado</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Abaixo do Ideal</p>
             <p className="text-2xl font-bold mt-1 text-red-600">{products.length - goodCount}</p>
             <p className="text-xs text-gray-500 mt-1">{Math.round(((products.length - goodCount) / products.length) * 100)}% do portfólio</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">M.C. Média</p>
             <p className="text-2xl font-bold mt-1 text-green-600">{fmtPct(avgMC)}</p>
             <p className="text-xs text-gray-500 mt-1">Após deduções variáveis</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="text-center">
           <CardContent className="pt-4 pb-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alterações</p>
             <p className={`text-2xl font-bold mt-1 ${changedCount > 0 ? 'text-amber-600' : ''}`}>{changedCount}</p>
@@ -166,7 +166,7 @@ export default function AnalisePrecosTab({
       </div>
 
       {/* Table Card */}
-      <Card>
+      <Card className="text-center">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="text-base">Tabela de Serviços</CardTitle>
@@ -218,12 +218,12 @@ export default function AnalisePrecosTab({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32">Status</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead className="w-36">Linha</TableHead>
+                  <TableHead className="w-32 text-center">Status</TableHead>
+                  <TableHead className="text-center">Produto</TableHead>
+                  <TableHead className="w-36 text-center">Linha</TableHead>
                   <TableHead className="w-20 text-center">Contrato</TableHead>
-                  <TableHead className="w-28 text-right">Preço Ideal/mês</TableHead>
-                  <TableHead className="w-28 text-right">Preço Ideal Total</TableHead>
+                  <TableHead className="w-28 text-center">Preço Ideal/mês</TableHead>
+                  <TableHead className="w-28 text-center">Preço Ideal Total</TableHead>
                   <TableHead className="w-10 text-center p-1">
                     <button
                       onClick={() => setShowMin((v) => !v)}
@@ -235,14 +235,14 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
-                      <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
+                      <TableHead className="w-28 text-center">Mín. (0%) /mês</TableHead>
+                      <TableHead className="w-28 text-center">Mín. (0%) Total</TableHead>
                     </>
                   )}
-                  <TableHead className="w-32 text-right">Preço/mês</TableHead>
-                  <TableHead className="w-28 text-right">Total</TableHead>
-                  <TableHead className="w-44">Margem</TableHead>
-                  <TableHead className="w-36 text-right">Lucro Projetado</TableHead>
+                  <TableHead className="w-32 text-center">Preço/mês</TableHead>
+                  <TableHead className="w-28 text-center">Total</TableHead>
+                  <TableHead className="w-44 text-center">Margem</TableHead>
+                  <TableHead className="w-36 text-center">Lucro Projetado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -306,19 +306,19 @@ export default function AnalisePrecosTab({
                           </Select>
                         </TableCell>
                         <TableCell className="text-center text-sm text-gray-500">{p.meses}x</TableCell>
-                        <TableCell className="text-right text-sm text-gray-400">{fmtBRL(ideal)}</TableCell>
-                        <TableCell className="text-right text-sm text-gray-400">{fmtBRL(idealTotal)}</TableCell>
+                        <TableCell className="text-center text-sm text-gray-400">{fmtBRL(ideal)}</TableCell>
+                        <TableCell className="text-center text-sm text-gray-400">{fmtBRL(idealTotal)}</TableCell>
                         <TableCell className="p-1" />
                         {showMin && (
                           <>
-                            <TableCell className="text-right text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
-                            <TableCell className="text-right text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
+                            <TableCell className="text-center text-sm text-red-500">{fmtBRL(minMensal)}</TableCell>
+                            <TableCell className="text-center text-sm text-red-500">{fmtBRL(minTotal)}</TableCell>
                           </>
                         )}
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <Input
                             type="number"
-                            className={`h-7 w-24 text-right text-sm font-semibold ml-auto ${changed ? 'border-amber-400 bg-amber-50' : ''}`}
+                            className={`h-7 w-24 text-right text-sm font-semibold mx-auto ${changed ? 'border-amber-400 bg-amber-50' : ''}`}
                             value={getDisplayPrice(p.nome, eff.preco_mensal)}
                             onChange={(e) => handlePriceChange(p.nome, e.target.value)}
                             onBlur={() => handlePriceBlur(p.nome)}
@@ -326,17 +326,17 @@ export default function AnalisePrecosTab({
                             min={0}
                           />
                         </TableCell>
-                        <TableCell className="text-right text-sm font-bold">{fmtBRL(eff.preco_total)}</TableCell>
+                        <TableCell className="text-center text-sm font-bold">{fmtBRL(eff.preco_total)}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden min-w-[48px]">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
                               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barW}%` }} />
                             </div>
                             <span className={`text-xs font-bold w-12 text-right ${pctColor}`}>{fmtPct(pct)}</span>
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5 text-right">{fmtBRL(mc)}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-center">
                           <span className={`text-sm font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
                             {fmtPct(lucroProj)}
                           </span>
