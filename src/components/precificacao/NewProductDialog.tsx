@@ -39,9 +39,12 @@ type Props = {
   config: AppConfig;
   existingNames: string[];
   onCreate: (p: Produto) => void;
+  editing?: Produto | null;
+  onUpdate?: (originalName: string, p: Produto) => void;
 };
 
-export default function NewProductDialog({ open, onOpenChange, config, existingNames, onCreate }: Props) {
+export default function NewProductDialog({ open, onOpenChange, config, existingNames, onCreate, editing, onUpdate }: Props) {
+  const isEdit = !!editing;
   const [nome, setNome] = useState('');
   const [meses, setMeses] = useState(12);
   const [linha, setLinha] = useState<LinhaMarkup>('Linha Gold');
@@ -61,13 +64,33 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   // Reset on open
   useEffect(() => {
     if (open) {
-      setNome(''); setMeses(12); setLinha('Linha Gold');
-      setMode('simples'); setCustoSimples(0);
-      setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
-      setSelectedInsumos({}); setInsumoFilter('');
-      setPreco(0); setPrecoTouched(false); setErrors({});
+      if (editing) {
+        setNome(editing.nome);
+        setMeses(editing.meses);
+        setLinha(editing.linha);
+        const bd = editing.custo_breakdown;
+        if (bd && bd.length > 0) {
+          setMode('detalhado');
+          setBreakdown(bd);
+          setCustoSimples(0);
+        } else {
+          setMode('simples');
+          setCustoSimples(editing.custo);
+          setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
+        }
+        setSelectedInsumos({}); setInsumoFilter('');
+        setPreco(editing.preco_mensal);
+        setPrecoTouched(true);
+        setErrors({});
+      } else {
+        setNome(''); setMeses(12); setLinha('Linha Gold');
+        setMode('simples'); setCustoSimples(0);
+        setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
+        setSelectedInsumos({}); setInsumoFilter('');
+        setPreco(0); setPrecoTouched(false); setErrors({});
+      }
     }
-  }, [open]);
+  }, [open, editing]);
 
   const insumosCusto = useMemo(
     () => insumos.reduce((s, i) => s + (selectedInsumos[i.id] ? insumoCusto(i) * selectedInsumos[i.id] : 0), 0),
@@ -110,7 +133,11 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       parsed.error.issues.forEach((i) => (errs[i.path[0] as string] = i.message));
     }
 
-    if (existingNames.some((n) => n.toLowerCase() === nome.trim().toLowerCase())) {
+    const nameLower = nome.trim().toLowerCase();
+    const dup = existingNames.some(
+      (n) => n.toLowerCase() === nameLower && (!isEdit || n.toLowerCase() !== editing!.nome.toLowerCase())
+    );
+    if (dup) {
       errs.nome = 'Já existe um serviço com este nome';
     }
 
@@ -154,8 +181,13 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       ...(insumoBreakdown ? { custo_breakdown: insumoBreakdown } : {}),
     };
 
-    onCreate(novo);
-    toast({ title: 'Serviço criado', description: novo.nome });
+    if (isEdit && onUpdate) {
+      onUpdate(editing!.nome, novo);
+      toast({ title: 'Serviço atualizado', description: novo.nome });
+    } else {
+      onCreate(novo);
+      toast({ title: 'Serviço criado', description: novo.nome });
+    }
     onOpenChange(false);
   };
 
@@ -166,7 +198,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Serviço</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar Serviço' : 'Novo Serviço'}</DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
@@ -417,7 +449,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit}>Criar Serviço</Button>
+          <Button onClick={handleSubmit}>{isEdit ? 'Salvar Alterações' : 'Criar Serviço'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -5,6 +5,8 @@ export type PricingVersionSource = 'import' | 'edit' | 'revert';
 export type PricingVersionChangeType =
   | 'import_xlsx'
   | 'new_service'
+  | 'service_update'
+  | 'service_delete'
   | 'price_update'
   | 'line_update'
   | 'config_update'

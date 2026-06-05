@@ -4,8 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import NewProductDialog from './NewProductDialog';
 import { recordPricingVersion } from '@/lib/pricingVersions';
 import { Produto } from '@/types/precificacao';
@@ -27,13 +31,15 @@ const FILTERS: { key: FilterMode; label: string }[] = [
 ];
 
 export default function AnalisePrecosTab({
-  products, config, priceOverrides, updatePrice, updateLinha, addProduct, saveChanges, resetChanges,
+  products, config, priceOverrides, updatePrice, updateLinha, addProduct, updateProduct, removeProduct, saveChanges, resetChanges,
 }: PrecificacaoHook) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>('todos');
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Produto | null>(null);
   const [showMin, setShowMin] = useState(false);
 
   const changedCount = Object.keys(priceOverrides).length;
@@ -93,6 +99,35 @@ export default function AnalisePrecosTab({
       snapshot: { products: [novo, ...products], config },
       setActive: true,
     }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+  };
+
+  const handleUpdateProduct = (originalName: string, atualizado: Produto) => {
+    updateProduct(originalName, atualizado);
+    const updated = products.map((p) => (p.nome === originalName ? atualizado : p));
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'service_update',
+      name: `Serviço editado: ${atualizado.nome}`,
+      description: `Linha ${atualizado.linha} · ${atualizado.meses}x · ${atualizado.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
+      snapshot: { products: updated, config },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    const nome = deleteTarget.nome;
+    removeProduct(nome);
+    const updated = products.filter((p) => p.nome !== nome);
+    recordPricingVersion({
+      source: 'edit',
+      change_type: 'service_delete',
+      name: `Serviço excluído: ${nome}`,
+      description: `${deleteTarget.linha} · ${deleteTarget.meses}x`,
+      snapshot: { products: updated, config },
+      setActive: true,
+    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    setDeleteTarget(null);
   };
 
   const handleLinhaChange = (nome: string, novaLinha: LinhaMarkup) => {
@@ -243,12 +278,13 @@ export default function AnalisePrecosTab({
                   <TableHead className="w-28 text-center">Total</TableHead>
                   <TableHead className="w-44 text-center">Margem</TableHead>
                   <TableHead className="w-36 text-center">Lucro Projetado</TableHead>
+                  <TableHead className="w-24 text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={showMin ? 13 : 11} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={showMin ? 14 : 12} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -341,6 +377,28 @@ export default function AnalisePrecosTab({
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setEditingProduct(p)}
+                              title="Editar serviço"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setDeleteTarget(p)}
+                              title="Excluir serviço"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -358,6 +416,37 @@ export default function AnalisePrecosTab({
         existingNames={products.map((p) => p.nome)}
         onCreate={handleAddProduct}
       />
+
+      <NewProductDialog
+        open={!!editingProduct}
+        onOpenChange={(o) => { if (!o) setEditingProduct(null); }}
+        config={config}
+        existingNames={products.map((p) => p.nome)}
+        onCreate={handleAddProduct}
+        editing={editingProduct}
+        onUpdate={handleUpdateProduct}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir serviço?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá <strong>{deleteTarget?.nome}</strong> da tabela de precificação.
+              Você pode reverter restaurando uma versão anterior no histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
