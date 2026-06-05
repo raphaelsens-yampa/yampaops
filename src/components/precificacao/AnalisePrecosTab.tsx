@@ -314,6 +314,31 @@ export default function AnalisePrecosTab({
                       {sortConfig.key === 'meses' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
                     </div>
                   </TableHead>
+                  <TableHead className="w-[28px] text-center p-0">
+                    <button
+                      onClick={() => setShowCusto((v) => !v)}
+                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
+                      title={showCusto ? 'Ocultar Custo' : 'Mostrar Custo'}
+                    >
+                      {showCusto ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 -rotate-90" />}
+                    </button>
+                  </TableHead>
+                  {showCusto && (
+                    <>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_mes')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Custo/mês
+                          {sortConfig.key === 'custo_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_total')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Custo Tot.
+                          {sortConfig.key === 'custo_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
+                    </>
+                  )}
                   <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_mes')}>
                     <div className="flex items-center justify-center gap-1">
                       Ideal/mês
