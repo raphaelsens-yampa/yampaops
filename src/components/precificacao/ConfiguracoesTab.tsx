@@ -10,9 +10,9 @@ import { recordPricingVersion } from '@/lib/pricingVersions';
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
 
 const MARKUP_LINES = [
-  { key: 'premium' as const, label: 'Linha Premium', colorClass: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { key: 'gold'    as const, label: 'Linha Gold',    colorClass: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { key: 'prata'  as const, label: 'Linha Prata',   colorClass: 'bg-gray-100 text-gray-700 border-gray-200' },
+  { key: 'premium' as const, label: 'Premium', colorClass: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { key: 'gold'    as const, label: 'Gold',    colorClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { key: 'prata'  as const, label: 'Prata',   colorClass: 'bg-gray-100 text-gray-700 border-gray-200' },
 ];
 
 const DEDUCTIONS = [
