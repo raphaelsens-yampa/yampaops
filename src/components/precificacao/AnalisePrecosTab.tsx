@@ -34,6 +34,7 @@ export default function AnalisePrecosTab({
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [showMin, setShowMin] = useState(false);
 
   const changedCount = Object.keys(priceOverrides).length;
 
