@@ -464,6 +464,13 @@ export default function AnalisePrecosTab({
                           </Select>
                         </TableCell>
                         <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
+                        <TableCell className="p-0" />
+                        {showCusto && (
+                          <>
+                            <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo / Math.max(p.meses, 1))}</TableCell>
+                            <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>
+                          </>
+                        )}
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
                         <TableCell className="p-0" />
