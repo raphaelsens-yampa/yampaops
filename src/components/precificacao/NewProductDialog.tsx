@@ -211,10 +211,13 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
             {/* 2. Custo */}
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Custo das horas</h3>
-              <Tabs value={mode} onValueChange={(v) => setMode(v as 'simples' | 'detalhado')}>
+              <Tabs value={mode} onValueChange={(v) => setMode(v as 'simples' | 'detalhado' | 'insumos')}>
                 <TabsList className="h-8">
                   <TabsTrigger value="simples" className="text-xs">Custo único</TabsTrigger>
                   <TabsTrigger value="detalhado" className="text-xs">Composição por horas</TabsTrigger>
+                  <TabsTrigger value="insumos" className="text-xs gap-1">
+                    <Package className="h-3 w-3" /> Insumos
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="simples" className="pt-3">
                   <Label className="text-xs">Custo total (R$)</Label>
