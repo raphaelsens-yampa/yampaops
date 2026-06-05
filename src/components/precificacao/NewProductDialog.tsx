@@ -259,30 +259,62 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                     onChange={(e) => setCustoSimples(parseFloat(e.target.value) || 0)} />
                 </TabsContent>
                 <TabsContent value="detalhado" className="pt-3 space-y-2">
-                  <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 text-xs font-semibold text-gray-500 px-1">
-                    <span>Cargo</span><span className="text-right">Horas</span>
-                    <span className="text-right">Valor/h</span><span className="text-right">Subtotal</span><span />
-                  </div>
-                  {breakdown.map((b, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 items-center">
-                      <Input className="h-8 text-xs" placeholder="Ex: Analista" value={b.cargo}
-                        onChange={(e) => updateBreakdown(i, { cargo: e.target.value })} />
-                      <Input className="h-8 text-xs text-right" type="number" min={0} step="0.5" value={b.horas}
-                        onChange={(e) => updateBreakdown(i, { horas: parseFloat(e.target.value) || 0 })} />
-                      <Input className="h-8 text-xs text-right" type="number" min={0} step="0.01" value={b.valor_hora}
-                        onChange={(e) => updateBreakdown(i, { valor_hora: parseFloat(e.target.value) || 0 })} />
-                      <div className="text-right text-xs font-medium pr-1">{fmtBRL(b.horas * b.valor_hora)}</div>
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                        onClick={() => removeBreakdownRow(i)} disabled={breakdown.length === 1}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-500">As horas digitadas são:</span>
+                    <div className="inline-flex rounded-md border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setHorasMode('total')}
+                        className={`px-2 py-1 text-xs ${horasMode === 'total' ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        Totais do contrato
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHorasMode('mensal')}
+                        className={`px-2 py-1 text-xs border-l ${horasMode === 'mensal' ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        Por mês (× {meses})
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 text-xs font-semibold text-gray-500 px-1">
+                    <span>Cargo</span>
+                    <span className="text-right">{horasMode === 'mensal' ? 'Horas/mês' : 'Horas'}</span>
+                    <span className="text-right">Valor/h</span>
+                    <span className="text-right">Subtotal</span>
+                    <span />
+                  </div>
+                  {breakdown.map((b, i) => {
+                    const rowBase = (b.horas || 0) * (b.valor_hora || 0);
+                    const rowTotal = horasMode === 'mensal' ? rowBase * meses : rowBase;
+                    return (
+                      <div key={i} className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 items-center">
+                        <Input className="h-8 text-xs" placeholder="Ex: Analista" value={b.cargo}
+                          onChange={(e) => updateBreakdown(i, { cargo: e.target.value })} />
+                        <Input className="h-8 text-xs text-right" type="number" min={0} step="0.5" value={b.horas}
+                          onChange={(e) => updateBreakdown(i, { horas: parseFloat(e.target.value) || 0 })} />
+                        <Input className="h-8 text-xs text-right" type="number" min={0} step="0.01" value={b.valor_hora}
+                          onChange={(e) => updateBreakdown(i, { valor_hora: parseFloat(e.target.value) || 0 })} />
+                        <div className="text-right text-xs font-medium pr-1">{fmtBRL(rowTotal)}</div>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={() => removeBreakdownRow(i)} disabled={breakdown.length === 1}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                   <Button type="button" variant="outline" size="sm" onClick={addBreakdownRow} className="h-7 text-xs">
                     <Plus className="h-3 w-3 mr-1" /> Adicionar item
                   </Button>
+                  <p className="text-[11px] text-gray-500 italic">
+                    {horasMode === 'mensal'
+                      ? `Subtotal já multiplicado por ${meses} meses do contrato.`
+                      : 'Horas representam o total do contrato inteiro.'}
+                  </p>
                   <div className="flex justify-end pt-2 text-sm">
                     <span className="text-gray-500 mr-2">Custo total:</span>
+
                     <span className="font-bold">{fmtBRL(custo)}</span>
                   </div>
                 </TabsContent>
