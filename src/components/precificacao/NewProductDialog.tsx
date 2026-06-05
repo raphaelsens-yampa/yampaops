@@ -100,7 +100,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
   const custo = useMemo(() => {
     if (mode === 'simples') return custoSimples;
-    if (mode === 'insumos') return insumosCusto;
+    if (mode === 'insumos') return horasMode === 'mensal' ? insumosCusto * meses : insumosCusto;
     const base = breakdown.reduce((s, b) => s + (b.horas || 0) * (b.valor_hora || 0), 0);
     return horasMode === 'mensal' ? base * meses : base;
   }, [mode, custoSimples, breakdown, insumosCusto, horasMode, meses]);
