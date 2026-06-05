@@ -39,9 +39,12 @@ type Props = {
   config: AppConfig;
   existingNames: string[];
   onCreate: (p: Produto) => void;
+  editing?: Produto | null;
+  onUpdate?: (originalName: string, p: Produto) => void;
 };
 
-export default function NewProductDialog({ open, onOpenChange, config, existingNames, onCreate }: Props) {
+export default function NewProductDialog({ open, onOpenChange, config, existingNames, onCreate, editing, onUpdate }: Props) {
+  const isEdit = !!editing;
   const [nome, setNome] = useState('');
   const [meses, setMeses] = useState(12);
   const [linha, setLinha] = useState<LinhaMarkup>('Linha Gold');
@@ -61,13 +64,33 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   // Reset on open
   useEffect(() => {
     if (open) {
-      setNome(''); setMeses(12); setLinha('Linha Gold');
-      setMode('simples'); setCustoSimples(0);
-      setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
-      setSelectedInsumos({}); setInsumoFilter('');
-      setPreco(0); setPrecoTouched(false); setErrors({});
+      if (editing) {
+        setNome(editing.nome);
+        setMeses(editing.meses);
+        setLinha(editing.linha);
+        const bd = editing.custo_breakdown;
+        if (bd && bd.length > 0) {
+          setMode('detalhado');
+          setBreakdown(bd);
+          setCustoSimples(0);
+        } else {
+          setMode('simples');
+          setCustoSimples(editing.custo);
+          setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
+        }
+        setSelectedInsumos({}); setInsumoFilter('');
+        setPreco(editing.preco_mensal);
+        setPrecoTouched(true);
+        setErrors({});
+      } else {
+        setNome(''); setMeses(12); setLinha('Linha Gold');
+        setMode('simples'); setCustoSimples(0);
+        setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
+        setSelectedInsumos({}); setInsumoFilter('');
+        setPreco(0); setPrecoTouched(false); setErrors({});
+      }
     }
-  }, [open]);
+  }, [open, editing]);
 
   const insumosCusto = useMemo(
     () => insumos.reduce((s, i) => s + (selectedInsumos[i.id] ? insumoCusto(i) * selectedInsumos[i.id] : 0), 0),
