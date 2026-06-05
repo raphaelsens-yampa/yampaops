@@ -45,14 +45,18 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   const [nome, setNome] = useState('');
   const [meses, setMeses] = useState(12);
   const [linha, setLinha] = useState<LinhaMarkup>('Linha Gold');
-  const [mode, setMode] = useState<'simples' | 'detalhado'>('simples');
+  const [mode, setMode] = useState<'simples' | 'detalhado' | 'insumos'>('simples');
   const [custoSimples, setCustoSimples] = useState(0);
   const [breakdown, setBreakdown] = useState<CustoBreakdownItem[]>([
     { cargo: '', horas: 0, valor_hora: 0 },
   ]);
+  const [selectedInsumos, setSelectedInsumos] = useState<Record<string, number>>({}); // id -> qty
+  const [insumoFilter, setInsumoFilter] = useState('');
   const [preco, setPreco] = useState(0);
   const [precoTouched, setPrecoTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { insumos, loading: loadingInsumos } = useInsumos();
 
   // Reset on open
   useEffect(() => {
@@ -60,14 +64,21 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       setNome(''); setMeses(12); setLinha('Linha Gold');
       setMode('simples'); setCustoSimples(0);
       setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
+      setSelectedInsumos({}); setInsumoFilter('');
       setPreco(0); setPrecoTouched(false); setErrors({});
     }
   }, [open]);
 
+  const insumosCusto = useMemo(
+    () => insumos.reduce((s, i) => s + (selectedInsumos[i.id] ? insumoCusto(i) * selectedInsumos[i.id] : 0), 0),
+    [insumos, selectedInsumos]
+  );
+
   const custo = useMemo(() => {
     if (mode === 'simples') return custoSimples;
+    if (mode === 'insumos') return insumosCusto;
     return breakdown.reduce((s, b) => s + (b.horas || 0) * (b.valor_hora || 0), 0);
-  }, [mode, custoSimples, breakdown]);
+  }, [mode, custoSimples, breakdown, insumosCusto]);
 
   const linhaKey = getLinhaKey(linha);
   const ideal = useMemo(() => calcIdealMensal(custo, meses, linhaKey, config), [custo, meses, linhaKey, config]);
