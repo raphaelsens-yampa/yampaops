@@ -416,6 +416,37 @@ export default function AnalisePrecosTab({
         existingNames={products.map((p) => p.nome)}
         onCreate={handleAddProduct}
       />
+
+      <NewProductDialog
+        open={!!editingProduct}
+        onOpenChange={(o) => { if (!o) setEditingProduct(null); }}
+        config={config}
+        existingNames={products.map((p) => p.nome)}
+        onCreate={handleAddProduct}
+        editing={editingProduct}
+        onUpdate={handleUpdateProduct}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir serviço?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá <strong>{deleteTarget?.nome}</strong> da tabela de precificação.
+              Você pode reverter restaurando uma versão anterior no histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
