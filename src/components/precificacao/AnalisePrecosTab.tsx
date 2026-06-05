@@ -291,7 +291,7 @@ export default function AnalisePrecosTab({
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className={showMin ? 'overflow-x-auto' : ''}>
+          <div className={showMin || showCusto ? 'overflow-x-auto' : ''}>
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
