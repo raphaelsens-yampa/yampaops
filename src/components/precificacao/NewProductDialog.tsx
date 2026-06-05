@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
-import { Plus, Trash2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, AlertTriangle, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import { Produto, LinhaMarkup, CustoBreakdownItem, AppConfig } from '@/types/precificacao';
 import { calcIdealMensal, calcMinMensal, calcMC, getLinhaKey } from '@/hooks/usePrecificacao';
+import { useInsumos, insumoCusto, Insumo } from '@/hooks/useInsumos';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
