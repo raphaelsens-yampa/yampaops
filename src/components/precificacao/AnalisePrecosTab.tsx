@@ -218,12 +218,12 @@ export default function AnalisePrecosTab({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32">Status</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead className="w-36">Linha</TableHead>
+                  <TableHead className="w-32 text-center">Status</TableHead>
+                  <TableHead className="text-center">Produto</TableHead>
+                  <TableHead className="w-36 text-center">Linha</TableHead>
                   <TableHead className="w-20 text-center">Contrato</TableHead>
-                  <TableHead className="w-28 text-right">Preço Ideal/mês</TableHead>
-                  <TableHead className="w-28 text-right">Preço Ideal Total</TableHead>
+                  <TableHead className="w-28 text-center">Preço Ideal/mês</TableHead>
+                  <TableHead className="w-28 text-center">Preço Ideal Total</TableHead>
                   <TableHead className="w-10 text-center p-1">
                     <button
                       onClick={() => setShowMin((v) => !v)}
@@ -235,14 +235,14 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-28 text-right">Mín. (0%) /mês</TableHead>
-                      <TableHead className="w-28 text-right">Mín. (0%) Total</TableHead>
+                      <TableHead className="w-28 text-center">Mín. (0%) /mês</TableHead>
+                      <TableHead className="w-28 text-center">Mín. (0%) Total</TableHead>
                     </>
                   )}
-                  <TableHead className="w-32 text-right">Preço/mês</TableHead>
-                  <TableHead className="w-28 text-right">Total</TableHead>
-                  <TableHead className="w-44">Margem</TableHead>
-                  <TableHead className="w-36 text-right">Lucro Projetado</TableHead>
+                  <TableHead className="w-32 text-center">Preço/mês</TableHead>
+                  <TableHead className="w-28 text-center">Total</TableHead>
+                  <TableHead className="w-44 text-center">Margem</TableHead>
+                  <TableHead className="w-36 text-center">Lucro Projetado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
