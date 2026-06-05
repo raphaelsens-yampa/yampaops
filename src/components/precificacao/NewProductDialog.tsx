@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
-import { Plus, Trash2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, AlertTriangle, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import { Produto, LinhaMarkup, CustoBreakdownItem, AppConfig } from '@/types/precificacao';
 import { calcIdealMensal, calcMinMensal, calcMC, getLinhaKey } from '@/hooks/usePrecificacao';
+import { useInsumos, insumoCusto, Insumo } from '@/hooks/useInsumos';
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -42,14 +45,18 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   const [nome, setNome] = useState('');
   const [meses, setMeses] = useState(12);
   const [linha, setLinha] = useState<LinhaMarkup>('Linha Gold');
-  const [mode, setMode] = useState<'simples' | 'detalhado'>('simples');
+  const [mode, setMode] = useState<'simples' | 'detalhado' | 'insumos'>('simples');
   const [custoSimples, setCustoSimples] = useState(0);
   const [breakdown, setBreakdown] = useState<CustoBreakdownItem[]>([
     { cargo: '', horas: 0, valor_hora: 0 },
   ]);
+  const [selectedInsumos, setSelectedInsumos] = useState<Record<string, number>>({}); // id -> qty
+  const [insumoFilter, setInsumoFilter] = useState('');
   const [preco, setPreco] = useState(0);
   const [precoTouched, setPrecoTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { insumos, loading: loadingInsumos } = useInsumos();
 
   // Reset on open
   useEffect(() => {
@@ -57,14 +64,21 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       setNome(''); setMeses(12); setLinha('Linha Gold');
       setMode('simples'); setCustoSimples(0);
       setBreakdown([{ cargo: '', horas: 0, valor_hora: 0 }]);
+      setSelectedInsumos({}); setInsumoFilter('');
       setPreco(0); setPrecoTouched(false); setErrors({});
     }
   }, [open]);
 
+  const insumosCusto = useMemo(
+    () => insumos.reduce((s, i) => s + (selectedInsumos[i.id] ? insumoCusto(i) * selectedInsumos[i.id] : 0), 0),
+    [insumos, selectedInsumos]
+  );
+
   const custo = useMemo(() => {
     if (mode === 'simples') return custoSimples;
+    if (mode === 'insumos') return insumosCusto;
     return breakdown.reduce((s, b) => s + (b.horas || 0) * (b.valor_hora || 0), 0);
-  }, [mode, custoSimples, breakdown]);
+  }, [mode, custoSimples, breakdown, insumosCusto]);
 
   const linhaKey = getLinhaKey(linha);
   const ideal = useMemo(() => calcIdealMensal(custo, meses, linhaKey, config), [custo, meses, linhaKey, config]);
@@ -102,6 +116,9 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
     if (mode === 'simples') {
       if (custoSimples <= 0) errs.custo = 'Custo deve ser > 0';
+    } else if (mode === 'insumos') {
+      if (Object.keys(selectedInsumos).length === 0) errs.custo = 'Selecione ao menos um insumo';
+      else if (custo <= 0) errs.custo = 'Custo total dos insumos deve ser > 0';
     } else {
       const bErrs = breakdown.map((b) => breakdownItemSchema.safeParse(b));
       if (bErrs.some((r) => !r.success)) errs.custo = 'Verifique os itens da composição';
@@ -114,6 +131,17 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       return;
     }
 
+    // Quando o usuário compõe via insumos, transformamos em breakdown para registro
+    const insumoBreakdown: CustoBreakdownItem[] | undefined = mode === 'insumos'
+      ? insumos
+          .filter((i) => selectedInsumos[i.id])
+          .map((i) => ({
+            cargo: `${i.tipo === 'subproduto' ? '[Sub] ' : ''}${i.nome}`,
+            horas: selectedInsumos[i.id],
+            valor_hora: insumoCusto(i),
+          }))
+      : undefined;
+
     const novo: Produto = {
       nome: nome.trim(),
       meses,
@@ -123,6 +151,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       preco_total: precoTotal,
       ideal_mensal: ideal,
       ...(mode === 'detalhado' ? { custo_breakdown: breakdown } : {}),
+      ...(insumoBreakdown ? { custo_breakdown: insumoBreakdown } : {}),
     };
 
     onCreate(novo);
@@ -182,10 +211,13 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
             {/* 2. Custo */}
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Custo das horas</h3>
-              <Tabs value={mode} onValueChange={(v) => setMode(v as 'simples' | 'detalhado')}>
+              <Tabs value={mode} onValueChange={(v) => setMode(v as 'simples' | 'detalhado' | 'insumos')}>
                 <TabsList className="h-8">
                   <TabsTrigger value="simples" className="text-xs">Custo único</TabsTrigger>
                   <TabsTrigger value="detalhado" className="text-xs">Composição por horas</TabsTrigger>
+                  <TabsTrigger value="insumos" className="text-xs gap-1">
+                    <Package className="h-3 w-3" /> Insumos
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="simples" className="pt-3">
                   <Label className="text-xs">Custo total (R$)</Label>
@@ -219,6 +251,94 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
                     <span className="text-gray-500 mr-2">Custo total:</span>
                     <span className="font-bold">{fmtBRL(custo)}</span>
                   </div>
+                </TabsContent>
+                <TabsContent value="insumos" className="pt-3 space-y-2">
+                  {loadingInsumos ? (
+                    <p className="text-xs text-gray-500">Carregando insumos...</p>
+                  ) : insumos.length === 0 ? (
+                    <p className="text-xs text-amber-600">
+                      Nenhum insumo cadastrado. Importe uma planilha com a aba "Custos dos Insumos".
+                    </p>
+                  ) : (
+                    <>
+                      <Input
+                        className="h-8 text-xs"
+                        placeholder="Buscar insumo..."
+                        value={insumoFilter}
+                        onChange={(e) => setInsumoFilter(e.target.value)}
+                      />
+                      <ScrollArea className="h-64 border rounded-md">
+                        <div className="p-2 space-y-1">
+                          {(['item', 'subproduto'] as const).map((grupo) => {
+                            const filtered = insumos.filter(
+                              (i) =>
+                                i.tipo === grupo &&
+                                (insumoFilter === '' ||
+                                  i.nome.toLowerCase().includes(insumoFilter.toLowerCase()))
+                            );
+                            if (filtered.length === 0) return null;
+                            return (
+                              <div key={grupo} className="space-y-1">
+                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1 pt-1">
+                                  {grupo === 'item' ? 'Itens (mão de obra / ações)' : 'Subprodutos'}
+                                </p>
+                                {filtered.map((i: Insumo) => {
+                                  const qty = selectedInsumos[i.id] ?? 0;
+                                  const checked = qty > 0;
+                                  const unit = insumoCusto(i);
+                                  return (
+                                    <div
+                                      key={i.id}
+                                      className="grid grid-cols-[24px_1fr_70px_90px] gap-2 items-center px-1 py-1 hover:bg-gray-50 rounded"
+                                    >
+                                      <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={(c) =>
+                                          setSelectedInsumos((prev) => {
+                                            const next = { ...prev };
+                                            if (c) next[i.id] = next[i.id] || 1;
+                                            else delete next[i.id];
+                                            return next;
+                                          })
+                                        }
+                                      />
+                                      <div className="min-w-0">
+                                        <p className="text-xs truncate" title={i.nome}>{i.nome}</p>
+                                        <p className="text-[10px] text-gray-400">{fmtBRL(unit)} / un</p>
+                                      </div>
+                                      <Input
+                                        className="h-7 text-xs text-right"
+                                        type="number"
+                                        min={0}
+                                        step="1"
+                                        value={qty}
+                                        onChange={(e) => {
+                                          const v = parseFloat(e.target.value) || 0;
+                                          setSelectedInsumos((prev) => {
+                                            const next = { ...prev };
+                                            if (v > 0) next[i.id] = v;
+                                            else delete next[i.id];
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                      <div className="text-right text-xs font-medium pr-1">
+                                        {fmtBRL(unit * qty)}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                      <div className="flex justify-end pt-1 text-sm">
+                        <span className="text-gray-500 mr-2">Custo total:</span>
+                        <span className="font-bold">{fmtBRL(insumosCusto)}</span>
+                      </div>
+                    </>
+                  )}
                 </TabsContent>
               </Tabs>
               {errors.custo && <p className="text-xs text-red-600">{errors.custo}</p>}
