@@ -58,6 +58,44 @@ export default function AnalisePrecosTab({
     return matchSearch && matchFilter;
   });
 
+  const requestSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const getSortValue = (p: Produto, key: string) => {
+    const eff = getEffectivePrice(p, priceOverrides);
+    const linhaKey = getLinhaKey(p.linha);
+    switch (key) {
+      case 'nome': return p.nome.toLowerCase();
+      case 'linha': return p.linha.toLowerCase();
+      case 'meses': return p.meses;
+      case 'ideal_mes': return calcIdealMensal(p.custo, p.meses, linhaKey, config);
+      case 'ideal_total': return calcIdealMensal(p.custo, p.meses, linhaKey, config) * p.meses;
+      case 'min_mes': return calcMinMensal(p.custo, p.meses, config);
+      case 'min_total': return calcMinMensal(p.custo, p.meses, config) * p.meses;
+      case 'preco_mes': return eff.preco_mensal;
+      case 'preco_total': return eff.preco_total;
+      case 'margem': return calcMC(eff.preco_total, p.custo, config).pct;
+      case 'lucro_proj': return calcLucroProjetado(eff.preco_total, p.custo, config);
+      default: return 0;
+    }
+  };
+
+  const sortedProducts = sortConfig.key
+    ? [...filtered].sort((a, b) => {
+        const aVal = getSortValue(a, sortConfig.key!);
+        const bVal = getSortValue(b, sortConfig.key!);
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      })
+    : filtered;
+
   // Stats
   const goodCount = products.filter((p) => statusCheck(p, priceOverrides, config) === 'Preço bom').length;
   const avgMC = products.reduce((sum, p) => {
