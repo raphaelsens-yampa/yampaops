@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -41,6 +41,7 @@ export default function AnalisePrecosTab({
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Produto | null>(null);
   const [showMin, setShowMin] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
   const changedCount = Object.keys(priceOverrides).length;
 
@@ -56,6 +57,44 @@ export default function AnalisePrecosTab({
       filter === 'setup'  ? nome.includes('setup') : true;
     return matchSearch && matchFilter;
   });
+
+  const requestSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const getSortValue = (p: Produto, key: string) => {
+    const eff = getEffectivePrice(p, priceOverrides);
+    const linhaKey = getLinhaKey(p.linha);
+    switch (key) {
+      case 'nome': return p.nome.toLowerCase();
+      case 'linha': return p.linha.toLowerCase();
+      case 'meses': return p.meses;
+      case 'ideal_mes': return calcIdealMensal(p.custo, p.meses, linhaKey, config);
+      case 'ideal_total': return calcIdealMensal(p.custo, p.meses, linhaKey, config) * p.meses;
+      case 'min_mes': return calcMinMensal(p.custo, p.meses, config);
+      case 'min_total': return calcMinMensal(p.custo, p.meses, config) * p.meses;
+      case 'preco_mes': return eff.preco_mensal;
+      case 'preco_total': return eff.preco_total;
+      case 'margem': return calcMC(eff.preco_total, p.custo, config).pct;
+      case 'lucro_proj': return calcLucroProjetado(eff.preco_total, p.custo, config);
+      default: return 0;
+    }
+  };
+
+  const sortedProducts = sortConfig.key
+    ? [...filtered].sort((a, b) => {
+        const aVal = getSortValue(a, sortConfig.key!);
+        const bVal = getSortValue(b, sortConfig.key!);
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      })
+    : filtered;
 
   // Stats
   const goodCount = products.filter((p) => statusCheck(p, priceOverrides, config) === 'Preço bom').length;
@@ -254,11 +293,36 @@ export default function AnalisePrecosTab({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[88px] text-center px-2">Status</TableHead>
-                  <TableHead className="text-center px-2">Produto</TableHead>
-                  <TableHead className="w-[110px] text-center px-1">Linha</TableHead>
-                  <TableHead className="w-[60px] text-center px-1">Contrato</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Ideal/mês</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Ideal Total</TableHead>
+                  <TableHead className="text-center px-2 cursor-pointer select-none" onClick={() => requestSort('nome')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Produto
+                      {sortConfig.key === 'nome' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[110px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('linha')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Linha
+                      {sortConfig.key === 'linha' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[60px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('meses')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Contr.
+                      {sortConfig.key === 'meses' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_mes')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Ideal/mês
+                      {sortConfig.key === 'ideal_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_total')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Ideal Tot.
+                      {sortConfig.key === 'ideal_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowMin((v) => !v)}
@@ -270,14 +334,44 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-[90px] text-center px-1">Mín./mês</TableHead>
-                      <TableHead className="w-[90px] text-center px-1">Mín. Total</TableHead>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_mes')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Mín./mês
+                          {sortConfig.key === 'min_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_total')}>
+                        <div className="flex items-center justify-center gap-1">
+                          Mín. Tot.
+                          {sortConfig.key === 'min_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                        </div>
+                      </TableHead>
                     </>
                   )}
-                  <TableHead className="w-[100px] text-center px-1">Preço/mês</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Total</TableHead>
-                  <TableHead className="w-[140px] text-center px-1">Margem</TableHead>
-                  <TableHead className="w-[90px] text-center px-1">Lucro Proj.</TableHead>
+                  <TableHead className="w-[100px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_mes')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Preço/mês
+                      {sortConfig.key === 'preco_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_total')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Total
+                      {sortConfig.key === 'preco_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[140px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('margem')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Margem
+                      {sortConfig.key === 'margem' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('lucro_proj')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Lucro Proj.
+                      {sortConfig.key === 'lucro_proj' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[70px] text-center px-1">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -289,7 +383,7 @@ export default function AnalisePrecosTab({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((p) => {
+                  sortedProducts.map((p) => {
                     const eff = getEffectivePrice(p, priceOverrides);
                     const { mc, pct } = calcMC(eff.preco_total, p.custo, config);
                     const lucroProj = calcLucroProjetado(eff.preco_total, p.custo, config);
