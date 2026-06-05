@@ -90,14 +90,109 @@ export default function ImportarTab(hook: PrecificacaoHook) {
 
         setProducts(newProducts);
         setCount(newProducts.length);
+
+        // ── Parse "Custos dos Insumos" sheet and sync backend table ────────
+        let insumosMsg = '';
+        const insumosSheetName = wb.SheetNames.find((n) =>
+          n.toLowerCase().includes('custos dos insumos') || n.toLowerCase().includes('custo dos insumos')
+        );
+        if (insumosSheetName) {
+          const insumosWs = wb.Sheets[insumosSheetName];
+          const insumosData = XLSX.utils.sheet_to_json<(string | number)[]>(insumosWs, { header: 1, defval: '' });
+
+          // Locate "Item" header (left table) and "SubProduto" header (right table) — search ALL columns of header rows
+          let itemHeader = { row: -1, colItem: -1, colMinuto: -1, colAcao: -1, colQntde: -1 };
+          let subHeader = { row: -1, colNome: -1, colValor: -1 };
+
+          for (let i = 0; i < Math.min(15, insumosData.length); i++) {
+            const row = insumosData[i] || [];
+            for (let c = 0; c < row.length; c++) {
+              const v = String(row[c] ?? '').trim().toLowerCase();
+              if (v === 'item' && itemHeader.row === -1) {
+                itemHeader.row = i;
+                itemHeader.colItem = c;
+                for (let cc = c + 1; cc < row.length; cc++) {
+                  const h = String(row[cc] ?? '').trim().toLowerCase();
+                  if (h.includes('custo do minuto')) itemHeader.colMinuto = cc;
+                  else if (h.includes('custo da a')) itemHeader.colAcao = cc;
+                  else if (h.includes('qntde') || h.includes('quantidade') || h.includes('minutos')) itemHeader.colQntde = cc;
+                }
+              }
+              if (v.includes('subproduto') && subHeader.row === -1 && !v.includes('(')) {
+                subHeader.row = i;
+                subHeader.colNome = c;
+                for (let cc = c + 1; cc < row.length; cc++) {
+                  const h = String(row[cc] ?? '').trim().toLowerCase();
+                  if (h.includes('valor do insumo')) subHeader.colValor = cc;
+                }
+              }
+            }
+          }
+
+          const parseNumOrNull = (v: string | number) => {
+            const s = String(v).trim();
+            if (!s || s === '-' || s.includes('#N/D') || s.includes('#N/A')) return null;
+            const n = parseFloat(s.replace(/[^\d.,-]/g, '').replace(',', '.'));
+            return isNaN(n) ? null : n;
+          };
+
+          const insumos: InsumoUpsert[] = [];
+          const seen = new Set<string>();
+
+          if (itemHeader.row >= 0 && itemHeader.colItem >= 0) {
+            for (let i = itemHeader.row + 1; i < insumosData.length; i++) {
+              const row = insumosData[i] || [];
+              const nome = String(row[itemHeader.colItem] ?? '').trim();
+              if (!nome) continue;
+              const key = `item|${nome.toLowerCase()}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              insumos.push({
+                nome,
+                tipo: 'item',
+                custo_minuto: itemHeader.colMinuto >= 0 ? parseNumOrNull(row[itemHeader.colMinuto]) : null,
+                custo_acao: itemHeader.colAcao >= 0 ? parseNumOrNull(row[itemHeader.colAcao]) : null,
+                qntde_minutos: itemHeader.colQntde >= 0 ? parseNumOrNull(row[itemHeader.colQntde]) : null,
+                source_file: file.name,
+              });
+            }
+          }
+
+          if (subHeader.row >= 0 && subHeader.colNome >= 0) {
+            for (let i = subHeader.row + 1; i < insumosData.length; i++) {
+              const row = insumosData[i] || [];
+              const nome = String(row[subHeader.colNome] ?? '').trim();
+              if (!nome) continue;
+              const key = `subproduto|${nome.toLowerCase()}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              insumos.push({
+                nome,
+                tipo: 'subproduto',
+                valor_insumo: subHeader.colValor >= 0 ? parseNumOrNull(row[subHeader.colValor]) : null,
+                source_file: file.name,
+              });
+            }
+          }
+
+          if (insumos.length > 0) {
+            const res = await syncInsumos(insumos);
+            insumosMsg = res.ok
+              ? ` ${res.count} insumos sincronizados.`
+              : ` Falha ao sincronizar insumos: ${res.error}`;
+          } else {
+            insumosMsg = ' Aba "Custos dos Insumos" encontrada mas sem linhas válidas.';
+          }
+        }
+
         setStatus('success');
-        setMessage(`${newProducts.length} produtos importados da aba "${sheetName}".`);
+        setMessage(`${newProducts.length} produtos importados da aba "${sheetName}".${insumosMsg}`);
 
         recordPricingVersion({
           source: 'import',
           change_type: 'import_xlsx',
           name: `Importação: ${file.name}`,
-          description: `${newProducts.length} produtos importados da aba "${sheetName}".`,
+          description: `${newProducts.length} produtos importados da aba "${sheetName}".${insumosMsg}`,
           file_name: file.name,
           snapshot: { products: newProducts, config },
           setActive: true,
