@@ -449,7 +449,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit}>Criar Serviço</Button>
+          <Button onClick={handleSubmit}>{isEdit ? 'Salvar Alterações' : 'Criar Serviço'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
