@@ -268,13 +268,49 @@ export function usePrecificacao() {
   // sees the same catalog regardless of localStorage.
   useEffect(() => {
     let cancelled = false;
+    let bootstrapInFlight = false;
     const sync = async () => {
-      const snap = await loadActiveVersion();
-      if (cancelled || !snap) return;
-      setProductsState(snap.products);
-      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(snap.products));
-      setConfigState(snap.config);
-      localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(snap.config));
+      const localSnapshot = {
+        products: loadFromStorage(STORAGE_KEYS.products, DEFAULT_PRODUCTS),
+        config: sanitizeConfig(loadFromStorage(STORAGE_KEYS.config, DEFAULT_CONFIG)),
+      };
+      const { snapshot: sharedSnapshot, hasActiveVersion } = await loadActiveVersion();
+      if (cancelled) return;
+
+      const shouldBootstrapShared = !hasActiveVersion && !bootstrapInFlight && shouldPreferLocalSnapshot(localSnapshot, sharedSnapshot);
+      if (shouldBootstrapShared) {
+        bootstrapInFlight = true;
+        try {
+          const recorded = await recordPricingVersion({
+            source: 'edit',
+            change_type: 'service_update',
+            name: 'Catálogo compartilhado sincronizado',
+            description: `Publicação automática de ${localSnapshot.products.length} serviços para toda a equipe.`,
+            snapshot: localSnapshot,
+            setActive: true,
+          });
+
+          if (recorded) {
+            applySharedSnapshot(localSnapshot);
+            setProductsState(localSnapshot.products);
+            setConfigState(localSnapshot.config);
+            window.dispatchEvent(new Event('pricing-version-changed'));
+            return;
+          }
+        } finally {
+          bootstrapInFlight = false;
+        }
+      }
+
+      const nextSnapshot = shouldPreferLocalSnapshot(localSnapshot, sharedSnapshot)
+        ? localSnapshot
+        : sharedSnapshot;
+
+      if (!nextSnapshot) return;
+
+      applySharedSnapshot(nextSnapshot);
+      setProductsState(nextSnapshot.products);
+      setConfigState(nextSnapshot.config);
     };
     sync();
     const handler = () => sync();
