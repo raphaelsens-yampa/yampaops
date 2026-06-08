@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Produto, AppConfig } from '@/types/precificacao';
 import { DEFAULT_PRODUCTS, DEFAULT_CONFIG } from '@/data/precificacaoData';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEYS = {
   products: 'yampa_products',
@@ -15,6 +16,20 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+async function loadActiveVersion(): Promise<{ products: Produto[]; config: AppConfig } | null> {
+  const { data, error } = await supabase
+    .from('pricing_versions')
+    .select('snapshot')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.snapshot) return null;
+  const snap = data.snapshot as any;
+  if (!snap.products || !snap.config) return null;
+  return { products: snap.products as Produto[], config: snap.config as AppConfig };
 }
 
 // ── Calculation helpers ──────────────────────────────────────────────────────
@@ -112,6 +127,29 @@ export function usePrecificacao() {
   const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(() =>
     loadFromStorage(STORAGE_KEYS.overrides, {})
   );
+
+  // Sync shared state from the active pricing version in the database so every user
+  // sees the same catalog regardless of localStorage.
+  useEffect(() => {
+    let cancelled = false;
+    const sync = async () => {
+      const snap = await loadActiveVersion();
+      if (cancelled || !snap) return;
+      setProductsState(snap.products);
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(snap.products));
+      setConfigState(snap.config);
+      localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(snap.config));
+    };
+    sync();
+    const handler = () => sync();
+    window.addEventListener('pricing-version-changed', handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('pricing-version-changed', handler);
+    };
+  }, []);
+
+
 
   const setProducts = useCallback((newProducts: Produto[]) => {
     setProductsState(newProducts);
