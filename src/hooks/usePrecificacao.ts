@@ -90,37 +90,6 @@ function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppCon
   // Snapshots no formato legado (sem custos por linha) ficam ignorados
   // — o app fará bootstrap a partir do catálogo local correto.
   return null;
-
-  // eslint-disable-next-line no-unreachable
-  if (!Array.isArray(snapshot.services)) return null;
-
-  const config = buildLegacyConfig(snapshot);
-  const products = snapshot.services
-    .filter((service: any) => service?.active !== false)
-    .map((service: any) => {
-      const meses = Math.max(1, toFiniteNumber(service.contract_months, 1));
-      const lineKey = getLinhaKey(toLinhaLabel(service.line));
-      const idealMensalFromSnapshot =
-        toFiniteNumber(service.ideal_monthly_price, 0) ||
-        toFiniteNumber(service.ideal_price, 0) / meses;
-      const derivedCost = idealMensalFromSnapshot > 0
-        ? (idealMensalFromSnapshot / calcMarkup(lineKey, config)) * meses
-        : 0;
-      const custo = toFiniteNumber(service.cost_total, derivedCost);
-      const precoTotal = toFiniteNumber(service.practiced_price, 0);
-
-      return {
-        nome: String(service.name ?? 'Serviço sem nome'),
-        meses,
-        linha: toLinhaLabel(service.line),
-        custo,
-        preco_total: precoTotal,
-        preco_mensal: precoTotal / meses,
-        ideal_mensal: idealMensalFromSnapshot || calcIdealMensal(custo, meses, lineKey, config),
-      } satisfies Produto;
-    });
-
-  return products.length > 0 ? { products, config } : null;
 }
 
 function getProductNameSet(products: Produto[]): Set<string> {
