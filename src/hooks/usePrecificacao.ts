@@ -136,16 +136,22 @@ async function loadActiveVersion(): Promise<{
     return { snapshot: null, hasActiveVersion: false };
   }
 
-  const hasActiveVersion = data.some((row) => !!row.is_active);
+  // hasActiveVersion deve refletir apenas snapshots válidos (formato atual).
+  // Versões legadas marcadas como ativas são ignoradas para permitir o bootstrap.
+  let hasActiveVersion = false;
+  let firstValid: { products: Produto[]; config: AppConfig } | null = null;
 
   for (const row of data) {
     const normalized = normalizeSnapshot(row.snapshot as any);
-    if (normalized) {
+    if (!normalized) continue;
+    if (!firstValid) firstValid = normalized;
+    if (row.is_active) {
+      hasActiveVersion = true;
       return { snapshot: normalized, hasActiveVersion };
     }
   }
 
-  return { snapshot: null, hasActiveVersion };
+  return { snapshot: firstValid, hasActiveVersion };
 }
 
 // ── Calculation helpers ──────────────────────────────────────────────────────
