@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Produto, AppConfig } from '@/types/precificacao';
 import { DEFAULT_PRODUCTS, DEFAULT_CONFIG } from '@/data/precificacaoData';
 import { supabase } from '@/integrations/supabase/client';
+import { recordPricingVersion } from '@/lib/pricingVersions';
 
 const STORAGE_KEYS = {
   products: 'yampa_products',
@@ -117,7 +118,39 @@ function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppCon
   return products.length > 0 ? { products, config } : null;
 }
 
-async function loadActiveVersion(): Promise<{ products: Produto[]; config: AppConfig } | null> {
+function getProductNameSet(products: Produto[]): Set<string> {
+  return new Set(
+    products
+      .map((product) => String(product?.nome ?? '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function shouldPreferLocalSnapshot(
+  localSnapshot: { products: Produto[]; config: AppConfig },
+  sharedSnapshot: { products: Produto[]; config: AppConfig } | null,
+): boolean {
+  const localNames = getProductNameSet(localSnapshot.products);
+  if (localNames.size === 0) return false;
+  if (!sharedSnapshot) return true;
+
+  const sharedNames = getProductNameSet(sharedSnapshot.products);
+  if (localNames.size > sharedNames.size) return true;
+  for (const name of localNames) {
+    if (!sharedNames.has(name)) return true;
+  }
+  return false;
+}
+
+function applySharedSnapshot(snapshot: { products: Produto[]; config: AppConfig }) {
+  localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(snapshot.products));
+  localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(snapshot.config));
+}
+
+async function loadActiveVersion(): Promise<{
+  snapshot: { products: Produto[]; config: AppConfig } | null;
+  hasActiveVersion: boolean;
+}> {
   const { data, error } = await supabase
     .from('pricing_versions')
     .select('snapshot, is_active, created_at')
@@ -125,14 +158,20 @@ async function loadActiveVersion(): Promise<{ products: Produto[]; config: AppCo
     .order('created_at', { ascending: false })
     .limit(20);
 
-  if (error || !data?.length) return null;
+  if (error || !data?.length) {
+    return { snapshot: null, hasActiveVersion: false };
+  }
+
+  const hasActiveVersion = data.some((row) => !!row.is_active);
 
   for (const row of data) {
     const normalized = normalizeSnapshot(row.snapshot as any);
-    if (normalized) return normalized;
+    if (normalized) {
+      return { snapshot: normalized, hasActiveVersion };
+    }
   }
 
-  return null;
+  return { snapshot: null, hasActiveVersion };
 }
 
 // ── Calculation helpers ──────────────────────────────────────────────────────
