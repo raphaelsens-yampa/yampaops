@@ -87,6 +87,11 @@ function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppCon
     };
   }
 
+  // Snapshots no formato legado (sem custos por linha) ficam ignorados
+  // — o app fará bootstrap a partir do catálogo local correto.
+  return null;
+
+  // eslint-disable-next-line no-unreachable
   if (!Array.isArray(snapshot.services)) return null;
 
   const config = buildLegacyConfig(snapshot);
