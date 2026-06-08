@@ -34,48 +34,6 @@ function toFiniteNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function toLinhaLabel(line: unknown): Produto['linha'] {
-  if (line === 'premium' || String(line).toLowerCase().includes('premium')) return 'Linha Premium';
-  if (line === 'prata' || String(line).toLowerCase().includes('prata')) return 'Linha Prata';
-  return 'Linha Gold';
-}
-
-function buildLegacyConfig(snapshot: any): AppConfig {
-  const markupLines = snapshot?.markup_lines ?? {};
-  const baseLine = markupLines.gold ?? markupLines.premium ?? markupLines.prata ?? {};
-
-  return sanitizeConfig({
-    deductions: {
-      impostos: toFiniteNumber(baseLine.tax_pct, DEFAULT_CONFIG.deductions.impostos),
-      comissao: toFiniteNumber(baseLine.commission_pct, DEFAULT_CONFIG.deductions.comissao),
-      gateway: toFiniteNumber(baseLine.gateway_pct, DEFAULT_CONFIG.deductions.gateway),
-      churn: toFiniteNumber(baseLine.churn_pct, DEFAULT_CONFIG.deductions.churn),
-    },
-    markup: {
-      premium: {
-        target_margin: toFiniteNumber(markupLines.premium?.profit_pct, DEFAULT_CONFIG.markup.premium.target_margin),
-        label: 'Premium',
-      },
-      gold: {
-        target_margin: toFiniteNumber(markupLines.gold?.profit_pct, DEFAULT_CONFIG.markup.gold.target_margin),
-        label: 'Gold',
-      },
-      prata: {
-        target_margin: toFiniteNumber(markupLines.prata?.profit_pct, DEFAULT_CONFIG.markup.prata.target_margin),
-        label: 'Prata',
-      },
-    },
-    base_deductions_for_markup: {
-      impostos: toFiniteNumber(baseLine.tax_pct, DEFAULT_CONFIG.base_deductions_for_markup.impostos),
-      comissao: toFiniteNumber(baseLine.commission_pct, DEFAULT_CONFIG.base_deductions_for_markup.comissao),
-      gateway: toFiniteNumber(baseLine.gateway_pct, DEFAULT_CONFIG.base_deductions_for_markup.gateway),
-      investimento: toFiniteNumber(baseLine.investment_pct, DEFAULT_CONFIG.base_deductions_for_markup.investimento),
-      comissao_comercial: toFiniteNumber(baseLine.sales_commission_pct, DEFAULT_CONFIG.base_deductions_for_markup.comissao_comercial),
-      despesa_fixa: toFiniteNumber(baseLine.fixed_expense_pct, DEFAULT_CONFIG.base_deductions_for_markup.despesa_fixa),
-      churn: toFiniteNumber(baseLine.churn_pct, DEFAULT_CONFIG.base_deductions_for_markup.churn),
-    },
-  });
-}
 
 function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppConfig } | null {
   if (!snapshot) return null;
@@ -87,35 +45,9 @@ function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppCon
     };
   }
 
-  if (!Array.isArray(snapshot.services)) return null;
-
-  const config = buildLegacyConfig(snapshot);
-  const products = snapshot.services
-    .filter((service: any) => service?.active !== false)
-    .map((service: any) => {
-      const meses = Math.max(1, toFiniteNumber(service.contract_months, 1));
-      const lineKey = getLinhaKey(toLinhaLabel(service.line));
-      const idealMensalFromSnapshot =
-        toFiniteNumber(service.ideal_monthly_price, 0) ||
-        toFiniteNumber(service.ideal_price, 0) / meses;
-      const derivedCost = idealMensalFromSnapshot > 0
-        ? (idealMensalFromSnapshot / calcMarkup(lineKey, config)) * meses
-        : 0;
-      const custo = toFiniteNumber(service.cost_total, derivedCost);
-      const precoTotal = toFiniteNumber(service.practiced_price, 0);
-
-      return {
-        nome: String(service.name ?? 'Serviço sem nome'),
-        meses,
-        linha: toLinhaLabel(service.line),
-        custo,
-        preco_total: precoTotal,
-        preco_mensal: precoTotal / meses,
-        ideal_mensal: idealMensalFromSnapshot || calcIdealMensal(custo, meses, lineKey, config),
-      } satisfies Produto;
-    });
-
-  return products.length > 0 ? { products, config } : null;
+  // Snapshots no formato legado (sem custos por linha) ficam ignorados
+  // — o app fará bootstrap a partir do catálogo local correto.
+  return null;
 }
 
 function getProductNameSet(products: Produto[]): Set<string> {
@@ -162,16 +94,22 @@ async function loadActiveVersion(): Promise<{
     return { snapshot: null, hasActiveVersion: false };
   }
 
-  const hasActiveVersion = data.some((row) => !!row.is_active);
+  // hasActiveVersion deve refletir apenas snapshots válidos (formato atual).
+  // Versões legadas marcadas como ativas são ignoradas para permitir o bootstrap.
+  let hasActiveVersion = false;
+  let firstValid: { products: Produto[]; config: AppConfig } | null = null;
 
   for (const row of data) {
     const normalized = normalizeSnapshot(row.snapshot as any);
-    if (normalized) {
+    if (!normalized) continue;
+    if (!firstValid) firstValid = normalized;
+    if (row.is_active) {
+      hasActiveVersion = true;
       return { snapshot: normalized, hasActiveVersion };
     }
   }
 
-  return { snapshot: null, hasActiveVersion };
+  return { snapshot: firstValid, hasActiveVersion };
 }
 
 // ── Calculation helpers ──────────────────────────────────────────────────────
