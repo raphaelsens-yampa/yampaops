@@ -128,6 +128,29 @@ export function usePrecificacao() {
     loadFromStorage(STORAGE_KEYS.overrides, {})
   );
 
+  // Sync shared state from the active pricing version in the database so every user
+  // sees the same catalog regardless of localStorage.
+  useEffect(() => {
+    let cancelled = false;
+    const sync = async () => {
+      const snap = await loadActiveVersion();
+      if (cancelled || !snap) return;
+      setProductsState(snap.products);
+      localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(snap.products));
+      setConfigState(snap.config);
+      localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(snap.config));
+    };
+    sync();
+    const handler = () => sync();
+    window.addEventListener('pricing-version-changed', handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('pricing-version-changed', handler);
+    };
+  }, []);
+
+
+
   const setProducts = useCallback((newProducts: Produto[]) => {
     setProductsState(newProducts);
     localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(newProducts));
