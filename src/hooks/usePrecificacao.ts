@@ -18,18 +18,121 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   }
 }
 
+function sanitizeConfig(config: AppConfig): AppConfig {
+  const next = JSON.parse(JSON.stringify(config)) as AppConfig;
+  (['premium', 'gold', 'prata'] as const).forEach((k) => {
+    if (next?.markup?.[k]?.label) {
+      next.markup[k].label = next.markup[k].label.replace(/^Linha\s+/, '');
+    }
+  });
+  return next;
+}
+
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toLinhaLabel(line: unknown): Produto['linha'] {
+  if (line === 'premium' || String(line).toLowerCase().includes('premium')) return 'Linha Premium';
+  if (line === 'prata' || String(line).toLowerCase().includes('prata')) return 'Linha Prata';
+  return 'Linha Gold';
+}
+
+function buildLegacyConfig(snapshot: any): AppConfig {
+  const markupLines = snapshot?.markup_lines ?? {};
+  const baseLine = markupLines.gold ?? markupLines.premium ?? markupLines.prata ?? {};
+
+  return sanitizeConfig({
+    deductions: {
+      impostos: toFiniteNumber(baseLine.tax_pct, DEFAULT_CONFIG.deductions.impostos),
+      comissao: toFiniteNumber(baseLine.commission_pct, DEFAULT_CONFIG.deductions.comissao),
+      gateway: toFiniteNumber(baseLine.gateway_pct, DEFAULT_CONFIG.deductions.gateway),
+      churn: toFiniteNumber(baseLine.churn_pct, DEFAULT_CONFIG.deductions.churn),
+    },
+    markup: {
+      premium: {
+        target_margin: toFiniteNumber(markupLines.premium?.profit_pct, DEFAULT_CONFIG.markup.premium.target_margin),
+        label: 'Premium',
+      },
+      gold: {
+        target_margin: toFiniteNumber(markupLines.gold?.profit_pct, DEFAULT_CONFIG.markup.gold.target_margin),
+        label: 'Gold',
+      },
+      prata: {
+        target_margin: toFiniteNumber(markupLines.prata?.profit_pct, DEFAULT_CONFIG.markup.prata.target_margin),
+        label: 'Prata',
+      },
+    },
+    base_deductions_for_markup: {
+      impostos: toFiniteNumber(baseLine.tax_pct, DEFAULT_CONFIG.base_deductions_for_markup.impostos),
+      comissao: toFiniteNumber(baseLine.commission_pct, DEFAULT_CONFIG.base_deductions_for_markup.comissao),
+      gateway: toFiniteNumber(baseLine.gateway_pct, DEFAULT_CONFIG.base_deductions_for_markup.gateway),
+      investimento: toFiniteNumber(baseLine.investment_pct, DEFAULT_CONFIG.base_deductions_for_markup.investimento),
+      comissao_comercial: toFiniteNumber(baseLine.sales_commission_pct, DEFAULT_CONFIG.base_deductions_for_markup.comissao_comercial),
+      despesa_fixa: toFiniteNumber(baseLine.fixed_expense_pct, DEFAULT_CONFIG.base_deductions_for_markup.despesa_fixa),
+      churn: toFiniteNumber(baseLine.churn_pct, DEFAULT_CONFIG.base_deductions_for_markup.churn),
+    },
+  });
+}
+
+function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppConfig } | null {
+  if (!snapshot) return null;
+
+  if (Array.isArray(snapshot.products) && snapshot.config) {
+    return {
+      products: snapshot.products as Produto[],
+      config: sanitizeConfig(snapshot.config as AppConfig),
+    };
+  }
+
+  if (!Array.isArray(snapshot.services)) return null;
+
+  const config = buildLegacyConfig(snapshot);
+  const products = snapshot.services
+    .filter((service: any) => service?.active !== false)
+    .map((service: any) => {
+      const meses = Math.max(1, toFiniteNumber(service.contract_months, 1));
+      const lineKey = getLinhaKey(toLinhaLabel(service.line));
+      const idealMensalFromSnapshot =
+        toFiniteNumber(service.ideal_monthly_price, 0) ||
+        toFiniteNumber(service.ideal_price, 0) / meses;
+      const derivedCost = idealMensalFromSnapshot > 0
+        ? (idealMensalFromSnapshot / calcMarkup(lineKey, config)) * meses
+        : 0;
+      const custo = toFiniteNumber(service.cost_total, derivedCost);
+      const precoTotal = toFiniteNumber(service.practiced_price, 0);
+
+      return {
+        nome: String(service.name ?? 'Serviço sem nome'),
+        meses,
+        linha: toLinhaLabel(service.line),
+        custo,
+        preco_total: precoTotal,
+        preco_mensal: precoTotal / meses,
+        ideal_mensal: idealMensalFromSnapshot || calcIdealMensal(custo, meses, lineKey, config),
+      } satisfies Produto;
+    });
+
+  return products.length > 0 ? { products, config } : null;
+}
+
 async function loadActiveVersion(): Promise<{ products: Produto[]; config: AppConfig } | null> {
   const { data, error } = await supabase
     .from('pricing_versions')
-    .select('snapshot')
-    .eq('is_active', true)
+    .select('snapshot, is_active, created_at')
+    .order('is_active', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error || !data?.snapshot) return null;
-  const snap = data.snapshot as any;
-  if (!snap.products || !snap.config) return null;
-  return { products: snap.products as Produto[], config: snap.config as AppConfig };
+    .limit(20);
+
+  if (error || !data?.length) return null;
+
+  for (const row of data) {
+    const normalized = normalizeSnapshot(row.snapshot as any);
+    if (normalized) return normalized;
+  }
+
+  return null;
 }
 
 // ── Calculation helpers ──────────────────────────────────────────────────────
@@ -116,13 +219,7 @@ export function usePrecificacao() {
   );
   const [config, setConfigState] = useState<AppConfig>(() => {
     const loaded = loadFromStorage(STORAGE_KEYS.config, DEFAULT_CONFIG);
-    // Migration: strip "Linha " prefix from line labels
-    (['premium', 'gold', 'prata'] as const).forEach((k) => {
-      if (loaded?.markup?.[k]?.label) {
-        loaded.markup[k].label = loaded.markup[k].label.replace(/^Linha\s+/, '');
-      }
-    });
-    return loaded;
+    return sanitizeConfig(loaded);
   });
   const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(() =>
     loadFromStorage(STORAGE_KEYS.overrides, {})
