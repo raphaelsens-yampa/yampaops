@@ -34,48 +34,6 @@ function toFiniteNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function toLinhaLabel(line: unknown): Produto['linha'] {
-  if (line === 'premium' || String(line).toLowerCase().includes('premium')) return 'Linha Premium';
-  if (line === 'prata' || String(line).toLowerCase().includes('prata')) return 'Linha Prata';
-  return 'Linha Gold';
-}
-
-function buildLegacyConfig(snapshot: any): AppConfig {
-  const markupLines = snapshot?.markup_lines ?? {};
-  const baseLine = markupLines.gold ?? markupLines.premium ?? markupLines.prata ?? {};
-
-  return sanitizeConfig({
-    deductions: {
-      impostos: toFiniteNumber(baseLine.tax_pct, DEFAULT_CONFIG.deductions.impostos),
-      comissao: toFiniteNumber(baseLine.commission_pct, DEFAULT_CONFIG.deductions.comissao),
-      gateway: toFiniteNumber(baseLine.gateway_pct, DEFAULT_CONFIG.deductions.gateway),
-      churn: toFiniteNumber(baseLine.churn_pct, DEFAULT_CONFIG.deductions.churn),
-    },
-    markup: {
-      premium: {
-        target_margin: toFiniteNumber(markupLines.premium?.profit_pct, DEFAULT_CONFIG.markup.premium.target_margin),
-        label: 'Premium',
-      },
-      gold: {
-        target_margin: toFiniteNumber(markupLines.gold?.profit_pct, DEFAULT_CONFIG.markup.gold.target_margin),
-        label: 'Gold',
-      },
-      prata: {
-        target_margin: toFiniteNumber(markupLines.prata?.profit_pct, DEFAULT_CONFIG.markup.prata.target_margin),
-        label: 'Prata',
-      },
-    },
-    base_deductions_for_markup: {
-      impostos: toFiniteNumber(baseLine.tax_pct, DEFAULT_CONFIG.base_deductions_for_markup.impostos),
-      comissao: toFiniteNumber(baseLine.commission_pct, DEFAULT_CONFIG.base_deductions_for_markup.comissao),
-      gateway: toFiniteNumber(baseLine.gateway_pct, DEFAULT_CONFIG.base_deductions_for_markup.gateway),
-      investimento: toFiniteNumber(baseLine.investment_pct, DEFAULT_CONFIG.base_deductions_for_markup.investimento),
-      comissao_comercial: toFiniteNumber(baseLine.sales_commission_pct, DEFAULT_CONFIG.base_deductions_for_markup.comissao_comercial),
-      despesa_fixa: toFiniteNumber(baseLine.fixed_expense_pct, DEFAULT_CONFIG.base_deductions_for_markup.despesa_fixa),
-      churn: toFiniteNumber(baseLine.churn_pct, DEFAULT_CONFIG.base_deductions_for_markup.churn),
-    },
-  });
-}
 
 function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppConfig } | null {
   if (!snapshot) return null;
