@@ -146,7 +146,8 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
         {filtered.length > 300 && (
