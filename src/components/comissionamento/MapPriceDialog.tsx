@@ -91,10 +91,10 @@ export function MapPriceDialog({ target, reference, profiles, onClose, onMapped 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Vendedor (usuário)</Label>
-              <Select value={sellerUserId} onValueChange={setSellerUserId}>
+              <Select value={sellerUserId || "__none__"} onValueChange={(v) => setSellerUserId(v === "__none__" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Nenhum —</SelectItem>
+                  <SelectItem value="__none__">— Nenhum —</SelectItem>
                   {profiles.map((p) => (
                     <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.email}</SelectItem>
                   ))}

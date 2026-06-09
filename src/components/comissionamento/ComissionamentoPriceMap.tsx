@@ -184,10 +184,10 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 </div>
                 <div>
                   <Label>Vendedor</Label>
-                  <Select value={editing.seller_user_id || ""} onValueChange={(v) => setEditing({ ...editing, seller_user_id: v || null })}>
+                  <Select value={editing.seller_user_id || "__none__"} onValueChange={(v) => setEditing({ ...editing, seller_user_id: v === "__none__" ? null : v })}>
                     <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">— Nenhum —</SelectItem>
+                      <SelectItem value="__none__">— Nenhum —</SelectItem>
                       {profiles.map((p) => (<SelectItem key={p.user_id} value={p.user_id}>{p.full_name || p.email}</SelectItem>))}
                     </SelectContent>
                   </Select>
