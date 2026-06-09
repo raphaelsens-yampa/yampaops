@@ -58,15 +58,16 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
   };
 
   const sellerBreakdown = useMemo(() => {
-    const map = new Map<string, { name: string; mensal: number; anual_mensalizado: number; anual_avista: number; setup: number; total: number }>();
+    type Row = { name: string; mensal: number; anual_mensalizado: number; anual_avista: number; setup: number; total: number };
+    const map = new Map<string, Row>();
     for (const c of filtered) {
       const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
       const name = getSellerName(c.resolved_seller_user_id, c.resolved_seller_label);
       if (!map.has(key)) map.set(key, { name, mensal: 0, anual_mensalizado: 0, anual_avista: 0, setup: 0, total: 0 });
       const row = map.get(key)!;
-      const pt = (c.resolved_payment_type || "mensal") as keyof typeof row;
+      const pt = c.resolved_payment_type as "mensal" | "anual_mensalizado" | "anual_avista" | "setup" | null;
       const amt = Number(c.commission_amount || 0);
-      if (pt in row) (row as Record<string, number>)[pt] += amt;
+      if (pt && pt in row) row[pt] += amt;
       row.total += amt;
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
