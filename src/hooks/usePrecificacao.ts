@@ -50,30 +50,6 @@ function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppCon
   return null;
 }
 
-function getProductNameSet(products: Produto[]): Set<string> {
-  return new Set(
-    products
-      .map((product) => String(product?.nome ?? '').trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
-function shouldPreferLocalSnapshot(
-  localSnapshot: { products: Produto[]; config: AppConfig },
-  sharedSnapshot: { products: Produto[]; config: AppConfig } | null,
-): boolean {
-  const localNames = getProductNameSet(localSnapshot.products);
-  if (localNames.size === 0) return false;
-  if (!sharedSnapshot) return true;
-
-  const sharedNames = getProductNameSet(sharedSnapshot.products);
-  if (localNames.size > sharedNames.size) return true;
-  for (const name of localNames) {
-    if (!sharedNames.has(name)) return true;
-  }
-  return false;
-}
-
 function applySharedSnapshot(snapshot: { products: Produto[]; config: AppConfig }) {
   localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(snapshot.products));
   localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(snapshot.config));
@@ -94,8 +70,6 @@ async function loadActiveVersion(): Promise<{
     return { snapshot: null, hasActiveVersion: false };
   }
 
-  // hasActiveVersion deve refletir apenas snapshots válidos (formato atual).
-  // Versões legadas marcadas como ativas são ignoradas para permitir o bootstrap.
   let hasActiveVersion = false;
   let firstValid: { products: Produto[]; config: AppConfig } | null = null;
 
