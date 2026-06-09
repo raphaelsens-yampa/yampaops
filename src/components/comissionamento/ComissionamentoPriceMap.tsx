@@ -112,12 +112,18 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left">Plano</TableHead>
               <TableHead className="text-left">Tipo</TableHead>
               <TableHead className="text-left">Vendedor</TableHead>
-              <TableHead className="text-right">MRR Override</TableHead>
+              <TableHead className="text-right">MRR</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.slice(0, 300).map((m) => (
+            {filtered.slice(0, 300).map((m) => {
+              const ref = m.plan_name && m.payment_type
+                ? reference.find((r) => r.plan_name === m.plan_name && r.payment_type === m.payment_type && r.is_active)
+                : null;
+              const effectiveMrr = m.mrr_override ?? ref?.plan_mrr ?? null;
+              const isOverride = m.mrr_override != null;
+              return (
               <TableRow key={m.id}>
                 <TableCell className="text-left">
                   {m.price_id ? <code className="text-xs">{m.price_id}</code> : <Badge variant="outline">Oferta: {m.offer_name}</Badge>}
@@ -126,7 +132,13 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 <TableCell className="text-left">{m.plan_name || <span className="text-destructive">—</span>}</TableCell>
                 <TableCell className="text-left">{m.payment_type ? PAYMENT_TYPE_LABEL[m.payment_type] : "—"}</TableCell>
                 <TableCell className="text-left">{sellerName(m)}</TableCell>
-                <TableCell className="text-right tabular-nums">{m.mrr_override?.toFixed(2) ?? "—"}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {effectiveMrr != null ? (
+                    <span className={isOverride ? "font-semibold" : "text-muted-foreground"} title={isOverride ? "Override" : "Da tabela de referência"}>
+                      {effectiveMrr.toFixed(2)}{isOverride ? "*" : ""}
+                    </span>
+                  ) : "—"}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-1 justify-end">
                     <Button variant="ghost" size="icon" onClick={() => setEditing(m)}><Pencil className="h-4 w-4" /></Button>
@@ -134,7 +146,8 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
         {filtered.length > 300 && (
