@@ -42,6 +42,7 @@ import DiscountOverview from "./pages/discounts/Overview";
 import DiscountPortfolio from "./pages/discounts/Portfolio";
 import DiscountRules from "./pages/discounts/Rules";
 import Precificacao from "./pages/Precificacao";
+import Comissionamento from "./pages/Comissionamento";
 
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
@@ -115,6 +116,7 @@ function AppRoutes() {
       <Route path="/discounts/portfolio" element={<RequireArea area="discounts_portfolio"><DiscountPortfolio /></RequireArea>} />
       <Route path="/discounts/rules" element={<RequireArea area="discounts_rules"><DiscountRules /></RequireArea>} />
       <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
+      <Route path="/comissionamento" element={<RequireArea area="comissionamento"><Comissionamento /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

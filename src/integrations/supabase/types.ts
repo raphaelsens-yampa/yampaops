@@ -847,6 +847,191 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_conversions: {
+        Row: {
+          commission_amount: number
+          commission_pct: number
+          company_id: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          gateway: string | null
+          id: string
+          import_id: string | null
+          mrr: number
+          offer_name: string | null
+          origem_cliente: string | null
+          payment_month: string
+          price_id: string | null
+          recurrence_days: number | null
+          resolved_payment_type:
+            | Database["public"]["Enums"]["commission_payment_type"]
+            | null
+          resolved_plan: string | null
+          resolved_seller_label: string | null
+          resolved_seller_user_id: string | null
+          sale_month: string
+          status: Database["public"]["Enums"]["commission_conversion_status"]
+          updated_at: string
+        }
+        Insert: {
+          commission_amount?: number
+          commission_pct?: number
+          company_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          gateway?: string | null
+          id?: string
+          import_id?: string | null
+          mrr?: number
+          offer_name?: string | null
+          origem_cliente?: string | null
+          payment_month: string
+          price_id?: string | null
+          recurrence_days?: number | null
+          resolved_payment_type?:
+            | Database["public"]["Enums"]["commission_payment_type"]
+            | null
+          resolved_plan?: string | null
+          resolved_seller_label?: string | null
+          resolved_seller_user_id?: string | null
+          sale_month: string
+          status?: Database["public"]["Enums"]["commission_conversion_status"]
+          updated_at?: string
+        }
+        Update: {
+          commission_amount?: number
+          commission_pct?: number
+          company_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          gateway?: string | null
+          id?: string
+          import_id?: string | null
+          mrr?: number
+          offer_name?: string | null
+          origem_cliente?: string | null
+          payment_month?: string
+          price_id?: string | null
+          recurrence_days?: number | null
+          resolved_payment_type?:
+            | Database["public"]["Enums"]["commission_payment_type"]
+            | null
+          resolved_plan?: string | null
+          resolved_seller_label?: string | null
+          resolved_seller_user_id?: string | null
+          sale_month?: string
+          status?: Database["public"]["Enums"]["commission_conversion_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_conversions_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "commission_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_imports: {
+        Row: {
+          created_at: string
+          id: string
+          matched_count: number
+          payment_month: string
+          pending_count: number
+          period_month: string
+          row_count: number
+          source_file: string | null
+          status: Database["public"]["Enums"]["commission_import_status"]
+          total_commission: number
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          matched_count?: number
+          payment_month: string
+          pending_count?: number
+          period_month: string
+          row_count?: number
+          source_file?: string | null
+          status?: Database["public"]["Enums"]["commission_import_status"]
+          total_commission?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          matched_count?: number
+          payment_month?: string
+          pending_count?: number
+          period_month?: string
+          row_count?: number
+          source_file?: string | null
+          status?: Database["public"]["Enums"]["commission_import_status"]
+          total_commission?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      commission_price_map: {
+        Row: {
+          area: string | null
+          created_at: string
+          id: string
+          mrr_override: number | null
+          offer_name: string | null
+          payment_type:
+            | Database["public"]["Enums"]["commission_payment_type"]
+            | null
+          plan_name: string | null
+          price_id: string | null
+          price_name: string | null
+          seller_label: string | null
+          seller_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          area?: string | null
+          created_at?: string
+          id?: string
+          mrr_override?: number | null
+          offer_name?: string | null
+          payment_type?:
+            | Database["public"]["Enums"]["commission_payment_type"]
+            | null
+          plan_name?: string | null
+          price_id?: string | null
+          price_name?: string | null
+          seller_label?: string | null
+          seller_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area?: string | null
+          created_at?: string
+          id?: string
+          mrr_override?: number | null
+          offer_name?: string | null
+          payment_type?:
+            | Database["public"]["Enums"]["commission_payment_type"]
+            | null
+          plan_name?: string | null
+          price_id?: string | null
+          price_name?: string | null
+          seller_label?: string | null
+          seller_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       commission_products: {
         Row: {
           area: string | null
@@ -897,6 +1082,45 @@ export type Database = {
           product_id?: string | null
           seller_id?: string | null
           stripe_price_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commission_reference: {
+        Row: {
+          av_pct: number | null
+          commission_pct: number
+          created_at: string
+          id: string
+          is_active: boolean
+          payment_type: Database["public"]["Enums"]["commission_payment_type"]
+          plan_mrr: number | null
+          plan_name: string
+          plan_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          av_pct?: number | null
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payment_type: Database["public"]["Enums"]["commission_payment_type"]
+          plan_mrr?: number | null
+          plan_name: string
+          plan_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          av_pct?: number | null
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payment_type?: Database["public"]["Enums"]["commission_payment_type"]
+          plan_mrr?: number | null
+          plan_name?: string
+          plan_price?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -2860,6 +3084,17 @@ export type Database = {
         | "chatwoot_status_change"
       app_role: "admin" | "seller" | "tatico"
       attribution_model: "first_click" | "last_click"
+      commission_conversion_status:
+        | "calculated"
+        | "pending_mapping"
+        | "manual_override"
+        | "ignored"
+      commission_import_status: "draft" | "committed"
+      commission_payment_type:
+        | "mensal"
+        | "anual_avista"
+        | "anual_mensalizado"
+        | "setup"
       commission_status: "provisioned" | "paid" | "reversed"
       commission_type: "earned" | "clawback"
       discount_plan_type: "software" | "consultoria_bpo"
@@ -3017,6 +3252,19 @@ export const Constants = {
       ],
       app_role: ["admin", "seller", "tatico"],
       attribution_model: ["first_click", "last_click"],
+      commission_conversion_status: [
+        "calculated",
+        "pending_mapping",
+        "manual_override",
+        "ignored",
+      ],
+      commission_import_status: ["draft", "committed"],
+      commission_payment_type: [
+        "mensal",
+        "anual_avista",
+        "anual_mensalizado",
+        "setup",
+      ],
       commission_status: ["provisioned", "paid", "reversed"],
       commission_type: ["earned", "clawback"],
       discount_plan_type: ["software", "consultoria_bpo"],

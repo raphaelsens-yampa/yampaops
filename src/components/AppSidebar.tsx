@@ -241,6 +241,7 @@ export function AppSidebar() {
       items: [
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
         { title: "Comissões", url: "/commissions", icon: DollarSign, area: "commissions" },
+        { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },
         { title: "Precificação Serviços", url: "/precificacao", icon: Calculator, area: "precificacao" },
       ],
