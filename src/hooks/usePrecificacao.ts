@@ -50,30 +50,6 @@ function normalizeSnapshot(snapshot: any): { products: Produto[]; config: AppCon
   return null;
 }
 
-function getProductNameSet(products: Produto[]): Set<string> {
-  return new Set(
-    products
-      .map((product) => String(product?.nome ?? '').trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
-function shouldPreferLocalSnapshot(
-  localSnapshot: { products: Produto[]; config: AppConfig },
-  sharedSnapshot: { products: Produto[]; config: AppConfig } | null,
-): boolean {
-  const localNames = getProductNameSet(localSnapshot.products);
-  if (localNames.size === 0) return false;
-  if (!sharedSnapshot) return true;
-
-  const sharedNames = getProductNameSet(sharedSnapshot.products);
-  if (localNames.size > sharedNames.size) return true;
-  for (const name of localNames) {
-    if (!sharedNames.has(name)) return true;
-  }
-  return false;
-}
-
 function applySharedSnapshot(snapshot: { products: Produto[]; config: AppConfig }) {
   localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(snapshot.products));
   localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(snapshot.config));
@@ -94,8 +70,6 @@ async function loadActiveVersion(): Promise<{
     return { snapshot: null, hasActiveVersion: false };
   }
 
-  // hasActiveVersion deve refletir apenas snapshots válidos (formato atual).
-  // Versões legadas marcadas como ativas são ignoradas para permitir o bootstrap.
   let hasActiveVersion = false;
   let firstValid: { products: Produto[]; config: AppConfig } | null = null;
 
@@ -202,53 +176,50 @@ export function usePrecificacao() {
     loadFromStorage(STORAGE_KEYS.overrides, {})
   );
 
-  // Sync shared state from the active pricing version in the database so every user
-  // sees the same catalog regardless of localStorage.
+  // Source of truth = active version in the database. All users see the same
+  // catalog. localStorage is just a cache to avoid flicker on cold start.
   useEffect(() => {
     let cancelled = false;
     let bootstrapInFlight = false;
     const sync = async () => {
-      const localSnapshot = {
-        products: loadFromStorage(STORAGE_KEYS.products, DEFAULT_PRODUCTS),
-        config: sanitizeConfig(loadFromStorage(STORAGE_KEYS.config, DEFAULT_CONFIG)),
-      };
       const { snapshot: sharedSnapshot, hasActiveVersion } = await loadActiveVersion();
       if (cancelled) return;
 
-      const shouldBootstrapShared = !hasActiveVersion && !bootstrapInFlight && shouldPreferLocalSnapshot(localSnapshot, sharedSnapshot);
-      if (shouldBootstrapShared) {
+      if (sharedSnapshot) {
+        applySharedSnapshot(sharedSnapshot);
+        setProductsState(sharedSnapshot.products);
+        setConfigState(sharedSnapshot.config);
+        return;
+      }
+
+      // Nenhum snapshot válido no banco: bootstrap a partir do catálogo default
+      // para que todos os usuários compartilhem o mesmo ponto de partida.
+      if (!hasActiveVersion && !bootstrapInFlight) {
         bootstrapInFlight = true;
         try {
+          const defaultSnapshot = {
+            products: DEFAULT_PRODUCTS,
+            config: sanitizeConfig(DEFAULT_CONFIG),
+          };
           const recorded = await recordPricingVersion({
             source: 'edit',
             change_type: 'service_update',
-            name: 'Catálogo compartilhado sincronizado',
-            description: `Publicação automática de ${localSnapshot.products.length} serviços para toda a equipe.`,
-            snapshot: localSnapshot,
+            name: 'Catálogo inicial compartilhado',
+            description: `Publicação inicial de ${defaultSnapshot.products.length} serviços para toda a equipe.`,
+            snapshot: defaultSnapshot,
             setActive: true,
           });
 
           if (recorded) {
-            applySharedSnapshot(localSnapshot);
-            setProductsState(localSnapshot.products);
-            setConfigState(localSnapshot.config);
+            applySharedSnapshot(defaultSnapshot);
+            setProductsState(defaultSnapshot.products);
+            setConfigState(defaultSnapshot.config);
             window.dispatchEvent(new Event('pricing-version-changed'));
-            return;
           }
         } finally {
           bootstrapInFlight = false;
         }
       }
-
-      const nextSnapshot = shouldPreferLocalSnapshot(localSnapshot, sharedSnapshot)
-        ? localSnapshot
-        : sharedSnapshot;
-
-      if (!nextSnapshot) return;
-
-      applySharedSnapshot(nextSnapshot);
-      setProductsState(nextSnapshot.products);
-      setConfigState(nextSnapshot.config);
     };
     sync();
     const handler = () => sync();
