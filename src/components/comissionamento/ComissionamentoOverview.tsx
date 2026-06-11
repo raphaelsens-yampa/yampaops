@@ -154,7 +154,7 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Comissão</CardTitle>
