@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BRL, PAYMENT_TYPE_LABEL, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin, Plus } from "lucide-react";
+import { MapPin, Plus, Pencil } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
 import { ManualConversionDialog } from "./ManualConversionDialog";
 
@@ -26,6 +26,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
 
   const sellers = useMemo(() => {
     const set = new Map<string, string>();
@@ -152,20 +153,27 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                 <TableCell className="text-right tabular-nums">{(Number(c.commission_pct || 0) * 100).toFixed(1)}%</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{BRL(Number(c.commission_amount || 0))}</TableCell>
                 <TableCell className="text-left">
-                  {c.status === "pending_mapping" ? (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="destructive">Pendente</Badge>
-                      {isAdmin && (
-                        <Button size="sm" variant="outline" onClick={() => setMapTarget(c)}>
-                          <MapPin className="h-3 w-3 mr-1" /> Mapear
-                        </Button>
-                      )}
-                    </div>
-                  ) : c.status === "ignored" ? (
-                    <Badge variant="secondary">Ignorado</Badge>
-                  ) : (
-                    <Badge variant="default">Calculado</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {c.status === "pending_mapping" ? (
+                      <>
+                        <Badge variant="destructive">Pendente</Badge>
+                        {isAdmin && (
+                          <Button size="sm" variant="outline" onClick={() => setMapTarget(c)}>
+                            <MapPin className="h-3 w-3 mr-1" /> Mapear
+                          </Button>
+                        )}
+                      </>
+                    ) : c.status === "ignored" ? (
+                      <Badge variant="secondary">Ignorado</Badge>
+                    ) : (
+                      <Badge variant="default">Calculado</Badge>
+                    )}
+                    {isAdmin && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditTarget(c)} title="Editar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -193,6 +201,15 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           profiles={profiles}
           onClose={() => setManualOpen(false)}
           onSaved={() => { setManualOpen(false); onChanged(); }}
+        />
+      )}
+      {editTarget && (
+        <ManualConversionDialog
+          reference={reference}
+          profiles={profiles}
+          existing={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { setEditTarget(null); onChanged(); }}
         />
       )}
     </Card>

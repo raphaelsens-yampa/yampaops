@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,30 +18,43 @@ import {
   type CommissionReference,
   type PaymentType,
 } from "@/lib/commissioning";
-import type { ProfileLite } from "@/pages/Comissionamento";
+import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 
 interface Props {
   reference: CommissionReference[];
   profiles: ProfileLite[];
+  existing?: ConversionRow | null;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function ManualConversionDialog({ reference, profiles, onClose, onSaved }: Props) {
+export function ManualConversionDialog({ reference, profiles, existing, onClose, onSaved }: Props) {
   const { toast } = useToast();
+  const isEdit = !!existing;
   const today = new Date();
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  const [saleMonth, setSaleMonth] = useState(defaultMonth);
-  const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [planName, setPlanName] = useState("");
-  const [paymentType, setPaymentType] = useState<PaymentType>("mensal");
-  const [mrr, setMrr] = useState<string>("");
-  const [sellerUserId, setSellerUserId] = useState<string>("");
-  const [sellerLabel, setSellerLabel] = useState("");
-  const [offerName, setOfferName] = useState("");
+  const initialSaleMonth = useMemo(() => {
+    if (existing?.sale_month) {
+      const d = new Date(existing.sale_month);
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    }
+    return defaultMonth;
+  }, [existing, defaultMonth]);
+
+  const [saleMonth, setSaleMonth] = useState(initialSaleMonth);
+  const [customerName, setCustomerName] = useState(existing?.customer_name || "");
+  const [customerEmail, setCustomerEmail] = useState(existing?.customer_email || "");
+  const [planName, setPlanName] = useState(existing?.resolved_plan || "");
+  const [paymentType, setPaymentType] = useState<PaymentType>(
+    (existing?.resolved_payment_type as PaymentType) || "mensal",
+  );
+  const [mrr, setMrr] = useState<string>(existing?.mrr != null ? String(existing.mrr) : "");
+  const [sellerUserId, setSellerUserId] = useState<string>(existing?.resolved_seller_user_id || "");
+  const [sellerLabel, setSellerLabel] = useState(existing?.resolved_seller_label || "");
+  const [offerName, setOfferName] = useState(existing?.offer_name || "");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
 
   const allPlanNames = useMemo(
@@ -63,7 +76,7 @@ export function ManualConversionDialog({ reference, profiles, onClose, onSaved }
   );
 
   const pct = ref ? (paymentType === "anual_avista" ? (ref.av_pct ?? 0) : ref.commission_pct) : 0;
-  const mrrNum = Number(mrr.replace(",", ".")) || 0;
+  const mrrNum = Number(String(mrr).replace(",", ".")) || 0;
   const commissionAmount = mrrNum * pct;
 
   const handleSave = async () => {
@@ -84,31 +97,51 @@ export function ManualConversionDialog({ reference, profiles, onClose, onSaved }
     const [y, m] = saleMonth.split("-").map(Number);
     const sale = new Date(y, m - 1, 1);
 
-    const { error } = await supabase.from("commission_conversions").insert({
-      import_id: null,
+    const payload = {
       sale_month: toDateOnly(sale),
       payment_month: toDateOnly(paymentMonth),
       customer_name: customerName || null,
       customer_email: customerEmail || null,
-      price_id: null,
       offer_name: offerName || null,
       mrr: mrrNum,
-      origem_cliente: "manual",
       resolved_plan: planName,
       resolved_payment_type: paymentType,
       resolved_seller_user_id: sellerUserId || null,
       resolved_seller_label: sellerLabel || null,
       commission_pct: pct,
       commission_amount: commissionAmount,
-      status: ref ? "calculated" : "pending_mapping",
-    });
+      status: (ref ? "calculated" : "pending_mapping") as "calculated" | "pending_mapping",
+    };
+
+    const { error } = isEdit
+      ? await supabase.from("commission_conversions").update(payload).eq("id", existing!.id)
+      : await supabase.from("commission_conversions").insert([{
+          ...payload,
+          import_id: null,
+          price_id: null,
+          origem_cliente: "manual",
+        }]);
 
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Conversão manual adicionada" });
+    toast({ title: isEdit ? "Conversão atualizada" : "Conversão manual adicionada" });
+    onSaved();
+  };
+
+  const handleDelete = async () => {
+    if (!existing) return;
+    if (!confirm("Excluir esta conversão? Esta ação não pode ser desfeita.")) return;
+    setDeleting(true);
+    const { error } = await supabase.from("commission_conversions").delete().eq("id", existing.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Conversão excluída" });
     onSaved();
   };
 
@@ -116,7 +149,7 @@ export function ManualConversionDialog({ reference, profiles, onClose, onSaved }
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Adicionar conversão manual</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar conversão" : "Adicionar conversão manual"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -220,9 +253,16 @@ export function ManualConversionDialog({ reference, profiles, onClose, onSaved }
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar conversão"}</Button>
+        <DialogFooter className="flex sm:justify-between gap-2">
+          {isEdit ? (
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting || saving}>
+              <Trash2 className="h-4 w-4 mr-1" /> {deleting ? "Excluindo..." : "Excluir"}
+            </Button>
+          ) : <span />}
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : isEdit ? "Salvar alterações" : "Salvar conversão"}</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
