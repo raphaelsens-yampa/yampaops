@@ -115,5 +115,16 @@ export function formatMonthLabel(d: Date): string {
   return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
+/** Parse a 'YYYY-MM-DD' date-only string as a LOCAL date (avoids UTC TZ shift). */
+export function parseDateOnly(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
 export const BRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
