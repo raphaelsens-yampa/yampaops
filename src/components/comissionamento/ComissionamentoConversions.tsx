@@ -174,6 +174,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
         <MapPriceDialog
           target={mapTarget}
           reference={reference}
+          priceMap={priceMap}
           profiles={profiles}
           onClose={() => setMapTarget(null)}
           onMapped={() => { setMapTarget(null); onChanged(); }}
