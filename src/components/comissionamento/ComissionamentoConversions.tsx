@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BRL, PAYMENT_TYPE_LABEL, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
+import { ManualConversionDialog } from "./ManualConversionDialog";
 
 interface Props {
   conversions: ConversionRow[];
@@ -24,6 +25,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const sellers = useMemo(() => {
     const set = new Map<string, string>();
@@ -99,6 +101,11 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               ))}
             </SelectContent>
           </Select>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setManualOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Adicionar manual
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="px-0 sm:px-6">
@@ -178,6 +185,14 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           profiles={profiles}
           onClose={() => setMapTarget(null)}
           onMapped={() => { setMapTarget(null); onChanged(); }}
+        />
+      )}
+      {manualOpen && (
+        <ManualConversionDialog
+          reference={reference}
+          profiles={profiles}
+          onClose={() => setManualOpen(false)}
+          onSaved={() => { setManualOpen(false); onChanged(); }}
         />
       )}
     </Card>
