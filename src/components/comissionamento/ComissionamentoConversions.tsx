@@ -101,6 +101,11 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               ))}
             </SelectContent>
           </Select>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setManualOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Adicionar manual
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="px-0 sm:px-6">
