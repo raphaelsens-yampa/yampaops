@@ -110,17 +110,17 @@ export function ManualConversionDialog({ reference, profiles, existing, onClose,
       resolved_seller_label: sellerLabel || null,
       commission_pct: pct,
       commission_amount: commissionAmount,
-      status: ref ? "calculated" : "pending_mapping",
+      status: (ref ? "calculated" : "pending_mapping") as "calculated" | "pending_mapping",
     };
 
     const { error } = isEdit
       ? await supabase.from("commission_conversions").update(payload).eq("id", existing!.id)
-      : await supabase.from("commission_conversions").insert({
+      : await supabase.from("commission_conversions").insert([{
           ...payload,
           import_id: null,
           price_id: null,
           origem_cliente: "manual",
-        });
+        }]);
 
     setSaving(false);
     if (error) {
