@@ -25,6 +25,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const sellers = useMemo(() => {
     const set = new Map<string, string>();
