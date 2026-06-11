@@ -12,7 +12,7 @@ import {
 import { BRL, PAYMENT_TYPES, PAYMENT_TYPE_LABEL, formatMonthLabel } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
-import { TrendingUp, DollarSign, Users, Calendar, Filter } from "lucide-react";
+import { TrendingUp, DollarSign, Users, Calendar, Filter, ShoppingBag } from "lucide-react";
 
 interface Props {
   conversions: ConversionRow[];
