@@ -12,7 +12,7 @@ import {
 import { BRL, PAYMENT_TYPES, PAYMENT_TYPE_LABEL, formatMonthLabel } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
-import { TrendingUp, DollarSign, Users, Calendar, Filter } from "lucide-react";
+import { TrendingUp, DollarSign, Users, Calendar, Filter, ShoppingBag } from "lucide-react";
 
 interface Props {
   conversions: ConversionRow[];
@@ -99,6 +99,29 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [filtered, profiles]);
 
+  const planColumns = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of filtered) {
+      if (c.resolved_plan) set.add(c.resolved_plan);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [filtered]);
+
+  const planSellerCountBreakdown = useMemo(() => {
+    type Row = { name: string; plans: Record<string, number>; total: number };
+    const map = new Map<string, Row>();
+    for (const c of filtered) {
+      const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
+      const name = getSellerName(c.resolved_seller_user_id, c.resolved_seller_label);
+      if (!map.has(key)) map.set(key, { name, plans: {}, total: 0 });
+      const row = map.get(key)!;
+      const plan = c.resolved_plan || "—";
+      row.plans[plan] = (row.plans[plan] || 0) + 1;
+      row.total += 1;
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [filtered, profiles]);
+
   if (loading) return <div className="py-12 text-center text-muted-foreground">Carregando...</div>;
 
   return (
@@ -131,7 +154,7 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Comissão</CardTitle>
@@ -150,6 +173,16 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{BRL(totalMrr)}</div>
             <p className="text-xs text-muted-foreground">{count} conversões</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Vendas</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{count}</div>
+            <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
           </CardContent>
         </Card>
         {isAdmin && (
@@ -212,6 +245,47 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
                     </TableCell>
                   ))}
                   <TableCell className="text-right font-bold tabular-nums">{BRL(s.total)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4" /> Vendas por Plano por Vendedor — {mode === "payment" ? "Mês de Pagamento" : "Mês da Venda"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 sm:px-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-left">Vendedor</TableHead>
+                {planColumns.map((plan) => (
+                  <TableHead key={plan} className="text-right">{plan}</TableHead>
+                ))}
+                <TableHead className="text-right font-bold">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {planSellerCountBreakdown.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={planColumns.length + 2} className="text-center text-muted-foreground py-8">
+                    Nenhuma conversão neste mês.
+                  </TableCell>
+                </TableRow>
+              )}
+              {planSellerCountBreakdown.map((s) => (
+                <TableRow key={s.name}>
+                  <TableCell className="font-medium text-left">{s.name}</TableCell>
+                  {planColumns.map((plan) => (
+                    <TableCell key={plan} className="text-right tabular-nums">
+                      {s.plans[plan] || "—"}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right font-bold tabular-nums">{s.total}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
