@@ -2,10 +2,17 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BRL, PAYMENT_TYPES, PAYMENT_TYPE_LABEL, formatMonthLabel } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
-import { TrendingUp, DollarSign, Users, Calendar } from "lucide-react";
+import { TrendingUp, DollarSign, Users, Calendar, Filter } from "lucide-react";
 
 interface Props {
   conversions: ConversionRow[];
@@ -20,22 +27,49 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
   const now = new Date();
   const [mode, setMode] = useState<Mode>("payment");
   const [month, setMonth] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
+  const [selectedSeller, setSelectedSeller] = useState<string>("all");
+
+  const getSellerName = (id: string | null, label: string | null) => {
+    if (id) {
+      const p = profiles.find((p) => p.user_id === id);
+      if (p) return p.full_name || p.email || id;
+    }
+    return label || "—";
+  };
+
+  const sellers = useMemo(() => {
+    const map = new Map<string, { key: string; name: string }>();
+    for (const c of conversions) {
+      const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
+      const name = getSellerName(c.resolved_seller_user_id, c.resolved_seller_label);
+      if (!map.has(key)) map.set(key, { key, name });
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [conversions, profiles]);
+
+  const sellerFiltered = useMemo(() => {
+    if (selectedSeller === "all") return conversions;
+    return conversions.filter((c) => {
+      const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
+      return key === selectedSeller;
+    });
+  }, [conversions, selectedSeller]);
 
   const dateField: keyof ConversionRow = mode === "payment" ? "payment_month" : "sale_month";
 
   const filtered = useMemo(() => {
-    return conversions.filter((c) => {
+    return sellerFiltered.filter((c) => {
       const v = c[dateField] as string | null;
       if (!v) return false;
       const d = new Date(v);
       return d.getUTCFullYear() === month.getFullYear() && d.getUTCMonth() === month.getMonth();
     });
-  }, [conversions, month, dateField]);
+  }, [sellerFiltered, month, dateField]);
 
   const monthM1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const monthM2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
   const sumByPaymentMonth = (target: Date) =>
-    conversions
+    sellerFiltered
       .filter((c) => {
         const d = new Date(c.payment_month);
         return d.getUTCFullYear() === target.getFullYear() && d.getUTCMonth() === target.getMonth();
@@ -48,14 +82,6 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
   const totalMrr = filtered.reduce((s, c) => s + Number(c.mrr || 0), 0);
   const count = filtered.length;
-
-  const getSellerName = (id: string | null, label: string | null) => {
-    if (id) {
-      const p = profiles.find((p) => p.user_id === id);
-      if (p) return p.full_name || p.email || id;
-    }
-    return label || "—";
-  };
 
   const sellerBreakdown = useMemo(() => {
     type Row = { name: string; mensal: number; anual_mensalizado: number; anual_avista: number; setup: number; total: number };
@@ -84,7 +110,25 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
             <TabsTrigger value="sale">Mês da Venda</TabsTrigger>
           </TabsList>
         </Tabs>
-        <CommissionMonthFilter currentMonth={month} onMonthChange={setMonth} />
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Select value={selectedSeller} onValueChange={setSelectedSeller}>
+              <SelectTrigger className="w-[220px]">
+                <Filter className="h-4 w-4 mr-2 opacity-50" />
+                <SelectValue placeholder="Todos os vendedores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os vendedores</SelectItem>
+                {sellers.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <CommissionMonthFilter currentMonth={month} onMonthChange={setMonth} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
