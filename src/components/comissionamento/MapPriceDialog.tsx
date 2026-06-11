@@ -118,7 +118,55 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
 
       if (error) throw error;
 
-      toast({ title: "Mapeamento criado", description: "Reimporte ou recalcule para aplicar." });
+      // Recalcular conversões já importadas que casam com esse mapeamento
+      const ref = reference.find(
+        (r) => r.plan_name === planName && r.payment_type === paymentType && r.is_active,
+      );
+
+      let query = supabase
+        .from("commission_conversions")
+        .select("id, mrr, price_id, offer_name");
+
+      if (normalizedPriceId) {
+        query = query.eq("price_id", normalizedPriceId);
+      } else if (normalizedOfferName) {
+        query = query.is("price_id", null).eq("offer_name", normalizedOfferName);
+      } else {
+        query = query.eq("id", "__none__");
+      }
+
+      const { data: matchingConversions, error: convErr } = await query;
+      if (convErr) throw convErr;
+
+      let recalculated = 0;
+      if (matchingConversions && matchingConversions.length > 0) {
+        const pct = ref
+          ? (paymentType === "anual_avista" ? (ref.av_pct ?? 0) : ref.commission_pct)
+          : 0;
+        for (const c of matchingConversions) {
+          const { error: upErr } = await supabase
+            .from("commission_conversions")
+            .update({
+              resolved_plan: planName,
+              resolved_payment_type: paymentType,
+              resolved_seller_user_id: sellerUserId || null,
+              resolved_seller_label: sellerLabel || null,
+              commission_pct: pct,
+              commission_amount: Number(c.mrr || 0) * pct,
+              status: ref ? "calculated" : "pending_mapping",
+            })
+            .eq("id", c.id);
+          if (upErr) throw upErr;
+          recalculated++;
+        }
+      }
+
+      toast({
+        title: "Mapeamento salvo",
+        description: ref
+          ? `${recalculated} conversão(ões) recalculada(s) automaticamente.`
+          : `Plano sem regra ativa na Referência — ${recalculated} conversão(ões) atualizada(s).`,
+      });
       onMapped();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível salvar o mapeamento.";
