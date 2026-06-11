@@ -175,6 +175,16 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
             <p className="text-xs text-muted-foreground">{count} conversões</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Vendas</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{count}</div>
+            <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
+          </CardContent>
+        </Card>
         {isAdmin && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
