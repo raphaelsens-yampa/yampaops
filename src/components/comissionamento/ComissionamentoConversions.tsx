@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BRL, PAYMENT_TYPE_LABEL, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
+import { BRL, PAYMENT_TYPE_LABEL, parseDateOnly, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { MapPin, Plus, Pencil } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
@@ -57,8 +57,10 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
-  const fmtMonth = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "") : "—";
+  const fmtMonth = (d: string | null) => {
+    const dt = parseDateOnly(d);
+    return dt ? dt.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "") : "—";
+  };
 
   const sellerName = (c: ConversionRow) => {
     if (c.resolved_seller_user_id) {
