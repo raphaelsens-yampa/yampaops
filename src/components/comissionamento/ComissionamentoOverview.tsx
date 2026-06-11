@@ -110,7 +110,25 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
             <TabsTrigger value="sale">Mês da Venda</TabsTrigger>
           </TabsList>
         </Tabs>
-        <CommissionMonthFilter currentMonth={month} onMonthChange={setMonth} />
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Select value={selectedSeller} onValueChange={setSelectedSeller}>
+              <SelectTrigger className="w-[220px]">
+                <Filter className="h-4 w-4 mr-2 opacity-50" />
+                <SelectValue placeholder="Todos os vendedores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os vendedores</SelectItem>
+                {sellers.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <CommissionMonthFilter currentMonth={month} onMonthChange={setMonth} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
