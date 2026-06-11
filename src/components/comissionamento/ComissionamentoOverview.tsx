@@ -2,10 +2,17 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BRL, PAYMENT_TYPES, PAYMENT_TYPE_LABEL, formatMonthLabel } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
-import { TrendingUp, DollarSign, Users, Calendar } from "lucide-react";
+import { TrendingUp, DollarSign, Users, Calendar, Filter } from "lucide-react";
 
 interface Props {
   conversions: ConversionRow[];
