@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BRL, PAYMENT_TYPE_LABEL, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
+import { ManualConversionDialog } from "./ManualConversionDialog";
 
 interface Props {
   conversions: ConversionRow[];
