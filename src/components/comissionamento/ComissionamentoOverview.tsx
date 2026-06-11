@@ -99,6 +99,29 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [filtered, profiles]);
 
+  const planColumns = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of filtered) {
+      if (c.resolved_plan) set.add(c.resolved_plan);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [filtered]);
+
+  const planSellerCountBreakdown = useMemo(() => {
+    type Row = { name: string; plans: Record<string, number>; total: number };
+    const map = new Map<string, Row>();
+    for (const c of filtered) {
+      const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
+      const name = getSellerName(c.resolved_seller_user_id, c.resolved_seller_label);
+      if (!map.has(key)) map.set(key, { name, plans: {}, total: 0 });
+      const row = map.get(key)!;
+      const plan = c.resolved_plan || "—";
+      row.plans[plan] = (row.plans[plan] || 0) + 1;
+      row.total += 1;
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [filtered, profiles]);
+
   if (loading) return <div className="py-12 text-center text-muted-foreground">Carregando...</div>;
 
   return (
