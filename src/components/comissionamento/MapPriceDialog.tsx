@@ -64,26 +64,68 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
       return;
     }
     setSaving(true);
+    const normalizedPriceId = target.price_id?.trim() || null;
+    const normalizedOfferName = target.offer_name?.trim() || null;
     const payload = {
-      price_id: target.price_id || null,
-      offer_name: target.price_id ? null : target.offer_name,
-      price_name: target.offer_name,
+      price_id: normalizedPriceId,
+      offer_name: normalizedPriceId ? null : normalizedOfferName,
+      price_name: normalizedOfferName,
       plan_name: planName,
       payment_type: paymentType,
       area: "Sales",
       seller_user_id: sellerUserId || null,
       seller_label: sellerLabel || null,
     };
-    const { error } = await supabase.from("commission_price_map").upsert(payload, {
-      onConflict: target.price_id ? "price_id" : undefined,
-    });
-    setSaving(false);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
+    try {
+      let existingId: string | null = null;
+
+      if (payload.price_id) {
+        const { data: byPriceId, error: priceLookupError } = await supabase
+          .from("commission_price_map")
+          .select("id")
+          .eq("price_id", payload.price_id)
+          .maybeSingle();
+
+        if (priceLookupError) throw priceLookupError;
+        existingId = byPriceId?.id ?? null;
+
+        if (!existingId && normalizedOfferName) {
+          const { data: byOfferName, error: offerLookupError } = await supabase
+            .from("commission_price_map")
+            .select("id, price_id")
+            .eq("offer_name", normalizedOfferName)
+            .maybeSingle();
+
+          if (offerLookupError) throw offerLookupError;
+          if (byOfferName && (!byOfferName.price_id || byOfferName.price_id === payload.price_id)) {
+            existingId = byOfferName.id;
+          }
+        }
+      } else if (payload.offer_name) {
+        const { data: byOfferName, error: offerLookupError } = await supabase
+          .from("commission_price_map")
+          .select("id")
+          .eq("offer_name", payload.offer_name)
+          .maybeSingle();
+
+        if (offerLookupError) throw offerLookupError;
+        existingId = byOfferName?.id ?? null;
+      }
+
+      const { error } = existingId
+        ? await supabase.from("commission_price_map").update(payload).eq("id", existingId)
+        : await supabase.from("commission_price_map").insert(payload);
+
+      if (error) throw error;
+
+      toast({ title: "Mapeamento criado", description: "Reimporte ou recalcule para aplicar." });
+      onMapped();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar o mapeamento.";
+      toast({ title: "Erro", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    toast({ title: "Mapeamento criado", description: "Reimporte ou recalcule para aplicar." });
-    onMapped();
   };
 
   return (
