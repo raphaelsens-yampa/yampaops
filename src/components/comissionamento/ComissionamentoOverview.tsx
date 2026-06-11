@@ -251,6 +251,47 @@ export function ComissionamentoOverview({ conversions, profiles, isAdmin, loadin
           </Table>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4" /> Vendas por Plano por Vendedor — {mode === "payment" ? "Mês de Pagamento" : "Mês da Venda"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 sm:px-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-left">Vendedor</TableHead>
+                {planColumns.map((plan) => (
+                  <TableHead key={plan} className="text-right">{plan}</TableHead>
+                ))}
+                <TableHead className="text-right font-bold">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {planSellerCountBreakdown.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={planColumns.length + 2} className="text-center text-muted-foreground py-8">
+                    Nenhuma conversão neste mês.
+                  </TableCell>
+                </TableRow>
+              )}
+              {planSellerCountBreakdown.map((s) => (
+                <TableRow key={s.name}>
+                  <TableCell className="font-medium text-left">{s.name}</TableCell>
+                  {planColumns.map((plan) => (
+                    <TableCell key={plan} className="text-right tabular-nums">
+                      {s.plans[plan] || "—"}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right font-bold tabular-nums">{s.total}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
