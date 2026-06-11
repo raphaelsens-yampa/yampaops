@@ -7,9 +7,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   PAYMENT_TYPES,
   PAYMENT_TYPE_LABEL,
@@ -26,24 +29,65 @@ interface Props {
   onChanged: () => void;
 }
 
+interface ColFilters {
+  priceId: string;
+  name: string;
+  plan: string;
+  type: string;
+  seller: string;
+}
+
+const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "" };
+
 export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChanged }: Props) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<ColFilters>(EMPTY_FILTERS);
   const [editing, setEditing] = useState<Partial<PriceMapEntry> | null>(null);
+  const [planPopoverOpen, setPlanPopoverOpen] = useState(false);
+  const [planQuery, setPlanQuery] = useState("");
 
-  const planNames = useMemo(() => Array.from(new Set(reference.map((r) => r.plan_name))).sort(), [reference]);
+  const planNamesFromRef = useMemo(() => Array.from(new Set(reference.map((r) => r.plan_name))).sort(), [reference]);
+  const planNamesFromMap = useMemo(
+    () => Array.from(new Set(priceMap.map((m) => m.plan_name).filter(Boolean) as string[])).sort(),
+    [priceMap],
+  );
+  const allPlanNames = useMemo(
+    () => Array.from(new Set([...planNamesFromRef, ...planNamesFromMap])).sort(),
+    [planNamesFromRef, planNamesFromMap],
+  );
+
+  const sellerName = (m: PriceMapEntry) => {
+    if (m.seller_user_id) {
+      const p = profiles.find((p) => p.user_id === m.seller_user_id);
+      if (p) return p.full_name || p.email;
+    }
+    return m.seller_label || "";
+  };
 
   const filtered = priceMap.filter((m) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (m.price_id || "").toLowerCase().includes(q) ||
-      (m.offer_name || "").toLowerCase().includes(q) ||
-      (m.price_name || "").toLowerCase().includes(q) ||
-      (m.plan_name || "").toLowerCase().includes(q) ||
-      (m.seller_label || "").toLowerCase().includes(q)
-    );
+    if (search) {
+      const q = search.toLowerCase();
+      const hit =
+        (m.price_id || "").toLowerCase().includes(q) ||
+        (m.offer_name || "").toLowerCase().includes(q) ||
+        (m.price_name || "").toLowerCase().includes(q) ||
+        (m.plan_name || "").toLowerCase().includes(q) ||
+        (m.seller_label || "").toLowerCase().includes(q);
+      if (!hit) return false;
+    }
+    if (filters.priceId) {
+      const v = filters.priceId.toLowerCase();
+      if (!(m.price_id || "").toLowerCase().includes(v) && !(m.offer_name || "").toLowerCase().includes(v)) return false;
+    }
+    if (filters.name && !(m.price_name || "").toLowerCase().includes(filters.name.toLowerCase())) return false;
+    if (filters.plan && !(m.plan_name || "").toLowerCase().includes(filters.plan.toLowerCase())) return false;
+    if (filters.type && m.payment_type !== filters.type) return false;
+    if (filters.seller && !sellerName(m).toLowerCase().includes(filters.seller.toLowerCase())) return false;
+    return true;
   });
+
+  const hasColFilters = Object.values(filters).some(Boolean);
 
   const handleSave = async () => {
     if (!editing) return;
@@ -81,13 +125,14 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
     onChanged();
   };
 
-  const sellerName = (m: PriceMapEntry) => {
-    if (m.seller_user_id) {
-      const p = profiles.find((p) => p.user_id === m.seller_user_id);
-      if (p) return p.full_name || p.email;
-    }
-    return m.seller_label || "—";
+  const selectPlan = (name: string) => {
+    setEditing((e) => ({ ...(e || {}), plan_name: name }));
+    setPlanPopoverOpen(false);
+    setPlanQuery("");
   };
+
+  const trimmedQuery = planQuery.trim();
+  const exactMatch = allPlanNames.some((p) => p.toLowerCase() === trimmedQuery.toLowerCase());
 
   return (
     <Card className="mt-4">
@@ -97,7 +142,10 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
           <p className="text-xs text-muted-foreground mt-1">{priceMap.length} entradas — relaciona Price ID/Oferta com plano e vendedor</p>
         </div>
         <div className="flex gap-2">
-          <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-48" />
+          <Input placeholder="Buscar (global)..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-48" />
+          {hasColFilters && (
+            <Button variant="ghost" onClick={() => setFilters(EMPTY_FILTERS)}>Limpar filtros</Button>
+          )}
           <Button onClick={() => setEditing({ payment_type: "mensal", area: "Sales" })}>
             <Plus className="h-4 w-4 mr-1" /> Novo
           </Button>
@@ -113,6 +161,31 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left">Tipo</TableHead>
               <TableHead className="text-left">Vendedor</TableHead>
               <TableHead className="text-right">MRR</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-left py-1">
+                <Input value={filters.priceId} onChange={(e) => setFilters({ ...filters, priceId: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
+              </TableHead>
+              <TableHead className="text-left py-1">
+                <Input value={filters.name} onChange={(e) => setFilters({ ...filters, name: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
+              </TableHead>
+              <TableHead className="text-left py-1">
+                <Input value={filters.plan} onChange={(e) => setFilters({ ...filters, plan: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
+              </TableHead>
+              <TableHead className="text-left py-1">
+                <Select value={filters.type || "__all__"} onValueChange={(v) => setFilters({ ...filters, type: v === "__all__" ? "" : v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    {PAYMENT_TYPES.map((pt) => (<SelectItem key={pt} value={pt}>{PAYMENT_TYPE_LABEL[pt]}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </TableHead>
+              <TableHead className="text-left py-1">
+                <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
+              </TableHead>
+              <TableHead></TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -131,7 +204,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 <TableCell className="text-left text-xs max-w-[260px] truncate">{m.price_name}</TableCell>
                 <TableCell className="text-left">{m.plan_name || <span className="text-destructive">—</span>}</TableCell>
                 <TableCell className="text-left">{m.payment_type ? PAYMENT_TYPE_LABEL[m.payment_type] : "—"}</TableCell>
-                <TableCell className="text-left">{sellerName(m)}</TableCell>
+                <TableCell className="text-left">{sellerName(m) || "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {effectiveMrr != null ? (
                     <span className={isOverride ? "font-semibold" : "text-muted-foreground"} title={isOverride ? "Override" : "Da tabela de referência"}>
@@ -179,12 +252,46 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Plano</Label>
-                  <Select value={editing.plan_name || ""} onValueChange={(v) => setEditing({ ...editing, plan_name: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {planNames.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={planPopoverOpen} onOpenChange={setPlanPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                        <span className={cn("truncate", !editing.plan_name && "text-muted-foreground")}>
+                          {editing.plan_name || "Selecione ou crie..."}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar plano..." value={planQuery} onValueChange={setPlanQuery} />
+                        <CommandList>
+                          <CommandEmpty>
+                            {trimmedQuery ? (
+                              <button
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2"
+                                onClick={() => selectPlan(trimmedQuery)}
+                              >
+                                <Plus className="h-4 w-4" /> Criar "{trimmedQuery}"
+                              </button>
+                            ) : "Nenhum plano encontrado"}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {allPlanNames.map((p) => (
+                              <CommandItem key={p} value={p} onSelect={() => selectPlan(p)}>
+                                <Check className={cn("mr-2 h-4 w-4", editing.plan_name === p ? "opacity-100" : "opacity-0")} />
+                                {p}
+                              </CommandItem>
+                            ))}
+                            {trimmedQuery && !exactMatch && (
+                              <CommandItem value={`__create_${trimmedQuery}`} onSelect={() => selectPlan(trimmedQuery)}>
+                                <Plus className="mr-2 h-4 w-4" /> Criar "{trimmedQuery}"
+                              </CommandItem>
+                            )}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label>Tipo Pagamento</Label>
@@ -218,6 +325,11 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                   <Input type="number" step="0.01" value={editing.mrr_override ?? ""} onChange={(e) => setEditing({ ...editing, mrr_override: e.target.value === "" ? null : Number(e.target.value) })} />
                 </div>
               </div>
+              {editing.plan_name && !planNamesFromRef.includes(editing.plan_name) && (
+                <p className="text-xs text-muted-foreground">
+                  Esse plano ainda não tem regra de comissão na aba "Referência". Cadastre lá para calcular comissão automaticamente.
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
