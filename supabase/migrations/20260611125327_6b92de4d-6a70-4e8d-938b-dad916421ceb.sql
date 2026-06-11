@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS commission_price_map_price_id_key ON public.commission_price_map (price_id) WHERE price_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS commission_price_map_offer_name_key ON public.commission_price_map (offer_name) WHERE price_id IS NULL AND offer_name IS NOT NULL;
