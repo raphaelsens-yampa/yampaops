@@ -187,6 +187,14 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           onMapped={() => { setMapTarget(null); onChanged(); }}
         />
       )}
+      {manualOpen && (
+        <ManualConversionDialog
+          reference={reference}
+          profiles={profiles}
+          onClose={() => setManualOpen(false)}
+          onSaved={() => { setManualOpen(false); onChanged(); }}
+        />
+      )}
     </Card>
   );
 }
