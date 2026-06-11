@@ -66,14 +66,16 @@ export function resolveRow(
   priceMap: PriceMapEntry[],
   reference: CommissionReference[],
 ): ResolvedRow {
-  // 1. Match by price_id, then by offer_name
+  // 1. Match by price_id (case-insensitive, trimmed), then by offer_name
   let matched: PriceMapEntry | null = null;
-  if (raw.price_id) {
-    matched = priceMap.find((m) => m.price_id === raw.price_id) || null;
+  const rawPriceId = norm(raw.price_id);
+  if (rawPriceId) {
+    matched = priceMap.find((m) => norm(m.price_id) === rawPriceId) || null;
   }
   if (!matched && raw.offer_name) {
     const o = norm(raw.offer_name);
-    matched = priceMap.find((m) => !m.price_id && norm(m.offer_name) === o) || null;
+    // fallback by offer_name — accept regardless of whether entry has a price_id
+    matched = priceMap.find((m) => norm(m.offer_name) === o) || null;
   }
 
   if (!matched || !matched.plan_name || !matched.payment_type) {
