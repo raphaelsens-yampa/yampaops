@@ -149,16 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const canViewSection = (section: SectionKey) => {
     if (isAdmin) return true;
-    return !!permissions[section as CrmAreaKey]?.view;
+    if (permissions[section as CrmAreaKey]?.view) return true;
+    // Seção também é visível se qualquer subseção estiver liberada
+    const def = CRM_SECTIONS.find((s) => s.key === section);
+    return !!def?.areas.some((a) => permissions[a.key as CrmAreaKey]?.view);
   };
 
   const checkArea = (area: CrmAreaKey, perm: keyof AreaPermission) => {
     if (isAdmin) return true;
-    // Se a área pertence a uma seção, a seção precisa estar habilitada
-    const section = getSectionForArea(area);
-    if (section && section !== area) {
-      if (!permissions[section as CrmAreaKey]?.view) return false;
-    }
+    // A subseção é a fonte de verdade — não bloqueia por flag da seção pai
+    // (o checkbox da seção no editor de níveis funciona como "marcar tudo").
     return !!permissions[area]?.[perm];
   };
 
