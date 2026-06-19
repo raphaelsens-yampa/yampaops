@@ -157,37 +157,23 @@ Deno.serve(async (req) => {
 
   const normEmail = email.trim().toLowerCase();
 
-  // ─── Resolver área + MRR + nomes pelo price_id (para painel de Conversões por Área) ───
+  // ─── Resolver área + MRR + nomes pelo Mapa de Preços (Comissionamento › Mapa de Preços) ───
+  // Fonte única de verdade para o gráfico "Conversões por Área".
   let convArea: string = "desconhecida";
   let convProductName: string | null = null;
   let convPlanName: string | null = null;
   let convMrr = 0;
   if (priceId) {
-    const { data: cp } = await supabase
-      .from("commission_products")
-      .select("area, name, plan_name, plan_mrr")
-      .eq("stripe_price_id", priceId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
+    const { data: pm } = await supabase
+      .from("commission_price_map")
+      .select("area, offer_name, plan_name, price_name, mrr_override")
+      .eq("price_id", priceId)
       .maybeSingle();
-    if (cp) {
-      convArea = cp.area || "desconhecida";
-      convProductName = cp.name || null;
-      convPlanName = cp.plan_name || null;
-      convMrr = Number(cp.plan_mrr || 0);
-    } else {
-      const { data: sp } = await supabase
-        .from("stripe_prices")
-        .select("area, product_name, plan_name, mrr")
-        .eq("price_id", priceId)
-        .limit(1)
-        .maybeSingle();
-      if (sp) {
-        convArea = sp.area || "desconhecida";
-        convProductName = sp.product_name || null;
-        convPlanName = sp.plan_name || null;
-        convMrr = Number(sp.mrr || 0);
-      }
+    if (pm) {
+      convArea = pm.area || "desconhecida";
+      convProductName = pm.offer_name || null;
+      convPlanName = pm.plan_name || pm.price_name || null;
+      convMrr = pm.mrr_override != null ? Number(pm.mrr_override) : 0;
     }
   }
 

@@ -24,14 +24,12 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const AREAS = ["Sales", "CX", "Marketing", "Produto", "YampaFin", "desconhecida"] as const;
-type Area = (typeof AREAS)[number];
-
-const AREA_COLORS: Record<Area, string> = {
+const AREA_COLORS: Record<string, string> = {
   Sales: "hsl(193 99% 44%)",
   CX: "hsl(264 90% 47%)",
   Marketing: "hsl(35 92% 55%)",
   Produto: "hsl(150 60% 45%)",
+  Parceria: "hsl(280 70% 55%)",
   YampaFin: "hsl(340 75% 55%)",
   desconhecida: "hsl(220 10% 60%)",
 };
@@ -101,6 +99,20 @@ export default function StripeConversions() {
       const { data, error } = await q.limit(5000);
       if (error) throw error;
       return (data || []) as Conversion[];
+    },
+  });
+
+  const { data: areaOptions = [] } = useQuery({
+    queryKey: ["price-map-areas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_price_map")
+        .select("area")
+        .not("area", "is", null);
+      if (error) throw error;
+      const set = new Set<string>((data || []).map((r: any) => r.area).filter(Boolean));
+      set.add("desconhecida");
+      return Array.from(set).sort();
     },
   });
 
@@ -276,7 +288,7 @@ export default function StripeConversions() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas as áreas</SelectItem>
-                    {AREAS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    {areaOptions.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -300,7 +312,7 @@ export default function StripeConversions() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={byArea} dataKey="conversoes" nameKey="area" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label>
-                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area as Area] || "hsl(220 10% 60%)"} />)}
+                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
                   </Pie>
                   <Tooltip formatter={(v: any) => `${v} conversões`} />
                   <Legend />
@@ -318,7 +330,7 @@ export default function StripeConversions() {
                   <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
                   <Bar dataKey="mrr" radius={[6,6,0,0]}>
-                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area as Area] || "hsl(220 10% 60%)"} />)}
+                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -337,7 +349,7 @@ export default function StripeConversions() {
                 <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
                 <Legend />
                 {visibleAreas.map(a => (
-                  <Line key={a} type="monotone" dataKey={a} stroke={AREA_COLORS[a as Area] || "hsl(220 10% 60%)"} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line key={a} type="monotone" dataKey={a} stroke={AREA_COLORS[a] || "hsl(220 10% 60%)"} strokeWidth={2} dot={{ r: 3 }} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -376,7 +388,7 @@ export default function StripeConversions() {
                       <TableCell>{fmtDate(r.converted_at)}</TableCell>
                       <TableCell className="text-muted-foreground">{fmtDate(r.registered_at)}</TableCell>
                       <TableCell>
-                        <Badge style={{ backgroundColor: AREA_COLORS[r.area as Area] || "hsl(220 10% 60%)", color: "white" }}>
+                        <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>
                           {r.area}
                         </Badge>
                       </TableCell>
