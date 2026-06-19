@@ -57,13 +57,15 @@ Deno.serve(async (req) => {
           if (existing && existing.converted_at) { skipped++; continue; }
 
           const customerId = typeof sub.customer === "string" ? sub.customer : (sub.customer as any)?.id || null;
-          const priceId = sub.items?.data?.[0]?.price?.id || null;
+          const priceObj = sub.items?.data?.[0]?.price || null;
+          const priceId = priceObj?.id || null;
 
           // Resolve área via Mapa de Preços
           let area = "desconhecida";
           let productName: string | null = null;
           let planName: string | null = null;
           let mrr = 0;
+          let priceMapped = false;
           if (priceId) {
             const { data: pm } = await supabase
               .from("commission_price_map")
@@ -71,23 +73,39 @@ Deno.serve(async (req) => {
               .eq("price_id", priceId)
               .maybeSingle();
             if (pm) {
+              priceMapped = true;
               area = pm.area || "desconhecida";
               productName = pm.offer_name || null;
               planName = pm.plan_name || pm.price_name || null;
-              mrr = pm.mrr_override != null ? Number(pm.mrr_override) : 0;
+              if (pm.mrr_override != null) mrr = Number(pm.mrr_override);
             } else {
               unmapped++;
             }
           }
 
-          // Descartar sem valor: sem price_id ou MRR zerado
-          if (!priceId || mrr <= 0) {
+          // Fallback: MRR real calculado do preço Stripe (normalizado pra mensal)
+          if (priceObj && mrr <= 0) {
+            const amount = (priceObj.unit_amount ?? 0) / 100;
+            const interval = priceObj.recurring?.interval;
+            const count = priceObj.recurring?.interval_count || 1;
+            if (amount > 0 && interval) {
+              switch (interval) {
+                case "month": mrr = amount / count; break;
+                case "year": mrr = amount / (12 * count); break;
+                case "week": mrr = (amount * 4.345) / count; break;
+                case "day":  mrr = (amount * 30) / count; break;
+              }
+            }
+          }
+
+          // Descartar somente pagamento zerado (MRR=0). Sem mapa + com MRR real → segue.
+          if (mrr <= 0) {
             await supabase.from("integration_sync_errors").insert({
               entity_type: "stripe_discarded_no_value",
               ac_id: sub.id,
               error_message: !priceId
                 ? "Conversão descartada: sem stripe_price_id"
-                : "Conversão descartada: MRR/valor da oferta zerado",
+                : "Conversão descartada: pagamento/MRR zerado",
               payload: {
                 subscription_id: sub.id,
                 customer_id: customerId,
@@ -99,6 +117,23 @@ Deno.serve(async (req) => {
             });
             skipped++;
             continue;
+          }
+
+          // Pendência de mapeamento: tem MRR real mas o price não está no Mapa de Preços.
+          if (priceId && !priceMapped) {
+            await supabase.from("integration_sync_errors").insert({
+              entity_type: "stripe_unmapped_price",
+              ac_id: priceId,
+              error_message: `price_id ${priceId} não está no Mapa de Preços`,
+              payload: {
+                price_id: priceId,
+                email: null,
+                subscription_id: sub.id,
+                mrr_estimated: mrr,
+                source: "recover",
+              },
+              resolved: false,
+            });
           }
 
           // Datas via Stripe: registered_at = customer.created, converted_at = primeira invoice paga
