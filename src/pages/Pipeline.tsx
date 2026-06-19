@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X, Phone, Download, RefreshCw } from "lucide-react";
+import { Search, Settings, X, Phone, Download } from "lucide-react";
 import * as XLSX from "xlsx";
-import { Progress } from "@/components/ui/progress";
+
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { StageManager } from "@/components/StageManager";
 import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
@@ -45,76 +45,9 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<{ phase?: string; pipelineIdx?: number; totalPipelines?: number; currentPipeline?: string; dealsProcessed?: number; dealsTotal?: number } | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const [lastSync, setLastSync] = useState<{ ranAt?: string; cancelled?: boolean; totals?: any; progress?: any; results?: any[] } | null>(null);
+  // ActiveCampaign sync archived — banner, polling and handlers removed.
 
-  const handleCancelSync = async () => {
-    setCancelling(true);
-    const { error } = await supabase.functions.invoke("ac-sync-cancel");
-    if (error) {
-      toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
-      setCancelling(false);
-      return;
-    }
-    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida em instantes." });
-  };
 
-  // Detecta sync em andamento e carrega último resultado ao montar
-  useEffect(() => {
-    let cancelledFlag = false;
-    const checkSync = async () => {
-      const { data } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-      if (cancelledFlag) return;
-      setLastSync((data?.sync_log as any) ?? null);
-      if (data?.sync_status === "running" || data?.sync_status === "cancelling") {
-        setSyncing(true);
-        setCancelling(data.sync_status === "cancelling");
-        setSyncProgress((data.sync_log as any)?.progress ?? null);
-        startPolling();
-      }
-    };
-    checkSync();
-    return () => { cancelledFlag = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const startPolling = () => {
-    let elapsed = 0;
-    const interval = setInterval(async () => {
-      elapsed += 5;
-      const { data: settings } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-      const progress = (settings?.sync_log as any)?.progress ?? null;
-      setSyncProgress(progress);
-      if (settings?.sync_status === "idle" || elapsed >= 600) {
-        clearInterval(interval);
-        setSyncing(false);
-        setCancelling(false);
-        setLastSync((settings?.sync_log as any) ?? null);
-        await loadData();
-        const wasCancelled = (settings?.sync_log as any)?.cancelled || progress?.phase === "cancelled";
-        toast({
-          title: wasCancelled ? "Sincronização cancelada" : "Sincronização concluída",
-          description: wasCancelled ? "A sincronização foi interrompida." : "Pipeline atualizado com os dados do AC.",
-        });
-      }
-    }, 5000);
-  };
-
-  const handleSyncAC = async () => {
-    setSyncing(true);
-    setSyncProgress({ phase: "starting" });
-    toast({ title: "Sincronização iniciada", description: "Trazendo dados do ActiveCampaign em segundo plano." });
-    const { error } = await supabase.functions.invoke("ac-sync-initial", { body: { force: true } });
-    if (error) {
-      toast({ title: "Erro ao iniciar sync", description: error.message, variant: "destructive" });
-      setSyncing(false);
-      setSyncProgress(null);
-      return;
-    }
-    startPolling();
-  };
 
   const loadPipelines = useCallback(async () => {
     const { data } = await supabase.from("pipelines").select("*").order("is_default", { ascending: false }).order("name");
@@ -308,65 +241,10 @@ export default function PipelinePage() {
             <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
               <Download className="h-4 w-4 mr-1" /> Exportar Excel
             </Button>
-            {/* ActiveCampaign sync archived */}
-
           </div>
         </div>
 
-        {syncing && (
-          <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1.5">
-            <div className="flex items-center justify-between text-xs gap-2">
-              <span className="font-medium">
-                {cancelling ? "Cancelando sincronização..." : "Sincronizando ActiveCampaign"}
-                {syncProgress?.currentPipeline && ` — ${syncProgress.currentPipeline}`}
-                {syncProgress?.totalPipelines && syncProgress.totalPipelines > 1 && ` (${syncProgress.pipelineIdx}/${syncProgress.totalPipelines})`}
-              </span>
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground">
-                  {syncProgress?.dealsTotal && syncProgress.dealsTotal > 0
-                    ? `${syncProgress.dealsProcessed ?? 0} / ${syncProgress.dealsTotal} oportunidades`
-                    : `${syncProgress?.dealsProcessed ?? 0} processadas`}
-                </span>
-                {role === "admin" && (
-                  <Button variant="ghost" size="sm" onClick={handleCancelSync} disabled={cancelling} className="h-6 px-2 text-xs">
-                    <X className="h-3 w-3 mr-1" /> {cancelling ? "Cancelando..." : "Cancelar"}
-                  </Button>
-                )}
-              </div>
-            </div>
-            <Progress
-              value={
-                syncProgress?.dealsTotal && syncProgress.dealsTotal > 0
-                  ? Math.min(100, ((syncProgress.dealsProcessed ?? 0) / syncProgress.dealsTotal) * 100)
-                  : 0
-              }
-              className={!syncProgress?.dealsTotal ? "animate-pulse" : ""}
-            />
-          </div>
-        )}
 
-        {!syncing && lastSync?.cancelled && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-xs">
-              <div className="font-medium text-foreground">Sincronização cancelada</div>
-              <div className="text-muted-foreground">
-                {lastSync?.progress?.dealsProcessed ?? lastSync?.totals?.dealsCount ?? 0} oportunidades processadas
-                {lastSync?.progress?.dealsTotal ? ` de ${lastSync.progress.dealsTotal}` : ""}
-                {lastSync?.ranAt && ` — ${format(new Date(lastSync.ranAt), "dd/MM HH:mm")}`}
-              </div>
-            </div>
-            {role === "admin" && (
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setLastSync({ ...lastSync, cancelled: false })} className="h-7 text-xs">
-                  Dispensar
-                </Button>
-                <Button variant="default" size="sm" onClick={handleSyncAC} className="h-7 text-xs">
-                  <RefreshCw className="h-3 w-3 mr-1" /> Sincronizar novamente
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
 
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">

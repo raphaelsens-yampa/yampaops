@@ -549,7 +549,7 @@ export default function AgentActivity() {
             </Card>
           </TabsContent>
 
-          {/* Cobertura vs AC archived */}
+          
         </Tabs>
       </div>
     </Layout>
