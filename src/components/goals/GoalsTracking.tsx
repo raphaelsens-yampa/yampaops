@@ -104,7 +104,25 @@ export function GoalsTracking() {
     });
   }, [opportunities, sellersInScope, start, end, sellerFilter, categoryFilter, wonStageIds, wonStageSlugs]);
 
-  const realized = wonInPeriod.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
+  // MRR Realizado = soma das conversões Stripe no período, respeitando filtros de vendedor/equipe.
+  // Em visão da empresa (admin sem filtros), considera todas as conversões; com filtros, apenas as
+  // que tenham deal casado com vendedor em escopo.
+  const realized = useMemo(() => {
+    const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
+    const oppById = new Map<string, any>();
+    opportunities.forEach((o) => oppById.set(o.id, o));
+    return stripeConversions.reduce((sum: number, sc: any) => {
+      if (!sc.converted_at) return sum;
+      const d = new Date(sc.converted_at);
+      if (d < start || d > end) return sum;
+      if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
+        const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+        const cid = opp?.consultant_id || null;
+        if (!cid || !sellerIds.has(cid)) return sum;
+      }
+      return sum + (Number(sc.mrr) || 0);
+    }, 0);
+  }, [stripeConversions, opportunities, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
 
   // Resolve monthly target for the scope
   const monthlyTarget = useMemo(() => {
