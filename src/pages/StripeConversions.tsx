@@ -139,6 +139,7 @@ export default function StripeConversions() {
     // group by month
     const map = new Map<string, Record<string, number> & { mes: string }>();
     for (const r of rows) {
+      if (!r.converted_at) continue;
       const d = new Date(r.converted_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const cur = map.get(key) || ({ mes: key } as any);
