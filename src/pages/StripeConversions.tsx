@@ -288,7 +288,7 @@ export default function StripeConversions() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas as áreas</SelectItem>
-                    {AREAS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    {areaOptions.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
