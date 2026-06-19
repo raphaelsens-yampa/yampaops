@@ -298,7 +298,7 @@ export default function StripeConversions() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={byArea} dataKey="conversoes" nameKey="area" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label>
-                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area as Area] || "hsl(220 10% 60%)"} />)}
+                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
                   </Pie>
                   <Tooltip formatter={(v: any) => `${v} conversões`} />
                   <Legend />
@@ -316,7 +316,7 @@ export default function StripeConversions() {
                   <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
                   <Bar dataKey="mrr" radius={[6,6,0,0]}>
-                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area as Area] || "hsl(220 10% 60%)"} />)}
+                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -335,7 +335,7 @@ export default function StripeConversions() {
                 <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
                 <Legend />
                 {visibleAreas.map(a => (
-                  <Line key={a} type="monotone" dataKey={a} stroke={AREA_COLORS[a as Area] || "hsl(220 10% 60%)"} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line key={a} type="monotone" dataKey={a} stroke={AREA_COLORS[a] || "hsl(220 10% 60%)"} strokeWidth={2} dot={{ r: 3 }} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -374,7 +374,7 @@ export default function StripeConversions() {
                       <TableCell>{fmtDate(r.converted_at)}</TableCell>
                       <TableCell className="text-muted-foreground">{fmtDate(r.registered_at)}</TableCell>
                       <TableCell>
-                        <Badge style={{ backgroundColor: AREA_COLORS[r.area as Area] || "hsl(220 10% 60%)", color: "white" }}>
+                        <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>
                           {r.area}
                         </Badge>
                       </TableCell>
