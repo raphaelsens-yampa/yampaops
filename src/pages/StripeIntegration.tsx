@@ -270,7 +270,7 @@ export default function StripeIntegration() {
           <div>
             <h1 className="text-3xl font-heading font-bold">Integração Stripe</h1>
             <p className="text-muted-foreground mt-1">
-              Receba assinaturas pagas em tempo real e concilie com os deals do pipeline.
+              Recebe assinaturas pagas em tempo real e alimenta o painel <strong>Conversões por Área</strong> cruzando o <code className="font-mono text-xs">price_id</code> com o Mapa de Preços.
             </p>
           </div>
           <div className="flex gap-2">
