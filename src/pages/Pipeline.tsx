@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, X, Phone, Download, RefreshCw } from "lucide-react";
+import { Search, Settings, X, Phone, Download } from "lucide-react";
 import * as XLSX from "xlsx";
-import { Progress } from "@/components/ui/progress";
+
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { StageManager } from "@/components/StageManager";
 import { NewOpportunityDialog } from "@/components/NewOpportunityDialog";
