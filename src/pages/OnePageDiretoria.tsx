@@ -150,6 +150,15 @@ export default function OnePageDiretoria() {
               </button>
             );
           })}
+          <button
+            onClick={downloadPdf}
+            disabled={downloading}
+            className="flex items-center gap-1.5 text-[13px] font-semibold px-4 py-1.5 rounded-full transition-all duration-200 hover:scale-[1.03] disabled:opacity-60 disabled:cursor-wait ml-1"
+            style={{color:"#fff",background:"#0A84FF",border:"1px solid #0A84FF",boxShadow:"0 0 0 1px rgba(10,132,255,.25)"}}
+            title="Baixar OnePage completa em PDF"
+          >
+            <span>{downloading?"Gerando PDF…":"⬇ Baixar PDF"}</span>
+          </button>
         </div>
 
         <div className="px-3 lg:px-4 py-3">
