@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
@@ -67,6 +67,7 @@ const MESES = D.meses;
 const NAV = [["p1","One Page",C.blue],["p2","Financeiro",C.blue],["p3","Plano de Metas",C.green],["p4","Revenue",C.green],["p5","Marketing",C.amber],["p6","Produto",C.purple]];
 
 export default function OnePageDiretoria() {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [active,setActive]=useState("p1");
   useEffect(()=>{
     const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id);});},{rootMargin:"-45% 0px -50% 0px"});
@@ -74,27 +75,28 @@ export default function OnePageDiretoria() {
     return ()=>obs.disconnect();
   },[]);
   useEffect(()=>{
-    // Make Layout's <main> the single scroll container with dark bg, no padding,
-    // so the sticky tab bar stays pinned to the top of the viewport.
-    const main=document.querySelector("main");
+    const main=rootRef.current?.closest("main") as HTMLElement | null;
     if(!main) return;
-    const prev={bg:main.style.background,padding:main.style.padding,color:main.style.color};
+    const prev={bg:main.style.background,padding:main.style.padding,color:main.style.color,overflow:main.style.overflow,height:main.style.height,minHeight:main.style.minHeight};
     main.style.background=C.bg;
     main.style.padding="0";
     main.style.color=C.white;
-    return ()=>{main.style.background=prev.bg;main.style.padding=prev.padding;main.style.color=prev.color;};
+    main.style.overflow="auto";
+    main.style.height="100vh";
+    main.style.minHeight="0";
+    return ()=>{main.style.background=prev.bg;main.style.padding=prev.padding;main.style.color=prev.color;main.style.overflow=prev.overflow;main.style.height=prev.height;main.style.minHeight=prev.minHeight;};
   },[]);
   const go=(id:string)=>{
     const el=document.getElementById(id);
-    const main=document.querySelector("main");
+    const main=rootRef.current?.closest("main") as HTMLElement | null;
     if(!el||!main) return;
-    const top=el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 44;
+    const top=el.offsetTop - 48;
     main.scrollTo({top,behavior:"smooth"});
   };
 
   return (
     <Layout>
-      <div className="flex flex-col" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+      <div ref={rootRef} className="flex flex-col min-h-full" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
           className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-3 lg:px-4 py-2 backdrop-blur border-b"
           style={{background:C.bg+"f0",borderColor:"#16283b"}}
