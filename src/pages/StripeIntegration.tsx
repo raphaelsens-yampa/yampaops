@@ -261,6 +261,36 @@ export default function StripeIntegration() {
     setBackfilling(false);
   }
 
+  async function handleRecover() {
+    setRecovering(true);
+    setRecoverResult(null);
+    setRecoverElapsed(0);
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setRecoverElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 250);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-recover", { body: { days: recoverDays } });
+      if (error) throw error;
+      setRecoverResult(data);
+      const d = data as any;
+      toast.success(`Recuperação concluída: ${d?.inserted ?? 0} registradas, ${d?.skipped ?? 0} já existentes, ${d?.unmapped ?? 0} sem mapa, ${d?.failed ?? 0} falhas`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao recuperar conversões");
+      setRecoverResult({ error: e.message });
+    } finally {
+      clearInterval(timer);
+      setRecovering(false);
+    }
+  }
+
+  // Estimativa: ~150 subs/dia em média, ~0.8s por sub processada
+  const estimatedSeconds = Math.max(20, Math.round(recoverDays * 1.5));
+  const recoverProgress = recovering
+    ? Math.min(95, Math.round((recoverElapsed / estimatedSeconds) * 100))
+    : recoverResult ? 100 : 0;
+
   function copyWebhook() {
     navigator.clipboard.writeText(WEBHOOK_URL);
     toast.success("URL copiada");
