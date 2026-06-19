@@ -110,6 +110,11 @@ export default function StripeIntegration() {
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverDays, setRecoverDays] = useState<number>(60);
+  const [recovering, setRecovering] = useState(false);
+  const [recoverElapsed, setRecoverElapsed] = useState(0);
+  const [recoverResult, setRecoverResult] = useState<any>(null);
   const [conn, setConn] = useState<ConnectionInfo | null>(null);
   const [counts, setCounts] = useState<Counts>({
     totalEvents: 0,
