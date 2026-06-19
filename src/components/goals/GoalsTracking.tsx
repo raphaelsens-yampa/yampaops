@@ -20,6 +20,11 @@ function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
 }
 
+function getConversionSellerId(sc: any, oppById: Map<string, any>, priceMapByPriceId: Map<string, any>) {
+  const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+  return opp?.consultant_id || (sc.stripe_price_id ? priceMapByPriceId.get(sc.stripe_price_id)?.seller_user_id : null) || null;
+}
+
 export function GoalsTracking() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
@@ -36,6 +41,7 @@ export function GoalsTracking() {
   const [goals, setGoals] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [stripeConversions, setStripeConversions] = useState<any[]>([]);
+  const [priceMap, setPriceMap] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
@@ -44,7 +50,7 @@ export function GoalsTracking() {
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -53,7 +59,8 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id"),
+        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id, stripe_price_id, area"),
+        supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -63,6 +70,7 @@ export function GoalsTracking() {
       setCategories((cRes.data as GoalCategory[]) || []);
       setFinanceSettings(fRes.data as any);
       setStripeConversions(scRes.data || []);
+      setPriceMap(pmRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
