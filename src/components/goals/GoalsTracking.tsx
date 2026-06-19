@@ -304,9 +304,8 @@ export function GoalsTracking() {
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return false;
       if (sellerFilter === "all" && teamFilter === "all" && isAdmin) return true;
-      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-      const cid = opp?.consultant_id || null;
-      if (!cid) return false; // sem deal casado, só conta na visão da empresa
+      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
+      if (!cid) return false;
       return sellerIds.has(cid);
     });
     const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
@@ -378,7 +377,7 @@ export function GoalsTracking() {
         autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeMrrSum : null,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, stripeConversions, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
+  }, [categories, goals, opportunities, stripeConversions, priceMapByPriceId, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
