@@ -324,45 +324,47 @@ export default function StripeIntegration() {
           </CardContent>
         </Card>
 
-        {/* Status counters */}
+        {/* Status counters — foco em conversões registradas para o painel "Conversões por Área" */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Pendentes</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Conversões (30d)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-warning">{counts.pending}</div>
-              <p className="text-xs text-muted-foreground mt-1">aguardando aprovação</p>
+              <div className="text-3xl font-heading font-bold text-primary">{counts.conversionsLast30}</div>
+              <p className="text-xs text-muted-foreground mt-1">novas assinaturas pagas</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Não casados</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">MRR (30d)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-destructive">{counts.noMatch}</div>
-              <p className="text-xs text-muted-foreground mt-1">emails sem deal correspondente</p>
+              <div className="text-3xl font-heading font-bold text-success">{fmtBRL(counts.mrrLast30)}</div>
+              <p className="text-xs text-muted-foreground mt-1">somado pelo Mapa de Preços</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Conciliados</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Conversões (total)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-success">{counts.matched}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {matchPct !== null ? `taxa de match ${matchPct}%` : "eventos processados"}
-              </p>
+              <div className="text-3xl font-heading font-bold">{counts.totalConversions}</div>
+              <p className="text-xs text-muted-foreground mt-1">{counts.totalEvents} eventos recebidos</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Total eventos</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Preços não mapeados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-primary">{counts.totalEvents}</div>
-              <p className="text-xs text-muted-foreground mt-1">recebidos do Stripe</p>
+              <div className={"text-3xl font-heading font-bold " + (counts.unmappedPrices > 0 ? "text-warning" : "text-success")}>
+                {counts.unmappedPrices}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">price_id sem entrada no Mapa</p>
             </CardContent>
+          </Card>
+
           </Card>
         </div>
 
