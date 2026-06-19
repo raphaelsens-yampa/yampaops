@@ -45,76 +45,9 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [manageOpen, setManageOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<{ phase?: string; pipelineIdx?: number; totalPipelines?: number; currentPipeline?: string; dealsProcessed?: number; dealsTotal?: number } | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const [lastSync, setLastSync] = useState<{ ranAt?: string; cancelled?: boolean; totals?: any; progress?: any; results?: any[] } | null>(null);
+  // ActiveCampaign sync archived — banner, polling and handlers removed.
 
-  const handleCancelSync = async () => {
-    setCancelling(true);
-    const { error } = await supabase.functions.invoke("ac-sync-cancel");
-    if (error) {
-      toast({ title: "Erro ao cancelar", description: error.message, variant: "destructive" });
-      setCancelling(false);
-      return;
-    }
-    toast({ title: "Cancelamento solicitado", description: "A sincronização será interrompida em instantes." });
-  };
 
-  // Detecta sync em andamento e carrega último resultado ao montar
-  useEffect(() => {
-    let cancelledFlag = false;
-    const checkSync = async () => {
-      const { data } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-      if (cancelledFlag) return;
-      setLastSync((data?.sync_log as any) ?? null);
-      if (data?.sync_status === "running" || data?.sync_status === "cancelling") {
-        setSyncing(true);
-        setCancelling(data.sync_status === "cancelling");
-        setSyncProgress((data.sync_log as any)?.progress ?? null);
-        startPolling();
-      }
-    };
-    checkSync();
-    return () => { cancelledFlag = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const startPolling = () => {
-    let elapsed = 0;
-    const interval = setInterval(async () => {
-      elapsed += 5;
-      const { data: settings } = await supabase.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-      const progress = (settings?.sync_log as any)?.progress ?? null;
-      setSyncProgress(progress);
-      if (settings?.sync_status === "idle" || elapsed >= 600) {
-        clearInterval(interval);
-        setSyncing(false);
-        setCancelling(false);
-        setLastSync((settings?.sync_log as any) ?? null);
-        await loadData();
-        const wasCancelled = (settings?.sync_log as any)?.cancelled || progress?.phase === "cancelled";
-        toast({
-          title: wasCancelled ? "Sincronização cancelada" : "Sincronização concluída",
-          description: wasCancelled ? "A sincronização foi interrompida." : "Pipeline atualizado com os dados do AC.",
-        });
-      }
-    }, 5000);
-  };
-
-  const handleSyncAC = async () => {
-    setSyncing(true);
-    setSyncProgress({ phase: "starting" });
-    toast({ title: "Sincronização iniciada", description: "Trazendo dados do ActiveCampaign em segundo plano." });
-    const { error } = await supabase.functions.invoke("ac-sync-initial", { body: { force: true } });
-    if (error) {
-      toast({ title: "Erro ao iniciar sync", description: error.message, variant: "destructive" });
-      setSyncing(false);
-      setSyncProgress(null);
-      return;
-    }
-    startPolling();
-  };
 
   const loadPipelines = useCallback(async () => {
     const { data } = await supabase.from("pipelines").select("*").order("is_default", { ascending: false }).order("name");
