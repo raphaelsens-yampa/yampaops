@@ -2707,7 +2707,7 @@ export type Database = {
       stripe_conversions: {
         Row: {
           area: string
-          converted_at: string
+          converted_at: string | null
           created_at: string
           customer_email: string | null
           id: string
@@ -2725,7 +2725,7 @@ export type Database = {
         }
         Insert: {
           area?: string
-          converted_at?: string
+          converted_at?: string | null
           created_at?: string
           customer_email?: string | null
           id?: string
@@ -2743,7 +2743,7 @@ export type Database = {
         }
         Update: {
           area?: string
-          converted_at?: string
+          converted_at?: string | null
           created_at?: string
           customer_email?: string | null
           id?: string

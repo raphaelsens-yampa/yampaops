@@ -106,6 +106,7 @@ export default function StripeIntegration() {
   const { role } = useAuth();
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [conn, setConn] = useState<ConnectionInfo | null>(null);
   const [counts, setCounts] = useState<Counts>({
     totalEvents: 0,
@@ -238,6 +239,20 @@ export default function StripeIntegration() {
     setSyncing(false);
   }
 
+  async function handleBackfillDates() {
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-backfill-dates", { body: { limit: 1000 } });
+      if (error) throw error;
+      const d = data as any;
+      toast.success(`Datas recalculadas: ${d?.updated ?? 0} atualizadas, ${d?.failed ?? 0} falhas`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao recalcular datas");
+    }
+    setBackfilling(false);
+  }
+
   function copyWebhook() {
     navigator.clipboard.writeText(WEBHOOK_URL);
     toast.success("URL copiada");
@@ -274,6 +289,10 @@ export default function StripeIntegration() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={handleBackfillDates} disabled={backfilling} variant="outline" size="sm" title="Recalcula registered_at e converted_at de todas as conversões usando dados do Stripe">
+              {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
+              Recalcular datas
+            </Button>
             <Button onClick={handleSync} disabled={syncing} variant="outline" size="sm">
               {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
               Sincronizar
@@ -379,7 +398,7 @@ export default function StripeIntegration() {
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               {[
                 { label: "Último evento recebido", iso: freshness.lastEventAt },
-                { label: "Última conversão registrada", iso: freshness.lastConversionAt },
+                { label: "Último 1º pagamento registrado", iso: freshness.lastConversionAt },
                 { label: "Último sync manual", iso: freshness.lastSyncAt, warnHours: 48, errHours: 168 },
               ].map((f) => {
                 const tone = freshnessTone(f.iso, f.warnHours, f.errHours);

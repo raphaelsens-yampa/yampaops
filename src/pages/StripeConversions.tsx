@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PieChart as PieChartIcon, Download, CheckCircle2, XCircle } from "lucide-react";
+import { PieChart as PieChartIcon, Download } from "lucide-react";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
@@ -119,9 +119,8 @@ export default function StripeConversions() {
   const stats = useMemo(() => {
     const total = rows.length;
     const totalMrr = rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
-    const matched = rows.filter(r => r.matched_opportunity_id).length;
     const areasCount = new Set(rows.map(r => r.area)).size;
-    return { total, totalMrr, matched, areasCount, ticketMedio: total ? totalMrr / total : 0 };
+    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0 };
   }, [rows]);
 
   const byArea = useMemo(() => {
@@ -139,6 +138,7 @@ export default function StripeConversions() {
     // group by month
     const map = new Map<string, Record<string, number> & { mes: string }>();
     for (const r of rows) {
+      if (!r.converted_at) continue;
       const d = new Date(r.converted_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const cur = map.get(key) || ({ mes: key } as any);
@@ -157,14 +157,13 @@ export default function StripeConversions() {
 
   function exportCSV() {
     const data = rows.map(r => ({
-      Data_Conversao: fmtDate(r.converted_at),
-      Data_Cadastro: fmtDate(r.registered_at),
+      Primeiro_Pagamento: fmtDate(r.converted_at),
+      Cliente_Desde: fmtDate(r.registered_at),
       Area: r.area,
       Produto: r.product_name || "",
       Plano: r.plan_name || "",
       Email: r.customer_email || "",
       MRR: r.mrr,
-      Matched_Deal: r.matched_opportunity_id ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -175,19 +174,17 @@ export default function StripeConversions() {
 
   function exportXLSX() {
     const data = rows.map(r => ({
-      "Data Conversão": fmtDate(r.converted_at),
-      "Data Cadastro": fmtDate(r.registered_at),
+      "1º Pagamento": fmtDate(r.converted_at),
+      "Cliente desde": fmtDate(r.registered_at),
       "Área": r.area,
       "Produto": r.product_name || "",
       "Plano": r.plan_name || "",
       "Email": r.customer_email || "",
       "MRR (R$)": r.mrr,
-      "Match com Deal": r.matched_opportunity_id ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conversões");
-    // Aba resumo por área
     const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, "MRR (R$)": a.mrr }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo por Área");
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -213,11 +210,11 @@ export default function StripeConversions() {
     const startY = (doc as any).lastAutoTable?.finalY + 8 || 80;
     autoTable(doc, {
       startY,
-      head: [["Data", "Cadastro", "Área", "Produto", "Plano", "Email", "MRR", "Deal"]],
+      head: [["1º Pagamento", "Cliente desde", "Área", "Produto", "Plano", "Email", "MRR"]],
       body: rows.map(r => [
         fmtDate(r.converted_at), fmtDate(r.registered_at), r.area,
         r.product_name || "", r.plan_name || "", r.customer_email || "",
-        fmtBRL(Number(r.mrr || 0)), r.matched_opportunity_id ? "Sim" : "Não",
+        fmtBRL(Number(r.mrr || 0)),
       ]),
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [5, 32, 51] },
@@ -301,7 +298,7 @@ export default function StripeConversions() {
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">MRR Total</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold">{fmtBRL(stats.ticketMedio)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Match c/ Deal</p><p className="text-2xl font-bold">{stats.matched}<span className="text-sm text-muted-foreground"> / {stats.total}</span></p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Áreas ativas</p><p className="text-2xl font-bold">{stats.areasCount}</p></CardContent></Card>
         </div>
 
         {/* Gráficos */}
@@ -367,21 +364,20 @@ export default function StripeConversions() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Conversão</TableHead>
-                    <TableHead>Cadastro</TableHead>
+                    <TableHead>1º Pagamento</TableHead>
+                    <TableHead>Cliente desde</TableHead>
                     <TableHead>Área</TableHead>
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead className="text-right">MRR</TableHead>
-                    <TableHead className="text-center">Deal?</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
@@ -398,11 +394,6 @@ export default function StripeConversions() {
                       </TableCell>
                       <TableCell className="text-xs">{r.customer_email || "—"}</TableCell>
                       <TableCell className="text-right font-medium">{fmtBRL(Number(r.mrr || 0))}</TableCell>
-                      <TableCell className="text-center">
-                        {r.matched_opportunity_id
-                          ? <CheckCircle2 className="h-4 w-4 text-green-500 inline" />
-                          : <XCircle className="h-4 w-4 text-muted-foreground inline" />}
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
