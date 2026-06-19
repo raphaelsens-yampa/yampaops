@@ -212,19 +212,40 @@ Deno.serve(async (req) => {
     if (ts) convertedAt = new Date(ts * 1000).toISOString();
   }
 
-  // Preserva converted_at já existente se houver upsert (não sobrescreve com null)
-  let existingRow: { id: string; converted_at: string | null; registered_at: string | null } | null = null;
+  // ─── Idempotência ───
+  // Busca registro existente por subscription_id (chave natural) OU por event_id
+  // (caso o mesmo evento já tenha gerado uma linha sem subscription).
+  let existingRow: { id: string; converted_at: string | null; registered_at: string | null; stripe_event_id: string | null } | null = null;
   if (subscriptionId) {
     const { data } = await supabase
       .from("stripe_conversions")
-      .select("id, converted_at, registered_at")
+      .select("id, converted_at, registered_at, stripe_event_id")
       .eq("stripe_subscription_id", subscriptionId)
       .maybeSingle();
     existingRow = data as any;
   }
+  if (!existingRow) {
+    const { data } = await supabase
+      .from("stripe_conversions")
+      .select("id, converted_at, registered_at, stripe_event_id")
+      .eq("stripe_event_id", event.id)
+      .maybeSingle();
+    existingRow = data as any;
+  }
+
+  // converted_at deve ser STÁVEL: sempre o 1º pagamento (mais antigo).
+  // Se já existe, mantém o menor entre o gravado e o novo (nunca sobrescreve com data posterior, nunca com null).
+  const earliest = (a: string | null, b: string | null): string | null => {
+    if (!a) return b;
+    if (!b) return a;
+    return new Date(a).getTime() <= new Date(b).getTime() ? a : b;
+  };
+  const finalConvertedAt = earliest(existingRow?.converted_at ?? null, convertedAt);
+  // registered_at também é estável (data de criação do customer no Stripe). Não sobrescreve se já houver.
+  const finalRegisteredAt = existingRow?.registered_at ?? registeredAt ?? null;
 
   const conversionRow: Record<string, unknown> = {
-    stripe_event_id: event.id,
+    stripe_event_id: existingRow?.stripe_event_id ?? event.id,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
     stripe_price_id: priceId,
@@ -233,8 +254,8 @@ Deno.serve(async (req) => {
     product_name: convProductName,
     plan_name: convPlanName,
     mrr: convMrr,
-    registered_at: registeredAt ?? existingRow?.registered_at ?? null,
-    converted_at: convertedAt ?? existingRow?.converted_at ?? null,
+    registered_at: finalRegisteredAt,
+    converted_at: finalConvertedAt,
   };
 
   const conversionExists = !!existingRow;
@@ -250,9 +271,15 @@ Deno.serve(async (req) => {
       return ok({ ok: true, error: "conversion_failed" });
     }
   } else {
-    await supabase.from("stripe_conversions")
-      .update(conversionRow)
-      .eq("id", existingRow!.id);
+    // Idempotente: só faz UPDATE se algum campo realmente mudou
+    const changed =
+      existingRow.converted_at !== finalConvertedAt ||
+      existingRow.registered_at !== finalRegisteredAt;
+    if (changed) {
+      await supabase.from("stripe_conversions")
+        .update(conversionRow)
+        .eq("id", existingRow.id);
+    }
   }
 
   // Sinaliza price_id não mapeado no Mapa de Preços (para o card de cobertura na tela de Integração)
