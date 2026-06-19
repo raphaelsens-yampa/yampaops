@@ -14,6 +14,7 @@ import {
   Loader2, Copy, CheckCircle2, XCircle, AlertCircle, ExternalLink,
   RefreshCw, Activity, Clock, Zap, LifeBuoy,
 } from "lucide-react";
+import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/stripe-webhook`;
@@ -625,6 +626,15 @@ export default function StripeIntegration() {
                     <span className="text-xs font-medium w-24 text-right shrink-0">
                       R$ {Number(c.mrr || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
+                    {c.area === "desconhecida" && c.stripe_price_id && (
+                      <MapStripePriceButton
+                        price_id={c.stripe_price_id}
+                        offer_name={c.product_name}
+                        customer_email={c.customer_email}
+                        mrr={c.mrr}
+                        onMapped={loadAll}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -710,6 +720,11 @@ export default function StripeIntegration() {
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {formatRelative(u.last_seen)}
                   </span>
+                  <MapStripePriceButton
+                    price_id={u.price_id}
+                    customer_email={u.sample_email}
+                    onMapped={loadAll}
+                  />
                 </div>
               ))}
               {unmapped.length > 20 && (

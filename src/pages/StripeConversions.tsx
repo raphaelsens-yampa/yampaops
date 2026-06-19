@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PieChart as PieChartIcon, Download } from "lucide-react";
+import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
@@ -49,6 +50,7 @@ interface Conversion {
   registered_at: string | null;
   converted_at: string;
   stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
 }
 
 const PERIOD_PRESETS = [
@@ -83,12 +85,12 @@ export default function StripeConversions() {
     if (p !== "custom") setPeriod(presetRange(p));
   }
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter],
     queryFn: async () => {
       let q = supabase
         .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id")
+        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
         .order("converted_at", { ascending: false });
@@ -370,14 +372,15 @@ export default function StripeConversions() {
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead className="text-right">MRR</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
@@ -394,6 +397,18 @@ export default function StripeConversions() {
                       </TableCell>
                       <TableCell className="text-xs">{r.customer_email || "—"}</TableCell>
                       <TableCell className="text-right font-medium">{fmtBRL(Number(r.mrr || 0))}</TableCell>
+                      <TableCell className="text-right">
+                        {r.area === "desconhecida" && r.stripe_price_id && (
+                          <MapStripePriceButton
+                            price_id={r.stripe_price_id}
+                            offer_name={r.product_name}
+                            customer_name={r.customer_email}
+                            customer_email={r.customer_email}
+                            mrr={r.mrr}
+                            onMapped={() => refetch()}
+                          />
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
