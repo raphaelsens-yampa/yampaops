@@ -237,12 +237,6 @@ export default function StripeIntegration() {
     setSyncing(false);
   }
 
-  async function resolveError(id: string) {
-    await supabase.from("integration_sync_errors").update({ resolved: true }).eq("id", id);
-    setSyncErrors((prev) => prev.filter((e) => e.id !== id));
-    toast.success("Erro marcado como resolvido");
-  }
-
   function copyWebhook() {
     navigator.clipboard.writeText(WEBHOOK_URL);
     toast.success("URL copiada");
@@ -256,18 +250,15 @@ export default function StripeIntegration() {
     if (conn?.ok && !conn.webhook_secret_configured) issues.push("Webhook secret não configurado");
     if (eventTone === "err") issues.push("Nenhum evento recente (>24h)");
     else if (eventTone === "warn") issues.push("Eventos atrasados (>6h)");
+    if (counts.unmappedPrices > 0) issues.push(`${counts.unmappedPrices} price_id(s) fora do Mapa de Preços`);
     let status: "ok" | "warn" | "err" = "ok";
     if (!conn?.ok || eventTone === "err") status = "err";
     else if (issues.length > 0) status = "warn";
     return { status, issues };
-  }, [conn, freshness.lastEventAt]);
+  }, [conn, freshness.lastEventAt, counts.unmappedPrices]);
 
-  const matchRate = counts.totalEvents > 0
-    ? Math.round(((counts.matched + counts.totalEvents - counts.matched - counts.noMatch * 0) / counts.totalEvents) * 0)
-    : 0;
-  // Simpler: matched/(matched+noMatch) approximation using existing counts
-  const denom = counts.matched + counts.noMatch;
-  const matchPct = denom > 0 ? Math.round((counts.matched / denom) * 100) : null;
+  const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 
   const maxDay = Math.max(1, ...eventsByDay.map((d) => d.count));
 
