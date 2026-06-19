@@ -161,12 +161,36 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
         }
       }
 
+      // Também atualizar stripe_conversions já existentes para refletir o novo mapeamento
+      let stripeUpdated = 0;
+      if (normalizedPriceId) {
+        const { data: stripeRows, error: stripeErr } = await supabase
+          .from("stripe_conversions")
+          .select("id, mrr")
+          .eq("stripe_price_id", normalizedPriceId);
+        if (stripeErr) throw stripeErr;
+        if (stripeRows && stripeRows.length > 0) {
+          const overrideMrr = null; // mrr_override do price_map é tratado no webhook; aqui mantemos o mrr atual
+          for (const s of stripeRows) {
+            const { error: sUpErr } = await supabase
+              .from("stripe_conversions")
+              .update({
+                area: payload.area,
+                plan_name: planName,
+                product_name: normalizedOfferName || undefined,
+              })
+              .eq("id", s.id);
+            if (sUpErr) throw sUpErr;
+            stripeUpdated++;
+          }
+        }
+      }
+
       toast({
         title: "Mapeamento salvo",
-        description: ref
-          ? `${recalculated} conversão(ões) recalculada(s) automaticamente.`
-          : `Plano sem regra ativa na Referência — ${recalculated} conversão(ões) atualizada(s).`,
+        description: `${recalculated} conversão(ões) de comissão e ${stripeUpdated} conversão(ões) Stripe atualizadas.${ref ? "" : " (Plano sem regra ativa na Referência.)"}`,
       });
+
       onMapped();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível salvar o mapeamento.";
