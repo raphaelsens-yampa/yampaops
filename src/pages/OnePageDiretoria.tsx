@@ -23,7 +23,7 @@ const ds = (label: string, data: number[], color: string, extra: any = {}) => ({
 const vc = (cls?: string) => cls==="up"?C.green: cls==="down"?C.red: cls==="amber"?C.amber: C.sec;
 
 function Card({ children, className="" }: any) {
-  return <div className={"rounded-[10px] border min-w-0 "+className} style={{background:C.card,borderColor:C.line,padding:"14px 16px"}}>{children}</div>;
+  return <div className={"rounded-[10px] min-w-0 "+className} style={{background:C.card,padding:"14px 16px"}}>{children}</div>;
 }
 function Mini({ children }: any) {
   return <h4 className="text-[11px] uppercase tracking-wide mb-2" style={{color:C.mute}}>{children}</h4>;
@@ -54,8 +54,8 @@ function Tag({ children, t }: any) {
 const G = { g4:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3.5 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
 
 function Page({ id, ttl, meta, children }: any) {
-  return <section id={id} className="scroll-mt-20 mb-8">
-    <div className="flex justify-between items-baseline flex-wrap gap-2 border-b pb-2.5 mb-4" style={{borderColor:C.line}}>
+  return <section id={id} className="scroll-mt-20 mb-5">
+    <div className="flex justify-between items-baseline flex-wrap gap-2 pb-2 mb-3">
       <h2 className="text-[18px] font-extrabold tracking-tight uppercase" style={{color:C.white}}>{ttl}</h2>
       <div className="text-[11px]" style={{color:C.mute}}>{meta}</div>
     </div>
