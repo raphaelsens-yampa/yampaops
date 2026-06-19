@@ -365,21 +365,20 @@ export default function StripeConversions() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Conversão</TableHead>
-                    <TableHead>Cadastro</TableHead>
+                    <TableHead>1º Pagamento</TableHead>
+                    <TableHead>Cliente desde</TableHead>
                     <TableHead>Área</TableHead>
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead className="text-right">MRR</TableHead>
-                    <TableHead className="text-center">Deal?</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
@@ -396,11 +395,6 @@ export default function StripeConversions() {
                       </TableCell>
                       <TableCell className="text-xs">{r.customer_email || "—"}</TableCell>
                       <TableCell className="text-right font-medium">{fmtBRL(Number(r.mrr || 0))}</TableCell>
-                      <TableCell className="text-center">
-                        {r.matched_opportunity_id
-                          ? <CheckCircle2 className="h-4 w-4 text-green-500 inline" />
-                          : <XCircle className="h-4 w-4 text-muted-foreground inline" />}
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
