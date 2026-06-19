@@ -30,10 +30,12 @@ interface Props {
 
 export function MapPriceDialog({ target, reference, priceMap, profiles, onClose, onMapped }: Props) {
   const { toast } = useToast();
+  const AREAS = ["Sales", "CX", "Marketing", "Produto", "Parceria"] as const;
   const [planName, setPlanName] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("mensal");
   const [sellerUserId, setSellerUserId] = useState<string>("");
-  const [sellerLabel, setSellerLabel] = useState("Sales");
+  const [sellerLabel, setSellerLabel] = useState("");
+  const [area, setArea] = useState<string>("Sales");
   const [saving, setSaving] = useState(false);
   const [planPopoverOpen, setPlanPopoverOpen] = useState(false);
   const [planQuery, setPlanQuery] = useState("");
@@ -72,7 +74,7 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
       price_name: normalizedOfferName,
       plan_name: planName,
       payment_type: paymentType,
-      area: "Sales",
+      area: area,
       seller_user_id: sellerUserId || null,
       seller_label: sellerLabel || null,
     };
@@ -268,6 +270,17 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
               <SelectContent>
                 {PAYMENT_TYPES.map((pt) => (
                   <SelectItem key={pt} value={pt}>{PAYMENT_TYPE_LABEL[pt]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Área</Label>
+            <Select value={area} onValueChange={setArea}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {AREAS.map((a) => (
+                  <SelectItem key={a} value={a}>{a}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
