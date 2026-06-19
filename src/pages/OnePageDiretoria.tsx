@@ -23,7 +23,7 @@ const ds = (label: string, data: number[], color: string, extra: any = {}) => ({
 const vc = (cls?: string) => cls==="up"?C.green: cls==="down"?C.red: cls==="amber"?C.amber: C.sec;
 
 function Card({ children, className="" }: any) {
-  return <div className={"rounded-[10px] min-w-0 "+className} style={{background:C.card,padding:"14px 16px"}}>{children}</div>;
+  return <div className={"rounded-[10px] min-w-0 "+className} style={{background:C.card,padding:"10px 12px"}}>{children}</div>;
 }
 function Mini({ children }: any) {
   return <h4 className="text-[11px] uppercase tracking-wide mb-2" style={{color:C.mute}}>{children}</h4>;
