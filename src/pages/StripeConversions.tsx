@@ -24,14 +24,12 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const AREAS = ["Sales", "CX", "Marketing", "Produto", "YampaFin", "desconhecida"] as const;
-type Area = (typeof AREAS)[number];
-
-const AREA_COLORS: Record<Area, string> = {
+const AREA_COLORS: Record<string, string> = {
   Sales: "hsl(193 99% 44%)",
   CX: "hsl(264 90% 47%)",
   Marketing: "hsl(35 92% 55%)",
   Produto: "hsl(150 60% 45%)",
+  Parceria: "hsl(280 70% 55%)",
   YampaFin: "hsl(340 75% 55%)",
   desconhecida: "hsl(220 10% 60%)",
 };
