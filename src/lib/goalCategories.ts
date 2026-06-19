@@ -33,8 +33,14 @@ export const FINANCIAL_SLUGS = {
   CAMPANHA_MRR: "campanha_mrr",
 };
 
-// Categorias cujo realizado é calculado automaticamente pela integração Stripe
-export const STRIPE_DRIVEN_SLUGS = new Set<string>(["new_mrr"]);
+// Categorias cujo realizado é calculado automaticamente pela integração Stripe.
+// Cada slug é associado a uma área do Stripe (stripe_conversions.area), garantindo
+// que o valor exibido na tela de Metas bata exatamente com "Conversões por Área".
+export const STRIPE_AREA_BY_SLUG: Record<string, string> = {
+  new_mrr: "Sales",
+  campanha_mrr: "Marketing",
+};
+export const STRIPE_DRIVEN_SLUGS = new Set<string>(Object.keys(STRIPE_AREA_BY_SLUG));
 
 export function groupByArea(categories: GoalCategory[]): Record<CategoryArea, GoalCategory[]> {
   return categories.reduce((acc, c) => {

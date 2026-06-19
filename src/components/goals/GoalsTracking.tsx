@@ -14,7 +14,7 @@ import {
   differenceInCalendarDays, isAfter, startOfDay,
 } from "date-fns";
 import { GoalsBreakdownByCategory, type CategoryRow } from "./GoalsBreakdownByCategory";
-import { AREA_LABELS, FINANCIAL_SLUGS, STRIPE_DRIVEN_SLUGS, type GoalCategory } from "@/lib/goalCategories";
+import { AREA_LABELS, FINANCIAL_SLUGS, STRIPE_DRIVEN_SLUGS, STRIPE_AREA_BY_SLUG, type GoalCategory } from "@/lib/goalCategories";
 
 function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
@@ -309,6 +309,11 @@ export function GoalsTracking() {
       return sellerIds.has(cid);
     });
     const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
+    const stripeMrrByArea = new Map<string, number>();
+    stripeInScope.forEach((sc: any) => {
+      const a = sc.area || "desconhecida";
+      stripeMrrByArea.set(a, (stripeMrrByArea.get(a) || 0) + (Number(sc.mrr) || 0));
+    });
 
     return categories.map((cat) => {
       const matchingGoals = goals.filter((g) => {
@@ -331,15 +336,18 @@ export function GoalsTracking() {
       }, 0);
       const hasOverride = matchingGoals.some((g) => g.realized_override != null);
 
+      // Valor automático Stripe específico para esta categoria (filtrado por área)
+      const stripeArea = STRIPE_AREA_BY_SLUG[cat.slug];
+      const stripeAutoForCat = stripeArea ? (stripeMrrByArea.get(stripeArea) || 0) : 0;
+
       if (STRIPE_DRIVEN_SLUGS.has(cat.slug)) {
-        // New MRR (categoria automática via Stripe)
         source = "stripe";
         if (hasOverride) {
           realizedCat = overrideSum;
           manualOverride = true;
           source = "manual";
         } else {
-          realizedCat = stripeMrrSum;
+          realizedCat = stripeAutoForCat;
         }
       } else if (cat.slug === FINANCIAL_SLUGS.LTV) {
         const wonAll = wonScope;
@@ -374,7 +382,7 @@ export function GoalsTracking() {
         source,
         manualOverride,
         goalIds: matchingGoals.map((g) => g.id),
-        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeMrrSum : null,
+        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeAutoForCat : null,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
   }, [categories, goals, opportunities, stripeConversions, priceMapByPriceId, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
