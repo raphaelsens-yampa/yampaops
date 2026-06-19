@@ -398,7 +398,7 @@ export default function StripeIntegration() {
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               {[
                 { label: "Último evento recebido", iso: freshness.lastEventAt },
-                { label: "Última conversão registrada", iso: freshness.lastConversionAt },
+                { label: "Último 1º pagamento registrado", iso: freshness.lastConversionAt },
                 { label: "Último sync manual", iso: freshness.lastSyncAt, warnHours: 48, errHours: 168 },
               ].map((f) => {
                 const tone = freshnessTone(f.iso, f.warnHours, f.errHours);
