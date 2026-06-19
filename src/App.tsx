@@ -120,6 +120,7 @@ function AppRoutes() {
       <Route path="/comissionamento" element={<RequireArea area="comissionamento"><Comissionamento /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/one-page-diretoria" element={<OnePageDiretoria />} />
+      <Route path="/relatorio" element={<OnePageDiretoria />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
