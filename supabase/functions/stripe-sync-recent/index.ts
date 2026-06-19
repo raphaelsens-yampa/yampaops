@@ -27,11 +27,11 @@ Deno.serve(async (req) => {
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
-  // hours: janela para olhar para trás (default 2h, gera sobreposição com o cron de 1h)
+  // hours: janela retroativa (default 2h; cap 4320h = 180 dias para permitir recuperação após mudanças no webhook)
   let hours = 2;
   try {
     const body = await req.json();
-    if (body?.hours) hours = Math.max(1, Math.min(72, Number(body.hours)));
+    if (body?.hours) hours = Math.max(1, Math.min(4320, Number(body.hours)));
   } catch {}
 
   const sinceUnix = Math.floor((Date.now() - hours * 3600 * 1000) / 1000);
@@ -42,48 +42,54 @@ Deno.serve(async (req) => {
   const errors: string[] = [];
 
   try {
-    // Lista assinaturas criadas na janela
-    const subs = await stripe.subscriptions.list({
-      created: { gte: sinceUnix },
-      limit: 100,
-      status: "all",
-    });
+    // Paginar todas as assinaturas criadas dentro da janela
+    let startingAfter: string | undefined = undefined;
+    let pages = 0;
+    while (true) {
+      const subs = await stripe.subscriptions.list({
+        created: { gte: sinceUnix },
+        limit: 100,
+        status: "all",
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      for (const sub of subs.data) {
+        // Pula se já temos conversão para essa subscription
+        const { data: existing } = await supabase
+          .from("stripe_conversions")
+          .select("id")
+          .eq("stripe_subscription_id", sub.id)
+          .maybeSingle();
+        if (existing) { alreadyDone++; continue; }
 
-    for (const sub of subs.data) {
-      // Pula se já temos conversão para essa subscription
-      const { data: existing } = await supabase
-        .from("stripe_conversions")
-        .select("id")
-        .eq("stripe_subscription_id", sub.id)
-        .maybeSingle();
-      if (existing) { alreadyDone++; continue; }
+        // Event id único por execução (Date.now) — evita colisão com resyncs antigos
+        // gravados em stripe_events com id previsível que faria o webhook retornar "duplicate".
+        const fakeEvent = {
+          id: `internal_resync_${sub.id}_${Date.now()}`,
+          type: "customer.subscription.created",
+          created: sub.created,
+          data: { object: sub },
+        };
 
-      // Monta um event sintético no formato customer.subscription.created e
-      // chama o próprio webhook (sem assinatura — webhook aceita sem secret apenas em dev,
-      // então usamos service key como Bearer e marcamos como interno).
-      const fakeEvent = {
-        id: `internal_resync_${sub.id}`,
-        type: "customer.subscription.created",
-        created: sub.created,
-        data: { object: sub },
-      };
-
-      try {
-        const res = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // O webhook em si não exige Authorization — passamos para evitar bloqueio do gateway
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify(fakeEvent),
-        });
-        if (res.ok) processed++;
-        else { failed++; errors.push(`sub ${sub.id}: ${res.status}`); }
-      } catch (e: any) {
-        failed++;
-        errors.push(`sub ${sub.id}: ${e.message}`);
+        try {
+          const res = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify(fakeEvent),
+          });
+          if (res.ok) processed++;
+          else { failed++; errors.push(`sub ${sub.id}: ${res.status}`); }
+        } catch (e: any) {
+          failed++;
+          errors.push(`sub ${sub.id}: ${e.message}`);
+        }
       }
+      pages++;
+      if (!subs.has_more || pages >= 50) break;
+      startingAfter = subs.data[subs.data.length - 1]?.id;
+      if (!startingAfter) break;
     }
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e.message }), {
