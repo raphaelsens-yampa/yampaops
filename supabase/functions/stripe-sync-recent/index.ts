@@ -27,11 +27,11 @@ Deno.serve(async (req) => {
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
-  // hours: janela para olhar para trás (default 2h, gera sobreposição com o cron de 1h)
+  // hours: janela retroativa (default 2h; cap 4320h = 180 dias para permitir recuperação após mudanças no webhook)
   let hours = 2;
   try {
     const body = await req.json();
-    if (body?.hours) hours = Math.max(1, Math.min(72, Number(body.hours)));
+    if (body?.hours) hours = Math.max(1, Math.min(4320, Number(body.hours)));
   } catch {}
 
   const sinceUnix = Math.floor((Date.now() - hours * 3600 * 1000) / 1000);
@@ -42,14 +42,17 @@ Deno.serve(async (req) => {
   const errors: string[] = [];
 
   try {
-    // Lista assinaturas criadas na janela
-    const subs = await stripe.subscriptions.list({
-      created: { gte: sinceUnix },
-      limit: 100,
-      status: "all",
-    });
-
-    for (const sub of subs.data) {
+    // Paginar todas as assinaturas criadas dentro da janela
+    let startingAfter: string | undefined = undefined;
+    let pages = 0;
+    while (true) {
+      const subs = await stripe.subscriptions.list({
+        created: { gte: sinceUnix },
+        limit: 100,
+        status: "all",
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      for (const sub of subs.data) {
       // Pula se já temos conversão para essa subscription
       const { data: existing } = await supabase
         .from("stripe_conversions")
