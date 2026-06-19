@@ -14,6 +14,7 @@ import {
   Loader2, Copy, CheckCircle2, XCircle, AlertCircle, ExternalLink,
   RefreshCw, Activity, Clock, Zap, LifeBuoy,
 } from "lucide-react";
+import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/stripe-webhook`;
