@@ -372,14 +372,15 @@ export default function StripeConversions() {
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead className="text-right">MRR</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
@@ -396,6 +397,18 @@ export default function StripeConversions() {
                       </TableCell>
                       <TableCell className="text-xs">{r.customer_email || "—"}</TableCell>
                       <TableCell className="text-right font-medium">{fmtBRL(Number(r.mrr || 0))}</TableCell>
+                      <TableCell className="text-right">
+                        {r.area === "desconhecida" && r.stripe_price_id && (
+                          <MapStripePriceButton
+                            price_id={r.stripe_price_id}
+                            offer_name={r.product_name}
+                            customer_name={r.customer_email}
+                            customer_email={r.customer_email}
+                            mrr={r.mrr}
+                            onMapped={() => refetch()}
+                          />
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
