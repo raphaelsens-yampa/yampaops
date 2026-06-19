@@ -158,14 +158,13 @@ export default function StripeConversions() {
 
   function exportCSV() {
     const data = rows.map(r => ({
-      Data_Conversao: fmtDate(r.converted_at),
-      Data_Cadastro: fmtDate(r.registered_at),
+      Primeiro_Pagamento: fmtDate(r.converted_at),
+      Cliente_Desde: fmtDate(r.registered_at),
       Area: r.area,
       Produto: r.product_name || "",
       Plano: r.plan_name || "",
       Email: r.customer_email || "",
       MRR: r.mrr,
-      Matched_Deal: r.matched_opportunity_id ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -176,19 +175,17 @@ export default function StripeConversions() {
 
   function exportXLSX() {
     const data = rows.map(r => ({
-      "Data Conversão": fmtDate(r.converted_at),
-      "Data Cadastro": fmtDate(r.registered_at),
+      "1º Pagamento": fmtDate(r.converted_at),
+      "Cliente desde": fmtDate(r.registered_at),
       "Área": r.area,
       "Produto": r.product_name || "",
       "Plano": r.plan_name || "",
       "Email": r.customer_email || "",
       "MRR (R$)": r.mrr,
-      "Match com Deal": r.matched_opportunity_id ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conversões");
-    // Aba resumo por área
     const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, "MRR (R$)": a.mrr }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo por Área");
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -214,11 +211,11 @@ export default function StripeConversions() {
     const startY = (doc as any).lastAutoTable?.finalY + 8 || 80;
     autoTable(doc, {
       startY,
-      head: [["Data", "Cadastro", "Área", "Produto", "Plano", "Email", "MRR", "Deal"]],
+      head: [["1º Pagamento", "Cliente desde", "Área", "Produto", "Plano", "Email", "MRR"]],
       body: rows.map(r => [
         fmtDate(r.converted_at), fmtDate(r.registered_at), r.area,
         r.product_name || "", r.plan_name || "", r.customer_email || "",
-        fmtBRL(Number(r.mrr || 0)), r.matched_opportunity_id ? "Sim" : "Não",
+        fmtBRL(Number(r.mrr || 0)),
       ]),
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [5, 32, 51] },
