@@ -66,6 +66,26 @@ function Page({ id, ttl, meta, children }: any) {
 const MESES = D.meses;
 const NAV = [["p1","One Page",C.blue],["p2","Financeiro",C.blue],["p3","Plano de Metas",C.green],["p4","Revenue",C.green],["p5","Marketing",C.amber],["p6","Produto",C.purple]];
 
+const waitFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+function inlineCanvasCharts(src: HTMLElement, clone: HTMLElement) {
+  const sourceCanvases = Array.from(src.querySelectorAll("canvas")) as HTMLCanvasElement[];
+  const clonedCanvases = Array.from(clone.querySelectorAll("canvas")) as HTMLCanvasElement[];
+  clonedCanvases.forEach((canvas, index) => {
+    const source = sourceCanvases[index];
+    if (!source) return;
+    const img = document.createElement("img");
+    img.src = source.toDataURL("image/png");
+    img.alt = "Gráfico da seção exportada";
+    img.style.cssText = canvas.style.cssText;
+    img.style.display = "block";
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.objectFit = "contain";
+    canvas.replaceWith(img);
+  });
+}
+
 export default function OnePageDiretoria() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [active,setActive]=useState("p1");
@@ -98,11 +118,10 @@ export default function OnePageDiretoria() {
   const downloadPdf=async()=>{
     if(downloading) return;
     setDownloading(true);
-    // Render width that matches A4 landscape aspect (1123x794 ~ 1.414)
-    const RENDER_W=1400;
-    const PAGE_MARGIN=24; // pt
+    const RENDER_W=1600;
+    const PAGE_MARGIN=22; // pt
     const stage=document.createElement("div");
-    stage.style.cssText=`position:fixed;left:-10000px;top:0;width:${RENDER_W}px;background:${C.bg};color:${C.white};font-family:-apple-system,Segoe UI,Roboto,Calibri,sans-serif;padding:24px;box-sizing:border-box;z-index:-1;`;
+    stage.style.cssText=`position:fixed;left:-10000px;top:0;width:${RENDER_W}px;background:${C.bg};color:${C.white};font-family:-apple-system,Segoe UI,Roboto,Calibri,sans-serif;padding:22px;box-sizing:border-box;pointer-events:none;`;
     document.body.appendChild(stage);
     try{
       const [{default:html2canvas},{default:jsPDF}]=await Promise.all([
@@ -113,43 +132,33 @@ export default function OnePageDiretoria() {
       const ph=pdf.internal.pageSize.getHeight();
       const innerW=pw-PAGE_MARGIN*2;
       const innerH=ph-PAGE_MARGIN*2-18; // leave room for footer
-      let pageCount=0;
+      if(document.fonts?.ready) await document.fonts.ready;
       for(let i=0;i<NAV.length;i++){
         const [id,label]=NAV[i];
         const src=document.getElementById(id as string) as HTMLElement|null;
         if(!src) continue;
         const clone=src.cloneNode(true) as HTMLElement;
-        clone.style.width=`${RENDER_W-48}px`;
+        clone.style.width=`${RENDER_W-44}px`;
         clone.style.maxWidth="none";
+        clone.style.margin="0";
+        clone.style.scrollMarginTop="0";
         stage.innerHTML="";
         stage.appendChild(clone);
-        // wait a frame for layout
-        await new Promise(r=>requestAnimationFrame(()=>r(null)));
-        const canvas=await html2canvas(stage,{backgroundColor:C.bg,scale:2,useCORS:true,windowWidth:RENDER_W,width:RENDER_W,height:stage.scrollHeight});
-        // Map canvas px -> pt at innerW
-        const pxPerPt=canvas.width/innerW;
-        const sliceHpx=Math.floor(innerH*pxPerPt);
-        const totalH=canvas.height;
-        const slices=Math.max(1,Math.ceil(totalH/sliceHpx));
-        for(let s=0;s<slices;s++){
-          const sy=s*sliceHpx;
-          const sh=Math.min(sliceHpx,totalH-sy);
-          const slice=document.createElement("canvas");
-          slice.width=canvas.width; slice.height=sh;
-          const ctx=slice.getContext("2d")!;
-          ctx.fillStyle=C.bg; ctx.fillRect(0,0,slice.width,slice.height);
-          ctx.drawImage(canvas,0,sy,canvas.width,sh,0,0,canvas.width,sh);
-          const img=slice.toDataURL("image/jpeg",0.92);
-          const drawH=sh/pxPerPt;
-          if(pageCount>0) pdf.addPage("a4","landscape");
-          pageCount++;
-          pdf.setFillColor(11,24,36); pdf.rect(0,0,pw,ph,"F");
-          pdf.addImage(img,"JPEG",PAGE_MARGIN,PAGE_MARGIN,innerW,drawH);
-          pdf.setFontSize(9); pdf.setTextColor(180,196,208);
-          const part=slices>1?` (${s+1}/${slices})`:"";
-          pdf.text(`${label}${part}`,PAGE_MARGIN,ph-10);
-          pdf.text(`${pageCount}`,pw-PAGE_MARGIN,ph-10,{align:"right"});
-        }
+        await waitFrame();
+        inlineCanvasCharts(src, clone);
+        await waitFrame();
+        const canvas=await html2canvas(stage,{backgroundColor:C.bg,scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:RENDER_W,width:RENDER_W,height:stage.scrollHeight});
+        const fitByWidthH=canvas.height*(innerW/canvas.width);
+        const drawW=fitByWidthH>innerH ? canvas.width*(innerH/canvas.height) : innerW;
+        const drawH=fitByWidthH>innerH ? innerH : fitByWidthH;
+        const x=PAGE_MARGIN+(innerW-drawW)/2;
+        const y=PAGE_MARGIN+(innerH-drawH)/2;
+        if(i>0) pdf.addPage("a4","landscape");
+        pdf.setFillColor(11,24,36); pdf.rect(0,0,pw,ph,"F");
+        pdf.addImage(canvas.toDataURL("image/png"),"PNG",x,y,drawW,drawH,undefined,"FAST");
+        pdf.setFontSize(9); pdf.setTextColor(180,196,208);
+        pdf.text(label as string,PAGE_MARGIN,ph-10);
+        pdf.text(`${i+1}/${NAV.length}`,pw-PAGE_MARGIN,ph-10,{align:"right"});
       }
       pdf.save(`OnePage-Diretoria-${new Date().toISOString().slice(0,10)}.pdf`);
     } finally {
