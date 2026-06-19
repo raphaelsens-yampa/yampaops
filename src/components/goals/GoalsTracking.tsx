@@ -309,6 +309,11 @@ export function GoalsTracking() {
       return sellerIds.has(cid);
     });
     const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
+    const stripeMrrByArea = new Map<string, number>();
+    stripeInScope.forEach((sc: any) => {
+      const a = sc.area || "desconhecida";
+      stripeMrrByArea.set(a, (stripeMrrByArea.get(a) || 0) + (Number(sc.mrr) || 0));
+    });
 
     return categories.map((cat) => {
       const matchingGoals = goals.filter((g) => {
@@ -331,15 +336,18 @@ export function GoalsTracking() {
       }, 0);
       const hasOverride = matchingGoals.some((g) => g.realized_override != null);
 
+      // Valor automático Stripe específico para esta categoria (filtrado por área)
+      const stripeArea = STRIPE_AREA_BY_SLUG[cat.slug];
+      const stripeAutoForCat = stripeArea ? (stripeMrrByArea.get(stripeArea) || 0) : 0;
+
       if (STRIPE_DRIVEN_SLUGS.has(cat.slug)) {
-        // New MRR (categoria automática via Stripe)
         source = "stripe";
         if (hasOverride) {
           realizedCat = overrideSum;
           manualOverride = true;
           source = "manual";
         } else {
-          realizedCat = stripeMrrSum;
+          realizedCat = stripeAutoForCat;
         }
       } else if (cat.slug === FINANCIAL_SLUGS.LTV) {
         const wonAll = wonScope;
