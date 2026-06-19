@@ -223,7 +223,25 @@ export function GoalsTracking() {
     });
   }, [isAdmin, teams, teamMembers, sellerRows, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
 
-  const wonForChart = wonInPeriod.map((o) => ({ date: new Date(o.updated_at), mrr: Number(o.estimated_mrr) || 0 }));
+  // Chart usa as conversões Stripe (mesma fonte do KPI Realizado)
+  const wonForChart = useMemo(() => {
+    const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
+    const oppById = new Map<string, any>();
+    opportunities.forEach((o) => oppById.set(o.id, o));
+    const out: { date: Date; mrr: number }[] = [];
+    stripeConversions.forEach((sc: any) => {
+      if (!sc.converted_at) return;
+      const d = new Date(sc.converted_at);
+      if (d < start || d > end) return;
+      if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
+        const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+        const cid = opp?.consultant_id || null;
+        if (!cid || !sellerIds.has(cid)) return;
+      }
+      out.push({ date: d, mrr: Number(sc.mrr) || 0 });
+    });
+    return out;
+  }, [stripeConversions, opportunities, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
 
   // Breakdown por categoria
   const categoryRows: CategoryRow[] = useMemo(() => {
