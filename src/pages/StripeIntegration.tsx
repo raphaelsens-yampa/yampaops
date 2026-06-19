@@ -137,6 +137,8 @@ export default function StripeIntegration() {
   });
   const [freshness, setFreshness] = useState<Freshness>({ lastEventAt: null, lastConversionAt: null, lastSyncAt: null });
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
+  const [recentConversions, setRecentConversions] = useState<RecentConversion[]>([]);
+  const [showTechLog, setShowTechLog] = useState(false);
   const [eventsByDay, setEventsByDay] = useState<{ day: string; count: number }[]>([]);
   const [eventsByType, setEventsByType] = useState<{ type: string; count: number }[]>([]);
   const [unmapped, setUnmapped] = useState<UnmappedPrice[]>([]);
