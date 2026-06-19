@@ -6,10 +6,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import Auth from "./pages/Auth";
-import AdminDashboard from "./pages/AdminDashboard";
+// import AdminDashboard from "./pages/AdminDashboard"; // archived
 import SellerKanban from "./pages/SellerKanban";
 import Goals from "./pages/Goals";
 import Pipeline from "./pages/Pipeline";
+
 import Team from "./pages/Team";
 import Contacts from "./pages/Contacts";
 import Commissions from "./pages/Commissions";
