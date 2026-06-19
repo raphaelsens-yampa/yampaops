@@ -24,6 +24,7 @@ export const CRM_SECTIONS = [
       { key: "forecast", label: "Forecast" },
       { key: "goals", label: "Metas" },
       { key: "conversions", label: "Conversões por Área" },
+      { key: "one_page_diretoria", label: "OnePage Diretoria" },
     ],
   },
   {
