@@ -274,6 +274,10 @@ export default function StripeIntegration() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={handleBackfillDates} disabled={backfilling} variant="outline" size="sm" title="Recalcula registered_at e converted_at de todas as conversões usando dados do Stripe">
+              {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
+              Recalcular datas
+            </Button>
             <Button onClick={handleSync} disabled={syncing} variant="outline" size="sm">
               {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
               Sincronizar
