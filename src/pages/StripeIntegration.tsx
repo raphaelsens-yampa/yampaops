@@ -711,6 +711,11 @@ export default function StripeIntegration() {
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {formatRelative(u.last_seen)}
                   </span>
+                  <MapStripePriceButton
+                    price_id={u.price_id}
+                    customer_email={u.sample_email}
+                    onMapped={fetchAll}
+                  />
                 </div>
               ))}
               {unmapped.length > 20 && (
