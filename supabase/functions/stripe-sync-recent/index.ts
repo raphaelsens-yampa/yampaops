@@ -53,40 +53,43 @@ Deno.serve(async (req) => {
         ...(startingAfter ? { starting_after: startingAfter } : {}),
       });
       for (const sub of subs.data) {
-      // Pula se já temos conversão para essa subscription
-      const { data: existing } = await supabase
-        .from("stripe_conversions")
-        .select("id")
-        .eq("stripe_subscription_id", sub.id)
-        .maybeSingle();
-      if (existing) { alreadyDone++; continue; }
+        // Pula se já temos conversão para essa subscription
+        const { data: existing } = await supabase
+          .from("stripe_conversions")
+          .select("id")
+          .eq("stripe_subscription_id", sub.id)
+          .maybeSingle();
+        if (existing) { alreadyDone++; continue; }
 
-      // Monta um event sintético no formato customer.subscription.created e
-      // chama o próprio webhook (sem assinatura — webhook aceita sem secret apenas em dev,
-      // então usamos service key como Bearer e marcamos como interno).
-      const fakeEvent = {
-        id: `internal_resync_${sub.id}`,
-        type: "customer.subscription.created",
-        created: sub.created,
-        data: { object: sub },
-      };
+        // Event id único por execução (Date.now) — evita colisão com resyncs antigos
+        // gravados em stripe_events com id previsível que faria o webhook retornar "duplicate".
+        const fakeEvent = {
+          id: `internal_resync_${sub.id}_${Date.now()}`,
+          type: "customer.subscription.created",
+          created: sub.created,
+          data: { object: sub },
+        };
 
-      try {
-        const res = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // O webhook em si não exige Authorization — passamos para evitar bloqueio do gateway
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify(fakeEvent),
-        });
-        if (res.ok) processed++;
-        else { failed++; errors.push(`sub ${sub.id}: ${res.status}`); }
-      } catch (e: any) {
-        failed++;
-        errors.push(`sub ${sub.id}: ${e.message}`);
+        try {
+          const res = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify(fakeEvent),
+          });
+          if (res.ok) processed++;
+          else { failed++; errors.push(`sub ${sub.id}: ${res.status}`); }
+        } catch (e: any) {
+          failed++;
+          errors.push(`sub ${sub.id}: ${e.message}`);
+        }
       }
+      pages++;
+      if (!subs.has_more || pages >= 50) break;
+      startingAfter = subs.data[subs.data.length - 1]?.id;
+      if (!startingAfter) break;
     }
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e.message }), {
