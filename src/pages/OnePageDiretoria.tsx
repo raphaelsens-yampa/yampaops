@@ -73,14 +73,31 @@ export default function OnePageDiretoria() {
     NAV.forEach(([id])=>{const el=document.getElementById(id as string);if(el)obs.observe(el);});
     return ()=>obs.disconnect();
   },[]);
-  const go=(id:string)=>document.getElementById(id)?.scrollIntoView({behavior:"smooth"});
+  useEffect(()=>{
+    // Make Layout's <main> the single scroll container with dark bg, no padding,
+    // so the sticky tab bar stays pinned to the top of the viewport.
+    const main=document.querySelector("main");
+    if(!main) return;
+    const prev={bg:main.style.background,padding:main.style.padding,color:main.style.color};
+    main.style.background=C.bg;
+    main.style.padding="0";
+    main.style.color=C.white;
+    return ()=>{main.style.background=prev.bg;main.style.padding=prev.padding;main.style.color=prev.color;};
+  },[]);
+  const go=(id:string)=>{
+    const el=document.getElementById(id);
+    const main=document.querySelector("main");
+    if(!el||!main) return;
+    const top=el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 44;
+    main.scrollTo({top,behavior:"smooth"});
+  };
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-0 overflow-auto -mx-3 sm:-mx-4 md:-mx-6 -my-3 sm:-my-4 md:-my-6 px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+      <div className="flex flex-col" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
-          className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-2 lg:px-3 py-1.5 backdrop-blur"
-          style={{background:C.bg}}
+          className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-3 lg:px-4 py-2 backdrop-blur border-b"
+          style={{background:C.bg+"f0",borderColor:"#16283b"}}
         >
           {NAV.map(([id,label,col])=>{
             const isActive = active===id;
@@ -98,7 +115,7 @@ export default function OnePageDiretoria() {
           })}
         </div>
 
-        <div className="flex-1 px-2 lg:px-3 py-2">
+        <div className="px-3 lg:px-4 py-3">
 
             <Page id="p1" ttl="One Page · Gestão Executiva" meta="Jan–Jun 2026 · Dados até 16/06/2026">
               <div className={G.g4}>{[
