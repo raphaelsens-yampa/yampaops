@@ -481,36 +481,41 @@ export default function StripeIntegration() {
           </CardContent>
         </Card>
 
-        {/* Erros não resolvidos */}
-        {syncErrors.length > 0 && (
-          <Card className="border-destructive/30">
+        {/* Preços do Stripe sem entrada no Mapa de Preços */}
+        {unmapped.length > 0 && (
+          <Card className="border-warning/40">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" /> Erros não resolvidos ({syncErrors.length})
+              <CardTitle className="text-base flex items-center gap-2 text-warning">
+                <AlertCircle className="h-4 w-4" /> Preços fora do Mapa ({unmapped.length})
               </CardTitle>
-              <CardDescription>Pagamentos do Stripe sem oportunidade correspondente.</CardDescription>
+              <CardDescription>
+                Esses <code className="font-mono">price_id</code> chegaram do Stripe mas não têm correspondência em <strong>Comissionamento › Mapa de Preços</strong>, então caem como <code>desconhecida</code> no gráfico de Conversões por Área. Cadastre-os no Mapa para classificá-los.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {syncErrors.map((err) => {
-                const email = err.payload?.customer_email || err.ac_id || "—";
-                return (
-                  <div key={err.id} className="flex items-center gap-3 text-sm border rounded-md p-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{email}</p>
-                      <p className="text-xs text-muted-foreground truncate">{err.error_message}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatRelative(err.created_at)}
-                    </span>
-                    <Button size="sm" variant="ghost" onClick={() => resolveError(err.id)}>
-                      Resolver
-                    </Button>
+              {unmapped.slice(0, 20).map((u) => (
+                <div key={u.price_id} className="flex items-center gap-3 text-sm border rounded-md p-2">
+                  <div className="flex-1 min-w-0">
+                    <code className="font-mono text-xs truncate block">{u.price_id}</code>
+                    {u.sample_email && (
+                      <p className="text-xs text-muted-foreground truncate">último: {u.sample_email}</p>
+                    )}
                   </div>
-                );
-              })}
+                  <Badge variant="outline">{u.count}× </Badge>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatRelative(u.last_seen)}
+                  </span>
+                </div>
+              ))}
+              {unmapped.length > 20 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  +{unmapped.length - 20} preço(s) adicionais não exibidos.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
+
 
         {/* Credentials detail (collapsed-ish) */}
         <Card>
