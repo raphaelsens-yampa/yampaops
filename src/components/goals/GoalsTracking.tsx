@@ -172,11 +172,27 @@ export function GoalsTracking() {
   const daysElapsed = Math.max(0, Math.min(elapsedRaw, totalDays));
   const pace = daysElapsed > 0 ? (realized / daysElapsed) * totalDays : 0;
 
+  // Realizado por vendedor a partir das conversões Stripe (mesma fonte do KPI)
+  const realizedBySeller = useMemo(() => {
+    const oppById = new Map<string, any>();
+    opportunities.forEach((o) => oppById.set(o.id, o));
+    const map = new Map<string, number>();
+    stripeConversions.forEach((sc: any) => {
+      if (!sc.converted_at) return;
+      const d = new Date(sc.converted_at);
+      if (d < start || d > end) return;
+      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+      const cid = opp?.consultant_id;
+      if (!cid) return;
+      map.set(cid, (map.get(cid) || 0) + (Number(sc.mrr) || 0));
+    });
+    return map;
+  }, [stripeConversions, opportunities, start, end]);
+
   // Per-seller rows
   const sellerRows: SellerRow[] = useMemo(() => {
     return sellersInScope.map((p) => {
-      const sellerWon = wonInPeriod.filter((o) => o.consultant_id === p.user_id);
-      const sellerRealized = sellerWon.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
+      const sellerRealized = realizedBySeller.get(p.user_id) || 0;
 
       // seller monthly target
       const userMonthly = goals
@@ -190,7 +206,7 @@ export function GoalsTracking() {
 
       return { user_id: p.user_id, name: p.full_name || "—", target, realized: sellerRealized };
     });
-  }, [sellersInScope, wonInPeriod, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
+  }, [sellersInScope, realizedBySeller, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
 
   // Per-team rows (admin only)
   const teamRows: TeamRow[] = useMemo(() => {
