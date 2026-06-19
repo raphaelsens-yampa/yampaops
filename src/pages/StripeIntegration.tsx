@@ -61,6 +61,18 @@ interface RecentEvent {
   payload: any;
 }
 
+interface RecentConversion {
+  id: string;
+  customer_email: string | null;
+  area: string;
+  product_name: string | null;
+  plan_name: string | null;
+  mrr: number;
+  converted_at: string | null;
+  registered_at: string | null;
+  stripe_price_id: string | null;
+}
+
 interface UnmappedPrice {
   id: string;
   price_id: string;
