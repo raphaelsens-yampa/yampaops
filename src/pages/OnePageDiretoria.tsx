@@ -77,7 +77,7 @@ export default function OnePageDiretoria() {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-0" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+      <div className="flex-1 flex flex-col min-h-full" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
           className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-2 lg:px-3 py-1.5 backdrop-blur"
           style={{background:C.bg}}
