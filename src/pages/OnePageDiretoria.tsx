@@ -54,8 +54,8 @@ function Tag({ children, t }: any) {
 const G = { g4:"grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
 
 function Page({ id, ttl, meta, children }: any) {
-  return <section id={id} className="scroll-mt-20 mb-5">
-    <div className="flex justify-between items-baseline flex-wrap gap-2 pb-2 mb-3">
+  return <section id={id} className="scroll-mt-14 mb-3">
+    <div className="flex justify-between items-baseline flex-wrap gap-2 pb-1.5 mb-2">
       <h2 className="text-[18px] font-extrabold tracking-tight uppercase" style={{color:C.white}}>{ttl}</h2>
       <div className="text-[11px]" style={{color:C.mute}}>{meta}</div>
     </div>
