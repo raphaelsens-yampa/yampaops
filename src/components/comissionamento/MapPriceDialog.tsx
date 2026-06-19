@@ -74,7 +74,7 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
       price_name: normalizedOfferName,
       plan_name: planName,
       payment_type: paymentType,
-      area: "Sales",
+      area: area,
       seller_user_id: sellerUserId || null,
       seller_label: sellerLabel || null,
     };
