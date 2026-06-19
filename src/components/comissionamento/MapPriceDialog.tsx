@@ -30,10 +30,12 @@ interface Props {
 
 export function MapPriceDialog({ target, reference, priceMap, profiles, onClose, onMapped }: Props) {
   const { toast } = useToast();
+  const AREAS = ["Sales", "CX", "Marketing", "Produto", "Parceria"] as const;
   const [planName, setPlanName] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("mensal");
   const [sellerUserId, setSellerUserId] = useState<string>("");
-  const [sellerLabel, setSellerLabel] = useState("Sales");
+  const [sellerLabel, setSellerLabel] = useState("");
+  const [area, setArea] = useState<string>("Sales");
   const [saving, setSaving] = useState(false);
   const [planPopoverOpen, setPlanPopoverOpen] = useState(false);
   const [planQuery, setPlanQuery] = useState("");
