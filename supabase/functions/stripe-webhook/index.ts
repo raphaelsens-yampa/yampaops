@@ -155,8 +155,7 @@ Deno.serve(async (req) => {
 
   const normEmail = email.trim().toLowerCase();
 
-  // ─── Resolver área + MRR + nomes pelo Mapa de Preços (Comissionamento › Mapa de Preços) ───
-  // Fonte única de verdade para o gráfico "Conversões por Área".
+  // ─── Resolver área + MRR + nomes pelo Mapa de Preços ───
   let convArea: string = "desconhecida";
   let convProductName: string | null = null;
   let convPlanName: string | null = null;
@@ -175,9 +174,56 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Persistir conversão para o painel "Conversões por Área"
-  // (sem match com deals — esse fluxo foi descontinuado junto com a integração ActiveCampaign).
-  const conversionRow = {
+  // ─── Datas oficiais vindas do Stripe ───
+  // registered_at = data em que o customer foi criado no Stripe (entrou na base)
+  // converted_at  = data do primeiro pagamento confirmado (earliest paid invoice)
+  let registeredAt: string | null = null;
+  let convertedAt: string | null = null;
+
+  try {
+    if (customerId) {
+      const cust = await stripe.customers.retrieve(customerId);
+      if (cust && !(cust as any).deleted && (cust as Stripe.Customer).created) {
+        registeredAt = new Date((cust as Stripe.Customer).created * 1000).toISOString();
+      }
+      const paid = await stripe.invoices.list({
+        customer: customerId,
+        status: "paid",
+        limit: 100,
+      });
+      if (paid.data.length > 0) {
+        const earliest = paid.data.reduce((min, inv) => {
+          const t = inv.status_transitions?.paid_at ?? inv.created;
+          const mt = min.status_transitions?.paid_at ?? min.created;
+          return t < mt ? inv : min;
+        });
+        const ts = earliest.status_transitions?.paid_at ?? earliest.created;
+        convertedAt = new Date(ts * 1000).toISOString();
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch Stripe customer/invoices for dates:", err);
+  }
+
+  // Fallback: se o evento atual já é invoice.paid, usa o paid_at dele
+  if (!convertedAt && event.type === "invoice.paid") {
+    const obj: any = event.data.object;
+    const ts = obj?.status_transitions?.paid_at ?? obj?.created;
+    if (ts) convertedAt = new Date(ts * 1000).toISOString();
+  }
+
+  // Preserva converted_at já existente se houver upsert (não sobrescreve com null)
+  let existingRow: { id: string; converted_at: string | null; registered_at: string | null } | null = null;
+  if (subscriptionId) {
+    const { data } = await supabase
+      .from("stripe_conversions")
+      .select("id, converted_at, registered_at")
+      .eq("stripe_subscription_id", subscriptionId)
+      .maybeSingle();
+    existingRow = data as any;
+  }
+
+  const conversionRow: Record<string, unknown> = {
     stripe_event_id: event.id,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
@@ -187,20 +233,11 @@ Deno.serve(async (req) => {
     product_name: convProductName,
     plan_name: convPlanName,
     mrr: convMrr,
-    registered_at: new Date().toISOString(),
-    converted_at: new Date().toISOString(),
+    registered_at: registeredAt ?? existingRow?.registered_at ?? null,
+    converted_at: convertedAt ?? existingRow?.converted_at ?? null,
   };
 
-  let conversionExists = false;
-  if (subscriptionId) {
-    const { data: existing } = await supabase
-      .from("stripe_conversions")
-      .select("id")
-      .eq("stripe_subscription_id", subscriptionId)
-      .maybeSingle();
-    conversionExists = !!existing;
-  }
-
+  const conversionExists = !!existingRow;
   if (!conversionExists) {
     const { error: convError } = subscriptionId
       ? await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" })
@@ -212,6 +249,10 @@ Deno.serve(async (req) => {
         .eq("stripe_event_id", event.id);
       return ok({ ok: true, error: "conversion_failed" });
     }
+  } else {
+    await supabase.from("stripe_conversions")
+      .update(conversionRow)
+      .eq("id", existingRow!.id);
   }
 
   // Sinaliza price_id não mapeado no Mapa de Preços (para o card de cobertura na tela de Integração)
