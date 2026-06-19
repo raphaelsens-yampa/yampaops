@@ -69,12 +69,14 @@ const NAV = [["p1","One Page",C.blue],["p2","Financeiro",C.blue],["p3","Plano de
 
 const waitFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-function inlineCanvasCharts(src: HTMLElement, clone: HTMLElement) {
+async function inlineCanvasCharts(src: HTMLElement, clone: HTMLElement) {
   const sourceCanvases = Array.from(src.querySelectorAll("canvas")) as HTMLCanvasElement[];
   const clonedCanvases = Array.from(clone.querySelectorAll("canvas")) as HTMLCanvasElement[];
+  const decodes: Promise<void>[] = [];
   clonedCanvases.forEach((canvas, index) => {
     const source = sourceCanvases[index];
     if (!source) return;
+    ChartJS.getChart(source)?.update("none");
     const img = document.createElement("img");
     img.src = source.toDataURL("image/png");
     img.alt = "Gráfico da seção exportada";
@@ -83,8 +85,10 @@ function inlineCanvasCharts(src: HTMLElement, clone: HTMLElement) {
     img.style.width = "100%";
     img.style.height = "100%";
     img.style.objectFit = "contain";
+    if (img.decode) decodes.push(img.decode().catch(() => undefined));
     canvas.replaceWith(img);
   });
+  await Promise.all(decodes);
 }
 
 export default function OnePageDiretoria() {
@@ -146,7 +150,7 @@ export default function OnePageDiretoria() {
         stage.innerHTML="";
         stage.appendChild(clone);
         await waitFrame();
-        inlineCanvasCharts(src, clone);
+        await inlineCanvasCharts(src, clone);
         await waitFrame();
         const canvas=await html2canvas(stage,{backgroundColor:C.bg,scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:RENDER_W,width:RENDER_W,height:stage.scrollHeight});
         const fitByWidthH=canvas.height*(innerW/canvas.width);
