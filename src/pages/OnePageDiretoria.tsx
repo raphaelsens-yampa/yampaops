@@ -69,6 +69,7 @@ const NAV = [["p1","One Page",C.blue],["p2","Financeiro",C.blue],["p3","Plano de
 export default function OnePageDiretoria() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [active,setActive]=useState("p1");
+  const [downloading,setDownloading]=useState(false);
   useEffect(()=>{
     const root=rootRef.current;
     const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id);});},{root,rootMargin:"-45% 0px -50% 0px"});
@@ -93,6 +94,34 @@ export default function OnePageDiretoria() {
     if(!el||!root) return;
     const top=el.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop-48;
     root.scrollTo({top,behavior:"smooth"});
+  };
+  const downloadPdf=async()=>{
+    if(downloading) return;
+    setDownloading(true);
+    try{
+      const [{default:html2canvas},{default:jsPDF}]=await Promise.all([
+        import("html2canvas"),import("jspdf"),
+      ]);
+      const pdf=new jsPDF({orientation:"landscape",unit:"pt",format:"a4"});
+      const pw=pdf.internal.pageSize.getWidth();
+      const ph=pdf.internal.pageSize.getHeight();
+      for(let i=0;i<NAV.length;i++){
+        const [id,label]=NAV[i];
+        const el=document.getElementById(id as string) as HTMLElement|null;
+        if(!el) continue;
+        const canvas=await html2canvas(el,{backgroundColor:C.bg,scale:2,useCORS:true,windowWidth:el.scrollWidth});
+        const img=canvas.toDataURL("image/jpeg",0.92);
+        const ratio=Math.min(pw/canvas.width,ph/canvas.height);
+        const w=canvas.width*ratio, h=canvas.height*ratio;
+        const x=(pw-w)/2, y=(ph-h)/2;
+        if(i>0) pdf.addPage("a4","landscape");
+        pdf.setFillColor(11,24,36); pdf.rect(0,0,pw,ph,"F");
+        pdf.addImage(img,"JPEG",x,y,w,h);
+        pdf.setFontSize(9); pdf.setTextColor(180,196,208);
+        pdf.text(`${label} · ${i+1}/${NAV.length}`,pw-12,ph-8,{align:"right"});
+      }
+      pdf.save(`OnePage-Diretoria-${new Date().toISOString().slice(0,10)}.pdf`);
+    } finally { setDownloading(false); }
   };
 
   return (
