@@ -160,6 +160,7 @@ Deno.serve(async (req) => {
   let convProductName: string | null = null;
   let convPlanName: string | null = null;
   let convMrr = 0;
+  let priceMapped = false;
   if (priceId) {
     const { data: pm } = await supabase
       .from("commission_price_map")
@@ -167,23 +168,46 @@ Deno.serve(async (req) => {
       .eq("price_id", priceId)
       .maybeSingle();
     if (pm) {
+      priceMapped = true;
       convArea = pm.area || "desconhecida";
       convProductName = pm.offer_name || null;
       convPlanName = pm.plan_name || pm.price_name || null;
-      convMrr = pm.mrr_override != null ? Number(pm.mrr_override) : 0;
+      if (pm.mrr_override != null) convMrr = Number(pm.mrr_override);
     }
   }
 
-  // ─── Descartar conversões sem valor ───
-  // Regra: criação de cliente sem price_id OU com MRR/oferta zerado não vai para relatórios.
-  if (!priceId || convMrr <= 0) {
-    const reason = !priceId
-      ? "Conversão descartada: sem stripe_price_id"
-      : "Conversão descartada: MRR/valor da oferta zerado";
+  // ─── Fallback: calcular MRR real a partir do preço Stripe ───
+  // Usado quando o price não está mapeado OU está mapeado sem mrr_override.
+  // Normaliza qualquer recorrência (day/week/month/year) para mensal.
+  if (priceId && convMrr <= 0) {
+    try {
+      const price = await stripe.prices.retrieve(priceId);
+      const amount = (price.unit_amount ?? 0) / 100;
+      const interval = price.recurring?.interval;
+      const count = price.recurring?.interval_count || 1;
+      if (amount > 0 && interval) {
+        switch (interval) {
+          case "month": convMrr = amount / count; break;
+          case "year": convMrr = amount / (12 * count); break;
+          case "week": convMrr = (amount * 4.345) / count; break;
+          case "day":  convMrr = (amount * 30) / count; break;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to retrieve price for MRR fallback:", err);
+    }
+  }
+
+  // ─── Descartar somente pagamento zerado ───
+  // Regra: se MRR final = 0 (oferta gratuita / sem cobrança recorrente), descarta.
+  // Se MRR > 0 mas price não mapeado, segue em frente — fica como pendência de mapeamento.
+  if (convMrr <= 0) {
     await supabase.from("integration_sync_errors").insert({
       entity_type: "stripe_discarded_no_value",
       ac_id: subscriptionId || customerId || event.id,
-      error_message: reason,
+      error_message: !priceId
+        ? "Conversão descartada: sem stripe_price_id"
+        : "Conversão descartada: pagamento/MRR zerado",
       payload: {
         event_id: event.id,
         event_type: event.type,
@@ -199,7 +223,7 @@ Deno.serve(async (req) => {
     await supabase.from("stripe_events")
       .update({ result: !priceId ? "discarded_no_price" : "discarded_zero_mrr" })
       .eq("stripe_event_id", event.id);
-    return ok({ ok: true, discarded: true, reason });
+    return ok({ ok: true, discarded: true });
   }
 
   // ─── Datas oficiais vindas do Stripe ───
