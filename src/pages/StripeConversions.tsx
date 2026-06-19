@@ -119,9 +119,8 @@ export default function StripeConversions() {
   const stats = useMemo(() => {
     const total = rows.length;
     const totalMrr = rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
-    const matched = rows.filter(r => r.matched_opportunity_id).length;
     const areasCount = new Set(rows.map(r => r.area)).size;
-    return { total, totalMrr, matched, areasCount, ticketMedio: total ? totalMrr / total : 0 };
+    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0 };
   }, [rows]);
 
   const byArea = useMemo(() => {
