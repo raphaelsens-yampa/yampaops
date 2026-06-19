@@ -714,7 +714,7 @@ export default function StripeIntegration() {
                   <MapStripePriceButton
                     price_id={u.price_id}
                     customer_email={u.sample_email}
-                    onMapped={fetchAll}
+                    onMapped={loadAll}
                   />
                 </div>
               ))}
