@@ -54,14 +54,12 @@ function Tag({ children, t }: any) {
 const G = { g4:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3.5 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
 
 function Page({ id, ttl, meta, children }: any) {
-  return <section id={id} className="mx-auto mb-[34px] rounded-[14px] border scroll-mt-4" style={{maxWidth:1320,background:C.bg,borderColor:C.line,padding:"22px 24px 26px",boxShadow:"0 8px 30px rgba(0,0,0,.4)"}}>
-    <div className="flex justify-between items-baseline flex-wrap gap-2 border-b pb-3 mb-[18px]" style={{borderColor:C.line}}>
-      <div className="font-black text-[18px]">YAMPA<small className="block text-[10px] font-semibold tracking-wide" style={{color:C.mute}}>by 4blue</small></div>
-      <div className="text-[20px] font-extrabold tracking-wider uppercase" style={{color:C.sec}}>{ttl}</div>
-      <div className="text-[12px]" style={{color:C.mute}}>{meta}</div>
+  return <section id={id} className="scroll-mt-20 mb-8">
+    <div className="flex justify-between items-baseline flex-wrap gap-2 border-b pb-2.5 mb-4" style={{borderColor:C.line}}>
+      <h2 className="text-[18px] font-extrabold tracking-tight uppercase" style={{color:C.white}}>{ttl}</h2>
+      <div className="text-[11px]" style={{color:C.mute}}>{meta}</div>
     </div>
     {children}
-    <div className="text-center text-[10px] mt-3.5 border-t pt-2.5" style={{color:C.mute,borderColor:C.line}}>Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas</div>
   </section>;
 }
 
