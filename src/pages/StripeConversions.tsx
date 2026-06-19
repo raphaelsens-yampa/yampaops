@@ -50,6 +50,7 @@ interface Conversion {
   registered_at: string | null;
   converted_at: string;
   stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
 }
 
 const PERIOD_PRESETS = [
