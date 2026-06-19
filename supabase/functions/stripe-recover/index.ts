@@ -80,6 +80,27 @@ Deno.serve(async (req) => {
             }
           }
 
+          // Descartar sem valor: sem price_id ou MRR zerado
+          if (!priceId || mrr <= 0) {
+            await supabase.from("integration_sync_errors").insert({
+              entity_type: "stripe_discarded_no_value",
+              ac_id: sub.id,
+              error_message: !priceId
+                ? "Conversão descartada: sem stripe_price_id"
+                : "Conversão descartada: MRR/valor da oferta zerado",
+              payload: {
+                subscription_id: sub.id,
+                customer_id: customerId,
+                price_id: priceId,
+                mrr,
+                source: "recover",
+              },
+              resolved: true,
+            });
+            skipped++;
+            continue;
+          }
+
           // Datas via Stripe: registered_at = customer.created, converted_at = primeira invoice paga
           let registeredAt: string | null = null;
           let convertedAt: string | null = null;
