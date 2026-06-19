@@ -99,7 +99,7 @@ export default function OnePageDiretoria() {
     <Layout>
       <div ref={rootRef} className="flex h-screen flex-col overflow-y-auto" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
-          className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-3 lg:px-4 py-2 backdrop-blur border-b"
+          className="sticky top-0 z-30 flex flex-wrap justify-center gap-2 px-3 lg:px-4 py-3 backdrop-blur border-b"
           style={{background:C.bg+"f0",borderColor:"#16283b"}}
         >
           {NAV.map(([id,label,col])=>{
@@ -108,10 +108,15 @@ export default function OnePageDiretoria() {
               <button
                 key={id as string}
                 onClick={()=>go(id as string)}
-                className="flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
-                style={{color:isActive?"#fff":C.sec,background:isActive?"#16283b":"transparent",border:"1px solid transparent"}}
+                className="flex items-center gap-1.5 text-[13px] font-semibold px-4 py-1.5 rounded-full transition-all duration-200 hover:scale-[1.03]"
+                style={{
+                  color:isActive?"#fff":C.sec,
+                  background:isActive?"#16283b":"rgba(22,40,59,.55)",
+                  border:isActive?"1px solid #23415c":"1px solid transparent",
+                  boxShadow:isActive?"0 0 0 1px rgba(10,132,255,.25)":"none",
+                }}
               >
-                <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{background:col as string}}/>
+                <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{background:col as string,boxShadow:`0 0 6px ${col as string}`}}/>
                 <span>{label}</span>
               </button>
             );
