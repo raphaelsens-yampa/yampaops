@@ -382,7 +382,7 @@ export function GoalsTracking() {
         source,
         manualOverride,
         goalIds: matchingGoals.map((g) => g.id),
-        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeMrrSum : null,
+        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeAutoForCat : null,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
   }, [categories, goals, opportunities, stripeConversions, priceMapByPriceId, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
