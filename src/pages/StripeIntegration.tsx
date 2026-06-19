@@ -590,46 +590,98 @@ export default function StripeIntegration() {
           </CardContent>
         </Card>
 
-        {/* Últimos eventos */}
+        {/* Últimas conversões registradas */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Últimos 10 eventos</CardTitle>
+            <CardTitle className="text-base">Últimas conversões registradas</CardTitle>
+            <CardDescription>
+              Conversões gravadas em <code>stripe_conversions</code>, ordenadas pelo 1º pagamento confirmado no Stripe.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {recentEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum evento registrado.</p>
+            {recentConversions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma conversão registrada.</p>
             ) : (
               <div className="space-y-1">
-                {recentEvents.map((ev) => {
-                  const r = RESULT_LABELS[ev.result || ""] || { label: ev.result || "—", tone: "muted" as const };
-                  const email = ev.payload?.data?.object?.customer_email
-                    || ev.payload?.data?.object?.customer_details?.email
-                    || ev.payload?.data?.object?.receipt_email
-                    || null;
-                  return (
-                    <div key={ev.id} className="flex items-center gap-3 text-sm py-2 border-b last:border-0">
-                      <span className="text-xs text-muted-foreground w-28 shrink-0">
-                        {formatDateTime(ev.processed_at)}
-                      </span>
-                      <code className="font-mono text-xs flex-1 truncate">{ev.event_type}</code>
-                      <span className="text-xs text-muted-foreground flex-1 truncate hidden md:inline">{email || "—"}</span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          r.tone === "ok" ? "border-success/40 text-success"
-                          : r.tone === "warn" ? "border-warning/40 text-warning"
-                          : r.tone === "err" ? "border-destructive/40 text-destructive"
-                          : ""
-                        }
-                      >
-                        {r.label}
-                      </Badge>
+                {recentConversions.map((c) => (
+                  <div key={c.id} className="flex items-center gap-3 text-sm py-2 border-b last:border-0">
+                    <span className="text-xs text-muted-foreground w-28 shrink-0">
+                      {formatDateTime(c.converted_at)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs truncate">{c.customer_email || "—"}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {c.product_name || c.plan_name || c.stripe_price_id || "—"}
+                      </p>
                     </div>
-                  );
-                })}
+                    <Badge
+                      variant="outline"
+                      className={c.area === "desconhecida" ? "border-warning/40 text-warning" : ""}
+                    >
+                      {c.area}
+                    </Badge>
+                    <span className="text-xs font-medium w-24 text-right shrink-0">
+                      R$ {Number(c.mrr || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
+        </Card>
+
+        {/* Log técnico do webhook (colapsado) */}
+        <Card>
+          <CardHeader className="cursor-pointer" onClick={() => setShowTechLog((v) => !v)}>
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Log técnico do webhook</span>
+              <Badge variant="outline" className="text-xs">{showTechLog ? "ocultar" : "mostrar"}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Últimos 10 eventos recebidos no endpoint <code>stripe-webhook</code>. Cobranças recorrentes são filtradas.
+            </CardDescription>
+          </CardHeader>
+          {showTechLog && (
+            <CardContent>
+              {(() => {
+                const filtered = recentEvents.filter((ev) => !(ev.result || "").startsWith("ignored_recurring"));
+                if (filtered.length === 0) {
+                  return <p className="text-sm text-muted-foreground text-center py-6">Sem eventos relevantes.</p>;
+                }
+                return (
+                  <div className="space-y-1">
+                    {filtered.map((ev) => {
+                      const r = RESULT_LABELS[ev.result || ""] || { label: ev.result || "—", tone: "muted" as const };
+                      const email = ev.payload?.data?.object?.customer_email
+                        || ev.payload?.data?.object?.customer_details?.email
+                        || ev.payload?.data?.object?.receipt_email
+                        || null;
+                      return (
+                        <div key={ev.id} className="flex items-center gap-3 text-sm py-2 border-b last:border-0">
+                          <span className="text-xs text-muted-foreground w-28 shrink-0">
+                            {formatDateTime(ev.processed_at)}
+                          </span>
+                          <code className="font-mono text-xs flex-1 truncate">{ev.event_type}</code>
+                          <span className="text-xs text-muted-foreground flex-1 truncate hidden md:inline">{email || "—"}</span>
+                          <Badge
+                            variant="outline"
+                            className={
+                              r.tone === "ok" ? "border-success/40 text-success"
+                              : r.tone === "warn" ? "border-warning/40 text-warning"
+                              : r.tone === "err" ? "border-destructive/40 text-destructive"
+                              : ""
+                            }
+                          >
+                            {r.label}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          )}
         </Card>
 
         {/* Preços do Stripe sem entrada no Mapa de Preços */}
