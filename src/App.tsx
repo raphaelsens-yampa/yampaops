@@ -19,13 +19,15 @@ import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
 import Imports from "./pages/Imports";
 import LinkBuilder from "./pages/LinkBuilder";
-import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
+// ActiveCampaign integration archived — page kept on disk but not routed.
+// import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
+
 import StripeIntegration from "./pages/StripeIntegration";
 import ChatwootIntegration from "./pages/ChatwootIntegration";
-import IntegrationAudit from "./pages/IntegrationAudit";
+// import IntegrationAudit from "./pages/IntegrationAudit"; // archived
 import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
-import LeadJourney from "./pages/LeadJourney";
+// import LeadJourney from "./pages/LeadJourney"; // archived (AC-dependent)
 import TagsSettings from "./pages/TagsSettings";
 import ChatwootReports from "./pages/ChatwootReports";
 import ChatwootAudit from "./pages/ChatwootAudit";
@@ -94,10 +96,10 @@ function AppRoutes() {
       <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
       <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
       <Route path="/link-builder" element={<RequireArea area="link_builder"><LinkBuilder /></RequireArea>} />
-      <Route path="/integrations/active-campaign" element={<RequireArea area="integration_ac"><ActiveCampaignIntegration /></RequireArea>} />
+      {/* ActiveCampaign integration archived */}
       <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
       <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
-      <Route path="/integrations/audit" element={<RequireArea area="integration_audit"><IntegrationAudit /></RequireArea>} />
+      {/* Integration Audit archived */}
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/atendimentos/auditoria" element={<RequireArea area="auditoria_ia"><ChatwootAudit /></RequireArea>} />
       <Route path="/atendimentos/auditoria/configuracoes" element={<RequireArea area="auditoria_ia"><ChatwootAuditSettings /></RequireArea>} />
@@ -107,7 +109,7 @@ function AppRoutes() {
       <Route path="/atendimentos/auditoria/minhas" element={<RequireArea area="auditoria_ia"><ChatwootAuditMine /></RequireArea>} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/insights/conversions" element={<RequireArea area="conversions"><StripeConversions /></RequireArea>} />
-      <Route path="/insights/lead-journey" element={<RequireArea area="lead_journey"><LeadJourney /></RequireArea>} />
+      {/* Lead Journey archived (AC-dependent) */}
       <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
       <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
       <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />

@@ -338,8 +338,9 @@ export default function AgentActivity() {
           <div>
             <h1 className="text-2xl font-heading font-bold">Atividade de Agentes</h1>
             <p className="text-sm text-muted-foreground">
-              Conversas atendidas e mensagens trocadas via Chatwoot, com cobertura da base do ActiveCampaign.
+              Conversas atendidas e mensagens trocadas via Chatwoot.
             </p>
+
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as any)} variant="outline" size="sm">
@@ -420,8 +421,8 @@ export default function AgentActivity() {
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="contactados">Contactados</TabsTrigger>
-            <TabsTrigger value="cobertura">Cobertura vs AC</TabsTrigger>
           </TabsList>
+
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-4">
@@ -548,209 +549,10 @@ export default function AgentActivity() {
             </Card>
           </TabsContent>
 
-          {/* Cobertura vs AC */}
-          <TabsContent value="cobertura">
-            <CoberturaAC />
-          </TabsContent>
+          {/* Cobertura vs AC archived */}
         </Tabs>
       </div>
     </Layout>
   );
 }
 
-function CoberturaAC() {
-  const [listId, setListId] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [agenteFilter, setAgenteFilter] = useState<string>("__all__");
-  const [statusFilter, setStatusFilter] = useState<string>("__all__");
-
-  const { data: lists, isLoading: loadingLists, refetch: refetchLists } = useQuery({
-    queryKey: ["ac-lists"],
-    queryFn: async () => {
-      const projectUrl = import.meta.env.VITE_SUPABASE_URL;
-      const session = (await supabase.auth.getSession()).data.session;
-      const res = await fetch(`${projectUrl}/functions/v1/ac-list-contacts?action=lists`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "Falha ao buscar listas");
-      return j.lists as { id: string; name: string; subscribers: number }[];
-    },
-  });
-
-  const carregar = async () => {
-    if (!listId) { toast.error("Selecione uma lista do AC"); return; }
-    setLoading(true);
-    try {
-      const projectUrl = import.meta.env.VITE_SUPABASE_URL;
-      const session = (await supabase.auth.getSession()).data.session;
-      const res = await fetch(`${projectUrl}/functions/v1/ac-list-contacts?list_id=${encodeURIComponent(listId)}`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error || "Erro");
-      setResult(j);
-      toast.success(`${j.total} contatos carregados`);
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao cruzar com AC");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const rows: any[] = result?.rows || [];
-  const agentes = useMemo(() => Array.from(new Set(rows.map((r) => r.agente).filter(Boolean))) as string[], [rows]);
-  const filtered = useMemo(() => rows.filter((r) => {
-    if (agenteFilter !== "__all__" && r.agente !== agenteFilter) return false;
-    if (statusFilter === "contactados" && !r.contactado) return false;
-    if (statusFilter === "nao_contactados" && r.contactado) return false;
-    if (statusFilter === "responderam" && !r.respondeu) return false;
-    return true;
-  }), [rows, agenteFilter, statusFilter]);
-
-  const porAgente = useMemo(() => {
-    const map = new Map<string, { agente: string; total: number; responderam: number }>();
-    rows.filter((r) => r.contactado).forEach((r) => {
-      const k = r.agente || "—";
-      if (!map.has(k)) map.set(k, { agente: k, total: 0, responderam: 0 });
-      map.get(k)!.total++;
-      if (r.respondeu) map.get(k)!.responderam++;
-    });
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [rows]);
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle className="text-base">Cruzar lista do ActiveCampaign com conversas Chatwoot</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Escolha uma lista do AC (ex: Freetrials). Vamos buscar todos os contatos ativos e cruzar com os contatos do Chatwoot para mostrar quem já foi falado e quem ainda falta.
-          </p>
-          <div className="flex flex-wrap gap-2 items-center">
-            <Select value={listId} onValueChange={setListId}>
-              <SelectTrigger className="w-[340px]">
-                <SelectValue placeholder={loadingLists ? "Carregando listas..." : "Selecione uma lista do AC"} />
-              </SelectTrigger>
-              <SelectContent>
-                {(lists || []).map((l) => (
-                  <SelectItem key={l.id} value={String(l.id)}>{l.name} ({l.subscribers})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={carregar} disabled={loading || !listId}>
-              {loading ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-              Cruzar agora
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => refetchLists()}>Recarregar listas</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {result && (
-        <>
-          <div className="grid gap-3 md:grid-cols-3">
-            <MetricCard title="Total da lista AC" value={result.total} icon={<Users className="h-4 w-4" />} />
-            <MetricCard
-              title="Já contactados"
-              value={result.contactados}
-              icon={<CheckCircle2 className="h-4 w-4" />}
-              subtitle={`${result.total ? ((result.contactados / result.total) * 100).toFixed(1) : 0}% de cobertura`}
-            />
-            <MetricCard
-              title="Responderam"
-              value={result.responderam}
-              icon={<MessageCircle className="h-4 w-4" />}
-              subtitle={`${result.contactados ? ((result.responderam / result.contactados) * 100).toFixed(1) : 0}% dos contactados`}
-            />
-          </div>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Cobertura por agente</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Agente</TableHead>
-                    <TableHead className="text-right">Contatos atendidos</TableHead>
-                    <TableHead className="text-right">Responderam</TableHead>
-                    <TableHead className="text-right">Taxa</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {porAgente.map((r) => (
-                    <TableRow key={r.agente}>
-                      <TableCell>{r.agente}</TableCell>
-                      <TableCell className="text-right">{r.total}</TableCell>
-                      <TableCell className="text-right">{r.responderam}</TableCell>
-                      <TableCell className="text-right">{r.total ? ((r.responderam / r.total) * 100).toFixed(1) : 0}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-              <CardTitle className="text-base">Contatos ({filtered.length} de {rows.length})</CardTitle>
-              <div className="flex gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Todos</SelectItem>
-                    <SelectItem value="contactados">Contactados</SelectItem>
-                    <SelectItem value="nao_contactados">Não contactados</SelectItem>
-                    <SelectItem value="responderam">Que responderam</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={agenteFilter} onValueChange={setAgenteFilter}>
-                  <SelectTrigger className="w-[220px]"><SelectValue placeholder="Agente" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Todos os agentes</SelectItem>
-                    {agentes.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" variant="outline" onClick={() => downloadCsv(`cobertura_ac_lista_${listId}.csv`, filtered)}>
-                  <Download className="h-4 w-4 mr-1" />Exportar CSV
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead>Contactado?</TableHead>
-                    <TableHead>Agente</TableHead>
-                    <TableHead>Match</TableHead>
-                    <TableHead>Respondeu?</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.slice(0, 500).map((r) => (
-                    <TableRow key={r.ac_contact_id}>
-                      <TableCell>{[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}</TableCell>
-                      <TableCell>{r.email || "—"}</TableCell>
-                      <TableCell>{r.phone || "—"}</TableCell>
-                      <TableCell>{r.contactado ? <Badge>Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
-                      <TableCell>{r.agente || "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.match_method || "—"}</TableCell>
-                      <TableCell>{r.respondeu ? <Badge>Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {filtered.length > 500 && (
-                <p className="text-xs text-muted-foreground mt-2">Exibindo 500 de {filtered.length}. Use Exportar CSV para a lista completa.</p>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
-  );
-}

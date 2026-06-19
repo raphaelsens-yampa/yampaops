@@ -687,15 +687,10 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     }
   };
 
-  const runAcSync = async () => {
-    toast({ title: "Sincronizando com ActiveCampaign..." });
-    const { data, error } = await supabase.functions.invoke("ac-sync-deal-stages", { body: { campaign_id: campaign.id } });
-    if (error) toast({ title: "Erro no sync AC", description: error.message, variant: "destructive" });
-    else {
-      toast({ title: "Sync AC concluído", description: `${data?.synced_deals || 0} deals · ${data?.updated_contacts || 0} contatos atualizados` });
-      refetch();
-    }
-  };
+  // ActiveCampaign sync archived — kept as no-op for binding compatibility.
+  const runAcSync = async () => {};
+
+
 
   const clearBase = async () => {
     const { error, count } = await supabase
@@ -729,8 +724,8 @@ function BaseTab({ campaign, onChange }: { campaign: Campaign; onChange: () => v
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <ImportDialog campaign={campaign} onImported={() => { refetch(); onChange(); }} />
-        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe/Active</Button>
-        <Button variant="outline" onClick={runAcSync}><RefreshCw className="h-4 w-4 mr-2" />Sincronizar com ActiveCampaign</Button>
+        <Button variant="outline" onClick={runMatch}><RefreshCw className="h-4 w-4 mr-2" />Casar com Chatwoot/Stripe</Button>
+
         <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>

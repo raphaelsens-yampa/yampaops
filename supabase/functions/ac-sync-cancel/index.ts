@@ -1,47 +1,12 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-    const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!claims?.claims) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { data: roles } = await userClient.from("user_roles").select("role").eq("user_id", claims.claims.sub);
-    if (!roles?.some((r: any) => r.role === "admin")) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const { data: cur } = await service.from("integration_settings").select("sync_status, sync_log").limit(1).maybeSingle();
-    if (cur?.sync_status !== "running" && cur?.sync_status !== "cancelling") {
-      return new Response(JSON.stringify({ ok: true, message: "Nenhuma sincronização em andamento." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Se já estava 'cancelling', forçar reset para 'idle' (o background pode ter morrido)
-    if (cur.sync_status === "cancelling") {
-      const prevLog = (cur.sync_log as any) || {};
-      const prevProgress = prevLog.progress || {};
-      await service.from("integration_settings").update({
-        sync_status: "idle",
-        sync_log: { ...prevLog, cancelled: true, ranAt: new Date().toISOString(), progress: { ...prevProgress, phase: "cancelled" } },
-      }).neq("id", "00000000-0000-0000-0000-000000000000");
-      return new Response(JSON.stringify({ ok: true, message: "Sincronização forçadamente encerrada." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    await service.from("integration_settings").update({ sync_status: "cancelling" }).neq("id", "00000000-0000-0000-0000-000000000000");
-    return new Response(JSON.stringify({ ok: true, message: "Cancelamento solicitado." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown";
-    return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
+Deno.serve((req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  return new Response(
+    JSON.stringify({ error: "ActiveCampaign integration archived" }),
+    { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 });

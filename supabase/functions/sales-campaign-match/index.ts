@@ -168,10 +168,9 @@ Deno.serve(async (req) => {
       from += PAGE;
     }
 
-    // Kick off ActiveCampaign stage sync for this campaign (best effort, don't block result)
-    try {
-      await supabase.functions.invoke("ac-sync-deal-stages", { body: { campaign_id } });
-    } catch (_) { /* ignore */ }
+    // ActiveCampaign integration archived — no stage sync.
+
+
 
     return json({ ok: true, matched: totalMatched, converted: totalConverted, mrr: totalMrr });
   } catch (e) {

@@ -35,7 +35,7 @@ export const CRM_SECTIONS = [
       { key: "atendimentos", label: "Atendimentos" },
       { key: "agent_activity", label: "Atividade de Agentes" },
       { key: "auditoria_ia", label: "Auditoria IA" },
-      { key: "lead_journey", label: "Jornada do Lead" },
+      // { key: "lead_journey", label: "Jornada do Lead" }, // archived (AC-dependent)
     ],
   },
   {
@@ -73,10 +73,11 @@ export const CRM_SECTIONS = [
     key: "integracoes",
     label: "Integrações",
     areas: [
-      { key: "integration_ac", label: "ActiveCampaign" },
+      // { key: "integration_ac", label: "ActiveCampaign" }, // archived
       { key: "integration_stripe", label: "Stripe" },
       { key: "integration_chatwoot", label: "Chatwoot" },
-      { key: "integration_audit", label: "Auditoria de Integrações" },
+      // { key: "integration_audit", label: "Auditoria de Integrações" }, // archived
+
     ],
   },
 ] as const;

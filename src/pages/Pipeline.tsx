@@ -308,12 +308,8 @@ export default function PipelinePage() {
             <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
               <Download className="h-4 w-4 mr-1" /> Exportar Excel
             </Button>
-            {role === "admin" && (
-              <Button variant="outline" size="sm" onClick={handleSyncAC} disabled={syncing}>
-                <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Sincronizando..." : "Sincronizar AC"}
-              </Button>
-            )}
+            {/* ActiveCampaign sync archived */}
+
           </div>
         </div>
 
