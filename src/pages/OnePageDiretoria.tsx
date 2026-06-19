@@ -23,7 +23,7 @@ const ds = (label: string, data: number[], color: string, extra: any = {}) => ({
 const vc = (cls?: string) => cls==="up"?C.green: cls==="down"?C.red: cls==="amber"?C.amber: C.sec;
 
 function Card({ children, className="" }: any) {
-  return <div className={"rounded-[10px] border min-w-0 "+className} style={{background:C.card,borderColor:C.line,padding:"14px 16px"}}>{children}</div>;
+  return <div className={"rounded-[10px] min-w-0 "+className} style={{background:C.card,padding:"14px 16px"}}>{children}</div>;
 }
 function Mini({ children }: any) {
   return <h4 className="text-[11px] uppercase tracking-wide mb-2" style={{color:C.mute}}>{children}</h4>;
@@ -51,11 +51,11 @@ function Tag({ children, t }: any) {
   const [bg,fg]=map[t]||map.back;
   return <span className="text-[10px] font-bold px-[7px] py-[2px] rounded" style={{background:bg,color:fg}}>{children}</span>;
 }
-const G = { g4:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3.5 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
+const G = { g4:"grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
 
 function Page({ id, ttl, meta, children }: any) {
-  return <section id={id} className="scroll-mt-20 mb-8">
-    <div className="flex justify-between items-baseline flex-wrap gap-2 border-b pb-2.5 mb-4" style={{borderColor:C.line}}>
+  return <section id={id} className="scroll-mt-20 mb-5">
+    <div className="flex justify-between items-baseline flex-wrap gap-2 pb-2 mb-3">
       <h2 className="text-[18px] font-extrabold tracking-tight uppercase" style={{color:C.white}}>{ttl}</h2>
       <div className="text-[11px]" style={{color:C.mute}}>{meta}</div>
     </div>
@@ -77,10 +77,10 @@ export default function OnePageDiretoria() {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-0" style={{background:"#0a1521",color:C.white,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+      <div className="flex-1 flex flex-col min-h-0" style={{color:C.white,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
-          className="sticky top-0 z-30 flex gap-1 overflow-x-auto px-4 lg:px-6 py-2 border-b backdrop-blur"
-          style={{background:"rgba(10,21,33,0.85)",borderColor:C.line}}
+          className="sticky top-0 z-30 flex gap-1 overflow-x-auto px-3 lg:px-4 py-2 backdrop-blur"
+          style={{background:"transparent"}}
         >
           {NAV.map(([id,label,col])=>{
             const isActive = active===id;
@@ -98,7 +98,7 @@ export default function OnePageDiretoria() {
           })}
         </div>
 
-        <main className="flex-1 px-4 lg:px-6 py-5 overflow-auto">
+        <main className="flex-1 px-3 lg:px-4 py-3 overflow-auto">
 
             <Page id="p1" ttl="One Page · Gestão Executiva" meta="Jan–Jun 2026 · Dados até 16/06/2026">
               <div className={G.g4}>{[
@@ -302,7 +302,7 @@ export default function OnePageDiretoria() {
               </div>
             </Page>
 
-            <footer className="text-center text-[10px] pt-3 mt-2 border-t" style={{color:C.mute,borderColor:C.line}}>
+            <footer className="text-center text-[10px] pt-3 mt-2" style={{color:C.mute}}>
               Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas
             </footer>
         </main>
