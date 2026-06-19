@@ -274,6 +274,17 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Área</Label>
+            <Select value={area} onValueChange={setArea}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {AREAS.map((a) => (
+                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Vendedor (usuário)</Label>
