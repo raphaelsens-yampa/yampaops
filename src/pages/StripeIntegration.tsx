@@ -36,10 +36,11 @@ interface ConnectionInfo {
 }
 
 interface Counts {
-  pending: number;
-  noMatch: number;
   totalEvents: number;
-  matched: number;
+  totalConversions: number;
+  conversionsLast30: number;
+  mrrLast30: number;
+  unmappedPrices: number;
 }
 
 interface Freshness {
@@ -57,12 +58,12 @@ interface RecentEvent {
   payload: any;
 }
 
-interface SyncError {
+interface UnmappedPrice {
   id: string;
-  ac_id: string | null;
-  error_message: string;
-  created_at: string;
-  payload: any;
+  price_id: string;
+  count: number;
+  last_seen: string;
+  sample_email: string | null;
 }
 
 function formatRelative(iso: string | null): string {
@@ -93,11 +94,12 @@ function freshnessTone(iso: string | null, warnHours = 6, errHours = 24): "ok" |
 }
 
 const RESULT_LABELS: Record<string, { label: string; tone: "ok" | "warn" | "err" | "muted" }> = {
-  matched: { label: "Conciliado", tone: "ok" },
-  matched_pending: { label: "Pendente", tone: "warn" },
-  no_match: { label: "Sem match", tone: "err" },
-  error: { label: "Erro", tone: "err" },
-  ignored: { label: "Ignorado", tone: "muted" },
+  conversion_recorded: { label: "Conversão registrada", tone: "ok" },
+  duplicate_subscription: { label: "Duplicado", tone: "muted" },
+  no_email: { label: "Sem email", tone: "warn" },
+  conversion_failed: { label: "Falha ao gravar", tone: "err" },
+  extraction_failed: { label: "Falha na leitura", tone: "err" },
+  ignored_event_type: { label: "Ignorado", tone: "muted" },
 };
 
 export default function StripeIntegration() {
@@ -105,12 +107,18 @@ export default function StripeIntegration() {
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [conn, setConn] = useState<ConnectionInfo | null>(null);
-  const [counts, setCounts] = useState<Counts>({ pending: 0, noMatch: 0, totalEvents: 0, matched: 0 });
+  const [counts, setCounts] = useState<Counts>({
+    totalEvents: 0,
+    totalConversions: 0,
+    conversionsLast30: 0,
+    mrrLast30: 0,
+    unmappedPrices: 0,
+  });
   const [freshness, setFreshness] = useState<Freshness>({ lastEventAt: null, lastConversionAt: null, lastSyncAt: null });
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [eventsByDay, setEventsByDay] = useState<{ day: string; count: number }[]>([]);
   const [eventsByType, setEventsByType] = useState<{ type: string; count: number }[]>([]);
-  const [syncErrors, setSyncErrors] = useState<SyncError[]>([]);
+  const [unmapped, setUnmapped] = useState<UnmappedPrice[]>([]);
   const [loading, setLoading] = useState(true);
 
   if (role !== "admin") return <Navigate to="/" replace />;
@@ -118,29 +126,59 @@ export default function StripeIntegration() {
   async function loadAll() {
     setLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
     const [
-      pendingRes, noMatchRes, totalRes, matchedRes,
+      totalEvtRes, totalConvRes, last30Res,
       lastEventRes, lastConvRes, settingsRes,
-      recentRes, last7Res, errorsRes,
+      recentRes, last7Res, unmappedRes,
     ] = await Promise.all([
-      supabase.from("opportunities").select("id", { count: "exact", head: true }).eq("stage", "pendencias_stripe"),
-      supabase.from("integration_sync_errors").select("id", { count: "exact", head: true }).eq("entity_type", "stripe_no_match").eq("resolved", false),
       supabase.from("stripe_events").select("id", { count: "exact", head: true }),
-      supabase.from("stripe_events").select("id", { count: "exact", head: true }).eq("result", "matched_pending"),
+      supabase.from("stripe_conversions").select("id", { count: "exact", head: true }),
+      supabase.from("stripe_conversions").select("mrr").gte("converted_at", thirtyDaysAgo),
       supabase.from("stripe_events").select("processed_at").order("processed_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("stripe_conversions").select("converted_at").order("converted_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("integration_settings").select("last_full_sync_at").limit(1).maybeSingle(),
       supabase.from("stripe_events").select("id, stripe_event_id, event_type, result, processed_at, payload").order("processed_at", { ascending: false }).limit(10),
       supabase.from("stripe_events").select("event_type, processed_at").gte("processed_at", sevenDaysAgo),
-      supabase.from("integration_sync_errors").select("id, ac_id, error_message, created_at, payload").eq("entity_type", "stripe_no_match").eq("resolved", false).order("created_at", { ascending: false }).limit(10),
+      supabase.from("integration_sync_errors")
+        .select("id, ac_id, error_message, created_at, payload")
+        .eq("entity_type", "stripe_unmapped_price")
+        .eq("resolved", false)
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
 
+    const last30Rows = (last30Res.data as { mrr: number }[]) || [];
+    const mrrLast30 = last30Rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
+
+    // Agrega unmapped prices por price_id
+    const unmappedRows = (unmappedRes.data as any[]) || [];
+    const byPrice = new Map<string, UnmappedPrice>();
+    for (const r of unmappedRows) {
+      const pid = (r.ac_id as string) || (r.payload?.price_id as string) || "—";
+      const cur = byPrice.get(pid);
+      if (cur) {
+        cur.count += 1;
+        if (r.created_at > cur.last_seen) cur.last_seen = r.created_at;
+      } else {
+        byPrice.set(pid, {
+          id: r.id,
+          price_id: pid,
+          count: 1,
+          last_seen: r.created_at,
+          sample_email: r.payload?.email ?? null,
+        });
+      }
+    }
+    const unmappedList = Array.from(byPrice.values()).sort((a, b) => b.count - a.count);
+
     setCounts({
-      pending: pendingRes.count || 0,
-      noMatch: noMatchRes.count || 0,
-      totalEvents: totalRes.count || 0,
-      matched: matchedRes.count || 0,
+      totalEvents: totalEvtRes.count || 0,
+      totalConversions: totalConvRes.count || 0,
+      conversionsLast30: last30Rows.length,
+      mrrLast30,
+      unmappedPrices: byPrice.size,
     });
     setFreshness({
       lastEventAt: (lastEventRes.data as any)?.processed_at ?? null,
@@ -148,7 +186,7 @@ export default function StripeIntegration() {
       lastSyncAt: (settingsRes.data as any)?.last_full_sync_at ?? null,
     });
     setRecentEvents((recentRes.data as RecentEvent[]) || []);
-    setSyncErrors((errorsRes.data as SyncError[]) || []);
+    setUnmapped(unmappedList);
 
     // Aggregate last 7 days
     const byDay = new Map<string, number>();
@@ -200,12 +238,6 @@ export default function StripeIntegration() {
     setSyncing(false);
   }
 
-  async function resolveError(id: string) {
-    await supabase.from("integration_sync_errors").update({ resolved: true }).eq("id", id);
-    setSyncErrors((prev) => prev.filter((e) => e.id !== id));
-    toast.success("Erro marcado como resolvido");
-  }
-
   function copyWebhook() {
     navigator.clipboard.writeText(WEBHOOK_URL);
     toast.success("URL copiada");
@@ -219,18 +251,15 @@ export default function StripeIntegration() {
     if (conn?.ok && !conn.webhook_secret_configured) issues.push("Webhook secret não configurado");
     if (eventTone === "err") issues.push("Nenhum evento recente (>24h)");
     else if (eventTone === "warn") issues.push("Eventos atrasados (>6h)");
+    if (counts.unmappedPrices > 0) issues.push(`${counts.unmappedPrices} price_id(s) fora do Mapa de Preços`);
     let status: "ok" | "warn" | "err" = "ok";
     if (!conn?.ok || eventTone === "err") status = "err";
     else if (issues.length > 0) status = "warn";
     return { status, issues };
-  }, [conn, freshness.lastEventAt]);
+  }, [conn, freshness.lastEventAt, counts.unmappedPrices]);
 
-  const matchRate = counts.totalEvents > 0
-    ? Math.round(((counts.matched + counts.totalEvents - counts.matched - counts.noMatch * 0) / counts.totalEvents) * 0)
-    : 0;
-  // Simpler: matched/(matched+noMatch) approximation using existing counts
-  const denom = counts.matched + counts.noMatch;
-  const matchPct = denom > 0 ? Math.round((counts.matched / denom) * 100) : null;
+  const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 
   const maxDay = Math.max(1, ...eventsByDay.map((d) => d.count));
 
@@ -241,7 +270,7 @@ export default function StripeIntegration() {
           <div>
             <h1 className="text-3xl font-heading font-bold">Integração Stripe</h1>
             <p className="text-muted-foreground mt-1">
-              Receba assinaturas pagas em tempo real e concilie com os deals do pipeline.
+              Recebe assinaturas pagas em tempo real e alimenta o painel <strong>Conversões por Área</strong> cruzando o <code className="font-mono text-xs">price_id</code> com o Mapa de Preços.
             </p>
           </div>
           <div className="flex gap-2">
@@ -296,47 +325,48 @@ export default function StripeIntegration() {
           </CardContent>
         </Card>
 
-        {/* Status counters */}
+        {/* Status counters — foco em conversões registradas para o painel "Conversões por Área" */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Pendentes</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Conversões (30d)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-warning">{counts.pending}</div>
-              <p className="text-xs text-muted-foreground mt-1">aguardando aprovação</p>
+              <div className="text-3xl font-heading font-bold text-primary">{counts.conversionsLast30}</div>
+              <p className="text-xs text-muted-foreground mt-1">novas assinaturas pagas</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Não casados</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">MRR (30d)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-destructive">{counts.noMatch}</div>
-              <p className="text-xs text-muted-foreground mt-1">emails sem deal correspondente</p>
+              <div className="text-3xl font-heading font-bold text-success">{fmtBRL(counts.mrrLast30)}</div>
+              <p className="text-xs text-muted-foreground mt-1">somado pelo Mapa de Preços</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Conciliados</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Conversões (total)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-success">{counts.matched}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {matchPct !== null ? `taxa de match ${matchPct}%` : "eventos processados"}
-              </p>
+              <div className="text-3xl font-heading font-bold">{counts.totalConversions}</div>
+              <p className="text-xs text-muted-foreground mt-1">{counts.totalEvents} eventos recebidos</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Total eventos</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Preços não mapeados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-heading font-bold text-primary">{counts.totalEvents}</div>
-              <p className="text-xs text-muted-foreground mt-1">recebidos do Stripe</p>
+              <div className={"text-3xl font-heading font-bold " + (counts.unmappedPrices > 0 ? "text-warning" : "text-success")}>
+                {counts.unmappedPrices}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">price_id sem entrada no Mapa</p>
             </CardContent>
           </Card>
         </div>
+
 
         {/* Última atualização */}
         <Card>
@@ -452,36 +482,41 @@ export default function StripeIntegration() {
           </CardContent>
         </Card>
 
-        {/* Erros não resolvidos */}
-        {syncErrors.length > 0 && (
-          <Card className="border-destructive/30">
+        {/* Preços do Stripe sem entrada no Mapa de Preços */}
+        {unmapped.length > 0 && (
+          <Card className="border-warning/40">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" /> Erros não resolvidos ({syncErrors.length})
+              <CardTitle className="text-base flex items-center gap-2 text-warning">
+                <AlertCircle className="h-4 w-4" /> Preços fora do Mapa ({unmapped.length})
               </CardTitle>
-              <CardDescription>Pagamentos do Stripe sem oportunidade correspondente.</CardDescription>
+              <CardDescription>
+                Esses <code className="font-mono">price_id</code> chegaram do Stripe mas não têm correspondência em <strong>Comissionamento › Mapa de Preços</strong>, então caem como <code>desconhecida</code> no gráfico de Conversões por Área. Cadastre-os no Mapa para classificá-los.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {syncErrors.map((err) => {
-                const email = err.payload?.customer_email || err.ac_id || "—";
-                return (
-                  <div key={err.id} className="flex items-center gap-3 text-sm border rounded-md p-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{email}</p>
-                      <p className="text-xs text-muted-foreground truncate">{err.error_message}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatRelative(err.created_at)}
-                    </span>
-                    <Button size="sm" variant="ghost" onClick={() => resolveError(err.id)}>
-                      Resolver
-                    </Button>
+              {unmapped.slice(0, 20).map((u) => (
+                <div key={u.price_id} className="flex items-center gap-3 text-sm border rounded-md p-2">
+                  <div className="flex-1 min-w-0">
+                    <code className="font-mono text-xs truncate block">{u.price_id}</code>
+                    {u.sample_email && (
+                      <p className="text-xs text-muted-foreground truncate">último: {u.sample_email}</p>
+                    )}
                   </div>
-                );
-              })}
+                  <Badge variant="outline">{u.count}× </Badge>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatRelative(u.last_seen)}
+                  </span>
+                </div>
+              ))}
+              {unmapped.length > 20 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  +{unmapped.length - 20} preço(s) adicionais não exibidos.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
+
 
         {/* Credentials detail (collapsed-ish) */}
         <Card>

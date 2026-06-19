@@ -8,8 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
-const DEFAULT_PIPELINE_ID = "ad7d090f-dc11-4d78-a537-6d136737b5b6";
-const PENDING_STAGE = "pendencias_stripe";
 
 function ok(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -177,18 +175,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Find an active deal in the default pipeline whose contact has this email
-  const { data: contacts } = await supabase
-    .from("contacts")
-    .select("id, created_at")
-    .ilike("email", normEmail);
-
-  const contactIds = (contacts || []).map((c) => c.id);
-  const firstContact = (contacts || []).sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  )[0] || null;
-
-  // Persistir conversão (independente de match) — upsert por subscription_id ou event_id
+  // Persistir conversão para o painel "Conversões por Área"
+  // (sem match com deals — esse fluxo foi descontinuado junto com a integração ActiveCampaign).
   const conversionRow = {
     stripe_event_id: event.id,
     stripe_customer_id: customerId,
@@ -199,11 +187,10 @@ Deno.serve(async (req) => {
     product_name: convProductName,
     plan_name: convPlanName,
     mrr: convMrr,
-    matched_contact_id: firstContact?.id ?? null,
-    registered_at: firstContact?.created_at ?? new Date().toISOString(),
+    registered_at: new Date().toISOString(),
     converted_at: new Date().toISOString(),
   };
-  // Idempotência: se já existe conversão para essa subscription, não regravar (não é nova)
+
   let conversionExists = false;
   if (subscriptionId) {
     const { data: existing } = await supabase
@@ -215,97 +202,37 @@ Deno.serve(async (req) => {
   }
 
   if (!conversionExists) {
-    if (subscriptionId) {
-      await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" });
-    } else {
-      await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    const { error: convError } = subscriptionId
+      ? await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" })
+      : await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    if (convError) {
+      console.error("Failed to persist conversion:", convError);
+      await supabase.from("stripe_events")
+        .update({ result: "conversion_failed" })
+        .eq("stripe_event_id", event.id);
+      return ok({ ok: true, error: "conversion_failed" });
     }
   }
 
-  if (contactIds.length === 0) {
+  // Sinaliza price_id não mapeado no Mapa de Preços (para o card de cobertura na tela de Integração)
+  if (priceId && convArea === "desconhecida") {
     await supabase.from("integration_sync_errors").insert({
-      entity_type: "stripe_no_match",
-      ac_id: customerId,
-      error_message: `Email ${normEmail} não encontrado em contatos`,
-      payload: { event_id: event.id, email: normEmail, customer_id: customerId, price_id: priceId, subscription_id: subscriptionId },
+      entity_type: "stripe_unmapped_price",
+      ac_id: priceId,
+      error_message: `price_id ${priceId} não está no Mapa de Preços`,
+      payload: { event_id: event.id, price_id: priceId, email: normEmail, subscription_id: subscriptionId },
       resolved: false,
     });
-    await supabase.from("stripe_events")
-      .update({ result: "no_contact_match" })
-      .eq("stripe_event_id", event.id);
-    return ok({ ok: true, warning: "no_contact_match" });
-  }
-
-  // Find active deal in default pipeline, skip already won/lost
-  const { data: deal } = await supabase
-    .from("opportunities")
-    .select("id, stage, estimated_mrr")
-    .eq("pipeline_id", DEFAULT_PIPELINE_ID)
-    .eq("is_active", true)
-    .in("contact_id", contactIds)
-    .not("stage", "in", `(ganho,perdido,fechado_won,fechado_lost,${PENDING_STAGE})`)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!deal) {
-    await supabase.from("integration_sync_errors").insert({
-      entity_type: "stripe_no_match",
-      ac_id: customerId,
-      error_message: `Nenhum deal ativo encontrado no pipeline padrão para ${normEmail}`,
-      payload: { event_id: event.id, email: normEmail, customer_id: customerId, price_id: priceId, subscription_id: subscriptionId },
-      resolved: false,
-    });
-    await supabase.from("stripe_events")
-      .update({ result: "no_deal_match" })
-      .eq("stripe_event_id", event.id);
-    return ok({ ok: true, warning: "no_deal_match" });
-  }
-
-  // MRR já resolvido em convMrr (via commission_products / stripe_prices)
-  const resolvedMrr: number | null = convMrr > 0 ? convMrr : null;
-
-  // Build update payload — only override estimated_mrr if currently empty
-  const updatePayload: Record<string, unknown> = {
-    previous_stage: deal.stage,
-    stage: PENDING_STAGE,
-    stripe_customer_id: customerId,
-    stripe_subscription_id: subscriptionId,
-    stripe_price_id: priceId,
-    stripe_pending_since: new Date().toISOString(),
-  };
-  const currentMrr = Number((deal as any).estimated_mrr || 0);
-  if (resolvedMrr && currentMrr <= 0) {
-    updatePayload.estimated_mrr = resolvedMrr;
-  }
-
-  const { error: updateError } = await supabase
-    .from("opportunities")
-    .update(updatePayload)
-    .eq("id", deal.id);
-
-  if (updateError) {
-    console.error("Failed to update opportunity:", updateError);
-    await supabase.from("stripe_events")
-      .update({ result: "update_failed", matched_opportunity_id: deal.id })
-      .eq("stripe_event_id", event.id);
-    return ok({ ok: true, error: "update_failed" });
-  }
-
-  // Atualiza matched_opportunity_id na conversão
-  if (subscriptionId) {
-    await supabase.from("stripe_conversions")
-      .update({ matched_opportunity_id: deal.id })
-      .eq("stripe_subscription_id", subscriptionId);
-  } else {
-    await supabase.from("stripe_conversions")
-      .update({ matched_opportunity_id: deal.id })
-      .eq("stripe_event_id", event.id);
   }
 
   await supabase.from("stripe_events")
-    .update({ result: "matched_pending", matched_opportunity_id: deal.id })
+    .update({ result: conversionExists ? "duplicate_subscription" : "conversion_recorded" })
     .eq("stripe_event_id", event.id);
 
-  return ok({ ok: true, matched: deal.id, stage: PENDING_STAGE });
+  return ok({
+    ok: true,
+    recorded: !conversionExists,
+    area: convArea,
+    price_mapped: convArea !== "desconhecida",
+  });
 });
