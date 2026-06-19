@@ -98,7 +98,7 @@ export default function OnePageDiretoria() {
           })}
         </div>
 
-        <main className="flex-1 px-2 lg:px-3 py-2 overflow-auto">
+        <div className="flex-1 px-2 lg:px-3 py-2">
 
             <Page id="p1" ttl="One Page · Gestão Executiva" meta="Jan–Jun 2026 · Dados até 16/06/2026">
               <div className={G.g4}>{[
