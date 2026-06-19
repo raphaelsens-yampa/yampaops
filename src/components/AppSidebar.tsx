@@ -230,7 +230,7 @@ export function AppSidebar() {
             ] : []),
           ],
         },
-        { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" },
+        // { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" }, // archived (AC-dependent)
       ],
     },
     {
@@ -282,10 +282,10 @@ export function AppSidebar() {
       defaultOpen: openIntegr,
       adminOnly: true,
       items: [
-        { title: "ActiveCampaign", url: "/integrations/active-campaign", icon: Plug, area: "integration_ac", adminOnly: true, rightSlot: "ac-status" },
+        // ActiveCampaign integration archived
         { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
         { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
-        { title: "Auditoria", url: "/integrations/audit", icon: Activity, area: "integration_audit", adminOnly: true },
+        // Integration Audit archived (AC-centric)
       ],
     },
   ];
