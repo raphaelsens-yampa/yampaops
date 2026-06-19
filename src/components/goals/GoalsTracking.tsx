@@ -44,7 +44,7 @@ export function GoalsTracking() {
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -53,6 +53,7 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
+        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -61,6 +62,7 @@ export function GoalsTracking() {
       setOpportunities(oRes.data || []);
       setCategories((cRes.data as GoalCategory[]) || []);
       setFinanceSettings(fRes.data as any);
+      setStripeConversions(scRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
