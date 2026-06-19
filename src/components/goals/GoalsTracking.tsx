@@ -222,13 +222,34 @@ export function GoalsTracking() {
     });
   }, [sellersInScope, realizedBySeller, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
 
+  // MRR órfão por área Stripe (sem vendedor atribuído via opp.consultant_id nem price_map.seller_user_id)
+  // — usado para reconciliar a equipe (ex.: Sales) com o total da área correspondente na tela Conversões.
+  const orphanMrrByArea = useMemo(() => {
+    const oppById = new Map<string, any>();
+    opportunities.forEach((o) => oppById.set(o.id, o));
+    const map = new Map<string, number>();
+    stripeConversions.forEach((sc: any) => {
+      if (!sc.converted_at) return;
+      const d = new Date(sc.converted_at);
+      if (d < start || d > end) return;
+      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
+      if (cid) return;
+      const a = sc.area || "desconhecida";
+      map.set(a, (map.get(a) || 0) + (Number(sc.mrr) || 0));
+    });
+    return map;
+  }, [stripeConversions, opportunities, priceMapByPriceId, start, end]);
+
   // Per-team rows (admin only)
   const teamRows: TeamRow[] = useMemo(() => {
     if (!isAdmin) return [];
     return teams.map((t) => {
       const memberIds = new Set(teamMembers.filter((m) => m.team_id === t.id).map((m) => m.user_id));
       const teamSellers = sellerRows.filter((r) => memberIds.has(r.user_id));
-      const realizedSum = teamSellers.reduce((s, r) => s + r.realized, 0);
+      const membersRealized = teamSellers.reduce((s, r) => s + r.realized, 0);
+      // Conversões da área Stripe equivalente ao nome do time, sem vendedor atribuído
+      const orphanForTeam = orphanMrrByArea.get(t.name) || 0;
+      const realizedSum = membersRealized + orphanForTeam;
 
       // Team-scope monthly goal, fallback to sum of members
       const teamMonthly = goals
@@ -236,7 +257,6 @@ export function GoalsTracking() {
         .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
         .reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
       let target = teamMonthly || teamSellers.reduce((s, r) => {
-        // reverse-derive monthly from current period target proportion
         if (granularity === "month") return s + r.target;
         return s + 0;
       }, 0);
@@ -251,7 +271,8 @@ export function GoalsTracking() {
       const top = [...teamSellers].sort((a, b) => b.realized - a.realized)[0];
       return { team_id: t.id, name: t.name, target, realized: realizedSum, topPerformer: top && top.realized > 0 ? top.name : undefined };
     });
-  }, [isAdmin, teams, teamMembers, sellerRows, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
+  }, [isAdmin, teams, teamMembers, sellerRows, orphanMrrByArea, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
+
 
   // Chart usa as conversões Stripe (mesma fonte do KPI Realizado)
   const wonForChart = useMemo(() => {
