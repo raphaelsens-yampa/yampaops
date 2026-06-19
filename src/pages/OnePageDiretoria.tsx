@@ -79,8 +79,8 @@ export default function OnePageDiretoria() {
     <Layout>
       <div className="flex-1 flex flex-col min-h-0" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
-          className="sticky top-0 z-30 flex gap-1 overflow-x-auto px-3 lg:px-4 py-2 backdrop-blur"
-          style={{background:"transparent"}}
+          className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-2 lg:px-3 py-1.5 backdrop-blur"
+          style={{background:C.bg}}
         >
           {NAV.map(([id,label,col])=>{
             const isActive = active===id;
@@ -88,17 +88,17 @@ export default function OnePageDiretoria() {
               <button
                 key={id as string}
                 onClick={()=>go(id as string)}
-                className="flex items-center gap-2 text-[12.5px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
-                style={{color:isActive?"#fff":C.sec,background:isActive?"#16283b":"transparent",border:"1px solid "+(isActive?col as string:"transparent")}}
+                className="flex items-center gap-1.5 text-[12px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+                style={{color:isActive?"#fff":C.sec,background:isActive?"#16283b":"transparent",border:"1px solid transparent"}}
               >
-                <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{background:col as string}}/>
+                <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{background:col as string}}/>
                 <span>{label}</span>
               </button>
             );
           })}
         </div>
 
-        <main className="flex-1 px-3 lg:px-4 py-3 overflow-auto">
+        <main className="flex-1 px-2 lg:px-3 py-2 overflow-auto">
 
             <Page id="p1" ttl="One Page · Gestão Executiva" meta="Jan–Jun 2026 · Dados até 16/06/2026">
               <div className={G.g4}>{[
