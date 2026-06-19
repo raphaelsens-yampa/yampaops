@@ -305,7 +305,7 @@ export default function OnePageDiretoria() {
             <footer className="text-center text-[10px] pt-3 mt-2" style={{color:C.mute}}>
               Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas
             </footer>
-        </main>
+        </div>
       </div>
     </Layout>
   );
