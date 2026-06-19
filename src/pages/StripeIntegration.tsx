@@ -239,6 +239,20 @@ export default function StripeIntegration() {
     setSyncing(false);
   }
 
+  async function handleBackfillDates() {
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-backfill-dates", { body: { limit: 1000 } });
+      if (error) throw error;
+      const d = data as any;
+      toast.success(`Datas recalculadas: ${d?.updated ?? 0} atualizadas, ${d?.failed ?? 0} falhas`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao recalcular datas");
+    }
+    setBackfilling(false);
+  }
+
   function copyWebhook() {
     navigator.clipboard.writeText(WEBHOOK_URL);
     toast.success("URL copiada");
