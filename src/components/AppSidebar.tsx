@@ -212,7 +212,7 @@ export function AppSidebar() {
       collapsible: true,
       defaultOpen: openVendas,
       items: [
-        { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" },
+        // { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" }, // archived
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
         { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", managerOnly: true },
         {
@@ -268,7 +268,7 @@ export function AppSidebar() {
       defaultOpen: openGestao,
       adminOnly: true,
       items: [
-        { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" },
+        // { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" }, // archived
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
         { title: "Importação", url: "/imports", icon: Upload, area: "import" },

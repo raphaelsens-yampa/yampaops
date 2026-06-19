@@ -9,10 +9,10 @@ import Auth from "./pages/Auth";
 // import AdminDashboard from "./pages/AdminDashboard"; // archived
 import SellerKanban from "./pages/SellerKanban";
 import Goals from "./pages/Goals";
-import Pipeline from "./pages/Pipeline";
+// import Pipeline from "./pages/Pipeline"; // archived
 
 import Team from "./pages/Team";
-import Contacts from "./pages/Contacts";
+// import Contacts from "./pages/Contacts"; // archived
 import Commissions from "./pages/Commissions";
 import CommissionSettings from "./pages/CommissionSettings";
 // import Forecast from "./pages/Forecast"; // archived
@@ -87,12 +87,12 @@ function AppRoutes() {
           )
         }
       />
-      <Route path="/pipeline" element={<RequireArea area="pipeline"><Pipeline /></RequireArea>} />
+      {/* Pipeline archived */}
       {/* Forecast archived */}
 
       <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
       <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
-      <Route path="/contacts" element={<RequireArea area="contacts"><Contacts /></RequireArea>} />
+      {/* Contatos archived */}
       <Route path="/commissions" element={<RequireArea area="commissions"><Commissions /></RequireArea>} />
       <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
       <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
