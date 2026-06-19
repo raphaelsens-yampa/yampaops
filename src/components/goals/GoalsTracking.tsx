@@ -376,7 +376,13 @@ export function GoalsTracking() {
 
       <GoalProgressChart start={start} end={end} target={periodTarget} won={wonForChart} />
 
-      <GoalsBreakdownByCategory rows={categoryRows} />
+      <GoalsBreakdownByCategory
+        rows={categoryRows}
+        onChanged={async () => {
+          const { data } = await supabase.from("goals").select("*");
+          setGoals(data || []);
+        }}
+      />
 
       <SellerRankingTable rows={sellerRows} />
 
