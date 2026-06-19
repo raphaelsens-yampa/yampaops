@@ -106,12 +106,18 @@ export default function StripeIntegration() {
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [conn, setConn] = useState<ConnectionInfo | null>(null);
-  const [counts, setCounts] = useState<Counts>({ pending: 0, noMatch: 0, totalEvents: 0, matched: 0 });
+  const [counts, setCounts] = useState<Counts>({
+    totalEvents: 0,
+    totalConversions: 0,
+    conversionsLast30: 0,
+    mrrLast30: 0,
+    unmappedPrices: 0,
+  });
   const [freshness, setFreshness] = useState<Freshness>({ lastEventAt: null, lastConversionAt: null, lastSyncAt: null });
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [eventsByDay, setEventsByDay] = useState<{ day: string; count: number }[]>([]);
   const [eventsByType, setEventsByType] = useState<{ type: string; count: number }[]>([]);
-  const [syncErrors, setSyncErrors] = useState<SyncError[]>([]);
+  const [unmapped, setUnmapped] = useState<UnmappedPrice[]>([]);
   const [loading, setLoading] = useState(true);
 
   if (role !== "admin") return <Navigate to="/" replace />;
@@ -119,29 +125,59 @@ export default function StripeIntegration() {
   async function loadAll() {
     setLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
     const [
-      pendingRes, noMatchRes, totalRes, matchedRes,
+      totalEvtRes, totalConvRes, last30Res,
       lastEventRes, lastConvRes, settingsRes,
-      recentRes, last7Res, errorsRes,
+      recentRes, last7Res, unmappedRes,
     ] = await Promise.all([
-      supabase.from("opportunities").select("id", { count: "exact", head: true }).eq("stage", "pendencias_stripe"),
-      supabase.from("integration_sync_errors").select("id", { count: "exact", head: true }).eq("entity_type", "stripe_no_match").eq("resolved", false),
       supabase.from("stripe_events").select("id", { count: "exact", head: true }),
-      supabase.from("stripe_events").select("id", { count: "exact", head: true }).eq("result", "matched_pending"),
+      supabase.from("stripe_conversions").select("id", { count: "exact", head: true }),
+      supabase.from("stripe_conversions").select("mrr").gte("converted_at", thirtyDaysAgo),
       supabase.from("stripe_events").select("processed_at").order("processed_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("stripe_conversions").select("converted_at").order("converted_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("integration_settings").select("last_full_sync_at").limit(1).maybeSingle(),
       supabase.from("stripe_events").select("id, stripe_event_id, event_type, result, processed_at, payload").order("processed_at", { ascending: false }).limit(10),
       supabase.from("stripe_events").select("event_type, processed_at").gte("processed_at", sevenDaysAgo),
-      supabase.from("integration_sync_errors").select("id, ac_id, error_message, created_at, payload").eq("entity_type", "stripe_no_match").eq("resolved", false).order("created_at", { ascending: false }).limit(10),
+      supabase.from("integration_sync_errors")
+        .select("id, ac_id, error_message, created_at, payload")
+        .eq("entity_type", "stripe_unmapped_price")
+        .eq("resolved", false)
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
 
+    const last30Rows = (last30Res.data as { mrr: number }[]) || [];
+    const mrrLast30 = last30Rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
+
+    // Agrega unmapped prices por price_id
+    const unmappedRows = (unmappedRes.data as any[]) || [];
+    const byPrice = new Map<string, UnmappedPrice>();
+    for (const r of unmappedRows) {
+      const pid = (r.ac_id as string) || (r.payload?.price_id as string) || "—";
+      const cur = byPrice.get(pid);
+      if (cur) {
+        cur.count += 1;
+        if (r.created_at > cur.last_seen) cur.last_seen = r.created_at;
+      } else {
+        byPrice.set(pid, {
+          id: r.id,
+          price_id: pid,
+          count: 1,
+          last_seen: r.created_at,
+          sample_email: r.payload?.email ?? null,
+        });
+      }
+    }
+    const unmappedList = Array.from(byPrice.values()).sort((a, b) => b.count - a.count);
+
     setCounts({
-      pending: pendingRes.count || 0,
-      noMatch: noMatchRes.count || 0,
-      totalEvents: totalRes.count || 0,
-      matched: matchedRes.count || 0,
+      totalEvents: totalEvtRes.count || 0,
+      totalConversions: totalConvRes.count || 0,
+      conversionsLast30: last30Rows.length,
+      mrrLast30,
+      unmappedPrices: byPrice.size,
     });
     setFreshness({
       lastEventAt: (lastEventRes.data as any)?.processed_at ?? null,
@@ -149,7 +185,7 @@ export default function StripeIntegration() {
       lastSyncAt: (settingsRes.data as any)?.last_full_sync_at ?? null,
     });
     setRecentEvents((recentRes.data as RecentEvent[]) || []);
-    setSyncErrors((errorsRes.data as SyncError[]) || []);
+    setUnmapped(unmappedList);
 
     // Aggregate last 7 days
     const byDay = new Map<string, number>();
