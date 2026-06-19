@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
   BarElement, ArcElement, Tooltip, Legend, Filler,
