@@ -106,6 +106,7 @@ export default function StripeIntegration() {
   const { role } = useAuth();
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [conn, setConn] = useState<ConnectionInfo | null>(null);
   const [counts, setCounts] = useState<Counts>({
     totalEvents: 0,
