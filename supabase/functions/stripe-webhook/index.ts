@@ -8,8 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
-const DEFAULT_PIPELINE_ID = "ad7d090f-dc11-4d78-a537-6d136737b5b6";
-const PENDING_STAGE = "pendencias_stripe";
 
 function ok(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
