@@ -36,10 +36,11 @@ interface ConnectionInfo {
 }
 
 interface Counts {
-  pending: number;
-  noMatch: number;
   totalEvents: number;
-  matched: number;
+  totalConversions: number;
+  conversionsLast30: number;
+  mrrLast30: number;
+  unmappedPrices: number;
 }
 
 interface Freshness {
@@ -57,12 +58,12 @@ interface RecentEvent {
   payload: any;
 }
 
-interface SyncError {
+interface UnmappedPrice {
   id: string;
-  ac_id: string | null;
-  error_message: string;
-  created_at: string;
-  payload: any;
+  price_id: string;
+  count: number;
+  last_seen: string;
+  sample_email: string | null;
 }
 
 function formatRelative(iso: string | null): string {
