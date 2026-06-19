@@ -338,8 +338,9 @@ export default function AgentActivity() {
           <div>
             <h1 className="text-2xl font-heading font-bold">Atividade de Agentes</h1>
             <p className="text-sm text-muted-foreground">
-              Conversas atendidas e mensagens trocadas via Chatwoot, com cobertura da base do ActiveCampaign.
+              Conversas atendidas e mensagens trocadas via Chatwoot.
             </p>
+
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as any)} variant="outline" size="sm">
@@ -420,8 +421,8 @@ export default function AgentActivity() {
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="contactados">Contactados</TabsTrigger>
-            <TabsTrigger value="cobertura">Cobertura vs AC</TabsTrigger>
           </TabsList>
+
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="space-y-4">
@@ -548,15 +549,13 @@ export default function AgentActivity() {
             </Card>
           </TabsContent>
 
-          {/* Cobertura vs AC */}
-          <TabsContent value="cobertura">
-            <CoberturaAC />
-          </TabsContent>
+          {/* Cobertura vs AC archived */}
         </Tabs>
       </div>
     </Layout>
   );
 }
+
 
 function CoberturaAC() {
   const [listId, setListId] = useState<string>("");
