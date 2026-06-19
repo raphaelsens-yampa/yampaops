@@ -77,7 +77,7 @@ export default function OnePageDiretoria() {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-full -mx-3 sm:-mx-4 md:-mx-6 -my-3 sm:-my-4 md:-my-6 px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+      <div className="flex-1 flex flex-col min-h-0 overflow-auto -mx-3 sm:-mx-4 md:-mx-6 -my-3 sm:-my-4 md:-my-6 px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
           className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-2 lg:px-3 py-1.5 backdrop-blur"
           style={{background:C.bg}}
@@ -98,7 +98,7 @@ export default function OnePageDiretoria() {
           })}
         </div>
 
-        <main className="flex-1 px-2 lg:px-3 py-2 overflow-auto">
+        <div className="flex-1 px-2 lg:px-3 py-2">
 
             <Page id="p1" ttl="One Page · Gestão Executiva" meta="Jan–Jun 2026 · Dados até 16/06/2026">
               <div className={G.g4}>{[
@@ -305,7 +305,7 @@ export default function OnePageDiretoria() {
             <footer className="text-center text-[10px] pt-3 mt-2" style={{color:C.mute}}>
               Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas
             </footer>
-        </main>
+        </div>
       </div>
     </Layout>
   );
