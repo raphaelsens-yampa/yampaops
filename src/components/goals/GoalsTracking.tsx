@@ -14,7 +14,7 @@ import {
   differenceInCalendarDays, isAfter, startOfDay,
 } from "date-fns";
 import { GoalsBreakdownByCategory, type CategoryRow } from "./GoalsBreakdownByCategory";
-import { AREA_LABELS, FINANCIAL_SLUGS, type GoalCategory } from "@/lib/goalCategories";
+import { AREA_LABELS, FINANCIAL_SLUGS, STRIPE_DRIVEN_SLUGS, type GoalCategory } from "@/lib/goalCategories";
 
 function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
