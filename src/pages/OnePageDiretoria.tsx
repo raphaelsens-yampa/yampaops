@@ -70,7 +70,8 @@ export default function OnePageDiretoria() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [active,setActive]=useState("p1");
   useEffect(()=>{
-    const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id);});},{rootMargin:"-45% 0px -50% 0px"});
+    const root=rootRef.current;
+    const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id);});},{root,rootMargin:"-45% 0px -50% 0px"});
     NAV.forEach(([id])=>{const el=document.getElementById(id as string);if(el)obs.observe(el);});
     return ()=>obs.disconnect();
   },[]);
@@ -81,22 +82,22 @@ export default function OnePageDiretoria() {
     main.style.background=C.bg;
     main.style.padding="0";
     main.style.color=C.white;
-    main.style.overflow="auto";
+    main.style.overflow="hidden";
     main.style.height="100vh";
     main.style.minHeight="0";
     return ()=>{main.style.background=prev.bg;main.style.padding=prev.padding;main.style.color=prev.color;main.style.overflow=prev.overflow;main.style.height=prev.height;main.style.minHeight=prev.minHeight;};
   },[]);
   const go=(id:string)=>{
     const el=document.getElementById(id);
-    const main=rootRef.current?.closest("main") as HTMLElement | null;
-    if(!el||!main) return;
-    const top=el.offsetTop - 48;
-    main.scrollTo({top,behavior:"smooth"});
+    const root=rootRef.current;
+    if(!el||!root) return;
+    const top=el.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop-48;
+    root.scrollTo({top,behavior:"smooth"});
   };
 
   return (
     <Layout>
-      <div ref={rootRef} className="flex flex-col min-h-full" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+      <div ref={rootRef} className="flex h-screen flex-col overflow-y-auto" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
         <div
           className="sticky top-0 z-30 flex gap-0.5 overflow-x-auto px-3 lg:px-4 py-2 backdrop-blur border-b"
           style={{background:C.bg+"f0",borderColor:"#16283b"}}
