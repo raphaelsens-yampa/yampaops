@@ -174,6 +174,34 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ─── Descartar conversões sem valor ───
+  // Regra: criação de cliente sem price_id OU com MRR/oferta zerado não vai para relatórios.
+  if (!priceId || convMrr <= 0) {
+    const reason = !priceId
+      ? "Conversão descartada: sem stripe_price_id"
+      : "Conversão descartada: MRR/valor da oferta zerado";
+    await supabase.from("integration_sync_errors").insert({
+      entity_type: "stripe_discarded_no_value",
+      ac_id: subscriptionId || customerId || event.id,
+      error_message: reason,
+      payload: {
+        event_id: event.id,
+        event_type: event.type,
+        customer_id: customerId,
+        subscription_id: subscriptionId,
+        price_id: priceId,
+        email: normEmail,
+        mrr: convMrr,
+        source: "webhook",
+      },
+      resolved: true,
+    });
+    await supabase.from("stripe_events")
+      .update({ result: !priceId ? "discarded_no_price" : "discarded_zero_mrr" })
+      .eq("stripe_event_id", event.id);
+    return ok({ ok: true, discarded: true, reason });
+  }
+
   // ─── Datas oficiais vindas do Stripe ───
   // registered_at = data em que o customer foi criado no Stripe (entrou na base)
   // converted_at  = data do primeiro pagamento confirmado (earliest paid invoice)

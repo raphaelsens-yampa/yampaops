@@ -115,6 +115,8 @@ const RESULT_LABELS: Record<string, { label: string; tone: "ok" | "warn" | "err"
   conversion_failed: { label: "Falha ao gravar", tone: "err" },
   extraction_failed: { label: "Falha na leitura", tone: "err" },
   ignored_event_type: { label: "Ignorado", tone: "muted" },
+  discarded_no_price: { label: "Descartado: sem price", tone: "muted" },
+  discarded_zero_mrr: { label: "Descartado: MRR zero", tone: "muted" },
 };
 
 export default function StripeIntegration() {
