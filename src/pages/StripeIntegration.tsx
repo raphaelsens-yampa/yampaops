@@ -213,6 +213,7 @@ export default function StripeIntegration() {
       lastSyncAt: (settingsRes.data as any)?.last_full_sync_at ?? null,
     });
     setRecentEvents((recentRes.data as RecentEvent[]) || []);
+    setRecentConversions((recentConvRes.data as RecentConversion[]) || []);
     setUnmapped(unmappedList);
 
     // Aggregate last 7 days
