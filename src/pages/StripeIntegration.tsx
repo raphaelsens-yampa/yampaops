@@ -154,7 +154,7 @@ export default function StripeIntegration() {
     const [
       totalEvtRes, totalConvRes, last30Res,
       lastEventRes, lastConvRes, settingsRes,
-      recentRes, last7Res, unmappedRes,
+      recentRes, last7Res, unmappedRes, recentConvRes,
     ] = await Promise.all([
       supabase.from("stripe_events").select("id", { count: "exact", head: true }),
       supabase.from("stripe_conversions").select("id", { count: "exact", head: true }),
@@ -170,6 +170,10 @@ export default function StripeIntegration() {
         .eq("resolved", false)
         .order("created_at", { ascending: false })
         .limit(200),
+      supabase.from("stripe_conversions")
+        .select("id, customer_email, area, product_name, plan_name, mrr, converted_at, registered_at, stripe_price_id")
+        .order("converted_at", { ascending: false, nullsFirst: false })
+        .limit(15),
     ]);
 
     const last30Rows = (last30Res.data as { mrr: number }[]) || [];
