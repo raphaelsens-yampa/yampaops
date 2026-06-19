@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
   BarElement, ArcElement, Tooltip, Legend, Filler,
@@ -55,14 +54,12 @@ function Tag({ children, t }: any) {
 const G = { g4:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3.5 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
 
 function Page({ id, ttl, meta, children }: any) {
-  return <section id={id} className="mx-auto mb-[34px] rounded-[14px] border scroll-mt-4" style={{maxWidth:1320,background:C.bg,borderColor:C.line,padding:"22px 24px 26px",boxShadow:"0 8px 30px rgba(0,0,0,.4)"}}>
-    <div className="flex justify-between items-baseline flex-wrap gap-2 border-b pb-3 mb-[18px]" style={{borderColor:C.line}}>
-      <div className="font-black text-[18px]">YAMPA<small className="block text-[10px] font-semibold tracking-wide" style={{color:C.mute}}>by 4blue</small></div>
-      <div className="text-[20px] font-extrabold tracking-wider uppercase" style={{color:C.sec}}>{ttl}</div>
-      <div className="text-[12px]" style={{color:C.mute}}>{meta}</div>
+  return <section id={id} className="scroll-mt-20 mb-8">
+    <div className="flex justify-between items-baseline flex-wrap gap-2 border-b pb-2.5 mb-4" style={{borderColor:C.line}}>
+      <h2 className="text-[18px] font-extrabold tracking-tight uppercase" style={{color:C.white}}>{ttl}</h2>
+      <div className="text-[11px]" style={{color:C.mute}}>{meta}</div>
     </div>
     {children}
-    <div className="text-center text-[10px] mt-3.5 border-t pt-2.5" style={{color:C.mute,borderColor:C.line}}>Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas</div>
   </section>;
 }
 
@@ -71,7 +68,6 @@ const NAV = [["p1","One Page",C.blue],["p2","Financeiro",C.blue],["p3","Plano de
 
 export default function OnePageDiretoria() {
   const [active,setActive]=useState("p1");
-  const [navCollapsed,setNavCollapsed]=useState(false);
   useEffect(()=>{
     const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id);});},{rootMargin:"-45% 0px -50% 0px"});
     NAV.forEach(([id])=>{const el=document.getElementById(id as string);if(el)obs.observe(el);});
@@ -81,43 +77,29 @@ export default function OnePageDiretoria() {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-0" style={{background:"#060f17",color:C.white,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
-        <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-          <nav
-            className={`z-50 flex gap-1 overflow-x-auto p-3 border-b lg:border-b-0 lg:border-r lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden shrink-0 transition-all duration-200 ${navCollapsed ? 'lg:w-14' : 'lg:w-[178px]'}`}
-            style={{background:"#0a1521",borderColor:C.line}}
-          >
-            <div className="hidden lg:flex items-center justify-between px-2 mb-2">
-              {!navCollapsed && <div className="font-black text-[16px]">YAMPA</div>}
+      <div className="flex-1 flex flex-col min-h-0" style={{background:"#0a1521",color:C.white,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
+        <div
+          className="sticky top-0 z-30 flex gap-1 overflow-x-auto px-4 lg:px-6 py-2 border-b backdrop-blur"
+          style={{background:"rgba(10,21,33,0.85)",borderColor:C.line}}
+        >
+          {NAV.map(([id,label,col])=>{
+            const isActive = active===id;
+            return (
               <button
-                type="button"
-                onClick={()=>setNavCollapsed(!navCollapsed)}
-                className="p-1 rounded hover:bg-white/10"
-                style={{color:C.mute}}
-                aria-label={navCollapsed ? "Expandir" : "Recolher"}
+                key={id as string}
+                onClick={()=>go(id as string)}
+                className="flex items-center gap-2 text-[12.5px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
+                style={{color:isActive?"#fff":C.sec,background:isActive?"#16283b":"transparent",border:"1px solid "+(isActive?col as string:"transparent")}}
               >
-                {navCollapsed ? <ChevronRight className="h-4 w-4"/> : <ChevronLeft className="h-4 w-4"/>}
+                <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{background:col as string}}/>
+                <span>{label}</span>
               </button>
-            </div>
-            {!navCollapsed && <div className="hidden lg:block text-[9px] px-2 mb-4 tracking-wide" style={{color:C.mute}}>ONE PAGE · 16/06/2026</div>}
-            {NAV.map(([id,label,col])=>{
-              const isActive = active===id;
-              return (
-                <button
-                  key={id as string}
-                  onClick={()=>go(id as string)}
-                  className="flex items-center gap-2 text-[13px] px-2.5 py-2 rounded-[7px] whitespace-nowrap text-left"
-                  style={{color:isActive?"#fff":C.sec,background:isActive?"#16283b":"transparent",borderLeft:"3px solid "+(isActive?C.blue:"transparent")}}
-                  title={navCollapsed ? (label as string) : undefined}
-                >
-                  <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{background:col as string}}/>
-                  {!navCollapsed && <span>{label}</span>}
-                </button>
-              );
-            })}
-          </nav>
+            );
+          })}
+        </div>
 
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+        <main className="flex-1 px-4 lg:px-6 py-5 overflow-auto">
+
             <Page id="p1" ttl="One Page · Gestão Executiva" meta="Jan–Jun 2026 · Dados até 16/06/2026">
               <div className={G.g4}>{[
                 ["MRR Atual","R$326,0k","jun 16, 2026","▲ +2,35% vs mai","up"],
@@ -319,8 +301,11 @@ export default function OnePageDiretoria() {
                 <Card><Mini>Adoção & Jornada</Mini><List items={[["Adoção YampaFin","~26%"],["Retorno ao legado (&lt;1 dia)","74,5%"],["Base full","9%"]]}/><div className="text-[11px] mt-1.5" style={{color:C.mute}}>Dados da Jornada — em breve (onboarding, ativação, retenção)</div></Card>
               </div>
             </Page>
-          </main>
-        </div>
+
+            <footer className="text-center text-[10px] pt-3 mt-2 border-t" style={{color:C.mute,borderColor:C.line}}>
+              Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas
+            </footer>
+        </main>
       </div>
     </Layout>
   );
