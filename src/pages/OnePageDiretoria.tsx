@@ -112,7 +112,7 @@ export default function OnePageDiretoria() {
                 ["NPS Atual","59,00%","jun 2026","↓ -17,59% vs jun/25","down"],
               ].map((k,i)=><Kpi key={i} k={k}/>)}</div>
 
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <Bars title="Estrutura de Resultado — Jun/26" rows={[["Margem de Contribuição",92.1,C.green],["Despesas Fixas",74.0,C.red],["% Investimentos",9.1,C.amber],["% Lucro Operacional",9.0,C.green]]}/>
                 <Card><Mini>Movimentação Base — Mai (mês fechado)</Mini>
                   <div className="flex justify-around text-center gap-2.5">
@@ -125,14 +125,14 @@ export default function OnePageDiretoria() {
                 <Card><Mini>Campanhas — Geral (Junho)</Mini><List items={[["Free Trials Total","348"],["CP-FT (custo/trial)","R$12,44"],["Trials Convertidos (D+15)","5"],["Conversão Final","1,44%"],["CAC geral","R$866"],["LTV/CAC","4,12x",C.amber]]}/></Card>
               </div>
 
-              <div className={G.g4+" mt-3.5"}>
+              <div className={G.g4+" mt-2"}>
                 <ChartBox title="MRR Diário — D-30"><Line data={{labels:D.mrr_daily_lbl,datasets:[ds("MRR",D.mrr_daily,C.blue,{fill:true,backgroundColor:"rgba(10,132,255,.12)",tension:.35})]}} options={LINE_OPT}/></ChartBox>
                 <ChartBox title="Quadrimestre · MRR mensal × Meta"><Line data={{labels:MESES,datasets:[ds("MRR",D.mrr_m,C.blue,{pointRadius:2}),ds("Meta",D.mrr_meta,C.red,{borderDash:[5,4]})]}} options={LEG_OPT}/></ChartBox>
                 <ChartBox title="Free Trials por mês"><Bar data={{labels:MESES,datasets:[{label:"Trials",data:D.ft,backgroundColor:C.amber}]}} options={BAR_OPT}/></ChartBox>
                 <ChartBox title="Evolução Ativos Pagantes (D-30)"><Line data={{labels:D.ativos_lbl,datasets:[ds("Ativos",D.ativos,C.purple)]}} options={LINE_OPT}/></ChartBox>
               </div>
 
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <ChartBox title="Saúde da Base — 60,1% em risco de churn" h="h-[210px]"><Doughnut data={{labels:["Alto","Engajado","Baixo","Desengajado"],datasets:[{data:D.donut,backgroundColor:[C.green,"#1C7293",C.amber,C.red],borderColor:"#132336",borderWidth:2}]}} options={{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11}}}}}}/></ChartBox>
                 <ChartBox title="Atingimento Metas 2026 (Jan→Jun)"><Bar data={{labels:MESES,datasets:[{label:"Atingimento %",data:D.ating,backgroundColor:[C.red,C.amber,C.amber,C.amber,C.green,C.green]}]}} options={BAR_PCT}/></ChartBox>
                 <Card><Mini>Roadmap Q2 & Riscos</Mini>
@@ -146,7 +146,7 @@ export default function OnePageDiretoria() {
                   <div className="text-[11px] leading-relaxed mt-2" style={{color:C.mute}}><b style={{color:C.red}}>Riscos:</b> Volume de bugs alto · Instabilidade sandbox fornecedor · Conciliação bancária (41 retrocessos)</div></Card>
               </div>
 
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <Card><Mini>Saúde da Base & Unit Economics</Mini><List items={[["LTV médio (ARPA / churn total)","R$2.214"],["ARPA do Churn (ticket perdido)","R$147,15"],["Payback","7,52 meses"],["Lifetime (churn total / voluntário)","~15,6m / ~62m"],["Origem Fechamentos 4Blue","56%"]]}/></Card>
                 <Card><Mini>Produto</Mini><List items={[["Adoção YampaFin","~26%"],["Retorno ao legado (&lt;1 dia)","74,5%"],["Must Have (uso crítico)","66,3%"],["Impacto em empregos","9.116"],["Dados da Jornada","em breve",C.sec]]}/></Card>
                 <Card><Mini>Quadrimestre 2025×2026 + Projeção</Mini><List items={[["Retração Receita","-4,38%",C.red],["Desempenho vs LY","-88%",C.red],["Peso Despesas Fixas","74,0%"],["Projeção jun/26","R$326–330k",C.amber]]}/></Card>
@@ -163,11 +163,11 @@ export default function OnePageDiretoria() {
                 ["ARPA Atual","R$143,06","jun 16","→ estável","flat"],
                 ["Churn MRR","R$17,7k","receita perd.","▼ -17,15% vs mai","up"],
               ].map((k,i)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g2+" mt-3.5"}>
+              <div className={G.g2+" mt-2"}>
                 <ChartBox title="MRR Diário D-30 · 4Blue × Yampa" h="h-[210px]"><Line data={{labels:D.my_lbl,datasets:[ds("Yampa",D.my,C.green),ds("4Blue",D.mb,C.blue)]}} options={LEG_OPT}/></ChartBox>
                 <ChartBox title="Saldo MRR mensal 2026" h="h-[210px]"><Bar data={{labels:MESES,datasets:[{label:"Saldo",data:D.saldo,backgroundColor:D.saldo.map((v:number)=>v>=0?C.green:C.red)}]}} options={BAR_OPT}/></ChartBox>
               </div>
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <Bars title="Estrutura de Resultado — Jun/26" rows={[["Margem de Contribuição",92.1,C.green],["Despesas Fixas",74.0,C.red],["% Investimentos",9.1,C.amber],["% Lucro Operacional",9.0,C.green]]}/>
                 <Card><Mini>Estrutura de Custos & Decisões</Mini><List items={[["Regime tributário","Lucro Real"],["Alíquota IR mínima","~8–9%"],["Econ. IA design","-R$20k/mês",C.green],["Econ. CTO→Tech Lead","-R$5k/mês",C.green],["Projeção jun/26","R$326–330k",C.amber],["Meta MRR Dez/26","R$512k"]]}/></Card>
                 <Card><Mini>Quadrimestre</Mini><List items={[["Retração Receita","-4,38%",C.red],["Desempenho vs LY","-88%",C.red],["Peso Despesas Fixas","74,0%"]]}/><div className="text-[11px] mt-2" style={{color:C.mute}}>Share Inadimplência: ~20% historicamente estável (dez/23 – jun/26)</div></Card>
@@ -224,16 +224,16 @@ export default function OnePageDiretoria() {
                 ["ARPA Atual","R$143,06","jun 16","→ estável","flat"],
                 ["Pré-Churn (risco)","146","em risco","▼ -9,32% vs mai","up"],
               ].map((k,i)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g2+" mt-3.5"}>
+              <div className={G.g2+" mt-2"}>
                 <ChartBox title="Ativos Pagantes — Evolução D-30 (Total × 4Blue)" h="h-[210px]"><Line data={{labels:D.ativos_lbl,datasets:[ds("Total",D.ativos,C.green),ds("4Blue",D.ativos4b,C.blue)]}} options={LEG_OPT}/></ChartBox>
                 <ChartBox title="Distribuição por tier de engajamento (D-30)" h="h-[210px]"><Doughnut data={{labels:["Alto","Engajado","Baixo","Desengajado"],datasets:[{data:D.donut,backgroundColor:[C.green,"#1C7293",C.amber,C.red],borderColor:"#132336",borderWidth:2}]}} options={{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11}}}}}}/></ChartBox>
               </div>
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <ChartBox title="Trials acumulados — D-30"><Line data={{labels:D.trials_lbl,datasets:[ds("Trials",D.trials,C.green,{fill:true,backgroundColor:"rgba(34,211,160,.12)",tension:.35})]}} options={LINE_OPT}/></ChartBox>
                 <ChartBox title="Novos pagantes / dia — D-30"><Line data={{labels:D.novos_lbl,datasets:[ds("Novos",D.novos,C.red)]}} options={LINE_OPT}/></ChartBox>
                 <ChartBox title="Churn diário — D-30"><Line data={{labels:D.churn_lbl,datasets:[ds("Churn",D.churn_abs,C.amber)]}} options={LINE_OPT}/></ChartBox>
               </div>
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <ChartBox title="Status Conversões — D-30"><Line data={{labels:D.conv_lbl,datasets:[ds("Conversões",D.conv,C.blue,{fill:true,backgroundColor:"rgba(10,132,255,.12)",tension:.35})]}} options={LINE_OPT}/></ChartBox>
                 <Card><Mini>LTV/CAC — Visão dupla & Unit economics</Mini><List items={[["LTV/CAC Real (Produto —)","4,12x"],["Lifetime (churn total)","~15,6 meses"],["Lifetime (churn voluntário)","~62 meses"],["ARPA do Churn","R$147,15"],["LTV médio","R$2.214"],["Payback","7,52 meses"]]}/></Card>
                 <Card><Mini>Atingimento de Metas — Junho</Mini><List items={[["Atingimento Geral","87,2%",C.amber],["Ativos Pagantes (meta 2.932)","77,7%",C.amber],["Novos Pagantes (meta 126)","65,1%",C.red],["Churn (meta 145)","190,8%",C.green],["Engajamento: risco churn","60,1%"],["Inativo 1.758 · Alto 818",""]]}/></Card>
@@ -248,7 +248,7 @@ export default function OnePageDiretoria() {
               ].map((m:any,i:number)=>{const L=["Invest.","Trials","Andamento","Concluídos","Convertidos","Conv. %","CP-FT","CAC","LTV/CAC"];return (
                 <Card key={i}><h4 className="text-[11px] uppercase tracking-wide mb-2 font-bold" style={{color:m[1]}}>{m[0]}</h4>
                   <div className="grid grid-cols-3 gap-1.5">{m[2].map((v:string,j:number)=>(<div key={j}><div className="text-[9px] uppercase" style={{color:C.mute}}>{L[j]}</div><b className="text-[13px]" style={j===8?{color:C.amber}:undefined}>{v}</b></div>))}</div></Card>);})}</div>
-              <div className={G.g2+" mt-3.5"}>
+              <div className={G.g2+" mt-2"}>
                 <Card><Mini>Top Campanhas — Junho/2026</Mini>
                   <table className="w-full text-[12px]" style={{borderCollapse:"collapse"}}><thead><tr style={{color:C.mute}}>{["Campanha","Obj.","Invest.","Trials","Conv.","CAC","LTV/CAC"].map((h,i)=>(<th key={i} className={(i>1?"text-right ":"text-left ")+"text-[9px] uppercase py-1.5 px-1"} style={{borderBottom:"1px solid "+C.line}}>{h}</th>))}</tr></thead>
                   <tbody>{[
@@ -262,11 +262,11 @@ export default function OnePageDiretoria() {
                   ].map((r:any,i:number)=>{const tot=i===6;return (<tr key={i} style={tot?{background:"#16283b",color:C.blue,fontWeight:700}:undefined}>{r.map((c:string,j:number)=>(<td key={j} className={(j>1?"text-right ":"")+"py-1.5 px-1"} style={{borderBottom:"1px solid #19293a",color:(j===6&&!tot&&c!=="0")?C.amber:undefined}}>{c}</td>))}</tr>);})}</tbody></table></Card>
                 <ChartBox title="Free Trials por mês + Investimento"><Bar data={{labels:MESES,datasets:[{label:"Trials",data:D.ft,backgroundColor:C.amber}]}} options={BAR_OPT}/></ChartBox>
               </div>
-              <div className={G.g2+" mt-3.5"}>
+              <div className={G.g2+" mt-2"}>
                 <ChartBox title="LTV/CAC por mês — Geral"><Line data={{labels:MESES,datasets:[ds("LTV/CAC",D.ltvcac,C.amber,{pointRadius:3,tension:.35})]}} options={{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}/></ChartBox>
                 <ChartBox title="CP-FT por mês"><Bar data={{labels:MESES,datasets:[{label:"CP-FT",data:D.cpft,backgroundColor:C.blue}]}} options={BAR_OPT}/></ChartBox>
               </div>
-              <div className={G.g4+" mt-3.5"}>{[
+              <div className={G.g4+" mt-2"}>{[
                 ["Iniciativa 1","YampaFin Google Ads","ATIVO","go"],
                 ["Iniciativa 2","Facebook Ads (retomada)","PLANEJA.","back"],
                 ["Iniciativa 3","Curso c/ onboarding","08/05 ▶","doing"],
@@ -285,17 +285,17 @@ export default function OnePageDiretoria() {
                 ["Adoção YampaFin","~26%","empresas ativas","→ pós-lançamento","flat"],
                 ["Must Have","66,3%","uso crítico","↑ positivo","up"],
               ].map((k,i)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <ChartBox title="Atingimento Metas anual 2026"><Bar data={{labels:MESES,datasets:[{label:"Atingimento %",data:D.ating,backgroundColor:C.purple}]}} options={BAR_PCT}/></ChartBox>
                 <ChartBox title="Ativos Pagantes — mensal × Meta"><Line data={{labels:MESES,datasets:[ds("Resultado",D.at_m,C.blue,{pointRadius:2}),ds("Meta",D.at_meta,"#9aa7b8",{borderDash:[5,4]})]}} options={LEG_OPT}/></ChartBox>
                 <ChartBox title="MRR Resultado × Meta"><Line data={{labels:MESES,datasets:[ds("Resultado",D.mrr_m,C.green,{pointRadius:2}),ds("Meta",D.mrr_meta,"#9aa7b8",{borderDash:[5,4]})]}} options={LEG_OPT}/></ChartBox>
               </div>
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <Card><Mini>Bloqueadores de Adoção</Mini><List items={[["Conciliação bancária — 41 retrocederam",""],["Funcionalidades removidas (estorno parcial)",""],["UX sobrecarregada — scroll/colunas",""],["Instabilidade sandbox do fornecedor",""]]}/></Card>
                 <Card><Mini>Positivos</Mini><List items={[["Time dedicado ao YampaFin","",C.green],["Dados de produto disponíveis","",C.green],["Velocidade de entrega melhorando","",C.green]]}/><div className="text-[11px] mt-2" style={{color:C.mute}}>74,5% dos que migraram retornam ao legado em &lt; 1 dia</div></Card>
                 <Card><Mini>Metas Anuais 2026 (otimistas) & Impacto</Mini><List items={[["MRR Meta Dez","R$512k"],["Ativos Meta Dez","3.540"],["Novos Pag. Dez","165/mês"],["Churn Dez","175/mês"],["Trials Meta Dez","1.467"],["Impacto em empregos","9.116"]]}/></Card>
               </div>
-              <div className={G.g3+" mt-3.5"}>
+              <div className={G.g3+" mt-2"}>
                 <Card><Mini>NPS — detalhe</Mini><div className="text-[34px] font-extrabold" style={{color:C.green}}>59,00%</div><div className="text-[11px] mt-1.5" style={{color:C.mute}}>↓ -17,59% vs jun/2025 · ↓ -5,48% vs mês anterior</div></Card>
                 <Card><Mini>Must Have (produto crítico p/ usuário)</Mini><List items={[["Must Have (todos os valores)","66,3%"],["Classificação","13,53%",C.amber],["Outras visões (indif. / muito frust.)","21,33% / 98,84%"]]}/></Card>
                 <Card><Mini>Adoção & Jornada</Mini><List items={[["Adoção YampaFin","~26%"],["Retorno ao legado (&lt;1 dia)","74,5%"],["Base full","9%"]]}/><div className="text-[11px] mt-1.5" style={{color:C.mute}}>Dados da Jornada — em breve (onboarding, ativação, retenção)</div></Card>
