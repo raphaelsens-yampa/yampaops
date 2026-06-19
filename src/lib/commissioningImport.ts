@@ -13,7 +13,7 @@ const HEADER_ALIASES: Record<keyof RawRow, string[]> = {
   price_id: ["stripe price id", "stripe_price_id", "price id"],
   gateway: ["gateway"],
   origem_cliente: ["origem cliente", "origem_cliente"],
-  mrr: ["mrr", "mrr atual"],
+  mrr: ["mrr", "mrr atual", "new mrr", "newmrr", "new_mrr", "novo mrr"],
   data_ref: ["data ref analise", "data ref análise", "data_ref"],
 };
 
