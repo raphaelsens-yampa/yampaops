@@ -626,6 +626,15 @@ export default function StripeIntegration() {
                     <span className="text-xs font-medium w-24 text-right shrink-0">
                       R$ {Number(c.mrr || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
+                    {c.area === "desconhecida" && c.stripe_price_id && (
+                      <MapStripePriceButton
+                        price_id={c.stripe_price_id}
+                        offer_name={c.product_name}
+                        customer_email={c.customer_email}
+                        mrr={c.mrr}
+                        onMapped={loadAll}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
