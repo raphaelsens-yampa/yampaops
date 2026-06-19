@@ -10,6 +10,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 ChartJS.defaults.color = "#7A95A8";
 ChartJS.defaults.font.size = 10;
 ChartJS.defaults.borderColor = "#19293a";
+ChartJS.defaults.animation = false;
 
 const C = { bg:"#0B1824", card:"#132336", line:"#23415c", blue:"#0A84FF", green:"#22D3A0", red:"#FF4E6A", amber:"#FFB020", mute:"#7A95A8", sec:"#B0C4D0", white:"#E8F0F5", purple:"#B36BFF" };
 
