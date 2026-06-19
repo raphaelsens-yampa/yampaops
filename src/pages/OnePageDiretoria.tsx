@@ -301,8 +301,11 @@ export default function OnePageDiretoria() {
                 <Card><Mini>Adoção & Jornada</Mini><List items={[["Adoção YampaFin","~26%"],["Retorno ao legado (&lt;1 dia)","74,5%"],["Base full","9%"]]}/><div className="text-[11px] mt-1.5" style={{color:C.mute}}>Dados da Jornada — em breve (onboarding, ativação, retenção)</div></Card>
               </div>
             </Page>
-          </main>
-        </div>
+
+            <footer className="text-center text-[10px] pt-3 mt-2 border-t" style={{color:C.mute,borderColor:C.line}}>
+              Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026 · Fonte: Metabase + Looker + Planilha de Metas
+            </footer>
+        </main>
       </div>
     </Layout>
   );
