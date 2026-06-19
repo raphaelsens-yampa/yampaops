@@ -364,9 +364,8 @@ export default function StripeIntegration() {
               <p className="text-xs text-muted-foreground mt-1">price_id sem entrada no Mapa</p>
             </CardContent>
           </Card>
-
-          </Card>
         </div>
+
 
         {/* Última atualização */}
         <Card>
