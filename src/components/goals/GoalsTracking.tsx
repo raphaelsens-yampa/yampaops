@@ -229,6 +229,23 @@ export function GoalsTracking() {
       return (monthly / monthBiz) * businessDaysInRange(start, end);
     };
 
+    // Index opportunities by id for Stripe-driven attribution
+    const oppById = new Map<string, any>();
+    opportunities.forEach((o) => oppById.set(o.id, o));
+
+    // Stripe conversions já filtradas pelo período e escopo de vendedor
+    const stripeInScope = stripeConversions.filter((sc: any) => {
+      if (!sc.converted_at) return false;
+      const d = new Date(sc.converted_at);
+      if (d < start || d > end) return false;
+      if (sellerFilter === "all" && teamFilter === "all" && isAdmin) return true;
+      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+      const cid = opp?.consultant_id || null;
+      if (!cid) return false; // sem deal casado, só conta na visão da empresa
+      return sellerIds.has(cid);
+    });
+    const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
+
     return categories.map((cat) => {
       const matchingGoals = goals.filter((g) => {
         if (g.category_id !== cat.id) return false;
@@ -242,7 +259,25 @@ export function GoalsTracking() {
       const target = proratedTarget(monthlyTargetCat);
 
       let realizedCat = 0;
-      if (cat.slug === FINANCIAL_SLUGS.LTV) {
+      let source: "stripe" | "manual" | "calculated" = "calculated";
+      let manualOverride = false;
+      const overrideSum = matchingGoals.reduce((s, g) => {
+        const v = g.realized_override;
+        return v != null ? s + Number(v) : s;
+      }, 0);
+      const hasOverride = matchingGoals.some((g) => g.realized_override != null);
+
+      if (STRIPE_DRIVEN_SLUGS.has(cat.slug)) {
+        // New MRR (categoria automática via Stripe)
+        source = "stripe";
+        if (hasOverride) {
+          realizedCat = overrideSum;
+          manualOverride = true;
+          source = "manual";
+        } else {
+          realizedCat = stripeMrrSum;
+        }
+      } else if (cat.slug === FINANCIAL_SLUGS.LTV) {
         const wonAll = wonScope;
         const avgMrr = wonAll.length ? wonAll.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0) / wonAll.length : 0;
         const churn = (financeSettings?.avg_churn_rate || 0) / 100;
@@ -268,9 +303,17 @@ export function GoalsTracking() {
         realizedCat = wonScope.filter((o) => o.category_id === cat.id).reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
       }
 
-      return { category: cat, target, realized: realizedCat };
+      return {
+        category: cat,
+        target,
+        realized: realizedCat,
+        source,
+        manualOverride,
+        goalIds: matchingGoals.map((g) => g.id),
+        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeMrrSum : null,
+      };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs]);
+  }, [categories, goals, opportunities, stripeConversions, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
