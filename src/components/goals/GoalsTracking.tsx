@@ -98,6 +98,14 @@ export function GoalsTracking() {
 
   const isWonOpp = (o: any) => wonStageIds.has(o.stage) || wonStageSlugs.has(o.stage);
 
+  const priceMapByPriceId = useMemo(() => {
+    const map = new Map<string, any>();
+    priceMap.forEach((m) => {
+      if (m.price_id) map.set(m.price_id, m);
+    });
+    return map;
+  }, [priceMap]);
+
   // Won opportunities in current period for sellers in scope
   const wonInPeriod = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
@@ -124,13 +132,12 @@ export function GoalsTracking() {
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return sum;
       if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
-        const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-        const cid = opp?.consultant_id || null;
+        const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
         if (!cid || !sellerIds.has(cid)) return sum;
       }
       return sum + (Number(sc.mrr) || 0);
     }, 0);
-  }, [stripeConversions, opportunities, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
+  }, [stripeConversions, opportunities, priceMapByPriceId, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
 
   // Resolve monthly target for the scope
   const monthlyTarget = useMemo(() => {
@@ -189,13 +196,12 @@ export function GoalsTracking() {
       if (!sc.converted_at) return;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
-      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-      const cid = opp?.consultant_id;
+      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (!cid) return;
       map.set(cid, (map.get(cid) || 0) + (Number(sc.mrr) || 0));
     });
     return map;
-  }, [stripeConversions, opportunities, start, end]);
+  }, [stripeConversions, opportunities, priceMapByPriceId, start, end]);
 
   // Per-seller rows
   const sellerRows: SellerRow[] = useMemo(() => {
@@ -258,14 +264,13 @@ export function GoalsTracking() {
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
       if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
-        const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-        const cid = opp?.consultant_id || null;
+        const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
         if (!cid || !sellerIds.has(cid)) return;
       }
       out.push({ date: d, mrr: Number(sc.mrr) || 0 });
     });
     return out;
-  }, [stripeConversions, opportunities, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
+  }, [stripeConversions, opportunities, priceMapByPriceId, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
 
   // Breakdown por categoria
   const categoryRows: CategoryRow[] = useMemo(() => {
