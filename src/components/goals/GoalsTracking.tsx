@@ -20,6 +20,11 @@ function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
 }
 
+function getConversionSellerId(sc: any, oppById: Map<string, any>, priceMapByPriceId: Map<string, any>) {
+  const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+  return opp?.consultant_id || (sc.stripe_price_id ? priceMapByPriceId.get(sc.stripe_price_id)?.seller_user_id : null) || null;
+}
+
 export function GoalsTracking() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin";
@@ -36,6 +41,7 @@ export function GoalsTracking() {
   const [goals, setGoals] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [stripeConversions, setStripeConversions] = useState<any[]>([]);
+  const [priceMap, setPriceMap] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
@@ -44,7 +50,7 @@ export function GoalsTracking() {
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -53,7 +59,8 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id"),
+        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id, stripe_price_id, area"),
+        supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -63,6 +70,7 @@ export function GoalsTracking() {
       setCategories((cRes.data as GoalCategory[]) || []);
       setFinanceSettings(fRes.data as any);
       setStripeConversions(scRes.data || []);
+      setPriceMap(pmRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
@@ -90,6 +98,14 @@ export function GoalsTracking() {
 
   const isWonOpp = (o: any) => wonStageIds.has(o.stage) || wonStageSlugs.has(o.stage);
 
+  const priceMapByPriceId = useMemo(() => {
+    const map = new Map<string, any>();
+    priceMap.forEach((m) => {
+      if (m.price_id) map.set(m.price_id, m);
+    });
+    return map;
+  }, [priceMap]);
+
   // Won opportunities in current period for sellers in scope
   const wonInPeriod = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
@@ -116,13 +132,12 @@ export function GoalsTracking() {
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return sum;
       if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
-        const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-        const cid = opp?.consultant_id || null;
+        const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
         if (!cid || !sellerIds.has(cid)) return sum;
       }
       return sum + (Number(sc.mrr) || 0);
     }, 0);
-  }, [stripeConversions, opportunities, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
+  }, [stripeConversions, opportunities, priceMapByPriceId, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
 
   // Resolve monthly target for the scope
   const monthlyTarget = useMemo(() => {
@@ -181,13 +196,12 @@ export function GoalsTracking() {
       if (!sc.converted_at) return;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
-      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-      const cid = opp?.consultant_id;
+      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (!cid) return;
       map.set(cid, (map.get(cid) || 0) + (Number(sc.mrr) || 0));
     });
     return map;
-  }, [stripeConversions, opportunities, start, end]);
+  }, [stripeConversions, opportunities, priceMapByPriceId, start, end]);
 
   // Per-seller rows
   const sellerRows: SellerRow[] = useMemo(() => {
@@ -250,14 +264,13 @@ export function GoalsTracking() {
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
       if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
-        const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-        const cid = opp?.consultant_id || null;
+        const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
         if (!cid || !sellerIds.has(cid)) return;
       }
       out.push({ date: d, mrr: Number(sc.mrr) || 0 });
     });
     return out;
-  }, [stripeConversions, opportunities, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
+  }, [stripeConversions, opportunities, priceMapByPriceId, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
 
   // Breakdown por categoria
   const categoryRows: CategoryRow[] = useMemo(() => {
@@ -291,9 +304,8 @@ export function GoalsTracking() {
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return false;
       if (sellerFilter === "all" && teamFilter === "all" && isAdmin) return true;
-      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-      const cid = opp?.consultant_id || null;
-      if (!cid) return false; // sem deal casado, só conta na visão da empresa
+      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
+      if (!cid) return false;
       return sellerIds.has(cid);
     });
     const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
@@ -365,7 +377,7 @@ export function GoalsTracking() {
         autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeMrrSum : null,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, stripeConversions, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
+  }, [categories, goals, opportunities, stripeConversions, priceMapByPriceId, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
