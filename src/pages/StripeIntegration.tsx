@@ -326,7 +326,11 @@ export default function StripeIntegration() {
               Recebe assinaturas pagas em tempo real e alimenta o painel <strong>Conversões por Área</strong> cruzando o <code className="font-mono text-xs">price_id</code> com o Mapa de Preços.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => { setRecoverResult(null); setRecoverOpen(true); }} variant="default" size="sm" title="Varre assinaturas direto na Stripe e grava conversões que faltam">
+              <LifeBuoy className="h-4 w-4 mr-2" />
+              Recuperar conversões
+            </Button>
             <Button onClick={handleBackfillDates} disabled={backfilling} variant="outline" size="sm" title="Recalcula registered_at e converted_at de todas as conversões usando dados do Stripe">
               {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
               Recalcular datas
@@ -340,6 +344,76 @@ export default function StripeIntegration() {
             </Button>
           </div>
         </div>
+
+        {/* Dialog Recuperar conversões */}
+        <Dialog open={recoverOpen} onOpenChange={(o) => { if (!recovering) setRecoverOpen(o); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><LifeBuoy className="h-5 w-5" /> Recuperar conversões perdidas</DialogTitle>
+              <DialogDescription>
+                Pagina assinaturas direto da API do Stripe no período selecionado, cruza com o Mapa de Preços e grava em <code className="font-mono text-xs">stripe_conversions</code>. Útil para reconciliar períodos em que o webhook usou regras antigas.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Janela retroativa</label>
+                <Select value={String(recoverDays)} onValueChange={(v) => setRecoverDays(Number(v))} disabled={recovering}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="60">Últimos 60 dias</SelectItem>
+                    <SelectItem value="90">Últimos 90 dias</SelectItem>
+                    <SelectItem value="180">Últimos 180 dias</SelectItem>
+                    <SelectItem value="365">Último ano</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(recovering || recoverResult) && (
+                <div className="space-y-2">
+                  <Progress value={recoverProgress} />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {recovering ? (
+                        <><Loader2 className="h-3 w-3 mr-1 inline animate-spin" /> Processando…</>
+                      ) : recoverResult?.error ? (
+                        <span className="text-destructive">Falhou</span>
+                      ) : (
+                        <><CheckCircle2 className="h-3 w-3 mr-1 inline text-success" /> Concluído</>
+                      )}
+                    </span>
+                    <span className="font-mono">
+                      {Math.floor(recoverElapsed / 60).toString().padStart(2, "0")}:{(recoverElapsed % 60).toString().padStart(2, "0")}
+                      {recovering && <> / ~{Math.floor(estimatedSeconds / 60).toString().padStart(2, "0")}:{(estimatedSeconds % 60).toString().padStart(2, "0")}</>}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {recoverResult && !recoverResult.error && (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Assinaturas varridas</div><div className="font-heading font-semibold">{recoverResult.scanned ?? 0}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Conversões gravadas</div><div className="font-heading font-semibold text-primary">{recoverResult.inserted ?? 0}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Já existentes</div><div className="font-heading font-semibold">{recoverResult.skipped ?? 0}</div></div>
+                  <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Sem mapa de preço</div><div className={"font-heading font-semibold " + ((recoverResult.unmapped ?? 0) > 0 ? "text-warning" : "")}>{recoverResult.unmapped ?? 0}</div></div>
+                  {(recoverResult.failed ?? 0) > 0 && (
+                    <div className="rounded-md border p-2 col-span-2"><div className="text-xs text-muted-foreground">Falhas</div><div className="font-heading font-semibold text-destructive">{recoverResult.failed}</div></div>
+                  )}
+                </div>
+              )}
+
+              {recoverResult?.error && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{recoverResult.error}</div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRecoverOpen(false)} disabled={recovering}>Fechar</Button>
+              <Button onClick={handleRecover} disabled={recovering}>
+                {recovering ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Recuperando…</> : <><LifeBuoy className="h-4 w-4 mr-2" /> Iniciar recuperação</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Health banner */}
         <Card className={
