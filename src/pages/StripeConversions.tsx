@@ -85,7 +85,7 @@ export default function StripeConversions() {
     if (p !== "custom") setPeriod(presetRange(p));
   }
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter],
     queryFn: async () => {
       let q = supabase
