@@ -90,7 +90,7 @@ export default function StripeConversions() {
     queryFn: async () => {
       let q = supabase
         .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id")
+        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
         .order("converted_at", { ascending: false });
