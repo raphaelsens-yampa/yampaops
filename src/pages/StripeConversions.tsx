@@ -102,6 +102,20 @@ export default function StripeConversions() {
     },
   });
 
+  const { data: areaOptions = [] } = useQuery({
+    queryKey: ["price-map-areas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_price_map")
+        .select("area")
+        .not("area", "is", null);
+      if (error) throw error;
+      const set = new Set<string>((data || []).map((r: any) => r.area).filter(Boolean));
+      set.add("desconhecida");
+      return Array.from(set).sort();
+    },
+  });
+
   const stats = useMemo(() => {
     const total = rows.length;
     const totalMrr = rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
