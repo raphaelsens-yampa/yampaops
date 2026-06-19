@@ -94,11 +94,12 @@ function freshnessTone(iso: string | null, warnHours = 6, errHours = 24): "ok" |
 }
 
 const RESULT_LABELS: Record<string, { label: string; tone: "ok" | "warn" | "err" | "muted" }> = {
-  matched: { label: "Conciliado", tone: "ok" },
-  matched_pending: { label: "Pendente", tone: "warn" },
-  no_match: { label: "Sem match", tone: "err" },
-  error: { label: "Erro", tone: "err" },
-  ignored: { label: "Ignorado", tone: "muted" },
+  conversion_recorded: { label: "Conversão registrada", tone: "ok" },
+  duplicate_subscription: { label: "Duplicado", tone: "muted" },
+  no_email: { label: "Sem email", tone: "warn" },
+  conversion_failed: { label: "Falha ao gravar", tone: "err" },
+  extraction_failed: { label: "Falha na leitura", tone: "err" },
+  ignored_event_type: { label: "Ignorado", tone: "muted" },
 };
 
 export default function StripeIntegration() {
