@@ -1,61 +1,60 @@
+## Objetivo
 
-## Diagnóstico
+Hoje o gráfico **Insights › Conversões por Área** (`/insights/conversions`) lê de `stripe_conversions`, cuja coluna `area` é resolvida no webhook do Stripe consultando primeiro `commission_products` e, em fallback, `stripe_prices`. Essas duas tabelas têm áreas divergentes do **Comissionamento › Mapa de Preços** (`commission_price_map`) — por exemplo:
 
-A OnePage Diretoria hoje tem três problemas que geram a sensação de "sobras" e poluição visual:
+- 10 conversões hoje marcadas como `Sales` deveriam ser `Parceria`
+- 6 hoje `Sales` deveriam ser `CX`
+- 7 `desconhecida` na verdade têm match em `Sales` no mapa
+- A área `Parceria` nem existe na lista atual do painel
 
-1. **Duas sidebars empilhadas** — o `Layout` já entrega a sidebar principal do sistema (com colapso); dentro dela existe uma segunda sidebar vertical (`p1`…`p6`) com seu próprio botão de colapso. Resultado: ~178 px de coluna extra antes do conteúdo começar, redundância visual e dois controles de colapso competindo.
-2. **Cabeçalho repetido em cada seção** — cada um dos 6 blocos (`Page`) renderiza novamente o logo "YAMPA · by 4blue" + título + meta + um rodapé "Uso restrito…". Isso faz sentido em PDF/print, não numa SPA onde o app já tem header e a página já tem título.
-3. **Larguras e respiros descalibrados** — cada `Page` é capada em `maxWidth: 1320 px` com borda + sombra forte, dentro de um `main` que já tem padding (`p-4 lg:p-6`) e fundo `#060f17` quase preto, criando faixas pretas à esquerda/direita em telas largas e quebrando a coesão visual com o resto do app (que é claro).
+Vamos eleger o **Mapa de Preços** (`commission_price_map`) como única fonte de verdade para área, produto/oferta, plano e MRR, e recalcular o histórico.
 
-## Proposta
+## Campo do Stripe usado como chave
 
-### 1. Remover a sidebar interna — sim, não faz sentido
-Substituir por **abas horizontais sticky** logo abaixo do header do app:
+O melhor identificador para "nova assinatura paga" é o **`price_id`** do item da assinatura (`subscription.items.data[0].price.id`), capturado a partir do evento `customer.subscription.created` (e equivalentes em `checkout.session.completed` / `invoice.paid` com `billing_reason = subscription_create`). Esse `price_id` é único por oferta/plano no Stripe e é exatamente a chave usada em `commission_price_map.price_id`. Já é persistido em `stripe_conversions.stripe_price_id` (100% das 180 conversões atuais têm o campo preenchido), o que permite recompor o histórico sem reprocessar o Stripe.
 
-```text
-┌─ Sidebar app ─┬──────────────────────────────────────────────┐
-│               │ [One Page] [Financeiro] [Metas] [Rev] [Mkt]  │  ← sticky
-│  (menus do    ├──────────────────────────────────────────────┤
-│   sistema)    │                                              │
-│               │   conteúdo da seção ativa, full-width        │
-└───────────────┴──────────────────────────────────────────────┘
-```
+## Mudanças
 
-- Mantém o mesmo scroll-spy + clique para navegar entre seções.
-- Libera ~178 px horizontais → cards respiram, gráficos ficam maiores.
-- Elimina o segundo botão de colapso (a sidebar do sistema já colapsa).
+### 1. Webhook `supabase/functions/stripe-webhook/index.ts`
 
-### 2. Cabeçalho único por seção
-- Remover o bloco `YAMPA / by 4blue / título / meta` e o rodapé "Uso restrito…" de cada `Page`.
-- Manter por seção apenas um header enxuto: **título grande + meta à direita** alinhado com a barra de abas.
-- Mover a linha "Uso restrito — Sócios Yampa / 4blue · Dados até 16/06/2026" para **um único rodapé** no final da página inteira.
+Substituir o bloco de resolução (linhas ~160–192) por uma consulta única ao `commission_price_map` pelo `stripe_price_id`:
 
-### 3. Reajustes visuais para reduzir sobras e melhorar a leitura
-- **Remover `maxWidth: 1320`** e a borda+sombra externa de cada `Page`. O `main` do app já define a largura útil; cada seção vira só um stack de cards.
-- **Trocar o fundo `#060f17`** por `bg-background` (token semântico) para integrar com o restante do sistema; cards continuam dark (`#132336`) como ilhas de dado, mas sem o "moldurão" preto ao redor.
-- **Padding consistente**: `p-4 lg:p-6` no container da seção, `gap-4` nos grids (substituindo o `gap-3.5` atual misturado). Remover o `padding: 22px 24px 26px` interno do `Page`.
-- **Cards**: padronizar raio (`rounded-xl`), borda usando `border-border` e padding `p-4` em vez de `14px 16px` inline.
-- **Tipografia**: títulos de seção em `text-xl font-bold tracking-tight`; mini-labels mantêm o uppercase 11px atual (funciona bem para densidade executiva).
-- **KPIs**: reduzir o número grande de `30px` para `28px` e dar `tabular-nums` para alinhar colunas; ganha densidade sem perder hierarquia.
-- **Sticky tabs**: barra de abas com `backdrop-blur` + borda inferior, para flutuar elegante sobre o conteúdo no scroll.
+- `area` ← `commission_price_map.area` (fallback `"desconhecida"`)
+- `product_name` ← `commission_price_map.offer_name`
+- `plan_name` ← `commission_price_map.plan_name` (fallback `price_name`)
+- `mrr` ← `commission_price_map.mrr_override` (fallback: manter `0`; o webhook nunca mais consulta `commission_products`/`stripe_prices` para área/MRR)
 
-### 4. Responsivo
-- Em `<lg`, as abas viram um scroll horizontal (já é o comportamento natural) com indicador da aba ativa.
-- Em mobile, as abas continuam sticky no topo do conteúdo (a sidebar do app já vira off-canvas).
+A lógica de match com `opportunities` / pipeline pendente fica intacta.
 
-## Arquivos a alterar
+### 2. Lista de áreas no painel `src/pages/StripeConversions.tsx`
 
-- `src/pages/OnePageDiretoria.tsx`
-  - Remover `<nav>` lateral, estado `navCollapsed` e imports `ChevronLeft/ChevronRight`.
-  - Criar `<SectionTabs active onSelect />` sticky no topo do `main`.
-  - Refatorar `Page({ id, ttl, meta, children })` para renderizar só `<section id> <header título+meta> {children} </section>` sem moldura.
-  - Substituir `Card` para usar classes Tailwind + tokens (`bg-card border-border`) em vez de `style` inline.
-  - Mover o disclaimer "Uso restrito…" para um único `<footer>` ao final.
-  - Trocar `background:"#060f17"` por `bg-background text-foreground`.
+- Trocar a constante `AREAS` por uma lista derivada dinamicamente das áreas existentes em `commission_price_map` (query rápida no carregamento) + `"desconhecida"`, em vez de hardcode.
+- Adicionar cor para `Parceria` em `AREA_COLORS`.
+- Manter todos os filtros, KPIs, gráficos e exportações (CSV/XLSX/PDF) como estão — só a fonte das áreas muda.
 
-Nenhuma alteração de dados, rotas, lógica de negócio ou backend.
+### 3. Migração SQL (recálculo do histórico)
 
-## Fora de escopo
-- Não mexer no `Layout`/sidebar do sistema (mantém o colapso já existente).
-- Não alterar conteúdo numérico, gráficos ou ordem das seções.
-- Não tocar em outras páginas.
+Migração única que:
+
+1. Atualiza `stripe_conversions` cruzando por `stripe_price_id` com `commission_price_map`, reescrevendo `area`, `product_name`, `plan_name` e `mrr` (`mrr` só é sobrescrito quando `mrr_override` não é nulo).
+2. Linhas sem `stripe_price_id` ou sem match no mapa recebem `area = 'desconhecida'`.
+
+Nenhuma alteração de schema, GRANT ou RLS é necessária — só `UPDATE`.
+
+### 4. Itens fora de escopo / a remover do papel anterior
+
+- A função de resolver área via `commission_products.stripe_price_id` e via `stripe_prices.area` deixa de ser usada pelo webhook. Os campos `commission_products.area` e `stripe_prices.area` permanecem nas tabelas (são usados por comissionamento e pela tela de Stripe Integration); apenas não dirigem mais o gráfico.
+- `stripe-sync-recent` não precisa de mudança — ele apenas reinjeta eventos no webhook, então passa a usar a nova lógica automaticamente.
+
+## Verificação
+
+Após aplicar:
+
+- Esperado: 86 `Sales` (76+10? não — os 10 viram `Parceria`), 73 `Produto`, 13 `CX` (7+6), 1 `Marketing`, 10 `Parceria`, 7 `desconhecida` (os atuais sem match) + recálculo dos 7 que viraram `Sales`.
+- Conferir no painel `/insights/conversions` que a área `Parceria` aparece e que as conversões batem com o Mapa de Preços.
+
+## Aprovação
+
+Confirma que devo:
+1. Usar `commission_price_map.price_id` (cruzando com `stripe_conversions.stripe_price_id`) como única fonte da área?
+2. Sobrescrever `mrr` apenas quando `mrr_override` estiver preenchido (preservando o MRR atual quando o mapa não define override)?
