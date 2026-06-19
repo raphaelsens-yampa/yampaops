@@ -35,6 +35,7 @@ export function GoalsTracking() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [stripeConversions, setStripeConversions] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
