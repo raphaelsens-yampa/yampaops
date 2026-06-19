@@ -201,6 +201,7 @@ export function AppSidebar() {
         { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
         { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart, area: "conversions" },
+        { title: "OnePage Diretoria", url: "/relatorio", icon: FileBarChart, area: "one_page_diretoria" },
       ],
     },
     {
