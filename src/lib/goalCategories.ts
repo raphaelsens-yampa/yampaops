@@ -33,6 +33,9 @@ export const FINANCIAL_SLUGS = {
   CAMPANHA_MRR: "campanha_mrr",
 };
 
+// Categorias cujo realizado é calculado automaticamente pela integração Stripe
+export const STRIPE_DRIVEN_SLUGS = new Set<string>(["new_mrr"]);
+
 export function groupByArea(categories: GoalCategory[]): Record<CategoryArea, GoalCategory[]> {
   return categories.reduce((acc, c) => {
     if (!acc[c.area]) acc[c.area] = [];

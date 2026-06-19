@@ -1442,6 +1442,8 @@ export type Database = {
           id: string
           period_end: string
           period_start: string
+          realized_override: number | null
+          realized_source_note: string | null
           scope: string | null
           target_agendamentos: number | null
           target_comparecimentos: number | null
@@ -1467,6 +1469,8 @@ export type Database = {
           id?: string
           period_end: string
           period_start: string
+          realized_override?: number | null
+          realized_source_note?: string | null
           scope?: string | null
           target_agendamentos?: number | null
           target_comparecimentos?: number | null
@@ -1492,6 +1496,8 @@ export type Database = {
           id?: string
           period_end?: string
           period_start?: string
+          realized_override?: number | null
+          realized_source_note?: string | null
           scope?: string | null
           target_agendamentos?: number | null
           target_comparecimentos?: number | null

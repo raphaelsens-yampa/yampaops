@@ -14,7 +14,7 @@ import {
   differenceInCalendarDays, isAfter, startOfDay,
 } from "date-fns";
 import { GoalsBreakdownByCategory, type CategoryRow } from "./GoalsBreakdownByCategory";
-import { AREA_LABELS, FINANCIAL_SLUGS, type GoalCategory } from "@/lib/goalCategories";
+import { AREA_LABELS, FINANCIAL_SLUGS, STRIPE_DRIVEN_SLUGS, type GoalCategory } from "@/lib/goalCategories";
 
 function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
@@ -35,6 +35,7 @@ export function GoalsTracking() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [stripeConversions, setStripeConversions] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
@@ -43,7 +44,7 @@ export function GoalsTracking() {
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -52,6 +53,7 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
+        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -60,6 +62,7 @@ export function GoalsTracking() {
       setOpportunities(oRes.data || []);
       setCategories((cRes.data as GoalCategory[]) || []);
       setFinanceSettings(fRes.data as any);
+      setStripeConversions(scRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
@@ -226,6 +229,23 @@ export function GoalsTracking() {
       return (monthly / monthBiz) * businessDaysInRange(start, end);
     };
 
+    // Index opportunities by id for Stripe-driven attribution
+    const oppById = new Map<string, any>();
+    opportunities.forEach((o) => oppById.set(o.id, o));
+
+    // Stripe conversions já filtradas pelo período e escopo de vendedor
+    const stripeInScope = stripeConversions.filter((sc: any) => {
+      if (!sc.converted_at) return false;
+      const d = new Date(sc.converted_at);
+      if (d < start || d > end) return false;
+      if (sellerFilter === "all" && teamFilter === "all" && isAdmin) return true;
+      const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
+      const cid = opp?.consultant_id || null;
+      if (!cid) return false; // sem deal casado, só conta na visão da empresa
+      return sellerIds.has(cid);
+    });
+    const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
+
     return categories.map((cat) => {
       const matchingGoals = goals.filter((g) => {
         if (g.category_id !== cat.id) return false;
@@ -239,7 +259,25 @@ export function GoalsTracking() {
       const target = proratedTarget(monthlyTargetCat);
 
       let realizedCat = 0;
-      if (cat.slug === FINANCIAL_SLUGS.LTV) {
+      let source: "stripe" | "manual" | "calculated" = "calculated";
+      let manualOverride = false;
+      const overrideSum = matchingGoals.reduce((s, g) => {
+        const v = g.realized_override;
+        return v != null ? s + Number(v) : s;
+      }, 0);
+      const hasOverride = matchingGoals.some((g) => g.realized_override != null);
+
+      if (STRIPE_DRIVEN_SLUGS.has(cat.slug)) {
+        // New MRR (categoria automática via Stripe)
+        source = "stripe";
+        if (hasOverride) {
+          realizedCat = overrideSum;
+          manualOverride = true;
+          source = "manual";
+        } else {
+          realizedCat = stripeMrrSum;
+        }
+      } else if (cat.slug === FINANCIAL_SLUGS.LTV) {
         const wonAll = wonScope;
         const avgMrr = wonAll.length ? wonAll.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0) / wonAll.length : 0;
         const churn = (financeSettings?.avg_churn_rate || 0) / 100;
@@ -265,9 +303,17 @@ export function GoalsTracking() {
         realizedCat = wonScope.filter((o) => o.category_id === cat.id).reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
       }
 
-      return { category: cat, target, realized: realizedCat };
+      return {
+        category: cat,
+        target,
+        realized: realizedCat,
+        source,
+        manualOverride,
+        goalIds: matchingGoals.map((g) => g.id),
+        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeMrrSum : null,
+      };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs]);
+  }, [categories, goals, opportunities, stripeConversions, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
@@ -330,7 +376,13 @@ export function GoalsTracking() {
 
       <GoalProgressChart start={start} end={end} target={periodTarget} won={wonForChart} />
 
-      <GoalsBreakdownByCategory rows={categoryRows} />
+      <GoalsBreakdownByCategory
+        rows={categoryRows}
+        onChanged={async () => {
+          const { data } = await supabase.from("goals").select("*");
+          setGoals(data || []);
+        }}
+      />
 
       <SellerRankingTable rows={sellerRows} />
 
