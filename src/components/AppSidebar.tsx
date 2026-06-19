@@ -197,12 +197,13 @@ export function AppSidebar() {
       items: [
         role === "seller"
           ? { title: "Meu Pipeline", url: "/", icon: Kanban }
-          : { title: "Dashboard", url: "/", icon: BarChart3, area: "dashboard" },
-        { title: "Forecast", url: "/forecast", icon: TrendingUp, area: "forecast" },
+          : { title: "OnePage Diretoria", url: "/", icon: FileBarChart, area: "one_page_diretoria" },
+        // Dashboard archived
+        // Forecast archived
         { title: "Metas", url: "/goals", icon: Target, area: "goals" },
         { title: "Conversões por Área", url: "/insights/conversions", icon: PieChart, area: "conversions" },
-        { title: "OnePage Diretoria", url: "/relatorio", icon: FileBarChart, area: "one_page_diretoria" },
       ],
+
     },
     {
       key: "vendas",

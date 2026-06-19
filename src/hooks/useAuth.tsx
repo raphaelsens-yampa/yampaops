@@ -53,7 +53,7 @@ function defaultsForRole(role: AppRole): Permissions {
 
   if (role === "tatico") {
     return {
-      overview: ro, dashboard: ro, forecast: ro, goals: ro, conversions: ro, one_page_diretoria: ro,
+      overview: ro, goals: ro, conversions: ro, one_page_diretoria: ro,
       operations: ro, pipeline: { view: true, create: true, edit: true }, atendimentos: ro,
       agent_activity: ro, auditoria_ia: ro,
       sales: ro, sales_campaigns: ro, commissions: ro, link_builder: ro, precificacao: ro,
@@ -66,7 +66,7 @@ function defaultsForRole(role: AppRole): Permissions {
 
   // seller
   return {
-    overview: ro, dashboard: none, forecast: none, goals: ro, conversions: none,
+    overview: ro, goals: ro, conversions: none,
     operations: ro, pipeline: { view: true, create: true, edit: true }, atendimentos: ro,
     agent_activity: none, auditoria_ia: ro,
     sales: ro, sales_campaigns: none, commissions: ro, link_builder: ro, precificacao: ro,

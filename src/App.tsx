@@ -6,15 +6,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import Auth from "./pages/Auth";
-import AdminDashboard from "./pages/AdminDashboard";
+// import AdminDashboard from "./pages/AdminDashboard"; // archived
 import SellerKanban from "./pages/SellerKanban";
 import Goals from "./pages/Goals";
 import Pipeline from "./pages/Pipeline";
+
 import Team from "./pages/Team";
 import Contacts from "./pages/Contacts";
 import Commissions from "./pages/Commissions";
 import CommissionSettings from "./pages/CommissionSettings";
-import Forecast from "./pages/Forecast";
+// import Forecast from "./pages/Forecast"; // archived
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
 import Imports from "./pages/Imports";
@@ -80,14 +81,15 @@ function AppRoutes() {
         path="/"
         element={
           isManager ? (
-            <RequireArea area="dashboard"><AdminDashboard /></RequireArea>
+            <RequireArea area="one_page_diretoria"><OnePageDiretoria /></RequireArea>
           ) : (
             <SellerKanban />
           )
         }
       />
       <Route path="/pipeline" element={<RequireArea area="pipeline"><Pipeline /></RequireArea>} />
-      <Route path="/forecast" element={<RequireArea area="forecast"><Forecast /></RequireArea>} />
+      {/* Forecast archived */}
+
       <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
       <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
       <Route path="/contacts" element={<RequireArea area="contacts"><Contacts /></RequireArea>} />

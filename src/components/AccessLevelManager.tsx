@@ -20,12 +20,13 @@ export const CRM_SECTIONS = [
     key: "overview",
     label: "Visão Geral",
     areas: [
-      { key: "dashboard", label: "Dashboard" },
-      { key: "forecast", label: "Forecast" },
+      { key: "one_page_diretoria", label: "OnePage Diretoria" },
+      // { key: "dashboard", label: "Dashboard" }, // archived
+      // { key: "forecast", label: "Forecast" }, // archived
       { key: "goals", label: "Metas" },
       { key: "conversions", label: "Conversões por Área" },
-      { key: "one_page_diretoria", label: "OnePage Diretoria" },
     ],
+
   },
   {
     key: "operations",
