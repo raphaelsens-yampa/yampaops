@@ -440,24 +440,31 @@ export default function StripeConversions() {
                   <TableRow>
                     <TableHead>1º Pagamento</TableHead>
                     <TableHead>Cliente desde</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Área</TableHead>
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead className="text-right">MRR</TableHead>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead className="text-right">MRR / Δ</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
                       <TableCell>{fmtDate(r.converted_at)}</TableCell>
                       <TableCell className="text-muted-foreground">{fmtDate(r.registered_at)}</TableCell>
+                      <TableCell>
+                        <Badge style={{ backgroundColor: TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new, color: "white" }}>
+                          {TYPE_LABEL[r.conversion_type] || r.conversion_type}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>
                           {r.area}
@@ -468,18 +475,65 @@ export default function StripeConversions() {
                         <div className="text-xs text-muted-foreground">{r.plan_name || ""}</div>
                       </TableCell>
                       <TableCell className="text-xs">{r.customer_email || "—"}</TableCell>
-                      <TableCell className="text-right font-medium">{fmtBRL(Number(r.mrr || 0))}</TableCell>
-                      <TableCell className="text-right">
-                        {r.area === "desconhecida" && r.stripe_price_id && (
-                          <MapStripePriceButton
-                            price_id={r.stripe_price_id}
-                            offer_name={r.product_name}
-                            customer_name={r.customer_email}
-                            customer_email={r.customer_email}
-                            mrr={r.mrr}
-                            onMapped={() => refetch()}
-                          />
+                      <TableCell className="text-xs">
+                        {r.assigned_seller_id ? (
+                          <div>
+                            <div>{sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8)}</div>
+                            {r.attribution_source && (
+                              <div className="text-[10px] text-muted-foreground">{SOURCE_LABEL[r.attribution_source] || r.attribution_source}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground italic">— sem atribuição —</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        <div>{fmtBRL(Number(r.mrr || 0))}</div>
+                        {r.conversion_type === "upsell" && (
+                          <div className="text-[10px] text-emerald-600">+{fmtBRL(Number(r.delta_mrr || 0))}</div>
+                        )}
+                        {r.conversion_type === "downgrade" && (
+                          <div className="text-[10px] text-red-600">{fmtBRL(Number(r.delta_mrr || 0))}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {r.area === "desconhecida" && r.stripe_price_id && (
+                            <MapStripePriceButton
+                              price_id={r.stripe_price_id}
+                              offer_name={r.product_name}
+                              customer_name={r.customer_email}
+                              customer_email={r.customer_email}
+                              mrr={r.mrr}
+                              onMapped={() => refetch()}
+                            />
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditing({
+                              conversion_id: r.id,
+                              email: r.customer_email || "",
+                              area: r.area,
+                              mrr: r.mrr,
+                              plan_name: r.plan_name,
+                              product_name: r.product_name,
+                              converted_at: r.converted_at,
+                              registered_at: r.registered_at,
+                              subscription_id: r.stripe_subscription_id,
+                              customer_id: r.stripe_customer_id,
+                              price_id: r.stripe_price_id,
+                              conversion_type: r.conversion_type,
+                              previous_mrr: r.previous_mrr,
+                              previous_price_id: r.previous_price_id,
+                              assigned_seller_id: r.assigned_seller_id,
+                              attribution_source: r.attribution_source,
+                            })}
+                            title="Auditar / editar conversão"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -491,6 +545,13 @@ export default function StripeConversions() {
             </div>
           </CardContent>
         </Card>
+
+        <EditConversionDialog
+          open={!!editing}
+          onOpenChange={(o) => { if (!o) setEditing(null); }}
+          conversion={editing}
+          onSaved={() => refetch()}
+        />
       </div>
     </Layout>
   );
