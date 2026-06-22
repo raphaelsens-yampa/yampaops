@@ -994,6 +994,7 @@ export type Database = {
           plan_name: string | null
           price_id: string | null
           price_name: string | null
+          requires_commission: boolean
           seller_label: string | null
           seller_user_id: string | null
           updated_at: string
@@ -1010,6 +1011,7 @@ export type Database = {
           plan_name?: string | null
           price_id?: string | null
           price_name?: string | null
+          requires_commission?: boolean
           seller_label?: string | null
           seller_user_id?: string | null
           updated_at?: string
@@ -1026,6 +1028,7 @@ export type Database = {
           plan_name?: string | null
           price_id?: string | null
           price_name?: string | null
+          requires_commission?: boolean
           seller_label?: string | null
           seller_user_id?: string | null
           updated_at?: string

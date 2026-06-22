@@ -1,0 +1,1 @@
+ALTER TABLE public.commission_price_map ADD COLUMN IF NOT EXISTS requires_commission boolean NOT NULL DEFAULT false;

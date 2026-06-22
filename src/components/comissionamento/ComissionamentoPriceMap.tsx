@@ -11,7 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Check, ChevronsUpDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Pencil, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   PAYMENT_TYPES,
@@ -95,6 +96,23 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
       toast({ title: "Informe Price ID ou Nome da Oferta", variant: "destructive" });
       return;
     }
+    if (editing.requires_commission) {
+      if (!editing.plan_name || !editing.payment_type) {
+        toast({ title: "Comissionamento exige Plano e Tipo de Pagamento", variant: "destructive" });
+        return;
+      }
+      const refMatch = reference.find(
+        (r) => r.plan_name === editing.plan_name && r.payment_type === editing.payment_type && r.is_active,
+      );
+      if (!refMatch) {
+        toast({
+          title: "Sem regra na Referência",
+          description: `Cadastre "${editing.plan_name}" / ${PAYMENT_TYPE_LABEL[editing.payment_type as PaymentType]} na aba Referência antes de marcar Comissionamento.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const payload = {
       price_id: editing.price_id?.trim() || null,
       offer_name: editing.offer_name?.trim() || null,
@@ -105,6 +123,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
       seller_user_id: editing.seller_user_id || null,
       seller_label: editing.seller_label || null,
       mrr_override: editing.mrr_override ?? null,
+      requires_commission: !!editing.requires_commission,
     };
     const { error } = editing.id
       ? await supabase.from("commission_price_map").update(payload).eq("id", editing.id)
@@ -161,6 +180,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left">Tipo</TableHead>
               <TableHead className="text-left">Vendedor</TableHead>
               <TableHead className="text-right">MRR</TableHead>
+              <TableHead className="text-center">Comissão</TableHead>
               <TableHead></TableHead>
             </TableRow>
             <TableRow className="hover:bg-transparent">
@@ -187,6 +207,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               </TableHead>
               <TableHead></TableHead>
               <TableHead></TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -211,6 +232,19 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                       {effectiveMrr.toFixed(2)}{isOverride ? "*" : ""}
                     </span>
                   ) : "—"}
+                </TableCell>
+                <TableCell className="text-center">
+                  {m.requires_commission ? (
+                    ref ? (
+                      <Badge variant="default" className="gap-1"><Check className="h-3 w-3" /> Sim</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1" title="Sem regra correspondente na Referência">
+                        <AlertTriangle className="h-3 w-3" /> Sem ref
+                      </Badge>
+                    )
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-1 justify-end">
@@ -325,9 +359,35 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                   <Input type="number" step="0.01" value={editing.mrr_override ?? ""} onChange={(e) => setEditing({ ...editing, mrr_override: e.target.value === "" ? null : Number(e.target.value) })} />
                 </div>
               </div>
-              {editing.plan_name && !planNamesFromRef.includes(editing.plan_name) && (
+              <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={!!editing.requires_commission}
+                    onCheckedChange={(v) => setEditing({ ...editing, requires_commission: v === true })}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Comissionamento</div>
+                    <p className="text-xs text-muted-foreground">
+                      Marque para que este Price ID gere comissão. Exige Plano + Tipo cadastrados na aba "Referência".
+                    </p>
+                  </div>
+                </label>
+                {editing.requires_commission && editing.plan_name && editing.payment_type && !reference.find(
+                  (r) => r.plan_name === editing.plan_name && r.payment_type === editing.payment_type && r.is_active,
+                ) && (
+                  <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded p-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      Não existe regra ativa para <strong>{editing.plan_name}</strong> / {PAYMENT_TYPE_LABEL[editing.payment_type as PaymentType]} na Referência.
+                      Cadastre lá antes de salvar.
+                    </span>
+                  </div>
+                )}
+              </div>
+              {editing.plan_name && !planNamesFromRef.includes(editing.plan_name) && !editing.requires_commission && (
                 <p className="text-xs text-muted-foreground">
-                  Esse plano ainda não tem regra de comissão na aba "Referência". Cadastre lá para calcular comissão automaticamente.
+                  Esse plano ainda não tem regra de comissão na aba "Referência".
                 </p>
               )}
             </div>
