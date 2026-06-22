@@ -37,9 +37,11 @@ interface ColFilters {
   type: string;
   seller: string;
   area: string;
+  mrr: string;
+  commission: string;
 }
 
-const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "", area: "" };
+const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "", area: "", mrr: "", commission: "" };
 
 export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChanged }: Props) {
   const { toast } = useToast();
@@ -87,6 +89,19 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
     if (filters.type && m.payment_type !== filters.type) return false;
     if (filters.seller && !sellerName(m).toLowerCase().includes(filters.seller.toLowerCase())) return false;
     if (filters.area && (m.area || "") !== filters.area) return false;
+    const ref = m.plan_name && m.payment_type
+      ? reference.find((r) => r.plan_name === m.plan_name && r.payment_type === m.payment_type && r.is_active)
+      : null;
+    const effectiveMrr = m.mrr_override ?? ref?.plan_mrr ?? null;
+    if (filters.mrr) {
+      if (filters.mrr === "with" && effectiveMrr == null) return false;
+      if (filters.mrr === "without" && effectiveMrr != null) return false;
+      if (filters.mrr === "override" && m.mrr_override == null) return false;
+    }
+    if (filters.commission) {
+      const status = !m.requires_commission ? "none" : ref ? "ok" : "missing";
+      if (status !== filters.commission) return false;
+    }
     return true;
   });
 
@@ -222,8 +237,28 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left py-1">
                 <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
               </TableHead>
-              <TableHead></TableHead>
-              <TableHead></TableHead>
+              <TableHead className="text-right py-1">
+                <Select value={filters.mrr || "__all__"} onValueChange={(v) => setFilters({ ...filters, mrr: v === "__all__" ? "" : v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    <SelectItem value="with">Com MRR</SelectItem>
+                    <SelectItem value="without">Sem MRR</SelectItem>
+                    <SelectItem value="override">Com Override</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableHead>
+              <TableHead className="text-center py-1">
+                <Select value={filters.commission || "__all__"} onValueChange={(v) => setFilters({ ...filters, commission: v === "__all__" ? "" : v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    <SelectItem value="ok">Sim (ok)</SelectItem>
+                    <SelectItem value="missing">Sem ref</SelectItem>
+                    <SelectItem value="none">Não exige</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
