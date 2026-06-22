@@ -312,7 +312,21 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+          </div>
+          <div>
+            <Label>MRR (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={mrrOverride}
+              onChange={(e) => setMrrOverride(e.target.value)}
+              placeholder="Ex.: 199.90"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Será gravado como MRR override deste Price ID no Mapa de Preços.
+            </p>
+          </div>
             <div>
               <Label>Rótulo do Vendedor</Label>
               <Input value={sellerLabel} onChange={(e) => setSellerLabel(e.target.value)} placeholder="Ex.: Duda, Bia..." />
