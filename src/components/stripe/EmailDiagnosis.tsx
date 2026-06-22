@@ -64,6 +64,8 @@ export function EmailDiagnosis() {
   const [results, setResults] = useState<EmailResult[]>([]);
   const [forcePrefill, setForcePrefill] = useState<ForcePrefill | null>(null);
   const [forceOpen, setForceOpen] = useState(false);
+  const [editConv, setEditConv] = useState<ConversionToEdit | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   function parseEmails(text: string): string[] {
     return Array.from(new Set(
