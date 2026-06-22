@@ -36,6 +36,9 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
   const [sellerUserId, setSellerUserId] = useState<string>("");
   const [sellerLabel, setSellerLabel] = useState("");
   const [area, setArea] = useState<string>("Sales");
+  const [mrrOverride, setMrrOverride] = useState<string>(
+    target.mrr != null ? String(target.mrr) : "",
+  );
   const [saving, setSaving] = useState(false);
   const [planPopoverOpen, setPlanPopoverOpen] = useState(false);
   const [planQuery, setPlanQuery] = useState("");
@@ -77,6 +80,7 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
       area: area,
       seller_user_id: sellerUserId || null,
       seller_label: sellerLabel || null,
+      mrr_override: mrrOverride.trim() === "" ? null : Number(mrrOverride),
     };
     try {
       let existingId: string | null = null;
@@ -308,7 +312,21 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+          </div>
+          <div>
+            <Label>MRR (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={mrrOverride}
+              onChange={(e) => setMrrOverride(e.target.value)}
+              placeholder="Ex.: 199.90"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Será gravado como MRR override deste Price ID no Mapa de Preços.
+            </p>
+          </div>
             <div>
               <Label>Rótulo do Vendedor</Label>
               <Input value={sellerLabel} onChange={(e) => setSellerLabel(e.target.value)} placeholder="Ex.: Duda, Bia..." />
