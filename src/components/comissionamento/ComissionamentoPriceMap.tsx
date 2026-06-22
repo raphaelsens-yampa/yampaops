@@ -243,6 +243,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 <TableCell className="text-left">{m.plan_name || <span className="text-destructive">—</span>}</TableCell>
                 <TableCell className="text-left">{m.payment_type ? PAYMENT_TYPE_LABEL[m.payment_type] : "—"}</TableCell>
                 <TableCell className="text-left">{sellerName(m) || "—"}</TableCell>
+                <TableCell className="text-left">{m.area || <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {effectiveMrr != null ? (
                     <span className={isOverride ? "font-semibold" : "text-muted-foreground"} title={isOverride ? "Override" : "Da tabela de referência"}>
