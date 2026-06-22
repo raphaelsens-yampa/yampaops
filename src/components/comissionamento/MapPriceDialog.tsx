@@ -188,10 +188,21 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
         }
       }
 
+      // Marcar pendências de "preço fora do Mapa" como resolvidas
+      if (normalizedPriceId) {
+        await supabase
+          .from("integration_sync_errors")
+          .update({ resolved: true })
+          .eq("entity_type", "stripe_unmapped_price")
+          .eq("ac_id", normalizedPriceId)
+          .eq("resolved", false);
+      }
+
       toast({
         title: "Mapeamento salvo",
         description: `${recalculated} conversão(ões) de comissão e ${stripeUpdated} conversão(ões) Stripe atualizadas.${ref ? "" : " (Plano sem regra ativa na Referência.)"}`,
       });
+
 
       onMapped();
     } catch (error) {
