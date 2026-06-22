@@ -89,6 +89,19 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
     if (filters.type && m.payment_type !== filters.type) return false;
     if (filters.seller && !sellerName(m).toLowerCase().includes(filters.seller.toLowerCase())) return false;
     if (filters.area && (m.area || "") !== filters.area) return false;
+    const ref = m.plan_name && m.payment_type
+      ? reference.find((r) => r.plan_name === m.plan_name && r.payment_type === m.payment_type && r.is_active)
+      : null;
+    const effectiveMrr = m.mrr_override ?? ref?.plan_mrr ?? null;
+    if (filters.mrr) {
+      if (filters.mrr === "with" && effectiveMrr == null) return false;
+      if (filters.mrr === "without" && effectiveMrr != null) return false;
+      if (filters.mrr === "override" && m.mrr_override == null) return false;
+    }
+    if (filters.commission) {
+      const status = !m.requires_commission ? "none" : ref ? "ok" : "missing";
+      if (status !== filters.commission) return false;
+    }
     return true;
   });
 
