@@ -80,6 +80,7 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
       area: area,
       seller_user_id: sellerUserId || null,
       seller_label: sellerLabel || null,
+      mrr_override: mrrOverride.trim() === "" ? null : Number(mrrOverride),
     };
     try {
       let existingId: string | null = null;
