@@ -211,9 +211,6 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 </Select>
               </TableHead>
               <TableHead className="text-left py-1">
-                <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
-              </TableHead>
-              <TableHead className="text-left py-1">
                 <Select value={filters.area || "__all__"} onValueChange={(v) => setFilters({ ...filters, area: v === "__all__" ? "" : v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
@@ -221,6 +218,9 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                     {areaOptions.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
                   </SelectContent>
                 </Select>
+              </TableHead>
+              <TableHead className="text-left py-1">
+                <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
               </TableHead>
               <TableHead></TableHead>
               <TableHead></TableHead>
