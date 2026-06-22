@@ -185,8 +185,8 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left">Nome</TableHead>
               <TableHead className="text-left">Plano</TableHead>
               <TableHead className="text-left">Tipo</TableHead>
-              <TableHead className="text-left">Vendedor</TableHead>
               <TableHead className="text-left">Área</TableHead>
+              <TableHead className="text-left">Vendedor</TableHead>
               <TableHead className="text-right">MRR</TableHead>
               <TableHead className="text-center">Comissão</TableHead>
               <TableHead></TableHead>
@@ -211,9 +211,6 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 </Select>
               </TableHead>
               <TableHead className="text-left py-1">
-                <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
-              </TableHead>
-              <TableHead className="text-left py-1">
                 <Select value={filters.area || "__all__"} onValueChange={(v) => setFilters({ ...filters, area: v === "__all__" ? "" : v })}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                   <SelectContent>
@@ -221,6 +218,9 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                     {areaOptions.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
                   </SelectContent>
                 </Select>
+              </TableHead>
+              <TableHead className="text-left py-1">
+                <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
               </TableHead>
               <TableHead></TableHead>
               <TableHead></TableHead>
@@ -242,8 +242,8 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 <TableCell className="text-left text-xs max-w-[260px] truncate">{m.price_name}</TableCell>
                 <TableCell className="text-left">{m.plan_name || <span className="text-destructive">—</span>}</TableCell>
                 <TableCell className="text-left">{m.payment_type ? PAYMENT_TYPE_LABEL[m.payment_type] : "—"}</TableCell>
-                <TableCell className="text-left">{sellerName(m) || "—"}</TableCell>
                 <TableCell className="text-left">{m.area || <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-left">{sellerName(m) || "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {effectiveMrr != null ? (
                     <span className={isOverride ? "font-semibold" : "text-muted-foreground"} title={isOverride ? "Override" : "Da tabela de referência"}>
