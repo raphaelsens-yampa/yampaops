@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Search, Wand2 } from "lucide-react";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { ForceConversionDialog, type ForcePrefill } from "./ForceConversionDialog";
+import { EditConversionDialog, type ConversionToEdit } from "./EditConversionDialog";
 
 type FindingStatus =
   | "already_counted" | "unmapped_price" | "zero_mrr" | "no_paid_invoice"
@@ -63,6 +64,8 @@ export function EmailDiagnosis() {
   const [results, setResults] = useState<EmailResult[]>([]);
   const [forcePrefill, setForcePrefill] = useState<ForcePrefill | null>(null);
   const [forceOpen, setForceOpen] = useState(false);
+  const [editConv, setEditConv] = useState<ConversionToEdit | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   function parseEmails(text: string): string[] {
     return Array.from(new Set(
@@ -119,6 +122,30 @@ export function EmailDiagnosis() {
     });
     setForceOpen(true);
   }
+
+  function openEdit(email: string, f: Finding) {
+    if (!f.conversion_id) return;
+    setEditConv({
+      conversion_id: f.conversion_id,
+      email,
+      area: f.area,
+      mrr: f.mrr ?? null,
+      plan_name: f.plan_name,
+      product_name: f.product_name,
+      converted_at: f.converted_at,
+      registered_at: f.registered_at,
+      subscription_id: f.subscription_id,
+      customer_id: f.customer_id,
+      price_id: f.price_id,
+    });
+    setEditOpen(true);
+  }
+
+  const fmtDate = (iso?: string | null) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d.toLocaleDateString("pt-BR");
+  };
 
   const flatRows = results.flatMap((r) =>
     r.findings.length > 0
@@ -178,9 +205,18 @@ export function EmailDiagnosis() {
                         <div>{f.reason}</div>
                         <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                           {f.area && f.area !== "desconhecida" && <div>Área: <strong>{f.area}</strong></div>}
+                          {f.product_name && <div>Produto: {f.product_name}</div>}
                           {f.plan_name && <div>Plano: {f.plan_name}</div>}
+                          {f.status === "already_counted" && fmtDate(f.converted_at) && (
+                            <div>Convertido em: <strong>{fmtDate(f.converted_at)}</strong></div>
+                          )}
+                          {f.status === "already_counted" && fmtDate(f.registered_at) && (
+                            <div>Cadastro: {fmtDate(f.registered_at)}</div>
+                          )}
                           {f.subscription_id && <div>Sub: <code className="font-mono">{f.subscription_id}</code></div>}
                           {f.price_id && <div>Price: <code className="font-mono">{f.price_id}</code></div>}
+                          {f.customer_id && <div>Customer: <code className="font-mono">{f.customer_id}</code></div>}
+                          {f.conversion_id && <div>ID: <code className="font-mono">{f.conversion_id}</code></div>}
                           {f.sub_status && <div>Status Stripe: {f.sub_status}</div>}
                         </div>
                       </TableCell>
@@ -189,7 +225,9 @@ export function EmailDiagnosis() {
                       </TableCell>
                       <TableCell className="text-right">
                         {f.status === "already_counted" ? (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <Button size="sm" variant="outline" onClick={() => openEdit(email, f)}>
+                            Ver / Editar
+                          </Button>
                         ) : f.status === "unmapped_price" && f.price_id ? (
                           <div className="flex justify-end gap-2 flex-wrap">
                             <MapStripePriceButton
@@ -220,6 +258,12 @@ export function EmailDiagnosis() {
         onOpenChange={setForceOpen}
         prefill={forcePrefill}
         onSaved={() => forcePrefill && diagnose([forcePrefill.email])}
+      />
+      <EditConversionDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        conversion={editConv}
+        onSaved={() => editConv && diagnose([editConv.email])}
       />
     </Card>
   );
