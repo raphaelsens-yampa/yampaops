@@ -1,60 +1,66 @@
-# Plano: Versão Mobile do Yampa
 
-Objetivo: tornar o sistema 100% utilizável em telas pequenas (≤768px), substituindo o sidebar por uma **bottom navbar** e ajustando tabelas, modais, gráficos, kanban e cabeçalhos.
+## Objetivo
 
-## 1. Navegação mobile (núcleo da entrega)
+Adicionar, dentro da página **Integração Stripe**, uma seção onde o time Comercial cole uma lista de emails e receba, linha por linha, o motivo pelo qual cada um **não** apareceu em Conversões por Área / Metas — com a opção de **forçar** o registro manualmente para que passe a contar.
 
-**Criar `src/components/MobileBottomNav.tsx`**
-- Visível só em `<md` (`md:hidden`), fixo no rodapé (`fixed bottom-0`, `safe-area-inset-bottom`).
-- 5 atalhos principais: Dashboard, Pipeline, Metas, Conversões, **Mais** (abre Sheet com o restante).
-- `Sheet` lateral reaproveita os itens existentes de `AppSidebar` para os links secundários (Comissões, Forecast, Imports, Chatwoot, Stripe, Tags, Equipe, Usuários, etc.).
-- Destaque do item ativo via `useLocation`.
+## UX (nova seção na página `/integrations/stripe`)
 
-**Ajustar `src/components/Layout.tsx`**
-- Esconder `AppSidebar` em mobile (`hidden md:flex`).
-- Renderizar `MobileBottomNav` apenas em mobile.
-- Adicionar `pb-20 md:pb-0` no `<main>` para não cobrir conteúdo.
-- Header mobile compacto com logo + título da rota + botão de menu (abre o mesmo Sheet "Mais").
+Card novo: **"Diagnosticar emails ausentes"**, abaixo do bloco de saúde.
 
-## 2. Padrões responsivos aplicados em todas as telas
+1. `Textarea` "Cole emails (um por linha ou separados por vírgula)" + botão **Diagnosticar**.
+2. Após a chamada, uma tabela com colunas:
+   - Email
+   - Status (badge): `Já contabilizado` / `Não encontrado na Stripe` / `Encontrado mas descartado` / `Pendente de mapeamento` / `Sem assinatura paga` / `Erro`
+   - Detalhe (área, plano, MRR, datas, motivo textual)
+   - Ação contextual:
+     - `Pendente de mapeamento` → botão **Mapear price** (reaproveita `MapStripePriceButton`)
+     - `Encontrado mas descartado` (MRR zerado, sub cancelada antes de pagar, etc.) → botão **Forçar registro** (abre dialog com área/MRR/plano editáveis)
+     - `Não encontrado na Stripe` → botão **Forçar registro manual** (mesmo dialog, exige preencher tudo)
+     - `Já contabilizado` → link para a linha (somente leitura)
+3. Toast de sucesso + re-executa o diagnóstico após cada ação manual.
 
-- **Containers**: trocar `p-6` fixos por `p-3 sm:p-4 md:p-6`; grids `grid-cols-2/3/4` → `grid-cols-1 sm:grid-cols-2 lg:grid-cols-N`.
-- **KPIs / MetricCards**: stack em 1 coluna no mobile, 2 no `sm`.
-- **Cabeçalhos de página**: título + ações viram coluna no mobile (`flex-col gap-3 md:flex-row md:items-center`); filtros longos viram `Sheet` "Filtros".
-- **Tabelas densas** (`SellerRankingTable`, `TeamRankingTable`, `GoalsBreakdownByCategory`, `CommissionTriggersTable`, `ProductPricingTable`, `ComissionamentoConversions`, `ComissionamentoPriceMap`, `StripeConversions`, `Leaderboard`, `BottleneckAlerts`, `Users`, `Team`, `Contacts`):
-  - Wrap em `overflow-x-auto` com `min-w-` na tabela.
-  - Em `<sm`, renderizar layout em **cards empilhados** (label: valor) para as 3-5 colunas mais importantes; demais colunas escondidas.
-- **Gráficos** (`GoalProgressChart`, `PipelineFunnel`, `RevenueProjection`, `ConversionRates`, `ScenarioAnalysis`): `ResponsiveContainer` com `aspect` adaptativo; legenda embaixo no mobile; reduzir ticks/labels.
-- **Diálogos** (`NewOpportunityDialog`, `EditOpportunityDialog`, `MapPriceDialog`, `ManualConversionDialog`, etc.): `max-w-[95vw]`, `max-h-[90vh] overflow-y-auto`, formulários em 1 coluna no mobile.
-- **Tabs** (`Precificacao`, `Comissionamento`, `Goals`, etc.): `TabsList` com `overflow-x-auto` e scroll horizontal; rótulos curtos ou só ícones em `<sm`.
-- **Pipeline/Kanban** (`Pipeline.tsx`, `SellerKanban.tsx`, `KanbanColumn`, `KanbanCard`): no mobile, scroll horizontal com snap (`snap-x snap-mandatory`), colunas com `w-[85vw]`; cards mais compactos.
-- **PeriodNavigator / SafraSelector / filtros de data**: empilhar verticalmente, botões full-width.
-- **Sonner/Toaster**: `position="top-center"` no mobile.
+## Backend
 
-## 3. Telas que recebem refatoração específica
+### Edge function nova: `stripe-diagnose-emails`
+- Input: `{ emails: string[] }` (até 100 por chamada, normaliza p/ lowercase).
+- Para cada email:
+  1. Consulta `stripe_conversions` por `customer_email = lower(email)`. Se houver linha com `converted_at` e `mrr > 0` → status `already_counted` + snapshot.
+  2. Senão, `stripe.customers.search({ query: "email:'..."})` (ou `list` como fallback).
+     - Sem customer → `not_in_stripe`.
+     - Para cada customer: lista `subscriptions` (`status: all`) e, para cada uma, resolve `price_id`, consulta `commission_price_map`, calcula MRR (mesma lógica de `stripe-recover`), inspeciona `status`, `latest_invoice.paid`.
+     - Classifica: `unmapped_price` (mrr ok, mas sem entrada no mapa), `zero_mrr`, `no_paid_invoice` (canceled/incomplete sem invoice paga), `discarded_other`.
+  3. Retorna por email um array de "achados" (uma sub por achado) para a UI montar a linha.
+- Apenas admin: valida JWT em código e checa `has_role(uid, 'admin')`.
 
-- `AdminDashboard` — KPIs 1-col, funil+metas empilhados, projeção scroll-x.
-- `Goals` + `GoalsTracking` — KPIs stack, gráfico full-width, tabelas em modo card no mobile.
-- `Pipeline` / `SellerKanban` — kanban horizontal com snap, FAB "Nova oportunidade".
-- `Comissionamento`, `Commissions`, `CommissionSettings` — tabs scrolláveis, tabelas em cards.
-- `Forecast`, `Reports`, `OnePageDiretoria` — gráficos responsivos, grids 1-col.
-- `Precificacao` — tabs com ícone-only no mobile, tabelas em cards, proposta com preview rolável.
-- `Auth`, `Profile`, `Users`, `Team` — formulários full-width, paddings reduzidos.
-- `Chatwoot*`, `StripeConversions`, `LeadJourney`, `SalesCampaigns*`, `IntegrationAudit`, `Imports` — mesmas regras (tabelas → cards, filtros → Sheet).
+### Edge function nova: `stripe-force-conversion`
+- Input: `{ email, subscription_id?, price_id?, area, plan_name?, product_name?, mrr, registered_at?, converted_at?, note? }`.
+- Faz `upsert` em `stripe_conversions` (usa `stripe_subscription_id` como chave quando informado; senão gera `stripe_event_id = manual_<uuid>`).
+- Registra `integration_sync_errors` com `entity_type='stripe_manual_force'`, `resolved=true`, payload com quem forçou (`auth.uid()`) e a nota — fica como trilha de auditoria.
+- Apenas admin.
 
-## 4. Utilitários
+Nenhuma alteração de schema. Tudo cabe nas tabelas existentes (`stripe_conversions`, `integration_sync_errors`, `commission_price_map`).
 
-- Reutilizar `useIsMobile()` onde precisar trocar entre tabela e cards.
-- Adicionar utilitário `safe-area` no `index.css` (`env(safe-area-inset-bottom)`).
-- Garantir `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` em `index.html`.
+## Frontend
 
-## 5. Validação
+Novo componente `src/components/stripe/EmailDiagnosis.tsx`:
+- Estado local (lista de emails, loading, results).
+- Chama `supabase.functions.invoke("stripe-diagnose-emails", { body: { emails } })`.
+- Renderiza a tabela + sub-dialog `ForceConversionDialog` que chama `stripe-force-conversion`.
+- Após sucesso, refaz o diagnóstico daquele email.
 
-- Rodar build.
-- Conferir as 5-6 telas principais (Dashboard, Pipeline, Metas, Conversões, Comissões, Precificação) em 375×812 via `browser--view_preview`.
+Edit em `src/pages/StripeIntegration.tsx`: import e render do componente em um `Card` próprio, após o bloco de saúde / antes de "Eventos por dia".
 
-## Observações
+## Detalhes técnicos
 
-- Mudanças puramente de UI/responsividade — sem mexer em lógica de negócio, queries ou schema.
-- Sidebar desktop permanece intacto; o bottom nav é mobile-only.
-- Trabalho amplo (≈40+ arquivos tocados); entrego em uma única passada de build mode após sua aprovação.
+- `stripe.customers.search` requer índice habilitado por padrão — fallback para `customers.list({ email })` se a busca falhar.
+- Para cada `subscription` recuperada usar a mesma normalização de MRR do `stripe-recover` (extrair em helper inline; sem refactor cross-function).
+- Limites: máximo 100 emails por request; 10 subs por customer; corta após primeiro achado relevante por email para evitar ruído (mas mantém múltiplos se houver mais de uma sub).
+- Mensagens em PT-BR coerentes com o resto do app.
+
+## Arquivos
+
+- `supabase/functions/stripe-diagnose-emails/index.ts` (novo)
+- `supabase/functions/stripe-force-conversion/index.ts` (novo)
+- `src/components/stripe/EmailDiagnosis.tsx` (novo)
+- `src/components/stripe/ForceConversionDialog.tsx` (novo)
+- `src/pages/StripeIntegration.tsx` (insere a seção)
