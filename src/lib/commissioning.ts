@@ -83,10 +83,17 @@ export function resolveRow(
     return { ...raw, matched, reference: null, applied_pct: 0, commission_amount: 0, status: "pending_mapping" };
   }
 
+  // Price mapeado mas NÃO marcado para comissionamento → entra como conversão, sem comissão
+  if (!matched.requires_commission) {
+    const mrrNoCommission = matched.mrr_override ?? raw.mrr ?? 0;
+    return { ...raw, mrr: mrrNoCommission, matched, reference: null, applied_pct: 0, commission_amount: 0, status: "calculated" };
+  }
+
   const ref = reference.find(
     (r) => r.plan_name === matched!.plan_name && r.payment_type === matched!.payment_type && r.is_active,
   );
   if (!ref) {
+    // requires_commission marcado mas sem regra ativa na Referência → pendência explícita
     return { ...raw, matched, reference: null, applied_pct: 0, commission_amount: 0, status: "pending_mapping" };
   }
 
