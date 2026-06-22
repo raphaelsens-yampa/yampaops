@@ -37,9 +37,11 @@ interface ColFilters {
   type: string;
   seller: string;
   area: string;
+  mrr: string;
+  commission: string;
 }
 
-const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "", area: "" };
+const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "", area: "", mrr: "", commission: "" };
 
 export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChanged }: Props) {
   const { toast } = useToast();
