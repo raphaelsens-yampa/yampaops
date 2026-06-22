@@ -180,6 +180,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left">Tipo</TableHead>
               <TableHead className="text-left">Vendedor</TableHead>
               <TableHead className="text-right">MRR</TableHead>
+              <TableHead className="text-center">Comissão</TableHead>
               <TableHead></TableHead>
             </TableRow>
             <TableRow className="hover:bg-transparent">
