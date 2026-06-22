@@ -133,6 +133,10 @@ Deno.serve(async (req) => {
       customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id || null;
       subscriptionId = obj.id;
       priceId = obj.items?.data?.[0]?.price?.id || null;
+    } else if (event.type === "customer.subscription.updated") {
+      customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id || null;
+      subscriptionId = obj.id;
+      priceId = obj.items?.data?.[0]?.price?.id || null;
     } else if (event.type === "invoice.paid") {
       // Aqui só chega se billing_reason === 'subscription_create'
       email = obj.customer_email || null;
