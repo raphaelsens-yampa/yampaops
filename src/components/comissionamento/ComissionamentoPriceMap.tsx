@@ -359,9 +359,35 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                   <Input type="number" step="0.01" value={editing.mrr_override ?? ""} onChange={(e) => setEditing({ ...editing, mrr_override: e.target.value === "" ? null : Number(e.target.value) })} />
                 </div>
               </div>
-              {editing.plan_name && !planNamesFromRef.includes(editing.plan_name) && (
+              <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={!!editing.requires_commission}
+                    onCheckedChange={(v) => setEditing({ ...editing, requires_commission: v === true })}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Comissionamento</div>
+                    <p className="text-xs text-muted-foreground">
+                      Marque para que este Price ID gere comissão. Exige Plano + Tipo cadastrados na aba "Referência".
+                    </p>
+                  </div>
+                </label>
+                {editing.requires_commission && editing.plan_name && editing.payment_type && !reference.find(
+                  (r) => r.plan_name === editing.plan_name && r.payment_type === editing.payment_type && r.is_active,
+                ) && (
+                  <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 rounded p-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      Não existe regra ativa para <strong>{editing.plan_name}</strong> / {PAYMENT_TYPE_LABEL[editing.payment_type as PaymentType]} na Referência.
+                      Cadastre lá antes de salvar.
+                    </span>
+                  </div>
+                )}
+              </div>
+              {editing.plan_name && !planNamesFromRef.includes(editing.plan_name) && !editing.requires_commission && (
                 <p className="text-xs text-muted-foreground">
-                  Esse plano ainda não tem regra de comissão na aba "Referência". Cadastre lá para calcular comissão automaticamente.
+                  Esse plano ainda não tem regra de comissão na aba "Referência".
                 </p>
               )}
             </div>
