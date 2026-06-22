@@ -51,7 +51,33 @@ interface Conversion {
   converted_at: string;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
+  stripe_customer_id: string | null;
+  conversion_type: string;
+  previous_mrr: number;
+  previous_price_id: string | null;
+  delta_mrr: number;
+  assigned_seller_id: string | null;
+  attribution_source: string | null;
 }
+
+const TYPE_LABEL: Record<string, string> = {
+  new: "Nova",
+  upsell: "Upsell",
+  downgrade: "Downgrade",
+  renewal: "Renovação",
+};
+const TYPE_COLOR: Record<string, string> = {
+  new: "hsl(193 99% 44%)",
+  upsell: "hsl(150 60% 45%)",
+  downgrade: "hsl(0 75% 55%)",
+  renewal: "hsl(220 10% 60%)",
+};
+const SOURCE_LABEL: Record<string, string> = {
+  chatwoot: "Chatwoot",
+  campaign: "Campanha",
+  previous_conversion: "Cliente recorrente",
+  manual: "Manual",
+};
 
 const PERIOD_PRESETS = [
   { key: "this_month", label: "Este mês" },
