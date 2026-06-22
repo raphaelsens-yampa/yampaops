@@ -53,7 +53,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  const editable = ["area", "mrr", "plan_name", "product_name", "converted_at", "registered_at"] as const;
+  const editable = [
+    "area", "mrr", "plan_name", "product_name", "converted_at", "registered_at",
+    "conversion_type", "previous_mrr", "assigned_seller_id", "attribution_source",
+  ] as const;
   const updates: Record<string, any> = {};
   for (const k of editable) {
     if (body[k] !== undefined) updates[k] = body[k];
@@ -67,14 +70,52 @@ Deno.serve(async (req) => {
     }
     updates.mrr = n;
   }
+  if (updates.previous_mrr !== undefined) {
+    const n = Number(updates.previous_mrr);
+    if (!(n >= 0)) {
+      return new Response(JSON.stringify({ error: "previous_mrr deve ser >= 0" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    updates.previous_mrr = n;
+  }
+  if (updates.conversion_type !== undefined) {
+    const allowed = ["new", "upsell", "downgrade", "renewal"];
+    if (!allowed.includes(String(updates.conversion_type))) {
+      return new Response(JSON.stringify({ error: "conversion_type inválido" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+  // Special action: re-run automatic seller resolution
+  const resolveSeller: boolean = !!body?.resolve_seller;
 
   try {
-    const { data: before, error: beforeErr } = await supabase
+  const { data: before, error: beforeErr } = await supabase
       .from("stripe_conversions")
-      .select("id, area, mrr, plan_name, product_name, converted_at, registered_at, customer_email, stripe_subscription_id, stripe_price_id")
+      .select("id, area, mrr, plan_name, product_name, converted_at, registered_at, customer_email, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, assigned_seller_id, attribution_source")
       .eq("id", conversion_id)
       .maybeSingle();
     if (beforeErr) throw beforeErr;
+    if (!before) {
+      return new Response(JSON.stringify({ error: "Conversão não encontrada" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If requested, run resolve_stripe_seller and fold into updates
+    if (resolveSeller) {
+      const { data: rs } = await supabase.rpc("resolve_stripe_seller", {
+        p_customer_id: before.stripe_customer_id,
+        p_email: before.customer_email,
+        p_at: before.converted_at || new Date().toISOString(),
+      });
+      const row = Array.isArray(rs) ? rs[0] : rs;
+      if (row) {
+        updates.assigned_seller_id = row.seller_id ?? null;
+        updates.attribution_source = row.source ?? null;
+      }
+    }
     if (!before) {
       return new Response(JSON.stringify({ error: "Conversão não encontrada" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },

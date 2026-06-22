@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
   const RELEVANT = new Set([
     "checkout.session.completed",
     "customer.subscription.created",
+    "customer.subscription.updated",
     "invoice.paid",
   ]);
   if (!RELEVANT.has(event.type)) {
@@ -91,6 +92,22 @@ Deno.serve(async (req) => {
         .update({ result: `ignored_recurring:${billingReason || "unknown"}` })
         .eq("stripe_event_id", event.id);
       return ok({ ok: true, ignored: "recurring", billing_reason: billingReason });
+    }
+  }
+
+  // customer.subscription.updated: só interessa se o price mudou
+  if (event.type === "customer.subscription.updated") {
+    const prev = (event.data as any)?.previous_attributes ?? {};
+    const items = (event.data.object as any)?.items?.data ?? [];
+    const prevItems = prev?.items?.data ?? null;
+    const currentPriceIds = items.map((i: any) => i?.price?.id).filter(Boolean).sort().join(",");
+    const prevPriceIds = prevItems ? prevItems.map((i: any) => i?.price?.id).filter(Boolean).sort().join(",") : null;
+    const priceChanged = prevPriceIds !== null && prevPriceIds !== currentPriceIds;
+    if (!priceChanged) {
+      await supabase.from("stripe_events")
+        .update({ result: "ignored_subscription_update_no_price_change" })
+        .eq("stripe_event_id", event.id);
+      return ok({ ok: true, ignored: "subscription_update_no_price_change" });
     }
   }
 
@@ -113,6 +130,10 @@ Deno.serve(async (req) => {
         priceId = items.data[0]?.price?.id || null;
       }
     } else if (event.type === "customer.subscription.created") {
+      customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id || null;
+      subscriptionId = obj.id;
+      priceId = obj.items?.data?.[0]?.price?.id || null;
+    } else if (event.type === "customer.subscription.updated") {
       customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id || null;
       subscriptionId = obj.id;
       priceId = obj.items?.data?.[0]?.price?.id || null;
@@ -265,14 +286,16 @@ Deno.serve(async (req) => {
   }
 
   // ─── Idempotência ───
-  // Busca registro existente por subscription_id (chave natural) OU por event_id
-  // (caso o mesmo evento já tenha gerado uma linha sem subscription).
+  // Uma assinatura pode ter múltiplas linhas (uma por price), refletindo upsells.
+  // Dedup por (subscription_id, price_id) — se existir, é renovação/duplicado do mesmo plano.
+  // Fallback por event_id para casos sem subscription.
   let existingRow: { id: string; converted_at: string | null; registered_at: string | null; stripe_event_id: string | null } | null = null;
-  if (subscriptionId) {
+  if (subscriptionId && priceId) {
     const { data } = await supabase
       .from("stripe_conversions")
       .select("id, converted_at, registered_at, stripe_event_id")
       .eq("stripe_subscription_id", subscriptionId)
+      .eq("stripe_price_id", priceId)
       .maybeSingle();
     existingRow = data as any;
   }
@@ -286,15 +309,55 @@ Deno.serve(async (req) => {
   }
 
   // converted_at deve ser STÁVEL: sempre o 1º pagamento (mais antigo).
-  // Se já existe, mantém o menor entre o gravado e o novo (nunca sobrescreve com data posterior, nunca com null).
   const earliest = (a: string | null, b: string | null): string | null => {
     if (!a) return b;
     if (!b) return a;
     return new Date(a).getTime() <= new Date(b).getTime() ? a : b;
   };
   const finalConvertedAt = earliest(existingRow?.converted_at ?? null, convertedAt);
-  // registered_at também é estável (data de criação do customer no Stripe). Não sobrescreve se já houver.
   const finalRegisteredAt = existingRow?.registered_at ?? registeredAt ?? null;
+
+  // ─── Classificação: new | upsell | downgrade | renewal ───
+  let conversionType: string = "new";
+  let previousMrr = 0;
+  let previousPriceId: string | null = null;
+  let previousConversionId: string | null = null;
+  try {
+    const { data: cls } = await supabase.rpc("classify_stripe_conversion", {
+      p_customer_id: customerId,
+      p_email: normEmail,
+      p_price_id: priceId,
+      p_mrr: convMrr,
+      p_self_id: existingRow?.id ?? null,
+    });
+    const row = Array.isArray(cls) ? cls[0] : cls;
+    if (row) {
+      conversionType = row.conversion_type ?? "new";
+      previousMrr = Number(row.previous_mrr ?? 0);
+      previousPriceId = row.previous_price_id ?? null;
+      previousConversionId = row.previous_conversion_id ?? null;
+    }
+  } catch (err) {
+    console.error("classify_stripe_conversion failed:", err);
+  }
+
+  // ─── Resolução do vendedor (Chatwoot / campanhas / conversão anterior) ───
+  let assignedSellerId: string | null = null;
+  let attributionSource: string | null = null;
+  try {
+    const { data: rs } = await supabase.rpc("resolve_stripe_seller", {
+      p_customer_id: customerId,
+      p_email: normEmail,
+      p_at: finalConvertedAt ?? new Date().toISOString(),
+    });
+    const row = Array.isArray(rs) ? rs[0] : rs;
+    if (row) {
+      assignedSellerId = row.seller_id ?? null;
+      attributionSource = row.source ?? null;
+    }
+  } catch (err) {
+    console.error("resolve_stripe_seller failed:", err);
+  }
 
   const conversionRow: Record<string, unknown> = {
     stripe_event_id: existingRow?.stripe_event_id ?? event.id,
@@ -308,13 +371,17 @@ Deno.serve(async (req) => {
     mrr: convMrr,
     registered_at: finalRegisteredAt,
     converted_at: finalConvertedAt,
+    conversion_type: conversionType,
+    previous_mrr: previousMrr,
+    previous_price_id: previousPriceId,
+    previous_conversion_id: previousConversionId,
+    assigned_seller_id: assignedSellerId,
+    attribution_source: attributionSource,
   };
 
   const conversionExists = !!existingRow;
   if (!conversionExists) {
-    const { error: convError } = subscriptionId
-      ? await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_subscription_id" })
-      : await supabase.from("stripe_conversions").upsert(conversionRow, { onConflict: "stripe_event_id" });
+    const { error: convError } = await supabase.from("stripe_conversions").insert(conversionRow);
     if (convError) {
       console.error("Failed to persist conversion:", convError);
       await supabase.from("stripe_events")
@@ -323,18 +390,18 @@ Deno.serve(async (req) => {
       return ok({ ok: true, error: "conversion_failed" });
     }
   } else {
-    // Idempotente: só faz UPDATE se algum campo realmente mudou
+    // Idempotente: atualiza apenas datas estáveis se mudaram; não sobrescreve atribuição manual.
     const changed =
       existingRow.converted_at !== finalConvertedAt ||
       existingRow.registered_at !== finalRegisteredAt;
     if (changed) {
       await supabase.from("stripe_conversions")
-        .update(conversionRow)
+        .update({ converted_at: finalConvertedAt, registered_at: finalRegisteredAt })
         .eq("id", existingRow.id);
     }
   }
 
-  // Sinaliza price_id não mapeado no Mapa de Preços (para o card de cobertura na tela de Integração)
+  // Sinaliza price_id não mapeado no Mapa de Preços
   if (priceId && convArea === "desconhecida") {
     await supabase.from("integration_sync_errors").insert({
       entity_type: "stripe_unmapped_price",
@@ -345,13 +412,29 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Sinaliza upsell sem vendedor atribuído (vira pendência manual)
+  if (!conversionExists && conversionType === "upsell" && !assignedSellerId) {
+    await supabase.from("integration_sync_errors").insert({
+      entity_type: "stripe_upsell_no_seller",
+      ac_id: subscriptionId || customerId || event.id,
+      error_message: `Upsell detectado sem vendedor atribuído (${normEmail})`,
+      payload: { event_id: event.id, customer_id: customerId, subscription_id: subscriptionId, price_id: priceId, previous_price_id: previousPriceId, delta_mrr: convMrr - previousMrr },
+      resolved: false,
+    });
+  }
+
   await supabase.from("stripe_events")
-    .update({ result: conversionExists ? "duplicate_subscription" : "conversion_recorded" })
+    .update({ result: conversionExists ? `duplicate:${conversionType}` : `recorded:${conversionType}` })
     .eq("stripe_event_id", event.id);
 
   return ok({
     ok: true,
     recorded: !conversionExists,
+    conversion_type: conversionType,
+    previous_mrr: previousMrr,
+    delta_mrr: convMrr - previousMrr,
+    assigned_seller_id: assignedSellerId,
+    attribution_source: attributionSource,
     area: convArea,
     price_mapped: convArea !== "desconhecida",
   });

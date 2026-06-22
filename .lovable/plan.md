@@ -1,56 +1,100 @@
-# Auditar e corrigir conversões "Já contabilizadas"
+## Premissa de detecção (definida pelo usuário)
 
-## Problema
+O **ponto de verdade do upsell é o `stripe_price_id` da nova oferta**. Toda nova conversão Stripe (independente de vir de `subscription.created`, `subscription.updated` ou `checkout.session.completed`) é classificada assim:
 
-Hoje, na tela **Integrações/Stripe → Diagnosticar emails ausentes**, quando o sistema responde *"Já contabilizado"*, a linha só mostra o badge verde — sem detalhes da conversão e sem ação. Não dá para confirmar se o registro realmente está correto (área, MRR, plano, data) nem ajustar nada quando está errado. As ações de edição/forçar só aparecem para os outros status.
+1. Já existe `stripe_conversions` para o mesmo `stripe_customer_id` (ou email normalizado) ANTES desta?
+   - **Não** → `conversion_type='new'`.
+   - **Sim** → é um upsell/downgrade. Compara o `mrr` do novo `price_id` com o `mrr` da conversão anterior mais recente do cliente:
+     - `mrr_novo > mrr_antigo` → `conversion_type='upsell'`.
+     - `mrr_novo < mrr_antigo` → `conversion_type='downgrade'`.
+     - igual → `conversion_type='renewal'` (registra, não conta como expansion).
 
-## O que vamos fazer
+Não dependemos de `previous_attributes` da Stripe — basta o price_id chegar e a função de classificação resolve.
 
-Tornar o status **`already_counted`** auditável e editável, mantendo todo o resto da tela igual.
+## Regras de negócio (mantidas)
 
-### 1. Edge function nova: `stripe-update-conversion`
-- Input: `{ conversion_id: uuid, area?, mrr?, plan_name?, product_name?, converted_at?, registered_at?, note? }`.
-- Atualiza `stripe_conversions` apenas nos campos enviados.
-- Registra em `integration_sync_errors` (`entity_type='stripe_manual_edit'`, `resolved=true`) com `auth.uid()`, o `conversion_id`, o diff (campos antes/depois) e a nota — fica trilha de auditoria igual ao `stripe-force-conversion`.
-- Apenas admin (valida JWT em código + `has_role`).
+- **Métrica (paineis/One Page):** Expansion MRR = `mrr_novo − mrr_antigo` (delta).
+- **Comissão:** valor cheio do novo plano.
+- **Atribuição:** sem pipeline, usar fallback Chatwoot → Sales Campaigns → conversão anterior do mesmo cliente → manual.
 
-### 2. `stripe-diagnose-emails` (ajuste mínimo)
-Já retorna `conversion_id`, `area`, `mrr`, `plan_name`, `product_name`, `converted_at`, `registered_at` para `already_counted`. Acrescentar no payload:
-- `stripe_subscription_id`, `stripe_price_id`, `stripe_customer_id` (já buscados; só expor)
-- `product_name` / `plan_name` (já vêm)
-- além disso, **se houver mais de 1 conversão** para o mesmo email, devolver todas (hoje já faz, mas confirmar que cada uma vira uma linha — já é o comportamento via `flatRows`).
+## Mudanças
 
-### 3. `EmailDiagnosis.tsx` — coluna "Detalhe" para `already_counted`
-Para linhas `already_counted` mostrar bloco rico de detalhe:
-- Área (badge), MRR formatado, Plano, Produto
-- `converted_at` e `registered_at` formatados em pt-BR
-- `subscription_id` / `price_id` / `customer_id` em mono pequeno
-- ID da conversão (mono)
+### 1) Banco — `stripe_conversions`
 
-E **substituir o "—" da coluna Ação** por dois botões:
-- **Ver/Editar** → abre o novo `EditConversionDialog`
-- **Abrir em Conversões** → link para `/comissionamento` (ou rota equivalente atual de conversões) com filtro pelo email/conversion_id, para inspeção full
+```text
+conversion_type      text not null default 'new'   -- 'new' | 'upsell' | 'downgrade' | 'renewal'
+previous_mrr         numeric not null default 0
+previous_price_id    text
+previous_conversion_id uuid references stripe_conversions(id)
+delta_mrr            numeric GENERATED ALWAYS AS (mrr - previous_mrr) STORED
+assigned_seller_id   uuid references auth.users(id)
+attribution_source   text   -- 'chatwoot' | 'campaign' | 'previous_conversion' | 'manual' | null
+```
 
-### 4. Componente novo: `EditConversionDialog.tsx`
-Espelha o `ForceConversionDialog`, mas:
-- Recebe `conversion: { id, email, area, mrr, plan_name, product_name, converted_at, registered_at, subscription_id, price_id, customer_id }`.
-- Campos editáveis: Área (Select), MRR, Plano, Produto, `converted_at` (date), `registered_at` (date), Nota (obrigatória — justificativa da edição).
-- Mostra somente leitura: email, subscription_id, price_id, customer_id, id da conversão.
-- Botão "Salvar alterações" chama `stripe-update-conversion`. Após salvar, `diagnose([email])` re-executa o diagnóstico só desse email para refletir o estado novo.
-- Botão secundário "Reverter (excluir conversão)" — opcional, fora do escopo agora; deixar fora para não misturar com o pedido.
+Trocar o índice único `stripe_subscription_id` por `UNIQUE (stripe_subscription_id, stripe_price_id, stripe_event_id)` — assim a mesma assinatura pode ter várias linhas (cada troca de price vira uma).
 
-### 5. Sem alterações de schema
-Tudo cabe em `stripe_conversions` + `integration_sync_errors` já existentes.
+Catálogo: garantir que `stripe_prices` tenha o `mrr` (unit_amount/intervalo) de cada price_id ativo, para a classificação não depender de chamar a Stripe a cada evento.
 
-## Arquivos
+### 2) Função `classify_stripe_conversion(p_customer_id, p_email, p_price_id, p_mrr)`
 
-- `supabase/functions/stripe-update-conversion/index.ts` (novo)
-- `supabase/functions/stripe-diagnose-emails/index.ts` (expor `stripe_price_id`, `stripe_customer_id`, `stripe_subscription_id` no bloco `already_counted`)
-- `src/components/stripe/EditConversionDialog.tsx` (novo)
-- `src/components/stripe/EmailDiagnosis.tsx` (detalhe rico + botões de ação no status `already_counted`)
+SQL `SECURITY DEFINER`. Retorna `{ conversion_type, previous_mrr, previous_price_id, previous_conversion_id }`:
 
-## Fora do escopo
+- Busca a última `stripe_conversions` do mesmo `stripe_customer_id` (fallback: mesmo email normalizado) com `created_at < now()`.
+- Compara `p_mrr` com `previous.mrr` e devolve o tipo.
 
-- Mudar layout/colunas da tabela
-- Tocar nos outros status (`unmapped_price`, `not_in_stripe`, etc.) — continuam exatamente como estão
-- Excluir conversões existentes (apenas editar)
+### 3) Webhook (`supabase/functions/stripe-webhook`)
+
+- Adicionar `customer.subscription.updated` à lista de eventos relevantes (para capturar trocas de plano feitas fora de checkout).
+- Para todo evento: extrair `price_id` + `mrr` → chamar `classify_stripe_conversion` → gravar a linha já com `conversion_type`, `previous_mrr`, `previous_price_id`, `previous_conversion_id` preenchidos.
+- Em seguida chama `resolve_stripe_seller` (item 4) para preencher `assigned_seller_id` + `attribution_source`.
+- Idempotência por `stripe_events.stripe_event_id` continua valendo.
+
+### 4) Resolução de vendedor (`resolve_stripe_seller`)
+
+Função SQL `SECURITY DEFINER`. Ordem de fallback (primeiro hit ganha):
+
+1. **Conversão anterior** do mesmo customer/email com `assigned_seller_id` preenchido (cliente "pertence" a quem já vendeu).
+2. **Chatwoot** — `chatwoot_conversations` do email/telefone com `assignee_user_id` mapeado a `profiles.user_id`, janela de 60 dias antes da conversão.
+3. **Sales Campaigns** — `sales_campaign_contacts.assigned_seller_id` do contato (mesmo email/telefone), priorizando campanha ativa mais recente.
+4. Nada → `attribution_source = null`, vai para `StripePendingActions`.
+
+### 5) Comissão
+
+- `commission_conversions` recebe `origem_cliente='upsell'` quando aplicável; base = MRR cheio do novo plano.
+- Sem `assigned_seller_id` → comissão não é gerada automaticamente (evita pagamento errado), entra como pendente.
+
+### 6) UI — Integrações / Stripe Conversions
+
+`src/pages/StripeConversions.tsx` + `EmailDiagnosis` + `EditConversionDialog`:
+
+- Coluna **Tipo** (Nova · Upsell · Downgrade · Renovação) e **Fonte da atribuição**.
+- Filtros por tipo e por "sem vendedor".
+- KPI **Expansion MRR** (Σ `delta_mrr` dos upsells no período).
+- `EditConversionDialog` permite editar `conversion_type`, `previous_mrr`, `assigned_seller_id` e re-rodar `resolve_stripe_seller`.
+- Pendências (upsell sem vendedor) aparecem em `StripePendingActions`.
+
+### 7) Backfill
+
+Edge function `stripe-recover` ganha modo "reclassify": varre todas as `stripe_conversions` existentes, agrupa por customer, ordena por data e roda `classify_stripe_conversion` para preencher os novos campos retroativamente.
+
+### 8) One Page Diretoria
+
+`src/data/onePageData.ts` passa a expor (via gerador externo) em `p1`:
+
+- `expansion_mrr` (R$) — Σ `delta_mrr` dos upsells no período.
+- `expansion_count` — nº de upsells.
+
+`OnePageDiretoria.tsx` apenas consome — sem mudança de layout.
+
+## Detalhes técnicos
+
+- Match de cliente: `stripe_customer_id` é a chave primária; email normalizado (`lower(trim)`) e telefone (`normalize_phone_digits`, já existe) são fallbacks.
+- `delta_mrr` como coluna gerada evita drift.
+- Não precisa popular `previous_attributes`; tudo deriva do histórico em `stripe_conversions` + `stripe_prices`.
+- Para price_id ainda não catalogado em `stripe_prices`, o webhook busca via `stripe.prices.retrieve` e insere no catálogo antes de classificar.
+
+## Fora de escopo
+
+- Churn/cancelamento.
+- Proration intra-mês (consideramos MRR pelo `unit_amount` do novo price).
+- Recriar pipeline; gestão de upsell vive nas telas de Conversões e Comissões.

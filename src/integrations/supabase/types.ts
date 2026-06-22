@@ -2716,14 +2716,21 @@ export type Database = {
       stripe_conversions: {
         Row: {
           area: string
+          assigned_seller_id: string | null
+          attribution_source: string | null
+          conversion_type: string
           converted_at: string | null
           created_at: string
           customer_email: string | null
+          delta_mrr: number | null
           id: string
           matched_contact_id: string | null
           matched_opportunity_id: string | null
           mrr: number
           plan_name: string | null
+          previous_conversion_id: string | null
+          previous_mrr: number
+          previous_price_id: string | null
           product_name: string | null
           registered_at: string | null
           stripe_customer_id: string | null
@@ -2734,14 +2741,21 @@ export type Database = {
         }
         Insert: {
           area?: string
+          assigned_seller_id?: string | null
+          attribution_source?: string | null
+          conversion_type?: string
           converted_at?: string | null
           created_at?: string
           customer_email?: string | null
+          delta_mrr?: number | null
           id?: string
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
           mrr?: number
           plan_name?: string | null
+          previous_conversion_id?: string | null
+          previous_mrr?: number
+          previous_price_id?: string | null
           product_name?: string | null
           registered_at?: string | null
           stripe_customer_id?: string | null
@@ -2752,14 +2766,21 @@ export type Database = {
         }
         Update: {
           area?: string
+          assigned_seller_id?: string | null
+          attribution_source?: string | null
+          conversion_type?: string
           converted_at?: string | null
           created_at?: string
           customer_email?: string | null
+          delta_mrr?: number | null
           id?: string
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
           mrr?: number
           plan_name?: string | null
+          previous_conversion_id?: string | null
+          previous_mrr?: number
+          previous_price_id?: string | null
           product_name?: string | null
           registered_at?: string | null
           stripe_customer_id?: string | null
@@ -2768,7 +2789,15 @@ export type Database = {
           stripe_subscription_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stripe_conversions_previous_conversion_id_fkey"
+            columns: ["previous_conversion_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stripe_events: {
         Row: {
@@ -3047,6 +3076,21 @@ export type Database = {
         }
         Returns: Json
       }
+      classify_stripe_conversion: {
+        Args: {
+          p_customer_id: string
+          p_email: string
+          p_mrr: number
+          p_price_id: string
+          p_self_id?: string
+        }
+        Returns: {
+          conversion_type: string
+          previous_conversion_id: string
+          previous_mrr: number
+          previous_price_id: string
+        }[]
+      }
       get_chatwoot_labels: { Args: never; Returns: string[] }
       has_role: {
         Args: {
@@ -3057,6 +3101,13 @@ export type Database = {
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
+      resolve_stripe_seller: {
+        Args: { p_at?: string; p_customer_id: string; p_email: string }
+        Returns: {
+          seller_id: string
+          source: string
+        }[]
+      }
       scc_compute_first_contact_for: {
         Args: { p_email: string; p_phone: string }
         Returns: string
