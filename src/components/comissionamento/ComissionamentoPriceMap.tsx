@@ -96,6 +96,23 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
       toast({ title: "Informe Price ID ou Nome da Oferta", variant: "destructive" });
       return;
     }
+    if (editing.requires_commission) {
+      if (!editing.plan_name || !editing.payment_type) {
+        toast({ title: "Comissionamento exige Plano e Tipo de Pagamento", variant: "destructive" });
+        return;
+      }
+      const refMatch = reference.find(
+        (r) => r.plan_name === editing.plan_name && r.payment_type === editing.payment_type && r.is_active,
+      );
+      if (!refMatch) {
+        toast({
+          title: "Sem regra na Referência",
+          description: `Cadastre "${editing.plan_name}" / ${PAYMENT_TYPE_LABEL[editing.payment_type as PaymentType]} na aba Referência antes de marcar Comissionamento.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const payload = {
       price_id: editing.price_id?.trim() || null,
       offer_name: editing.offer_name?.trim() || null,
@@ -106,6 +123,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
       seller_user_id: editing.seller_user_id || null,
       seller_label: editing.seller_label || null,
       mrr_override: editing.mrr_override ?? null,
+      requires_commission: !!editing.requires_commission,
     };
     const { error } = editing.id
       ? await supabase.from("commission_price_map").update(payload).eq("id", editing.id)
