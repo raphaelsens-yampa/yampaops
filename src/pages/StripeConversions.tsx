@@ -105,6 +105,9 @@ export default function StripeConversions() {
   const [safraEnabled, setSafraEnabled] = useState(false);
   const [safra, setSafra] = useState(() => presetRange("ytd"));
   const [areaFilter, setAreaFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [sellerFilter, setSellerFilter] = useState<string>("all"); // all | none
+  const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
 
   function changePreset(p: string) {
     setPeriodPreset(p);
@@ -112,11 +115,11 @@ export default function StripeConversions() {
   }
 
   const { data: rows = [], isLoading, refetch } = useQuery({
-    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter],
+    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter],
     queryFn: async () => {
       let q = supabase
         .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id")
+        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
         .order("converted_at", { ascending: false });
@@ -124,6 +127,8 @@ export default function StripeConversions() {
         q = q.gte("registered_at", `${safra.start}T00:00:00`).lte("registered_at", `${safra.end}T23:59:59`);
       }
       if (areaFilter !== "all") q = q.eq("area", areaFilter);
+      if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
+      if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
       const { data, error } = await q.limit(5000);
       if (error) throw error;
       return (data || []) as Conversion[];
@@ -144,11 +149,26 @@ export default function StripeConversions() {
     },
   });
 
+  const { data: sellersMap = {} } = useQuery({
+    queryKey: ["profiles-map-for-stripe-conv"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("user_id, full_name, email");
+      const m: Record<string, string> = {};
+      (data || []).forEach((p: any) => { m[p.user_id] = p.full_name || p.email || p.user_id.slice(0, 8); });
+      return m;
+    },
+  });
+
   const stats = useMemo(() => {
     const total = rows.length;
     const totalMrr = rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
     const areasCount = new Set(rows.map(r => r.area)).size;
-    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0 };
+    const expansionMrr = rows
+      .filter(r => r.conversion_type === "upsell")
+      .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
+    const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
+    const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
+    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount };
   }, [rows]);
 
   const byArea = useMemo(() => {
