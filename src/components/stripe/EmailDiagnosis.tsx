@@ -259,6 +259,12 @@ export function EmailDiagnosis() {
         prefill={forcePrefill}
         onSaved={() => forcePrefill && diagnose([forcePrefill.email])}
       />
+      <EditConversionDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        conversion={editConv}
+        onSaved={() => editConv && diagnose([editConv.email])}
+      />
     </Card>
   );
 }
