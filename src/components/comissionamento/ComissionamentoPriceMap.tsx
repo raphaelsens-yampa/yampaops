@@ -237,8 +237,28 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left py-1">
                 <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
               </TableHead>
-              <TableHead></TableHead>
-              <TableHead></TableHead>
+              <TableHead className="text-right py-1">
+                <Select value={filters.mrr || "__all__"} onValueChange={(v) => setFilters({ ...filters, mrr: v === "__all__" ? "" : v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    <SelectItem value="with">Com MRR</SelectItem>
+                    <SelectItem value="without">Sem MRR</SelectItem>
+                    <SelectItem value="override">Com Override</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableHead>
+              <TableHead className="text-center py-1">
+                <Select value={filters.commission || "__all__"} onValueChange={(v) => setFilters({ ...filters, commission: v === "__all__" ? "" : v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    <SelectItem value="ok">Sim (ok)</SelectItem>
+                    <SelectItem value="missing">Sem ref</SelectItem>
+                    <SelectItem value="none">Não exige</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
