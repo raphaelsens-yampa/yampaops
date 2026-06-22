@@ -1,66 +1,56 @@
+# Auditar e corrigir conversões "Já contabilizadas"
 
-## Objetivo
+## Problema
 
-Adicionar, dentro da página **Integração Stripe**, uma seção onde o time Comercial cole uma lista de emails e receba, linha por linha, o motivo pelo qual cada um **não** apareceu em Conversões por Área / Metas — com a opção de **forçar** o registro manualmente para que passe a contar.
+Hoje, na tela **Integrações/Stripe → Diagnosticar emails ausentes**, quando o sistema responde *"Já contabilizado"*, a linha só mostra o badge verde — sem detalhes da conversão e sem ação. Não dá para confirmar se o registro realmente está correto (área, MRR, plano, data) nem ajustar nada quando está errado. As ações de edição/forçar só aparecem para os outros status.
 
-## UX (nova seção na página `/integrations/stripe`)
+## O que vamos fazer
 
-Card novo: **"Diagnosticar emails ausentes"**, abaixo do bloco de saúde.
+Tornar o status **`already_counted`** auditável e editável, mantendo todo o resto da tela igual.
 
-1. `Textarea` "Cole emails (um por linha ou separados por vírgula)" + botão **Diagnosticar**.
-2. Após a chamada, uma tabela com colunas:
-   - Email
-   - Status (badge): `Já contabilizado` / `Não encontrado na Stripe` / `Encontrado mas descartado` / `Pendente de mapeamento` / `Sem assinatura paga` / `Erro`
-   - Detalhe (área, plano, MRR, datas, motivo textual)
-   - Ação contextual:
-     - `Pendente de mapeamento` → botão **Mapear price** (reaproveita `MapStripePriceButton`)
-     - `Encontrado mas descartado` (MRR zerado, sub cancelada antes de pagar, etc.) → botão **Forçar registro** (abre dialog com área/MRR/plano editáveis)
-     - `Não encontrado na Stripe` → botão **Forçar registro manual** (mesmo dialog, exige preencher tudo)
-     - `Já contabilizado` → link para a linha (somente leitura)
-3. Toast de sucesso + re-executa o diagnóstico após cada ação manual.
+### 1. Edge function nova: `stripe-update-conversion`
+- Input: `{ conversion_id: uuid, area?, mrr?, plan_name?, product_name?, converted_at?, registered_at?, note? }`.
+- Atualiza `stripe_conversions` apenas nos campos enviados.
+- Registra em `integration_sync_errors` (`entity_type='stripe_manual_edit'`, `resolved=true`) com `auth.uid()`, o `conversion_id`, o diff (campos antes/depois) e a nota — fica trilha de auditoria igual ao `stripe-force-conversion`.
+- Apenas admin (valida JWT em código + `has_role`).
 
-## Backend
+### 2. `stripe-diagnose-emails` (ajuste mínimo)
+Já retorna `conversion_id`, `area`, `mrr`, `plan_name`, `product_name`, `converted_at`, `registered_at` para `already_counted`. Acrescentar no payload:
+- `stripe_subscription_id`, `stripe_price_id`, `stripe_customer_id` (já buscados; só expor)
+- `product_name` / `plan_name` (já vêm)
+- além disso, **se houver mais de 1 conversão** para o mesmo email, devolver todas (hoje já faz, mas confirmar que cada uma vira uma linha — já é o comportamento via `flatRows`).
 
-### Edge function nova: `stripe-diagnose-emails`
-- Input: `{ emails: string[] }` (até 100 por chamada, normaliza p/ lowercase).
-- Para cada email:
-  1. Consulta `stripe_conversions` por `customer_email = lower(email)`. Se houver linha com `converted_at` e `mrr > 0` → status `already_counted` + snapshot.
-  2. Senão, `stripe.customers.search({ query: "email:'..."})` (ou `list` como fallback).
-     - Sem customer → `not_in_stripe`.
-     - Para cada customer: lista `subscriptions` (`status: all`) e, para cada uma, resolve `price_id`, consulta `commission_price_map`, calcula MRR (mesma lógica de `stripe-recover`), inspeciona `status`, `latest_invoice.paid`.
-     - Classifica: `unmapped_price` (mrr ok, mas sem entrada no mapa), `zero_mrr`, `no_paid_invoice` (canceled/incomplete sem invoice paga), `discarded_other`.
-  3. Retorna por email um array de "achados" (uma sub por achado) para a UI montar a linha.
-- Apenas admin: valida JWT em código e checa `has_role(uid, 'admin')`.
+### 3. `EmailDiagnosis.tsx` — coluna "Detalhe" para `already_counted`
+Para linhas `already_counted` mostrar bloco rico de detalhe:
+- Área (badge), MRR formatado, Plano, Produto
+- `converted_at` e `registered_at` formatados em pt-BR
+- `subscription_id` / `price_id` / `customer_id` em mono pequeno
+- ID da conversão (mono)
 
-### Edge function nova: `stripe-force-conversion`
-- Input: `{ email, subscription_id?, price_id?, area, plan_name?, product_name?, mrr, registered_at?, converted_at?, note? }`.
-- Faz `upsert` em `stripe_conversions` (usa `stripe_subscription_id` como chave quando informado; senão gera `stripe_event_id = manual_<uuid>`).
-- Registra `integration_sync_errors` com `entity_type='stripe_manual_force'`, `resolved=true`, payload com quem forçou (`auth.uid()`) e a nota — fica como trilha de auditoria.
-- Apenas admin.
+E **substituir o "—" da coluna Ação** por dois botões:
+- **Ver/Editar** → abre o novo `EditConversionDialog`
+- **Abrir em Conversões** → link para `/comissionamento` (ou rota equivalente atual de conversões) com filtro pelo email/conversion_id, para inspeção full
 
-Nenhuma alteração de schema. Tudo cabe nas tabelas existentes (`stripe_conversions`, `integration_sync_errors`, `commission_price_map`).
+### 4. Componente novo: `EditConversionDialog.tsx`
+Espelha o `ForceConversionDialog`, mas:
+- Recebe `conversion: { id, email, area, mrr, plan_name, product_name, converted_at, registered_at, subscription_id, price_id, customer_id }`.
+- Campos editáveis: Área (Select), MRR, Plano, Produto, `converted_at` (date), `registered_at` (date), Nota (obrigatória — justificativa da edição).
+- Mostra somente leitura: email, subscription_id, price_id, customer_id, id da conversão.
+- Botão "Salvar alterações" chama `stripe-update-conversion`. Após salvar, `diagnose([email])` re-executa o diagnóstico só desse email para refletir o estado novo.
+- Botão secundário "Reverter (excluir conversão)" — opcional, fora do escopo agora; deixar fora para não misturar com o pedido.
 
-## Frontend
-
-Novo componente `src/components/stripe/EmailDiagnosis.tsx`:
-- Estado local (lista de emails, loading, results).
-- Chama `supabase.functions.invoke("stripe-diagnose-emails", { body: { emails } })`.
-- Renderiza a tabela + sub-dialog `ForceConversionDialog` que chama `stripe-force-conversion`.
-- Após sucesso, refaz o diagnóstico daquele email.
-
-Edit em `src/pages/StripeIntegration.tsx`: import e render do componente em um `Card` próprio, após o bloco de saúde / antes de "Eventos por dia".
-
-## Detalhes técnicos
-
-- `stripe.customers.search` requer índice habilitado por padrão — fallback para `customers.list({ email })` se a busca falhar.
-- Para cada `subscription` recuperada usar a mesma normalização de MRR do `stripe-recover` (extrair em helper inline; sem refactor cross-function).
-- Limites: máximo 100 emails por request; 10 subs por customer; corta após primeiro achado relevante por email para evitar ruído (mas mantém múltiplos se houver mais de uma sub).
-- Mensagens em PT-BR coerentes com o resto do app.
+### 5. Sem alterações de schema
+Tudo cabe em `stripe_conversions` + `integration_sync_errors` já existentes.
 
 ## Arquivos
 
-- `supabase/functions/stripe-diagnose-emails/index.ts` (novo)
-- `supabase/functions/stripe-force-conversion/index.ts` (novo)
-- `src/components/stripe/EmailDiagnosis.tsx` (novo)
-- `src/components/stripe/ForceConversionDialog.tsx` (novo)
-- `src/pages/StripeIntegration.tsx` (insere a seção)
+- `supabase/functions/stripe-update-conversion/index.ts` (novo)
+- `supabase/functions/stripe-diagnose-emails/index.ts` (expor `stripe_price_id`, `stripe_customer_id`, `stripe_subscription_id` no bloco `already_counted`)
+- `src/components/stripe/EditConversionDialog.tsx` (novo)
+- `src/components/stripe/EmailDiagnosis.tsx` (detalhe rico + botões de ação no status `already_counted`)
+
+## Fora do escopo
+
+- Mudar layout/colunas da tabela
+- Tocar nos outros status (`unmapped_price`, `not_in_stripe`, etc.) — continuam exatamente como estão
+- Excluir conversões existentes (apenas editar)
