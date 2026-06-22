@@ -86,8 +86,14 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
     if (filters.plan && !(m.plan_name || "").toLowerCase().includes(filters.plan.toLowerCase())) return false;
     if (filters.type && m.payment_type !== filters.type) return false;
     if (filters.seller && !sellerName(m).toLowerCase().includes(filters.seller.toLowerCase())) return false;
+    if (filters.area && (m.area || "") !== filters.area) return false;
     return true;
   });
+
+  const areaOptions = useMemo(
+    () => Array.from(new Set(priceMap.map((m) => m.area).filter(Boolean) as string[])).sort(),
+    [priceMap],
+  );
 
   const hasColFilters = Object.values(filters).some(Boolean);
 
