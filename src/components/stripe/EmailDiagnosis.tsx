@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Search, Wand2 } from "lucide-react";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { ForceConversionDialog, type ForcePrefill } from "./ForceConversionDialog";
+import { EditConversionDialog, type ConversionToEdit } from "./EditConversionDialog";
 
 type FindingStatus =
   | "already_counted" | "unmapped_price" | "zero_mrr" | "no_paid_invoice"
