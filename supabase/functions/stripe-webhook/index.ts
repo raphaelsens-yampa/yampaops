@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
   const RELEVANT = new Set([
     "checkout.session.completed",
     "customer.subscription.created",
+    "customer.subscription.updated",
     "invoice.paid",
   ]);
   if (!RELEVANT.has(event.type)) {
@@ -91,6 +92,22 @@ Deno.serve(async (req) => {
         .update({ result: `ignored_recurring:${billingReason || "unknown"}` })
         .eq("stripe_event_id", event.id);
       return ok({ ok: true, ignored: "recurring", billing_reason: billingReason });
+    }
+  }
+
+  // customer.subscription.updated: só interessa se o price mudou
+  if (event.type === "customer.subscription.updated") {
+    const prev = (event.data as any)?.previous_attributes ?? {};
+    const items = (event.data.object as any)?.items?.data ?? [];
+    const prevItems = prev?.items?.data ?? null;
+    const currentPriceIds = items.map((i: any) => i?.price?.id).filter(Boolean).sort().join(",");
+    const prevPriceIds = prevItems ? prevItems.map((i: any) => i?.price?.id).filter(Boolean).sort().join(",") : null;
+    const priceChanged = prevPriceIds !== null && prevPriceIds !== currentPriceIds;
+    if (!priceChanged) {
+      await supabase.from("stripe_events")
+        .update({ result: "ignored_subscription_update_no_price_change" })
+        .eq("stripe_event_id", event.id);
+      return ok({ ok: true, ignored: "subscription_update_no_price_change" });
     }
   }
 
