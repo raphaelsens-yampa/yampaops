@@ -123,6 +123,30 @@ export function EmailDiagnosis() {
     setForceOpen(true);
   }
 
+  function openEdit(email: string, f: Finding) {
+    if (!f.conversion_id) return;
+    setEditConv({
+      conversion_id: f.conversion_id,
+      email,
+      area: f.area,
+      mrr: f.mrr ?? null,
+      plan_name: f.plan_name,
+      product_name: f.product_name,
+      converted_at: f.converted_at,
+      registered_at: f.registered_at,
+      subscription_id: f.subscription_id,
+      customer_id: f.customer_id,
+      price_id: f.price_id,
+    });
+    setEditOpen(true);
+  }
+
+  const fmtDate = (iso?: string | null) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d.toLocaleDateString("pt-BR");
+  };
+
   const flatRows = results.flatMap((r) =>
     r.findings.length > 0
       ? r.findings.map((f) => ({ email: r.email, finding: f }))
