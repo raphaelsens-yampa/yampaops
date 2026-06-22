@@ -33,6 +33,7 @@ export interface PriceMapEntry {
   seller_user_id: string | null;
   seller_label: string | null;
   mrr_override: number | null;
+  requires_commission: boolean;
 }
 
 export interface RawRow {
