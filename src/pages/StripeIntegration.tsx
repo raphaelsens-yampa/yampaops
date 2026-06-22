@@ -15,6 +15,7 @@ import {
   RefreshCw, Activity, Clock, Zap, LifeBuoy,
 } from "lucide-react";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
+import { EmailDiagnosis } from "@/components/stripe/EmailDiagnosis";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/stripe-webhook`;
@@ -519,6 +520,11 @@ export default function StripeIntegration() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Diagnóstico de emails ausentes */}
+        <EmailDiagnosis />
+
+
 
 
         {/* Última atualização */}
