@@ -69,7 +69,7 @@ export const data: any = {
     "campaigns": [["GA - Branding Rede Pesquisa","freetrial","R$1.870","139","5","R$374","10,66"],["MB - Campanha yampaFin Geral","freetrial","R$313","70","0","R$0","0"],["GA - KW/PLANILHAS","freetrial","R$754","48","0","R$0","0"],["GA - yampaFin Meio de Funil PLANILHA","freetrial","R$453","46","0","R$0","0"],["GA - yampaFin Meio de Funil","freetrial","R$750","38","0","R$0","0"],["MB - yampaFin MEI","freetrial","R$187","7","0","R$0","0"],["TOTAL GERAL","—","R$4.328","348","5","R$866","4,12x"]],
     "iniciativas": [["Iniciativa 1","YampaFin Google Ads","ATIVO","go"],["Iniciativa 2","Facebook Ads (retomada)","PLANEJA.","back"],["Iniciativa 3","Curso c/ onboarding","08/05 ▶","doing"],["Iniciativa 4","Live Aniversário Yampa","13/07","doing"]],
     "alert": "⚑ LTV/CAC meta = 6x · Cancelar Meta Ads recorrente se não atingido até Jun/26",
-    "nota": "Marketing referente ao mês vigente (Junho/2026, parcial até D-1=21/06). Dados de Marketing (Looker) não foram atualizados nesta execução automática — valores do último ciclo coletado."
+    "nota": "Marketing referente ao mês vigente (Junho/2026, parcial até 22/06). Dados verificados no Looker (FUP Campanhas) nesta execução: invest. R$4,33k, 348 free trials, 5 conversões (D+15), CP-FT R$12,44, LTV/CAC 4,12x."
   },
   "p6": {
     "kpis": [["Ating. Geral Metas","83,73%","jun 21","↓ -3,40% vs mai","down"],["Ativos Pagantes","2.267","jun 21","▲ +1,21%","up"],["Meta Ativos Junho","2.932","ating. 77,3%","▼ -665 abaixo","down"],["NPS Atual","62,20%","jun 2026","↓ -13,11% vs jun/25","down"],["Adoção YampaFin","~26%","empresas ativas","→ pós-lançamento","flat"],["Must Have","66,3%","uso crítico","↑ positivo","up"]],
