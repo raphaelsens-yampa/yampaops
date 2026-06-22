@@ -53,7 +53,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  const editable = ["area", "mrr", "plan_name", "product_name", "converted_at", "registered_at"] as const;
+  const editable = [
+    "area", "mrr", "plan_name", "product_name", "converted_at", "registered_at",
+    "conversion_type", "previous_mrr", "assigned_seller_id", "attribution_source",
+  ] as const;
   const updates: Record<string, any> = {};
   for (const k of editable) {
     if (body[k] !== undefined) updates[k] = body[k];
@@ -67,6 +70,25 @@ Deno.serve(async (req) => {
     }
     updates.mrr = n;
   }
+  if (updates.previous_mrr !== undefined) {
+    const n = Number(updates.previous_mrr);
+    if (!(n >= 0)) {
+      return new Response(JSON.stringify({ error: "previous_mrr deve ser >= 0" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    updates.previous_mrr = n;
+  }
+  if (updates.conversion_type !== undefined) {
+    const allowed = ["new", "upsell", "downgrade", "renewal"];
+    if (!allowed.includes(String(updates.conversion_type))) {
+      return new Response(JSON.stringify({ error: "conversion_type inválido" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+  // Special action: re-run automatic seller resolution
+  const resolveSeller: boolean = !!body?.resolve_seller;
 
   try {
     const { data: before, error: beforeErr } = await supabase
