@@ -338,15 +338,40 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Tipo</Label>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="new">Nova</SelectItem>
+                    <SelectItem value="upsell">Upsell</SelectItem>
+                    <SelectItem value="downgrade">Downgrade</SelectItem>
+                    <SelectItem value="renewal">Renovação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Vendedor</Label>
+                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="none">Sem vendedor atribuído</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">MRR Total</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold">{fmtBRL(stats.ticketMedio)}</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansion MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Sem vendedor</p><p className="text-2xl font-bold">{stats.noSellerCount}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Áreas ativas</p><p className="text-2xl font-bold">{stats.areasCount}</p></CardContent></Card>
         </div>
 
