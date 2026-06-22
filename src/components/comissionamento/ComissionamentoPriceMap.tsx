@@ -233,6 +233,19 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                     </span>
                   ) : "—"}
                 </TableCell>
+                <TableCell className="text-center">
+                  {m.requires_commission ? (
+                    ref ? (
+                      <Badge variant="default" className="gap-1"><Check className="h-3 w-3" /> Sim</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1" title="Sem regra correspondente na Referência">
+                        <AlertTriangle className="h-3 w-3" /> Sem ref
+                      </Badge>
+                    )
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-1 justify-end">
                     <Button variant="ghost" size="icon" onClick={() => setEditing(m)}><Pencil className="h-4 w-4" /></Button>
