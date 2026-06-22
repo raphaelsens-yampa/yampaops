@@ -36,9 +36,10 @@ interface ColFilters {
   plan: string;
   type: string;
   seller: string;
+  area: string;
 }
 
-const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "" };
+const EMPTY_FILTERS: ColFilters = { priceId: "", name: "", plan: "", type: "", seller: "", area: "" };
 
 export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChanged }: Props) {
   const { toast } = useToast();
@@ -85,8 +86,14 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
     if (filters.plan && !(m.plan_name || "").toLowerCase().includes(filters.plan.toLowerCase())) return false;
     if (filters.type && m.payment_type !== filters.type) return false;
     if (filters.seller && !sellerName(m).toLowerCase().includes(filters.seller.toLowerCase())) return false;
+    if (filters.area && (m.area || "") !== filters.area) return false;
     return true;
   });
+
+  const areaOptions = useMemo(
+    () => Array.from(new Set(priceMap.map((m) => m.area).filter(Boolean) as string[])).sort(),
+    [priceMap],
+  );
 
   const hasColFilters = Object.values(filters).some(Boolean);
 
@@ -179,6 +186,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left">Plano</TableHead>
               <TableHead className="text-left">Tipo</TableHead>
               <TableHead className="text-left">Vendedor</TableHead>
+              <TableHead className="text-left">Área</TableHead>
               <TableHead className="text-right">MRR</TableHead>
               <TableHead className="text-center">Comissão</TableHead>
               <TableHead></TableHead>
@@ -205,6 +213,15 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               <TableHead className="text-left py-1">
                 <Input value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} placeholder="Filtrar..." className="h-8 text-xs" />
               </TableHead>
+              <TableHead className="text-left py-1">
+                <Select value={filters.area || "__all__"} onValueChange={(v) => setFilters({ ...filters, area: v === "__all__" ? "" : v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todas</SelectItem>
+                    {areaOptions.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </TableHead>
               <TableHead></TableHead>
               <TableHead></TableHead>
               <TableHead></TableHead>
@@ -226,6 +243,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
                 <TableCell className="text-left">{m.plan_name || <span className="text-destructive">—</span>}</TableCell>
                 <TableCell className="text-left">{m.payment_type ? PAYMENT_TYPE_LABEL[m.payment_type] : "—"}</TableCell>
                 <TableCell className="text-left">{sellerName(m) || "—"}</TableCell>
+                <TableCell className="text-left">{m.area || <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {effectiveMrr != null ? (
                     <span className={isOverride ? "font-semibold" : "text-muted-foreground"} title={isOverride ? "Override" : "Da tabela de referência"}>
