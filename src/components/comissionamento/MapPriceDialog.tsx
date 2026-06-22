@@ -36,6 +36,9 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
   const [sellerUserId, setSellerUserId] = useState<string>("");
   const [sellerLabel, setSellerLabel] = useState("");
   const [area, setArea] = useState<string>("Sales");
+  const [mrrOverride, setMrrOverride] = useState<string>(
+    target.mrr != null ? String(target.mrr) : "",
+  );
   const [saving, setSaving] = useState(false);
   const [planPopoverOpen, setPlanPopoverOpen] = useState(false);
   const [planQuery, setPlanQuery] = useState("");
