@@ -207,6 +207,7 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
               </TableHead>
               <TableHead></TableHead>
               <TableHead></TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
