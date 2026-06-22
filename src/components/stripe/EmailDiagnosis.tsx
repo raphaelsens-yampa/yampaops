@@ -205,9 +205,18 @@ export function EmailDiagnosis() {
                         <div>{f.reason}</div>
                         <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                           {f.area && f.area !== "desconhecida" && <div>Área: <strong>{f.area}</strong></div>}
+                          {f.product_name && <div>Produto: {f.product_name}</div>}
                           {f.plan_name && <div>Plano: {f.plan_name}</div>}
+                          {f.status === "already_counted" && fmtDate(f.converted_at) && (
+                            <div>Convertido em: <strong>{fmtDate(f.converted_at)}</strong></div>
+                          )}
+                          {f.status === "already_counted" && fmtDate(f.registered_at) && (
+                            <div>Cadastro: {fmtDate(f.registered_at)}</div>
+                          )}
                           {f.subscription_id && <div>Sub: <code className="font-mono">{f.subscription_id}</code></div>}
                           {f.price_id && <div>Price: <code className="font-mono">{f.price_id}</code></div>}
+                          {f.customer_id && <div>Customer: <code className="font-mono">{f.customer_id}</code></div>}
+                          {f.conversion_id && <div>ID: <code className="font-mono">{f.conversion_id}</code></div>}
                           {f.sub_status && <div>Status Stripe: {f.sub_status}</div>}
                         </div>
                       </TableCell>
@@ -216,7 +225,9 @@ export function EmailDiagnosis() {
                       </TableCell>
                       <TableCell className="text-right">
                         {f.status === "already_counted" ? (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <Button size="sm" variant="outline" onClick={() => openEdit(email, f)}>
+                            Ver / Editar
+                          </Button>
                         ) : f.status === "unmapped_price" && f.price_id ? (
                           <div className="flex justify-end gap-2 flex-wrap">
                             <MapStripePriceButton
