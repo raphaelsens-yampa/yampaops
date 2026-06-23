@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save, Pencil, X, MessageCircle, CheckCircle2, Circle, Eraser, Bot, User } from "lucide-react";
+import { ArrowLeft, Upload, RefreshCw, Plus, Trash2, Save, Pencil, X, MessageCircle, CheckCircle2, Circle, Eraser, Bot, User, Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1185,7 +1185,40 @@ function EvolutionTab({ campaign }: { campaign: Campaign }) {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Histórico</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Histórico</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={snapshots.length === 0}
+            onClick={() => {
+              const handledLabelMap: Record<string, string> = { ia: "IA", human: "Humano", mixed: "Misto", unspecified: "Não especificado" };
+              const rows = snapshots.map((s: any) => {
+                const [y, m, d] = String(s.snapshot_date).slice(0, 10).split("-");
+                const dataFmt = y && m && d ? `${d}/${m}/${y}` : s.snapshot_date;
+                return {
+                  Data: dataFmt,
+                  Contatados: Number(s.contacted) || 0,
+                  Respostas: Number(s.replies) || 0,
+                  Reuniões: Number(s.meetings) || 0,
+                  Conversões: Number(s.conversions) || 0,
+                  "MRR (R$)": Number(s.mrr_generated) || 0,
+                  Atendimento: handledLabelMap[s.handled_by || "unspecified"] || "—",
+                  Origem: s.source || "",
+                  Observações: s.notes || "",
+                };
+              });
+              const ws = XLSX.utils.json_to_sheet(rows);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Histórico");
+              const safeName = (campaign.name || "campanha").replace(/[^\w\-]+/g, "_").slice(0, 60);
+              const today = new Date().toISOString().slice(0, 10);
+              XLSX.writeFile(wb, `historico_evolucao_${safeName}_${today}.xlsx`);
+            }}
+          >
+            <Download className="h-4 w-4 mr-1" />Baixar XLSX
+          </Button>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader><TableRow>
