@@ -287,9 +287,13 @@ Deno.serve(async (req) => {
 
   // ─── Idempotência ───
   // Uma assinatura pode ter múltiplas linhas (uma por price), refletindo upsells.
-  // Dedup por (subscription_id, price_id) — se existir, é renovação/duplicado do mesmo plano.
-  // Fallback por event_id para casos sem subscription.
+  // Lookups em ordem:
+  //   1) (subscription_id, price_id) — mesmo plano na mesma assinatura
+  //   2) (customer_id, price_id, converted_at) — duplo-checkout no Stripe gera subs
+  //      diferentes para o mesmo cliente/oferta/data; tratamos como o mesmo registro
+  //   3) event_id — fallback para casos sem subscription
   let existingRow: { id: string; converted_at: string | null; registered_at: string | null; stripe_event_id: string | null } | null = null;
+  let dedupReason: "same_subscription" | "same_customer_price_date" | "same_event" | null = null;
   if (subscriptionId && priceId) {
     const { data } = await supabase
       .from("stripe_conversions")
@@ -297,7 +301,35 @@ Deno.serve(async (req) => {
       .eq("stripe_subscription_id", subscriptionId)
       .eq("stripe_price_id", priceId)
       .maybeSingle();
-    existingRow = data as any;
+    if (data) { existingRow = data as any; dedupReason = "same_subscription"; }
+  }
+  if (!existingRow && customerId && priceId && convertedAt) {
+    const { data } = await supabase
+      .from("stripe_conversions")
+      .select("id, converted_at, registered_at, stripe_event_id")
+      .eq("stripe_customer_id", customerId)
+      .eq("stripe_price_id", priceId)
+      .eq("converted_at", convertedAt)
+      .maybeSingle();
+    if (data) {
+      existingRow = data as any;
+      dedupReason = "same_customer_price_date";
+      // Sinaliza duplo-checkout no Stripe (assinaturas distintas, mesma cobrança)
+      await supabase.from("integration_sync_errors").insert({
+        entity_type: "stripe_duplicate_checkout",
+        ac_id: subscriptionId || customerId,
+        error_message: `Duplo checkout detectado: ${normEmail} criou nova subscription (${subscriptionId}) para a mesma oferta/data já registrada`,
+        payload: {
+          event_id: event.id,
+          customer_id: customerId,
+          new_subscription_id: subscriptionId,
+          existing_conversion_id: (data as any).id,
+          price_id: priceId,
+          converted_at: convertedAt,
+        },
+        resolved: true,
+      });
+    }
   }
   if (!existingRow) {
     const { data } = await supabase
@@ -305,8 +337,9 @@ Deno.serve(async (req) => {
       .select("id, converted_at, registered_at, stripe_event_id")
       .eq("stripe_event_id", event.id)
       .maybeSingle();
-    existingRow = data as any;
+    if (data) { existingRow = data as any; dedupReason = "same_event"; }
   }
+
 
   // converted_at deve ser STÁVEL: sempre o 1º pagamento (mais antigo).
   const earliest = (a: string | null, b: string | null): string | null => {
