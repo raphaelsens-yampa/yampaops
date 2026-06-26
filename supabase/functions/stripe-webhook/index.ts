@@ -381,7 +381,12 @@ Deno.serve(async (req) => {
 
   const conversionExists = !!existingRow;
   if (!conversionExists) {
-    const { error: convError } = await supabase.from("stripe_conversions").insert(conversionRow);
+    // Upsert com onConflict elimina race condition entre múltiplos webhooks (checkout.completed,
+    // subscription.created, invoice.paid) que chegam quase simultaneamente para a mesma assinatura+price.
+    const { error: convError } = await supabase
+      .from("stripe_conversions")
+      .upsert(conversionRow, { onConflict: "stripe_subscription_id,stripe_price_id", ignoreDuplicates: true });
+
     if (convError) {
       console.error("Failed to persist conversion:", convError);
       await supabase.from("stripe_events")
