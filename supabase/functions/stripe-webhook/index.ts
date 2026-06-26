@@ -414,19 +414,26 @@ Deno.serve(async (req) => {
 
   const conversionExists = !!existingRow;
   if (!conversionExists) {
-    // Upsert com onConflict elimina race condition entre múltiplos webhooks (checkout.completed,
-    // subscription.created, invoice.paid) que chegam quase simultaneamente para a mesma assinatura+price.
+    // Insert simples: índices únicos cobrem race conditions
+    // ((sub,price) e (customer,price,converted_at)). Em 23505 tratamos como duplicado.
     const { error: convError } = await supabase
       .from("stripe_conversions")
-      .upsert(conversionRow, { onConflict: "stripe_subscription_id,stripe_price_id", ignoreDuplicates: true });
+      .insert(conversionRow);
 
-    if (convError) {
+    if (convError && (convError as any).code !== "23505") {
       console.error("Failed to persist conversion:", convError);
       await supabase.from("stripe_events")
         .update({ result: "conversion_failed" })
         .eq("stripe_event_id", event.id);
       return ok({ ok: true, error: "conversion_failed" });
     }
+    if (convError && (convError as any).code === "23505") {
+      await supabase.from("stripe_events")
+        .update({ result: "duplicate:unique_violation" })
+        .eq("stripe_event_id", event.id);
+      return ok({ ok: true, duplicate: true });
+    }
+
   } else {
     // Idempotente: atualiza apenas datas estáveis se mudaram; não sobrescreve atribuição manual.
     const changed =
