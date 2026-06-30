@@ -36,7 +36,7 @@ export default function ChatwootAcIntegration() {
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [errors, setErrors] = useState<ErrRow[]>([]);
   const [stats, setStats] = useState<{ conversations: number; linked: number }>({ conversations: 0, linked: 0 });
-  const [acBaseUrl, setAcBaseUrl] = useState<string>("");
+  const [acBaseUrl, setAcBaseUrl] = useState<string>(() => localStorage.getItem("ac_app_base_url") || "");
   const [cwBaseUrl, setCwBaseUrl] = useState<string>("");
   const [cwAccount, setCwAccount] = useState<number | null>(null);
 
@@ -87,7 +87,6 @@ export default function ChatwootAcIntegration() {
     if (s.data) {
       setCwBaseUrl(s.data.chatwoot_base_url || "");
       setCwAccount(s.data.chatwoot_account_id || null);
-      setAcBaseUrl("");
     }
     setStatusLoading(false);
   }
@@ -204,9 +203,17 @@ export default function ChatwootAcIntegration() {
     ? `${cwBaseUrl.replace(/\/$/, "")}/app/accounts/${cwAccount}/conversations/${convId}`
     : null;
 
-  const acLink = (contactId: string) => acBaseUrl
-    ? `${acBaseUrl.replace(/\/$/, "").replace(/\/api\/3$/, "")}/app/contacts/${contactId}`
-    : null;
+  const acLink = (contactId: string) => {
+    if (!acBaseUrl) return null;
+    const cleaned = acBaseUrl.trim().replace(/\/$/, "").replace(/\/api\/3$/, "");
+    return `${cleaned}/app/contacts/${contactId}/`;
+  };
+
+  function handleAcBaseUrlChange(v: string) {
+    setAcBaseUrl(v);
+    if (v.trim()) localStorage.setItem("ac_app_base_url", v.trim());
+    else localStorage.removeItem("ac_app_base_url");
+  }
 
   return (
     <Layout>
@@ -272,8 +279,19 @@ export default function ChatwootAcIntegration() {
                 <div className="mt-1 font-medium">{lastErrorAt ? new Date(lastErrorAt).toLocaleString("pt-BR") : "—"}</div>
               </div>
             </div>
+            <div className="mt-4 pt-4 border-t">
+              <Label className="text-xs">URL da conta no ActiveCampaign (para os links da tabela)</Label>
+              <Input
+                value={acBaseUrl}
+                onChange={(e) => handleAcBaseUrlChange(e.target.value)}
+                placeholder="https://suaconta.activehosted.com"
+                className="mt-1 max-w-md font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Ex.: <code>https://suaconta.activehosted.com</code>. Salvo localmente neste navegador.</p>
+            </div>
           </CardContent>
         </Card>
+
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
