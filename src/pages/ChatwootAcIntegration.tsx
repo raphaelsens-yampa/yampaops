@@ -91,15 +91,33 @@ export default function ChatwootAcIntegration() {
   useEffect(() => { loadAll(); }, []);
 
   async function handleBackfill() {
-    const limit = Number(backfillLimit) || 100;
+    const total = Number(backfillLimit) || 100;
     if (!useEmail && !usePhone) { toast.error("Habilite ao menos email ou telefone"); return; }
     setBackfilling(true);
+    setBackfillDone(0);
+    setBackfillTotal(total);
+    setBackfillCancel(false);
+    const CHUNK = 25;
+    const agg = { matched: 0, email: 0, phone: 0, no_match: 0, failed: 0 };
     try {
-      const { data, error } = await supabase.functions.invoke("chatwoot-ac-backfill", {
-        body: { limit, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
-      });
-      if (error) throw error;
-      toast.success(`Backfill: ${data?.matched || 0} sincronizadas (email: ${data?.matched_by_email || 0} · fone: ${data?.matched_by_phone || 0}) · ${data?.no_match || 0} sem match · ${data?.failed || 0} falhas`);
+      let processed = 0;
+      while (processed < total) {
+        if (cancelRef.current) break;
+        const chunk = Math.min(CHUNK, total - processed);
+        const { data, error } = await supabase.functions.invoke("chatwoot-ac-backfill", {
+          body: { limit: chunk, offset: processed, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
+        });
+        if (error) throw error;
+        agg.matched += data?.matched || 0;
+        agg.email += data?.matched_by_email || 0;
+        agg.phone += data?.matched_by_phone || 0;
+        agg.no_match += data?.no_match || 0;
+        agg.failed += data?.failed || 0;
+        processed += data?.processed || chunk;
+        setBackfillDone(processed);
+        if ((data?.processed || 0) < chunk) break; // ran out of conversations
+      }
+      toast.success(`Backfill: ${agg.matched} sincronizadas (email: ${agg.email} · fone: ${agg.phone}) · ${agg.no_match} sem match · ${agg.failed} falhas`);
       await loadAll();
     } catch (e: any) {
       toast.error(e.message || "Erro no backfill");
@@ -107,6 +125,7 @@ export default function ChatwootAcIntegration() {
       setBackfilling(false);
     }
   }
+
 
   async function handleSyncOne() {
     const id = Number(singleId);
