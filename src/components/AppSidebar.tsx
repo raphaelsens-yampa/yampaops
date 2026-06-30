@@ -286,6 +286,7 @@ export function AppSidebar() {
         // ActiveCampaign integration archived
         { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
         { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
+        { title: "Chatwoot → ActiveCampaign", url: "/integrations/chatwoot-ac", icon: Link2, area: "integration_chatwoot", adminOnly: true },
         // Integration Audit archived (AC-centric)
       ],
     },
