@@ -24,7 +24,6 @@ import LinkBuilder from "./pages/LinkBuilder";
 // import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
 
 import StripeIntegration from "./pages/StripeIntegration";
-import StripeIntegration from "./pages/StripeIntegration";
 import ChatwootIntegration from "./pages/ChatwootIntegration";
 import ChatwootAcIntegration from "./pages/ChatwootAcIntegration";
 // import IntegrationAudit from "./pages/IntegrationAudit"; // archived
