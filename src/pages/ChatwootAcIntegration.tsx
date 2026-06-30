@@ -51,7 +51,7 @@ export default function ChatwootAcIntegration() {
       supabase.from("integration_sync_errors").select("id, ac_id, error_message, created_at").eq("entity_type", "chatwoot_ac_note").order("created_at", { ascending: false }).limit(20),
       supabase.from("chatwoot_conversations").select("chatwoot_conversation_id", { count: "exact", head: true }),
       supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }),
-      supabase.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id, ac_base_url, ac_api_url").maybeSingle(),
+      supabase.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").maybeSingle(),
     ]);
     if (l.data) setLinks(l.data as LinkRow[]);
     if (e.data) setErrors(e.data as ErrRow[]);
@@ -59,7 +59,8 @@ export default function ChatwootAcIntegration() {
     if (s.data) {
       setCwBaseUrl(s.data.chatwoot_base_url || "");
       setCwAccount(s.data.chatwoot_account_id || null);
-      setAcBaseUrl((s.data as any).ac_base_url || (s.data as any).ac_api_url || "");
+      // AC base URL derived from env on the user side: best-effort; leave editable later if needed
+      setAcBaseUrl("");
     }
   }
 
