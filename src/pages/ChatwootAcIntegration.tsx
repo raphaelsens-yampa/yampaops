@@ -279,8 +279,19 @@ export default function ChatwootAcIntegration() {
                 <div className="mt-1 font-medium">{lastErrorAt ? new Date(lastErrorAt).toLocaleString("pt-BR") : "—"}</div>
               </div>
             </div>
+            <div className="mt-4 pt-4 border-t">
+              <Label className="text-xs">URL da conta no ActiveCampaign (para os links da tabela)</Label>
+              <Input
+                value={acBaseUrl}
+                onChange={(e) => handleAcBaseUrlChange(e.target.value)}
+                placeholder="https://suaconta.activehosted.com"
+                className="mt-1 max-w-md font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Ex.: <code>https://suaconta.activehosted.com</code>. Salvo localmente neste navegador.</p>
+            </div>
           </CardContent>
         </Card>
+
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
