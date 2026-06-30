@@ -63,6 +63,13 @@ export default function ChatwootAcIntegration() {
   const cancelRef = useRef(false);
   const setBackfillCancel = (v: boolean) => { cancelRef.current = v; };
 
+  // Export filters
+  const [expFrom, setExpFrom] = useState("");
+  const [expTo, setExpTo] = useState("");
+  const [expMatch, setExpMatch] = useState<"all" | "email" | "phone">("all");
+  const [expStatus, setExpStatus] = useState<"all" | "success" | "errors">("all");
+  const [exporting, setExporting] = useState(false);
+
   if (role !== "admin") return <Navigate to="/" replace />;
 
   async function loadAll() {
