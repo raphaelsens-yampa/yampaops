@@ -22,7 +22,7 @@ const fmtBRL = (v: number) =>
 const today = new Date().toLocaleDateString('pt-BR');
 
 const PAYMENT_OPTIONS = [
-  'Cartão de crédito (12x)',
+  'Cartão de Crédito (Recorrência)',
   'Boleto mensal',
   'Pix mensal',
   'À vista',
