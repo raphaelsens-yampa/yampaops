@@ -139,6 +139,38 @@ export default function ChatwootAcIntegration() {
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Erros recentes</div><div className="text-2xl font-bold">{errors.length}</div></CardContent></Card>
         </div>
 
+        {/* Estratégia de match */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Estratégia de match</CardTitle>
+            <CardDescription>Define como o contato é localizado no ActiveCampaign. A chave usada fica registrada no vínculo (coluna "Match" da tabela abaixo).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Buscar por email</Label>
+                <p className="text-xs text-muted-foreground">Tenta primeiro o email do contato (chave primária).</p>
+              </div>
+              <Switch checked={useEmail} onCheckedChange={setUseEmail} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Apenas email primário</Label>
+                <p className="text-xs text-muted-foreground">Quando ativo, ignora emails adicionais do contato no Chatwoot.</p>
+              </div>
+              <Switch checked={primaryEmailOnly} onCheckedChange={setPrimaryEmailOnly} disabled={!useEmail} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Fallback por telefone</Label>
+                <p className="text-xs text-muted-foreground">Se o email não bater, tenta localizar pelo telefone.</p>
+              </div>
+              <Switch checked={usePhone} onCheckedChange={setUsePhone} />
+            </div>
+          </CardContent>
+        </Card>
+
+
         {/* Backfill */}
         <Card>
           <CardHeader>
