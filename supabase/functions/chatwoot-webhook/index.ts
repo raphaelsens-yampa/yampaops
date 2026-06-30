@@ -612,6 +612,7 @@ async function handleConversationCreated(payload: any) {
   });
   await applyTagForEvent(ctx.opportunityId, "conversation_created");
   await bumpOpportunityInteraction(ctx.opportunityId);
+  fireAcNoteSync(Number(conversation.id));
   return { ok: true };
 }
 
