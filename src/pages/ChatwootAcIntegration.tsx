@@ -127,7 +127,53 @@ export default function ChatwootAcIntegration() {
     }
   }
 
+  async function handleRetryFailed() {
+    setRetryingFailed(true);
+    try {
+      const { data: errs } = await supabase
+        .from("integration_sync_errors")
+        .select("ac_id")
+        .eq("entity_type", "chatwoot_ac_note")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const ids = Array.from(new Set((errs || []).map((r: any) => Number(r.ac_id)).filter((n) => Number.isFinite(n) && n > 0)));
+      if (!ids.length) { toast.info("Nenhuma falha pendente"); return; }
+      let ok = 0, fail = 0;
+      for (const id of ids) {
+        try {
+          const { data } = await supabase.functions.invoke("chatwoot-to-ac-sync", {
+            body: { conversation_id: id, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
+          });
+          if (data?.ok) ok++; else fail++;
+        } catch { fail++; }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      toast.success(`Retry: ${ok} sincronizadas · ${fail} ainda falhando`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro no retry");
+    } finally {
+      setRetryingFailed(false);
+    }
+  }
 
+  async function handleClearErrors() {
+    if (!confirm("Limpar todos os logs de erro desta integração?")) return;
+    setClearingErrors(true);
+    try {
+      const { error } = await supabase
+        .from("integration_sync_errors")
+        .delete()
+        .eq("entity_type", "chatwoot_ac_note");
+      if (error) throw error;
+      toast.success("Logs de erro limpos");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao limpar");
+    } finally {
+      setClearingErrors(false);
+    }
+  }
 
 
   const cwLink = (convId: number) => cwBaseUrl && cwAccount
