@@ -78,7 +78,14 @@ function buildNoteBody(conv: any, baseUrl: string | null, accountId: number | nu
   return lines.join("\n");
 }
 
-async function upsertNoteForConversation(conversationId: number): Promise<{ ok: boolean; reason?: string; ac_contact_id?: string; ac_note_id?: string }> {
+async function upsertNoteForConversation(
+  conversationId: number,
+  opts: { useEmail?: boolean; usePhone?: boolean; primaryEmailOnly?: boolean } = {},
+): Promise<{ ok: boolean; reason?: string; ac_contact_id?: string; ac_note_id?: string; match_method?: string; match_value?: string | null }> {
+  const useEmail = opts.useEmail !== false;
+  const usePhone = opts.usePhone !== false;
+  const primaryEmailOnly = !!opts.primaryEmailOnly;
+
   if (!AC_API_URL || !AC_API_KEY) {
     await logError(String(conversationId), "AC_API_URL/AC_API_KEY não configurados", {});
     return { ok: false, reason: "ac_not_configured" };
@@ -95,52 +102,74 @@ async function upsertNoteForConversation(conversationId: number): Promise<{ ok: 
     return { ok: false, reason: "conversation_not_found" };
   }
 
-  // Settings for URL
   const { data: settings } = await service.from("integration_settings")
     .select("chatwoot_base_url, chatwoot_account_id").maybeSingle();
 
-  // Collect emails/phones (primary + additional from chatwoot_contacts)
-  const emails = new Set<string>();
-  const phones = new Set<string>();
-  if (conv.contact_email) emails.add(String(conv.contact_email).toLowerCase());
-  const phoneNorm = normPhone(conv.contact_phone);
-  if (phoneNorm) phones.add(phoneNorm);
+  // Primary email/phone come from the conversation row (Chatwoot sender).
+  const primaryEmail = conv.contact_email ? String(conv.contact_email).toLowerCase() : null;
+  const primaryPhone = normPhone(conv.contact_phone);
 
-  if (conv.chatwoot_contact_id) {
+  // Build ordered candidate lists. Primary first, then additional (if allowed).
+  const emails: string[] = [];
+  const phones: string[] = [];
+  if (useEmail && primaryEmail) emails.push(primaryEmail);
+  if (usePhone && primaryPhone) phones.push(primaryPhone);
+
+  if (!primaryEmailOnly && conv.chatwoot_contact_id) {
     const { data: cc } = await service.from("chatwoot_contacts")
       .select("email, phone_digits, additional_emails, additional_phones")
       .eq("chatwoot_contact_id", conv.chatwoot_contact_id)
       .maybeSingle();
-    if (cc?.email) emails.add(String(cc.email).toLowerCase());
-    if (cc?.phone_digits) phones.add(cc.phone_digits);
-    for (const e of cc?.additional_emails || []) emails.add(String(e).toLowerCase());
-    for (const p of cc?.additional_phones || []) {
-      const n = normPhone(p); if (n) phones.add(n);
+    if (useEmail) {
+      if (cc?.email && !emails.includes(cc.email.toLowerCase())) emails.push(cc.email.toLowerCase());
+      for (const e of cc?.additional_emails || []) {
+        const v = String(e).toLowerCase();
+        if (v && !emails.includes(v)) emails.push(v);
+      }
+    }
+    if (usePhone) {
+      if (cc?.phone_digits && !phones.includes(cc.phone_digits)) phones.push(cc.phone_digits);
+      for (const p of cc?.additional_phones || []) {
+        const n = normPhone(p);
+        if (n && !phones.includes(n)) phones.push(n);
+      }
     }
   }
 
-  // Match: email first, phone fallback
+  // Match: email first, phone fallback (only when enabled)
   let acContact: { id: string } | null = null;
   let matchMethod: "email" | "phone" = "email";
   let matchValue: string | null = null;
+  let matchedOnPrimary = false;
 
-  for (const e of emails) {
-    const r = await findAcContactByEmail(e);
-    if (r) { acContact = r; matchMethod = "email"; matchValue = e; break; }
+  if (useEmail) {
+    for (const e of emails) {
+      const r = await findAcContactByEmail(e);
+      if (r) {
+        acContact = r; matchMethod = "email"; matchValue = e;
+        matchedOnPrimary = e === primaryEmail;
+        break;
+      }
+    }
   }
-  if (!acContact) {
+  if (!acContact && usePhone) {
     for (const p of phones) {
       const r = await findAcContactByPhone(p);
-      if (r) { acContact = r; matchMethod = "phone"; matchValue = p; break; }
+      if (r) {
+        acContact = r; matchMethod = "phone"; matchValue = p;
+        matchedOnPrimary = p === primaryPhone;
+        break;
+      }
     }
   }
 
   if (!acContact) {
     await logError(String(conversationId), "Sem match no AC (email/telefone não encontrado)", {
-      emails: Array.from(emails), phones: Array.from(phones),
+      tried_emails: emails, tried_phones: phones, useEmail, usePhone, primaryEmailOnly,
     });
     return { ok: false, reason: "no_match" };
   }
+
 
   const body = buildNoteBody(conv, settings?.chatwoot_base_url || null, settings?.chatwoot_account_id || null);
 
