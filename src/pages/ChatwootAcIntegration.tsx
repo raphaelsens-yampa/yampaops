@@ -225,6 +225,126 @@ export default function ChatwootAcIntegration() {
     else localStorage.removeItem("ac_app_base_url");
   }
 
+  async function fetchExportData() {
+    const wantLinks = expStatus !== "errors";
+    const wantErrors = expStatus !== "success";
+    const fromIso = expFrom ? new Date(expFrom + "T00:00:00").toISOString() : null;
+    const toIso = expTo ? new Date(expTo + "T23:59:59").toISOString() : null;
+
+    let linksRows: LinkRow[] = [];
+    let errRows: ErrRow[] = [];
+
+    if (wantLinks) {
+      let q = supabase.from("chatwoot_ac_note_links")
+        .select("id, chatwoot_conversation_id, ac_contact_id, ac_note_id, match_method, match_value, last_synced_at")
+        .order("last_synced_at", { ascending: false })
+        .limit(5000);
+      if (expMatch !== "all") q = q.eq("match_method", expMatch);
+      if (fromIso) q = q.gte("last_synced_at", fromIso);
+      if (toIso) q = q.lte("last_synced_at", toIso);
+      const { data, error } = await q;
+      if (error) throw error;
+      linksRows = (data || []) as LinkRow[];
+    }
+
+    if (wantErrors) {
+      let q = supabase.from("integration_sync_errors")
+        .select("id, ac_id, error_message, created_at")
+        .eq("entity_type", "chatwoot_ac_note")
+        .order("created_at", { ascending: false })
+        .limit(5000);
+      if (fromIso) q = q.gte("created_at", fromIso);
+      if (toIso) q = q.lte("created_at", toIso);
+      const { data, error } = await q;
+      if (error) throw error;
+      errRows = (data || []) as ErrRow[];
+    }
+
+    return { linksRows, errRows };
+  }
+
+  function csvEscape(v: any) {
+    if (v == null) return "";
+    const s = String(v);
+    if (/[",\n;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      const { linksRows, errRows } = await fetchExportData();
+      const lines: string[] = [];
+      if (linksRows.length) {
+        lines.push("# Vínculos (sucesso)");
+        lines.push(["conversation_id","ac_contact_id","ac_note_id","match_method","match_value","last_synced_at"].join(","));
+        for (const l of linksRows) lines.push([l.chatwoot_conversation_id, l.ac_contact_id, l.ac_note_id, l.match_method, l.match_value, l.last_synced_at].map(csvEscape).join(","));
+        lines.push("");
+      }
+      if (errRows.length) {
+        lines.push("# Erros");
+        lines.push(["conversation_id","error_message","created_at"].join(","));
+        for (const e of errRows) lines.push([e.ac_id || "", e.error_message, e.created_at].map(csvEscape).join(","));
+      }
+      if (!lines.length) { toast.info("Nenhum log no filtro"); return; }
+      const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `chatwoot-ac-logs-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`CSV exportado · ${linksRows.length} vínculos · ${errRows.length} erros`);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const { linksRows, errRows } = await fetchExportData();
+      if (!linksRows.length && !errRows.length) { toast.info("Nenhum log no filtro"); return; }
+      const doc = new jsPDF({ orientation: "landscape" });
+      const title = "Logs Chatwoot ↔ ActiveCampaign";
+      const filt = `Período: ${expFrom || "—"} a ${expTo || "—"} · Match: ${expMatch} · Status: ${expStatus}`;
+      doc.setFontSize(14); doc.text(title, 14, 14);
+      doc.setFontSize(9); doc.setTextColor(120); doc.text(filt, 14, 20);
+      doc.setTextColor(0);
+      let y = 26;
+      if (linksRows.length) {
+        autoTable(doc, {
+          startY: y,
+          head: [["Conv #","Contato AC","Match","Valor","Sincronizado em"]],
+          body: linksRows.map(l => [l.chatwoot_conversation_id, l.ac_contact_id, l.match_method, l.match_value || "—", new Date(l.last_synced_at).toLocaleString("pt-BR")]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [1, 184, 224] },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+      if (errRows.length) {
+        if (y > 180) { doc.addPage(); y = 14; }
+        doc.setFontSize(11); doc.text("Erros", 14, y); y += 4;
+        autoTable(doc, {
+          startY: y,
+          head: [["Conv #","Erro","Quando"]],
+          body: errRows.map(e => [e.ac_id || "—", e.error_message, new Date(e.created_at).toLocaleString("pt-BR")]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [220, 38, 38] },
+          columnStyles: { 1: { cellWidth: 160 } },
+        });
+      }
+      doc.save(`chatwoot-ac-logs-${new Date().toISOString().slice(0,10)}.pdf`);
+      toast.success(`PDF exportado · ${linksRows.length} vínculos · ${errRows.length} erros`);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Layout>
       <div className="space-y-6 max-w-6xl">
