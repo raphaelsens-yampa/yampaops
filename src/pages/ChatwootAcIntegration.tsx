@@ -108,24 +108,8 @@ export default function ChatwootAcIntegration() {
     }
   }
 
-  async function handleSyncOne() {
-    const id = Number(singleId);
-    if (!id) { toast.error("Informe um conversation_id"); return; }
-    setSyncingOne(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("chatwoot-to-ac-sync", {
-        body: { conversation_id: id },
-      });
-      if (error) throw error;
-      if (data?.ok) toast.success(`Sincronizado · contato AC ${data.ac_contact_id} · nota ${data.ac_note_id}`);
-      else toast.warning(`Não sincronizado: ${data?.reason || "erro"}`);
-      await loadAll();
-    } catch (e: any) {
-      toast.error(e.message || "Erro");
-    } finally {
-      setSyncingOne(false);
-    }
-  }
+
+
 
   const cwLink = (convId: number) => cwBaseUrl && cwAccount
     ? `${cwBaseUrl.replace(/\/$/, "")}/app/accounts/${cwAccount}/conversations/${convId}`
