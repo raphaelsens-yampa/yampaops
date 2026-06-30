@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2 } from "lucide-react";
+import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2, CheckCircle2, XCircle, Activity, Trash2, RotateCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 type LinkRow = {
