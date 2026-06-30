@@ -194,7 +194,7 @@ async function upsertNoteForConversation(
     await service.from("chatwoot_ac_note_links")
       .update({ last_synced_at: new Date().toISOString(), match_method: matchMethod, match_value: matchValue })
       .eq("id", existing.id);
-    return { ok: true, ac_contact_id: acContact.id, ac_note_id: existing.ac_note_id };
+    return { ok: true, ac_contact_id: acContact.id, ac_note_id: existing.ac_note_id, match_method: matchMethod, match_value: matchValue };
   }
 
   // POST create
