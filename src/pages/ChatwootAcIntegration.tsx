@@ -55,6 +55,10 @@ export default function ChatwootAcIntegration() {
   const [matchByEmail, setMatchByEmail] = useState(0);
   const [matchByPhone, setMatchByPhone] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
+  const [backfillDone, setBackfillDone] = useState(0);
+  const [backfillTotal, setBackfillTotal] = useState(0);
+  const cancelRef = useRef(false);
+  const setBackfillCancel = (v: boolean) => { cancelRef.current = v; };
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
