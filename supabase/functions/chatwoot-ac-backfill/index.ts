@@ -42,14 +42,18 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const limit = Math.min(Math.max(Number(body?.limit) || 100, 1), 1000);
+    const offset = Math.max(Number(body?.offset) || 0, 0);
     const useEmail = body?.use_email !== false;
     const usePhone = body?.use_phone !== false;
     const primaryEmailOnly = !!body?.primary_email_only;
 
+    const { count: totalCount } = await service.from("chatwoot_conversations")
+      .select("chatwoot_conversation_id", { count: "exact", head: true });
+
     const { data: convs } = await service.from("chatwoot_conversations")
       .select("chatwoot_conversation_id")
       .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     const ids = (convs || []).map((c: any) => Number(c.chatwoot_conversation_id));
     let matched = 0;
@@ -82,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({ ok: true, processed: ids.length, matched, matched_by_email: matchedByEmail, matched_by_phone: matchedByPhone, no_match: noMatch, failed }), {
+    return new Response(JSON.stringify({ ok: true, processed: ids.length, offset, total: totalCount || 0, matched, matched_by_email: matchedByEmail, matched_by_phone: matchedByPhone, no_match: noMatch, failed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

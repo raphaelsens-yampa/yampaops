@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2, CheckCircle2, XCircle, Activity, Trash2, RotateCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 
 type LinkRow = {
   id: string;
@@ -54,6 +55,10 @@ export default function ChatwootAcIntegration() {
   const [matchByEmail, setMatchByEmail] = useState(0);
   const [matchByPhone, setMatchByPhone] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
+  const [backfillDone, setBackfillDone] = useState(0);
+  const [backfillTotal, setBackfillTotal] = useState(0);
+  const cancelRef = useRef(false);
+  const setBackfillCancel = (v: boolean) => { cancelRef.current = v; };
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
@@ -90,15 +95,33 @@ export default function ChatwootAcIntegration() {
   useEffect(() => { loadAll(); }, []);
 
   async function handleBackfill() {
-    const limit = Number(backfillLimit) || 100;
+    const total = Number(backfillLimit) || 100;
     if (!useEmail && !usePhone) { toast.error("Habilite ao menos email ou telefone"); return; }
     setBackfilling(true);
+    setBackfillDone(0);
+    setBackfillTotal(total);
+    setBackfillCancel(false);
+    const CHUNK = 25;
+    const agg = { matched: 0, email: 0, phone: 0, no_match: 0, failed: 0 };
     try {
-      const { data, error } = await supabase.functions.invoke("chatwoot-ac-backfill", {
-        body: { limit, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
-      });
-      if (error) throw error;
-      toast.success(`Backfill: ${data?.matched || 0} sincronizadas (email: ${data?.matched_by_email || 0} · fone: ${data?.matched_by_phone || 0}) · ${data?.no_match || 0} sem match · ${data?.failed || 0} falhas`);
+      let processed = 0;
+      while (processed < total) {
+        if (cancelRef.current) break;
+        const chunk = Math.min(CHUNK, total - processed);
+        const { data, error } = await supabase.functions.invoke("chatwoot-ac-backfill", {
+          body: { limit: chunk, offset: processed, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
+        });
+        if (error) throw error;
+        agg.matched += data?.matched || 0;
+        agg.email += data?.matched_by_email || 0;
+        agg.phone += data?.matched_by_phone || 0;
+        agg.no_match += data?.no_match || 0;
+        agg.failed += data?.failed || 0;
+        processed += data?.processed || chunk;
+        setBackfillDone(processed);
+        if ((data?.processed || 0) < chunk) break; // ran out of conversations
+      }
+      toast.success(`Backfill: ${agg.matched} sincronizadas (email: ${agg.email} · fone: ${agg.phone}) · ${agg.no_match} sem match · ${agg.failed} falhas`);
       await loadAll();
     } catch (e: any) {
       toast.error(e.message || "Erro no backfill");
@@ -106,6 +129,7 @@ export default function ChatwootAcIntegration() {
       setBackfilling(false);
     }
   }
+
 
   async function handleSyncOne() {
     const id = Number(singleId);
@@ -299,18 +323,33 @@ export default function ChatwootAcIntegration() {
             <CardTitle>Sincronizar histórico</CardTitle>
             <CardDescription>Processa as últimas N conversas do Chatwoot e tenta anexar a nota no AC. Idempotente — re-rodar atualiza a nota existente.</CardDescription>
           </CardHeader>
-          <CardContent className="flex items-end gap-3 flex-wrap">
-            <div>
-              <Label className="text-xs">Quantidade (máx 1000)</Label>
-              <Input type="number" min={1} max={1000} value={backfillLimit} onChange={(e) => setBackfillLimit(e.target.value)} className="w-32" />
+          <CardContent className="space-y-3">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div>
+                <Label className="text-xs">Quantidade (máx 1000)</Label>
+                <Input type="number" min={1} max={1000} value={backfillLimit} onChange={(e) => setBackfillLimit(e.target.value)} className="w-32" disabled={backfilling} />
+              </div>
+              <Button onClick={handleBackfill} disabled={backfilling}>
+                {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Rodar backfill
+              </Button>
+              {backfilling && (
+                <Button variant="outline" onClick={() => setBackfillCancel(true)}>Cancelar</Button>
+              )}
+              <span className="text-xs text-muted-foreground">~5 conversas/s. Conversas novas são sincronizadas automaticamente via webhook.</span>
             </div>
-            <Button onClick={handleBackfill} disabled={backfilling}>
-              {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              Rodar backfill
-            </Button>
-            <span className="text-xs text-muted-foreground">~5 conversas/s. Conversas novas são sincronizadas automaticamente via webhook.</span>
+            {(backfilling || backfillDone > 0) && backfillTotal > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{backfillDone} de {backfillTotal} conversas</span>
+                  <span>{Math.round((backfillDone / backfillTotal) * 100)}%</span>
+                </div>
+                <Progress value={(backfillDone / backfillTotal) * 100} />
+              </div>
+            )}
           </CardContent>
         </Card>
+
 
         {/* Single */}
         <Card>
