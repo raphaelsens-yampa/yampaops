@@ -203,8 +203,17 @@ export default function ChatwootAcIntegration() {
     ? `${cwBaseUrl.replace(/\/$/, "")}/app/accounts/${cwAccount}/conversations/${convId}`
     : null;
 
-  const acLink = (contactId: string) => acBaseUrl
-    ? `${acBaseUrl.replace(/\/$/, "").replace(/\/api\/3$/, "")}/app/contacts/${contactId}`
+  const acLink = (contactId: string) => {
+    if (!acBaseUrl) return null;
+    const cleaned = acBaseUrl.trim().replace(/\/$/, "").replace(/\/api\/3$/, "");
+    return `${cleaned}/app/contacts/${contactId}/`;
+  };
+
+  function handleAcBaseUrlChange(v: string) {
+    setAcBaseUrl(v);
+    if (v.trim()) localStorage.setItem("ac_app_base_url", v.trim());
+    else localStorage.removeItem("ac_app_base_url");
+  }
     : null;
 
   return (
