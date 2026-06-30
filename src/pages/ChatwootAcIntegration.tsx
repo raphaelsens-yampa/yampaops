@@ -197,12 +197,69 @@ export default function ChatwootAcIntegration() {
           </div>
         </div>
 
+        {/* Status panel */}
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <CardTitle>Status da integração</CardTitle>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={loadAll} disabled={statusLoading}>
+                  {statusLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                  Recarregar
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleRetryFailed} disabled={retryingFailed || totalErrors === 0}>
+                  {retryingFailed ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5 mr-1.5" />}
+                  Re-tentar falhas
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleClearErrors} disabled={clearingErrors || totalErrors === 0}>
+                  {clearingErrors ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+                  Limpar logs
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-md border p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {cwBaseUrl && cwAccount ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                  Chatwoot
+                </div>
+                <div className="mt-1 font-medium truncate">{cwBaseUrl ? "Configurado" : "Não configurado"}</div>
+                {cwAccount && <div className="text-xs text-muted-foreground">conta #{cwAccount}</div>}
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                  ActiveCampaign
+                </div>
+                <div className="mt-1 font-medium">API configurada</div>
+                <div className="text-xs text-muted-foreground">credenciais via secrets</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">Última sync</div>
+                <div className="mt-1 font-medium">{lastSyncAt ? new Date(lastSyncAt).toLocaleString("pt-BR") : "—"}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">Último erro</div>
+                <div className="mt-1 font-medium">{lastErrorAt ? new Date(lastErrorAt).toLocaleString("pt-BR") : "—"}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Conversas no banco</div><div className="text-2xl font-bold">{stats.conversations}</div></CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Vínculos criados</div><div className="text-2xl font-bold">{stats.linked}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Erros recentes</div><div className="text-2xl font-bold">{errors.length}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Match por email</div><div className="text-2xl font-bold">{matchByEmail}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Match por telefone</div><div className="text-2xl font-bold">{matchByPhone}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Erros (total)</div><div className="text-2xl font-bold">{totalErrors}</div></CardContent></Card>
         </div>
+
 
         {/* Estratégia de match */}
         <Card>
