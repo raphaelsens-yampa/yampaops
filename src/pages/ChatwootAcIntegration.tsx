@@ -517,6 +517,59 @@ export default function ChatwootAcIntegration() {
           </CardContent>
         </Card>
 
+        {/* Export */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Exportar logs</CardTitle>
+            <CardDescription>Baixe vínculos e/ou erros filtrados em CSV ou PDF (até 5000 registros por tipo).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs">De</Label>
+                <Input type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Até</Label>
+                <Input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Tipo de match</Label>
+                <Select value={expMatch} onValueChange={(v: any) => setExpMatch(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="phone">Telefone</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Status</Label>
+                <Select value={expStatus} onValueChange={(v: any) => setExpStatus(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tudo (vínculos + erros)</SelectItem>
+                    <SelectItem value="success">Apenas vínculos</SelectItem>
+                    <SelectItem value="errors">Apenas erros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={handleExportCsv} disabled={exporting} variant="outline">
+                {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Exportar CSV
+              </Button>
+              <Button onClick={handleExportPdf} disabled={exporting} variant="outline">
+                {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                Exportar PDF
+              </Button>
+              <span className="text-xs text-muted-foreground self-center">O filtro de match se aplica apenas aos vínculos; erros respeitam apenas data.</span>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Links table */}
         <Card>
           <CardHeader>
