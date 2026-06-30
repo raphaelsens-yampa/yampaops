@@ -87,7 +87,6 @@ export default function ChatwootAcIntegration() {
     if (s.data) {
       setCwBaseUrl(s.data.chatwoot_base_url || "");
       setCwAccount(s.data.chatwoot_account_id || null);
-      setAcBaseUrl("");
     }
     setStatusLoading(false);
   }
