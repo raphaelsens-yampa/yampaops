@@ -47,6 +47,7 @@ import DiscountRules from "./pages/discounts/Rules";
 import Precificacao from "./pages/Precificacao";
 import Comissionamento from "./pages/Comissionamento";
 import OnePageDiretoria from "./pages/OnePageDiretoria";
+import PropostaPublica from "./pages/PropostaPublica";
 
 import NotFound from "./pages/NotFound";
 import { RequireArea } from "./components/AccessDenied";
@@ -57,6 +58,16 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { session, role, loading } = useAuth();
+
+  // Public routes (no auth required) — must be checked before loading/session gates
+  const publicPath = typeof window !== "undefined" && window.location.pathname.startsWith("/proposta-publica");
+  if (publicPath) {
+    return (
+      <Routes>
+        <Route path="/proposta-publica" element={<PropostaPublica />} />
+      </Routes>
+    );
+  }
 
   if (loading) {
     return (
