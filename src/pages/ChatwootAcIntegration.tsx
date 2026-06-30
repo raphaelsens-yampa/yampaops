@@ -10,9 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2, CheckCircle2, XCircle, Activity, Trash2, RotateCw } from "lucide-react";
+import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2, CheckCircle2, XCircle, Activity, Trash2, RotateCw, Download, FileText } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type LinkRow = {
   id: string;
@@ -59,6 +62,13 @@ export default function ChatwootAcIntegration() {
   const [backfillTotal, setBackfillTotal] = useState(0);
   const cancelRef = useRef(false);
   const setBackfillCancel = (v: boolean) => { cancelRef.current = v; };
+
+  // Export filters
+  const [expFrom, setExpFrom] = useState("");
+  const [expTo, setExpTo] = useState("");
+  const [expMatch, setExpMatch] = useState<"all" | "email" | "phone">("all");
+  const [expStatus, setExpStatus] = useState<"all" | "success" | "errors">("all");
+  const [exporting, setExporting] = useState(false);
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
@@ -213,6 +223,126 @@ export default function ChatwootAcIntegration() {
     setAcBaseUrl(v);
     if (v.trim()) localStorage.setItem("ac_app_base_url", v.trim());
     else localStorage.removeItem("ac_app_base_url");
+  }
+
+  async function fetchExportData() {
+    const wantLinks = expStatus !== "errors";
+    const wantErrors = expStatus !== "success";
+    const fromIso = expFrom ? new Date(expFrom + "T00:00:00").toISOString() : null;
+    const toIso = expTo ? new Date(expTo + "T23:59:59").toISOString() : null;
+
+    let linksRows: LinkRow[] = [];
+    let errRows: ErrRow[] = [];
+
+    if (wantLinks) {
+      let q = supabase.from("chatwoot_ac_note_links")
+        .select("id, chatwoot_conversation_id, ac_contact_id, ac_note_id, match_method, match_value, last_synced_at")
+        .order("last_synced_at", { ascending: false })
+        .limit(5000);
+      if (expMatch !== "all") q = q.eq("match_method", expMatch);
+      if (fromIso) q = q.gte("last_synced_at", fromIso);
+      if (toIso) q = q.lte("last_synced_at", toIso);
+      const { data, error } = await q;
+      if (error) throw error;
+      linksRows = (data || []) as LinkRow[];
+    }
+
+    if (wantErrors) {
+      let q = supabase.from("integration_sync_errors")
+        .select("id, ac_id, error_message, created_at")
+        .eq("entity_type", "chatwoot_ac_note")
+        .order("created_at", { ascending: false })
+        .limit(5000);
+      if (fromIso) q = q.gte("created_at", fromIso);
+      if (toIso) q = q.lte("created_at", toIso);
+      const { data, error } = await q;
+      if (error) throw error;
+      errRows = (data || []) as ErrRow[];
+    }
+
+    return { linksRows, errRows };
+  }
+
+  function csvEscape(v: any) {
+    if (v == null) return "";
+    const s = String(v);
+    if (/[",\n;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      const { linksRows, errRows } = await fetchExportData();
+      const lines: string[] = [];
+      if (linksRows.length) {
+        lines.push("# Vínculos (sucesso)");
+        lines.push(["conversation_id","ac_contact_id","ac_note_id","match_method","match_value","last_synced_at"].join(","));
+        for (const l of linksRows) lines.push([l.chatwoot_conversation_id, l.ac_contact_id, l.ac_note_id, l.match_method, l.match_value, l.last_synced_at].map(csvEscape).join(","));
+        lines.push("");
+      }
+      if (errRows.length) {
+        lines.push("# Erros");
+        lines.push(["conversation_id","error_message","created_at"].join(","));
+        for (const e of errRows) lines.push([e.ac_id || "", e.error_message, e.created_at].map(csvEscape).join(","));
+      }
+      if (!lines.length) { toast.info("Nenhum log no filtro"); return; }
+      const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `chatwoot-ac-logs-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`CSV exportado · ${linksRows.length} vínculos · ${errRows.length} erros`);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const { linksRows, errRows } = await fetchExportData();
+      if (!linksRows.length && !errRows.length) { toast.info("Nenhum log no filtro"); return; }
+      const doc = new jsPDF({ orientation: "landscape" });
+      const title = "Logs Chatwoot ↔ ActiveCampaign";
+      const filt = `Período: ${expFrom || "—"} a ${expTo || "—"} · Match: ${expMatch} · Status: ${expStatus}`;
+      doc.setFontSize(14); doc.text(title, 14, 14);
+      doc.setFontSize(9); doc.setTextColor(120); doc.text(filt, 14, 20);
+      doc.setTextColor(0);
+      let y = 26;
+      if (linksRows.length) {
+        autoTable(doc, {
+          startY: y,
+          head: [["Conv #","Contato AC","Match","Valor","Sincronizado em"]],
+          body: linksRows.map(l => [l.chatwoot_conversation_id, l.ac_contact_id, l.match_method, l.match_value || "—", new Date(l.last_synced_at).toLocaleString("pt-BR")]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [1, 184, 224] },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+      if (errRows.length) {
+        if (y > 180) { doc.addPage(); y = 14; }
+        doc.setFontSize(11); doc.text("Erros", 14, y); y += 4;
+        autoTable(doc, {
+          startY: y,
+          head: [["Conv #","Erro","Quando"]],
+          body: errRows.map(e => [e.ac_id || "—", e.error_message, new Date(e.created_at).toLocaleString("pt-BR")]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [220, 38, 38] },
+          columnStyles: { 1: { cellWidth: 160 } },
+        });
+      }
+      doc.save(`chatwoot-ac-logs-${new Date().toISOString().slice(0,10)}.pdf`);
+      toast.success(`PDF exportado · ${linksRows.length} vínculos · ${errRows.length} erros`);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -384,6 +514,59 @@ export default function ChatwootAcIntegration() {
               {syncingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
               Sincronizar
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Export */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Exportar logs</CardTitle>
+            <CardDescription>Baixe vínculos e/ou erros filtrados em CSV ou PDF (até 5000 registros por tipo).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <Label className="text-xs">De</Label>
+                <Input type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Até</Label>
+                <Input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Tipo de match</Label>
+                <Select value={expMatch} onValueChange={(v: any) => setExpMatch(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="phone">Telefone</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Status</Label>
+                <Select value={expStatus} onValueChange={(v: any) => setExpStatus(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tudo (vínculos + erros)</SelectItem>
+                    <SelectItem value="success">Apenas vínculos</SelectItem>
+                    <SelectItem value="errors">Apenas erros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={handleExportCsv} disabled={exporting} variant="outline">
+                {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Exportar CSV
+              </Button>
+              <Button onClick={handleExportPdf} disabled={exporting} variant="outline">
+                {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                Exportar PDF
+              </Button>
+              <span className="text-xs text-muted-foreground self-center">O filtro de match se aplica apenas aos vínculos; erros respeitam apenas data.</span>
+            </div>
           </CardContent>
         </Card>
 
