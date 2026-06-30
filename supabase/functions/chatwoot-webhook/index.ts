@@ -739,6 +739,7 @@ async function handleConversationUpdated(payload: any) {
   }
 
   await bumpOpportunityInteraction(ctx.opportunityId);
+  fireAcNoteSync(Number(conversation.id));
   return { ok: true };
 }
 
