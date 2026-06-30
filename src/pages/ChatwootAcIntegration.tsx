@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2 } from "lucide-react";
+import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2, CheckCircle2, XCircle, Activity, Trash2, RotateCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 type LinkRow = {
@@ -46,26 +46,45 @@ export default function ChatwootAcIntegration() {
   const [useEmail, setUseEmail] = useState(true);
   const [usePhone, setUsePhone] = useState(true);
   const [primaryEmailOnly, setPrimaryEmailOnly] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+  const [clearingErrors, setClearingErrors] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [lastErrorAt, setLastErrorAt] = useState<string | null>(null);
+  const [matchByEmail, setMatchByEmail] = useState(0);
+  const [matchByPhone, setMatchByPhone] = useState(0);
+  const [totalErrors, setTotalErrors] = useState(0);
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
   async function loadAll() {
-    const [l, e, sCount, lCount, s] = await Promise.all([
+    setStatusLoading(true);
+    const [l, e, sCount, lCount, s, emailCount, phoneCount, errCount, lastSync, lastErr] = await Promise.all([
       supabase.from("chatwoot_ac_note_links").select("*").order("last_synced_at", { ascending: false }).limit(30),
       supabase.from("integration_sync_errors").select("id, ac_id, error_message, created_at").eq("entity_type", "chatwoot_ac_note").order("created_at", { ascending: false }).limit(20),
       supabase.from("chatwoot_conversations").select("chatwoot_conversation_id", { count: "exact", head: true }),
       supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }),
       supabase.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").maybeSingle(),
+      supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }).eq("match_method", "email"),
+      supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }).eq("match_method", "phone"),
+      supabase.from("integration_sync_errors").select("id", { count: "exact", head: true }).eq("entity_type", "chatwoot_ac_note"),
+      supabase.from("chatwoot_ac_note_links").select("last_synced_at").order("last_synced_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("integration_sync_errors").select("created_at").eq("entity_type", "chatwoot_ac_note").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (l.data) setLinks(l.data as LinkRow[]);
     if (e.data) setErrors(e.data as ErrRow[]);
     setStats({ conversations: sCount.count || 0, linked: lCount.count || 0 });
+    setMatchByEmail(emailCount.count || 0);
+    setMatchByPhone(phoneCount.count || 0);
+    setTotalErrors(errCount.count || 0);
+    setLastSyncAt((lastSync.data as any)?.last_synced_at || null);
+    setLastErrorAt((lastErr.data as any)?.created_at || null);
     if (s.data) {
       setCwBaseUrl(s.data.chatwoot_base_url || "");
       setCwAccount(s.data.chatwoot_account_id || null);
-      // AC base URL derived from env on the user side: best-effort; leave editable later if needed
       setAcBaseUrl("");
     }
+    setStatusLoading(false);
   }
 
   useEffect(() => { loadAll(); }, []);
@@ -108,7 +127,53 @@ export default function ChatwootAcIntegration() {
     }
   }
 
+  async function handleRetryFailed() {
+    setRetryingFailed(true);
+    try {
+      const { data: errs } = await supabase
+        .from("integration_sync_errors")
+        .select("ac_id")
+        .eq("entity_type", "chatwoot_ac_note")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const ids = Array.from(new Set((errs || []).map((r: any) => Number(r.ac_id)).filter((n) => Number.isFinite(n) && n > 0)));
+      if (!ids.length) { toast.info("Nenhuma falha pendente"); return; }
+      let ok = 0, fail = 0;
+      for (const id of ids) {
+        try {
+          const { data } = await supabase.functions.invoke("chatwoot-to-ac-sync", {
+            body: { conversation_id: id, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
+          });
+          if (data?.ok) ok++; else fail++;
+        } catch { fail++; }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      toast.success(`Retry: ${ok} sincronizadas · ${fail} ainda falhando`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro no retry");
+    } finally {
+      setRetryingFailed(false);
+    }
+  }
 
+  async function handleClearErrors() {
+    if (!confirm("Limpar todos os logs de erro desta integração?")) return;
+    setClearingErrors(true);
+    try {
+      const { error } = await supabase
+        .from("integration_sync_errors")
+        .delete()
+        .eq("entity_type", "chatwoot_ac_note");
+      if (error) throw error;
+      toast.success("Logs de erro limpos");
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao limpar");
+    } finally {
+      setClearingErrors(false);
+    }
+  }
 
 
   const cwLink = (convId: number) => cwBaseUrl && cwAccount
@@ -132,12 +197,69 @@ export default function ChatwootAcIntegration() {
           </div>
         </div>
 
+        {/* Status panel */}
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <CardTitle>Status da integração</CardTitle>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={loadAll} disabled={statusLoading}>
+                  {statusLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                  Recarregar
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleRetryFailed} disabled={retryingFailed || totalErrors === 0}>
+                  {retryingFailed ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5 mr-1.5" />}
+                  Re-tentar falhas
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleClearErrors} disabled={clearingErrors || totalErrors === 0}>
+                  {clearingErrors ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+                  Limpar logs
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="rounded-md border p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {cwBaseUrl && cwAccount ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                  Chatwoot
+                </div>
+                <div className="mt-1 font-medium truncate">{cwBaseUrl ? "Configurado" : "Não configurado"}</div>
+                {cwAccount && <div className="text-xs text-muted-foreground">conta #{cwAccount}</div>}
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                  ActiveCampaign
+                </div>
+                <div className="mt-1 font-medium">API configurada</div>
+                <div className="text-xs text-muted-foreground">credenciais via secrets</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">Última sync</div>
+                <div className="mt-1 font-medium">{lastSyncAt ? new Date(lastSyncAt).toLocaleString("pt-BR") : "—"}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">Último erro</div>
+                <div className="mt-1 font-medium">{lastErrorAt ? new Date(lastErrorAt).toLocaleString("pt-BR") : "—"}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Conversas no banco</div><div className="text-2xl font-bold">{stats.conversations}</div></CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Vínculos criados</div><div className="text-2xl font-bold">{stats.linked}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Erros recentes</div><div className="text-2xl font-bold">{errors.length}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Match por email</div><div className="text-2xl font-bold">{matchByEmail}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Match por telefone</div><div className="text-2xl font-bold">{matchByPhone}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Erros (total)</div><div className="text-2xl font-bold">{totalErrors}</div></CardContent></Card>
         </div>
+
 
         {/* Estratégia de match */}
         <Card>
