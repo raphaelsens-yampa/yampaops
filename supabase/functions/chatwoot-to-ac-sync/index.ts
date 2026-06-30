@@ -236,7 +236,11 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const result = await upsertNoteForConversation(conversationId);
+    const result = await upsertNoteForConversation(conversationId, {
+      useEmail: body?.use_email !== false,
+      usePhone: body?.use_phone !== false,
+      primaryEmailOnly: !!body?.primary_email_only,
+    });
     return new Response(JSON.stringify(result), {
       status: result.ok ? 200 : 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
