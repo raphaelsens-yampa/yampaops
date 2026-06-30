@@ -12,6 +12,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2, CheckCircle2, XCircle, Activity, Trash2, RotateCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 
 type LinkRow = {
   id: string;
