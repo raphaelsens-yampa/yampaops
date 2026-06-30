@@ -137,6 +137,42 @@ export type Database = {
           },
         ]
       }
+      chatwoot_ac_note_links: {
+        Row: {
+          ac_contact_id: string
+          ac_note_id: string
+          chatwoot_conversation_id: number
+          created_at: string
+          id: string
+          last_synced_at: string
+          match_method: string
+          match_value: string | null
+          updated_at: string
+        }
+        Insert: {
+          ac_contact_id: string
+          ac_note_id: string
+          chatwoot_conversation_id: number
+          created_at?: string
+          id?: string
+          last_synced_at?: string
+          match_method: string
+          match_value?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ac_contact_id?: string
+          ac_note_id?: string
+          chatwoot_conversation_id?: number
+          created_at?: string
+          id?: string
+          last_synced_at?: string
+          match_method?: string
+          match_value?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chatwoot_audit_alerts: {
         Row: {
           acknowledged_at: string | null
