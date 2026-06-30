@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, ExternalLink, AlertCircle, Link2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 type LinkRow = {
   id: string;
@@ -42,6 +43,9 @@ export default function ChatwootAcIntegration() {
   const [backfilling, setBackfilling] = useState(false);
   const [singleId, setSingleId] = useState("");
   const [syncingOne, setSyncingOne] = useState(false);
+  const [useEmail, setUseEmail] = useState(true);
+  const [usePhone, setUsePhone] = useState(true);
+  const [primaryEmailOnly, setPrimaryEmailOnly] = useState(false);
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
@@ -68,13 +72,14 @@ export default function ChatwootAcIntegration() {
 
   async function handleBackfill() {
     const limit = Number(backfillLimit) || 100;
+    if (!useEmail && !usePhone) { toast.error("Habilite ao menos email ou telefone"); return; }
     setBackfilling(true);
     try {
       const { data, error } = await supabase.functions.invoke("chatwoot-ac-backfill", {
-        body: { limit },
+        body: { limit, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
       });
       if (error) throw error;
-      toast.success(`Backfill: ${data?.matched || 0} sincronizadas · ${data?.no_match || 0} sem match · ${data?.failed || 0} falhas (de ${data?.processed || 0})`);
+      toast.success(`Backfill: ${data?.matched || 0} sincronizadas (email: ${data?.matched_by_email || 0} · fone: ${data?.matched_by_phone || 0}) · ${data?.no_match || 0} sem match · ${data?.failed || 0} falhas`);
       await loadAll();
     } catch (e: any) {
       toast.error(e.message || "Erro no backfill");
@@ -86,13 +91,14 @@ export default function ChatwootAcIntegration() {
   async function handleSyncOne() {
     const id = Number(singleId);
     if (!id) { toast.error("Informe um conversation_id"); return; }
+    if (!useEmail && !usePhone) { toast.error("Habilite ao menos email ou telefone"); return; }
     setSyncingOne(true);
     try {
       const { data, error } = await supabase.functions.invoke("chatwoot-to-ac-sync", {
-        body: { conversation_id: id },
+        body: { conversation_id: id, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly },
       });
       if (error) throw error;
-      if (data?.ok) toast.success(`Sincronizado · contato AC ${data.ac_contact_id} · nota ${data.ac_note_id}`);
+      if (data?.ok) toast.success(`Sincronizado via ${data.match_method} (${data.match_value || "—"}) · contato AC ${data.ac_contact_id}`);
       else toast.warning(`Não sincronizado: ${data?.reason || "erro"}`);
       await loadAll();
     } catch (e: any) {
@@ -101,6 +107,9 @@ export default function ChatwootAcIntegration() {
       setSyncingOne(false);
     }
   }
+
+
+
 
   const cwLink = (convId: number) => cwBaseUrl && cwAccount
     ? `${cwBaseUrl.replace(/\/$/, "")}/app/accounts/${cwAccount}/conversations/${convId}`
@@ -129,6 +138,38 @@ export default function ChatwootAcIntegration() {
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Vínculos criados</div><div className="text-2xl font-bold">{stats.linked}</div></CardContent></Card>
           <Card><CardContent className="pt-6"><div className="text-xs text-muted-foreground">Erros recentes</div><div className="text-2xl font-bold">{errors.length}</div></CardContent></Card>
         </div>
+
+        {/* Estratégia de match */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Estratégia de match</CardTitle>
+            <CardDescription>Define como o contato é localizado no ActiveCampaign. A chave usada fica registrada no vínculo (coluna "Match" da tabela abaixo).</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Buscar por email</Label>
+                <p className="text-xs text-muted-foreground">Tenta primeiro o email do contato (chave primária).</p>
+              </div>
+              <Switch checked={useEmail} onCheckedChange={setUseEmail} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Apenas email primário</Label>
+                <p className="text-xs text-muted-foreground">Quando ativo, ignora emails adicionais do contato no Chatwoot.</p>
+              </div>
+              <Switch checked={primaryEmailOnly} onCheckedChange={setPrimaryEmailOnly} disabled={!useEmail} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label className="text-sm">Fallback por telefone</Label>
+                <p className="text-xs text-muted-foreground">Se o email não bater, tenta localizar pelo telefone.</p>
+              </div>
+              <Switch checked={usePhone} onCheckedChange={setUsePhone} />
+            </div>
+          </CardContent>
+        </Card>
+
 
         {/* Backfill */}
         <Card>
