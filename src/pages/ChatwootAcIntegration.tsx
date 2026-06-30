@@ -46,6 +46,14 @@ export default function ChatwootAcIntegration() {
   const [useEmail, setUseEmail] = useState(true);
   const [usePhone, setUsePhone] = useState(true);
   const [primaryEmailOnly, setPrimaryEmailOnly] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+  const [clearingErrors, setClearingErrors] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [lastErrorAt, setLastErrorAt] = useState<string | null>(null);
+  const [matchByEmail, setMatchByEmail] = useState(0);
+  const [matchByPhone, setMatchByPhone] = useState(0);
+  const [totalErrors, setTotalErrors] = useState(0);
 
   if (role !== "admin") return <Navigate to="/" replace />;
 
