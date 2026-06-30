@@ -36,7 +36,7 @@ export default function ChatwootAcIntegration() {
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [errors, setErrors] = useState<ErrRow[]>([]);
   const [stats, setStats] = useState<{ conversations: number; linked: number }>({ conversations: 0, linked: 0 });
-  const [acBaseUrl, setAcBaseUrl] = useState<string>("");
+  const [acBaseUrl, setAcBaseUrl] = useState<string>(() => localStorage.getItem("ac_app_base_url") || "");
   const [cwBaseUrl, setCwBaseUrl] = useState<string>("");
   const [cwAccount, setCwAccount] = useState<number | null>(null);
 
