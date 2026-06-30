@@ -478,6 +478,23 @@ async function bumpOpportunityInteraction(opportunityId: string | null) {
     .eq("id", opportunityId);
 }
 
+async function fireAcNoteSync(conversationId: number | null | undefined) {
+  if (!conversationId) return;
+  try {
+    const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/chatwoot-to-ac-sync`;
+    // fire and forget — do not await
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({ conversation_id: Number(conversationId) }),
+    }).catch(() => { /* noop */ });
+  } catch { /* noop */ }
+}
+
+
 // =====================================================
 // Tag automation by Chatwoot event
 // =====================================================
@@ -595,6 +612,7 @@ async function handleConversationCreated(payload: any) {
   });
   await applyTagForEvent(ctx.opportunityId, "conversation_created");
   await bumpOpportunityInteraction(ctx.opportunityId);
+  fireAcNoteSync(Number(conversation.id));
   return { ok: true };
 }
 
@@ -721,6 +739,7 @@ async function handleConversationUpdated(payload: any) {
   }
 
   await bumpOpportunityInteraction(ctx.opportunityId);
+  fireAcNoteSync(Number(conversation.id));
   return { ok: true };
 }
 

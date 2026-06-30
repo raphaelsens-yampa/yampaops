@@ -14,3 +14,7 @@ verify_jwt = false
 
 [functions.chatwoot-fill-inboxes]
 verify_jwt = false
+
+[functions.chatwoot-to-ac-sync]
+verify_jwt = false
+
