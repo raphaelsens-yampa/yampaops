@@ -323,18 +323,33 @@ export default function ChatwootAcIntegration() {
             <CardTitle>Sincronizar histórico</CardTitle>
             <CardDescription>Processa as últimas N conversas do Chatwoot e tenta anexar a nota no AC. Idempotente — re-rodar atualiza a nota existente.</CardDescription>
           </CardHeader>
-          <CardContent className="flex items-end gap-3 flex-wrap">
-            <div>
-              <Label className="text-xs">Quantidade (máx 1000)</Label>
-              <Input type="number" min={1} max={1000} value={backfillLimit} onChange={(e) => setBackfillLimit(e.target.value)} className="w-32" />
+          <CardContent className="space-y-3">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div>
+                <Label className="text-xs">Quantidade (máx 1000)</Label>
+                <Input type="number" min={1} max={1000} value={backfillLimit} onChange={(e) => setBackfillLimit(e.target.value)} className="w-32" disabled={backfilling} />
+              </div>
+              <Button onClick={handleBackfill} disabled={backfilling}>
+                {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Rodar backfill
+              </Button>
+              {backfilling && (
+                <Button variant="outline" onClick={() => setBackfillCancel(true)}>Cancelar</Button>
+              )}
+              <span className="text-xs text-muted-foreground">~5 conversas/s. Conversas novas são sincronizadas automaticamente via webhook.</span>
             </div>
-            <Button onClick={handleBackfill} disabled={backfilling}>
-              {backfilling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              Rodar backfill
-            </Button>
-            <span className="text-xs text-muted-foreground">~5 conversas/s. Conversas novas são sincronizadas automaticamente via webhook.</span>
+            {(backfilling || backfillDone > 0) && backfillTotal > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{backfillDone} de {backfillTotal} conversas</span>
+                  <span>{Math.round((backfillDone / backfillTotal) * 100)}%</span>
+                </div>
+                <Progress value={(backfillDone / backfillTotal) * 100} />
+              </div>
+            )}
           </CardContent>
         </Card>
+
 
         {/* Single */}
         <Card>
