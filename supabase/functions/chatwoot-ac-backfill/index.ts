@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({ ok: true, processed: ids.length, matched, matched_by_email: matchedByEmail, matched_by_phone: matchedByPhone, no_match: noMatch, failed }), {
+    return new Response(JSON.stringify({ ok: true, processed: ids.length, offset, total: totalCount || 0, matched, matched_by_email: matchedByEmail, matched_by_phone: matchedByPhone, no_match: noMatch, failed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
