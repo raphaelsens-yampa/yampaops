@@ -58,22 +58,33 @@ export default function ChatwootAcIntegration() {
   if (role !== "admin") return <Navigate to="/" replace />;
 
   async function loadAll() {
-    const [l, e, sCount, lCount, s] = await Promise.all([
+    setStatusLoading(true);
+    const [l, e, sCount, lCount, s, emailCount, phoneCount, errCount, lastSync, lastErr] = await Promise.all([
       supabase.from("chatwoot_ac_note_links").select("*").order("last_synced_at", { ascending: false }).limit(30),
       supabase.from("integration_sync_errors").select("id, ac_id, error_message, created_at").eq("entity_type", "chatwoot_ac_note").order("created_at", { ascending: false }).limit(20),
       supabase.from("chatwoot_conversations").select("chatwoot_conversation_id", { count: "exact", head: true }),
       supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }),
       supabase.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").maybeSingle(),
+      supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }).eq("match_method", "email"),
+      supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }).eq("match_method", "phone"),
+      supabase.from("integration_sync_errors").select("id", { count: "exact", head: true }).eq("entity_type", "chatwoot_ac_note"),
+      supabase.from("chatwoot_ac_note_links").select("last_synced_at").order("last_synced_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("integration_sync_errors").select("created_at").eq("entity_type", "chatwoot_ac_note").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (l.data) setLinks(l.data as LinkRow[]);
     if (e.data) setErrors(e.data as ErrRow[]);
     setStats({ conversations: sCount.count || 0, linked: lCount.count || 0 });
+    setMatchByEmail(emailCount.count || 0);
+    setMatchByPhone(phoneCount.count || 0);
+    setTotalErrors(errCount.count || 0);
+    setLastSyncAt((lastSync.data as any)?.last_synced_at || null);
+    setLastErrorAt((lastErr.data as any)?.created_at || null);
     if (s.data) {
       setCwBaseUrl(s.data.chatwoot_base_url || "");
       setCwAccount(s.data.chatwoot_account_id || null);
-      // AC base URL derived from env on the user side: best-effort; leave editable later if needed
       setAcBaseUrl("");
     }
+    setStatusLoading(false);
   }
 
   useEffect(() => { loadAll(); }, []);
