@@ -223,7 +223,7 @@ async function upsertNoteForConversation(
     last_synced_at: new Date().toISOString(),
   });
 
-  return { ok: true, ac_contact_id: acContact.id, ac_note_id: noteId };
+  return { ok: true, ac_contact_id: acContact.id, ac_note_id: noteId, match_method: matchMethod, match_value: matchValue };
 }
 
 Deno.serve(async (req) => {
