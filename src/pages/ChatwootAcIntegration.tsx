@@ -214,7 +214,6 @@ export default function ChatwootAcIntegration() {
     if (v.trim()) localStorage.setItem("ac_app_base_url", v.trim());
     else localStorage.removeItem("ac_app_base_url");
   }
-    : null;
 
   return (
     <Layout>
