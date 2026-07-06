@@ -266,6 +266,11 @@ export default function ChatwootReports() {
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
   const refInbox = useRef<HTMLDivElement>(null);
+  const refMsgSent = useRef<HTMLDivElement>(null);
+  const refMsgReceived = useRef<HTMLDivElement>(null);
+
+  const [msgByDay, setMsgByDay] = useState<{ date: string; enviadas: number; recebidas: number }[]>([]);
+  const [msgLoading, setMsgLoading] = useState(false);
 
   useEffect(() => {
     supabase
