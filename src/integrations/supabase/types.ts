@@ -883,6 +883,41 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_conversion_edits: {
+        Row: {
+          action: string
+          conversion_id: string
+          diff: Json
+          edited_at: string
+          edited_by: string | null
+          id: string
+        }
+        Insert: {
+          action?: string
+          conversion_id: string
+          diff?: Json
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          conversion_id?: string
+          diff?: Json
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_conversion_edits_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "commission_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_conversions: {
         Row: {
           commission_amount: number
@@ -894,9 +929,11 @@ export type Database = {
           gateway: string | null
           id: string
           import_id: string | null
+          manually_reviewed: boolean
           mrr: number
           offer_name: string | null
           origem_cliente: string | null
+          override_fields: string[]
           payment_month: string
           price_id: string | null
           recurrence_days: number | null
@@ -906,8 +943,12 @@ export type Database = {
           resolved_plan: string | null
           resolved_seller_label: string | null
           resolved_seller_user_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           sale_month: string
+          source: string
           status: Database["public"]["Enums"]["commission_conversion_status"]
+          stripe_conversion_id: string | null
           updated_at: string
         }
         Insert: {
@@ -920,9 +961,11 @@ export type Database = {
           gateway?: string | null
           id?: string
           import_id?: string | null
+          manually_reviewed?: boolean
           mrr?: number
           offer_name?: string | null
           origem_cliente?: string | null
+          override_fields?: string[]
           payment_month: string
           price_id?: string | null
           recurrence_days?: number | null
@@ -932,8 +975,12 @@ export type Database = {
           resolved_plan?: string | null
           resolved_seller_label?: string | null
           resolved_seller_user_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           sale_month: string
+          source?: string
           status?: Database["public"]["Enums"]["commission_conversion_status"]
+          stripe_conversion_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -946,9 +993,11 @@ export type Database = {
           gateway?: string | null
           id?: string
           import_id?: string | null
+          manually_reviewed?: boolean
           mrr?: number
           offer_name?: string | null
           origem_cliente?: string | null
+          override_fields?: string[]
           payment_month?: string
           price_id?: string | null
           recurrence_days?: number | null
@@ -958,8 +1007,12 @@ export type Database = {
           resolved_plan?: string | null
           resolved_seller_label?: string | null
           resolved_seller_user_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           sale_month?: string
+          source?: string
           status?: Database["public"]["Enums"]["commission_conversion_status"]
+          stripe_conversion_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -968,6 +1021,13 @@ export type Database = {
             columns: ["import_id"]
             isOneToOne: false
             referencedRelation: "commission_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_conversions_stripe_conversion_id_fkey"
+            columns: ["stripe_conversion_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_conversions"
             referencedColumns: ["id"]
           },
         ]
@@ -3103,6 +3163,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_commission_from_stripe: {
+        Args: { p_stripe_id: string }
+        Returns: string
+      }
+      apply_commissions_from_stripe_range: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       calculate_discount: {
         Args: {
           p_base_price: number

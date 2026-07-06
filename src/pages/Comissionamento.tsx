@@ -10,10 +10,19 @@ import { ComissionamentoConversions } from "@/components/comissionamento/Comissi
 import { ComissionamentoImport } from "@/components/comissionamento/ComissionamentoImport";
 import { ComissionamentoReference } from "@/components/comissionamento/ComissionamentoReference";
 import { ComissionamentoPriceMap } from "@/components/comissionamento/ComissionamentoPriceMap";
+import { ComissionamentoStripeSync } from "@/components/comissionamento/ComissionamentoStripeSync";
+
+export type ConversionSource = "stripe" | "manual" | "import";
 
 export interface ConversionRow {
   id: string;
   import_id: string | null;
+  source: ConversionSource;
+  stripe_conversion_id: string | null;
+  manually_reviewed: boolean;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  override_fields: string[];
   sale_month: string;
   payment_month: string;
   customer_name: string | null;
@@ -56,7 +65,7 @@ export default function Comissionamento() {
       supabase
         .from("commission_conversions")
         .select(
-          "id, import_id, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, commission_pct, commission_amount, status",
+          "id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, commission_pct, commission_amount, status",
         )
         .order("sale_month", { ascending: false })
         .limit(5000),
@@ -88,9 +97,10 @@ export default function Comissionamento() {
         </div>
 
         <Tabs defaultValue="overview">
-          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-5 sm:inline-flex">
+          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-6 sm:inline-flex">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="conversions">Conversões</TabsTrigger>
+            {isAdmin && <TabsTrigger value="stripe">Stripe</TabsTrigger>}
             {isAdmin && <TabsTrigger value="import">Importar</TabsTrigger>}
             {isAdmin && <TabsTrigger value="reference">Referência</TabsTrigger>}
             {isAdmin && <TabsTrigger value="pricemap">Mapa de Preços</TabsTrigger>}
@@ -115,6 +125,12 @@ export default function Comissionamento() {
               onChanged={fetchAll}
             />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="stripe">
+              <ComissionamentoStripeSync onDone={fetchAll} />
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="import">

@@ -3,12 +3,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Lock, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   PAYMENT_TYPES,
@@ -30,7 +32,9 @@ interface Props {
 
 export function ManualConversionDialog({ reference, profiles, existing, onClose, onSaved }: Props) {
   const { toast } = useToast();
+  const { session } = useAuth();
   const isEdit = !!existing;
+  const isStripe = existing?.source === "stripe";
   const today = new Date();
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
@@ -53,6 +57,7 @@ export function ManualConversionDialog({ reference, profiles, existing, onClose,
   const [sellerUserId, setSellerUserId] = useState<string>(existing?.resolved_seller_user_id || "");
   const [sellerLabel, setSellerLabel] = useState(existing?.resolved_seller_label || "");
   const [offerName, setOfferName] = useState(existing?.offer_name || "");
+  const [markReviewed, setMarkReviewed] = useState<boolean>(existing?.manually_reviewed ?? isStripe);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
@@ -113,14 +118,68 @@ export function ManualConversionDialog({ reference, profiles, existing, onClose,
       status: (ref ? "calculated" : "pending_mapping") as "calculated" | "pending_mapping",
     };
 
+    // Compute which fields changed vs the existing row (for override_fields + audit diff)
+    const changedFields: string[] = [];
+    const diff: Record<string, { from: unknown; to: unknown }> = {};
+    if (existing) {
+      const compare: Array<[keyof typeof payload, unknown]> = [
+        ["sale_month", existing.sale_month],
+        ["payment_month", existing.payment_month],
+        ["mrr", Number(existing.mrr || 0)],
+        ["resolved_plan", existing.resolved_plan],
+        ["resolved_payment_type", existing.resolved_payment_type],
+        ["resolved_seller_user_id", existing.resolved_seller_user_id],
+        ["resolved_seller_label", existing.resolved_seller_label],
+        ["commission_pct", Number(existing.commission_pct || 0)],
+        ["commission_amount", Number(existing.commission_amount || 0)],
+        ["status", existing.status],
+      ];
+      for (const [key, prev] of compare) {
+        const next = (payload as Record<string, unknown>)[key as string];
+        if (String(prev ?? "") !== String(next ?? "")) {
+          changedFields.push(key as string);
+          diff[key as string] = { from: prev, to: next };
+        }
+      }
+    }
+
+    const reviewPayload = markReviewed
+      ? {
+          manually_reviewed: true,
+          reviewed_by: session?.user?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+          override_fields: Array.from(
+            new Set([...(existing?.override_fields ?? []), ...changedFields])
+          ),
+        }
+      : {
+          manually_reviewed: false,
+          reviewed_by: null,
+          reviewed_at: null,
+          override_fields: [] as string[],
+        };
+
     const { error } = isEdit
-      ? await supabase.from("commission_conversions").update(payload).eq("id", existing!.id)
+      ? await supabase
+          .from("commission_conversions")
+          .update({ ...payload, ...reviewPayload })
+          .eq("id", existing!.id)
       : await supabase.from("commission_conversions").insert([{
           ...payload,
           import_id: null,
           price_id: null,
           origem_cliente: "manual",
+          source: "manual",
         }]);
+
+    if (!error && isEdit && changedFields.length > 0) {
+      await supabase.from("commission_conversion_edits").insert({
+        conversion_id: existing!.id,
+        edited_by: session?.user?.id ?? null,
+        action: "update",
+        diff: diff as unknown as Record<string, unknown>,
+      });
+    }
 
     setSaving(false);
     if (error) {
