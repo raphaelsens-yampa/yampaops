@@ -311,6 +311,30 @@ export function ManualConversionDialog({ reference, profiles, existing, onClose,
                 : "Sem regra ativa em Referência — será marcada como pendente."}
             </div>
           </div>
+
+          {isEdit && (
+            <div className="rounded-md border p-3 flex items-start gap-3">
+              <Lock className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="review-lock" className="text-sm font-medium cursor-pointer">
+                    Marcar como revisada manualmente (trava recálculo)
+                  </Label>
+                  <Switch id="review-lock" checked={markReviewed} onCheckedChange={setMarkReviewed} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isStripe
+                    ? "Esta comissão veio do Stripe e é recalculada automaticamente. Ative para preservar os campos que você alterar contra o próximo recálculo."
+                    : "Trava esta linha para que futuras rotinas de recálculo (ex.: reprocessamento em massa) preservem os campos alterados."}
+                </p>
+                {markReviewed && existing?.override_fields && existing.override_fields.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Já travados: <span className="font-mono">{existing.override_fields.join(", ")}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter className="flex sm:justify-between gap-2">
           {isEdit ? (
