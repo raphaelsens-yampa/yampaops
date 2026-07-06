@@ -57,6 +57,12 @@ export function MapStripePriceButton({
   const target: ConversionRow = {
     id: "__stripe_pending__",
     import_id: null,
+    source: "manual",
+    stripe_conversion_id: null,
+    manually_reviewed: false,
+    reviewed_by: null,
+    reviewed_at: null,
+    override_fields: [],
     sale_month: new Date().toISOString().slice(0, 10),
     payment_month: new Date().toISOString().slice(0, 10),
     customer_name: customer_name || customer_email || "—",

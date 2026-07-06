@@ -5,11 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BRL, PAYMENT_TYPE_LABEL, parseDateOnly, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin, Plus, Pencil } from "lucide-react";
+import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
 import { ManualConversionDialog } from "./ManualConversionDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   conversions: ConversionRow[];
@@ -21,9 +24,12 @@ interface Props {
 }
 
 export function ComissionamentoConversions({ conversions, profiles, priceMap, reference, isAdmin, onChanged }: Props) {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [reviewFilter, setReviewFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
@@ -43,6 +49,9 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     const q = search.toLowerCase().trim();
     return conversions.filter((c) => {
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (sourceFilter !== "all" && (c.source || "manual") !== sourceFilter) return false;
+      if (reviewFilter === "locked" && !c.manually_reviewed) return false;
+      if (reviewFilter === "auto" && c.manually_reviewed) return false;
       if (sellerFilter !== "all") {
         const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
         if (key !== sellerFilter) return false;
@@ -53,7 +62,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       }
       return true;
     });
-  }, [conversions, search, statusFilter, sellerFilter]);
+  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter]);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
@@ -69,6 +78,27 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     }
     return c.resolved_seller_label || "—";
   };
+
+  const sourceBadge = (src: ConversionRow["source"]) => {
+    if (src === "stripe") return <Badge variant="default" className="gap-1"><Zap className="h-3 w-3" />Stripe</Badge>;
+    if (src === "import") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Import</Badge>;
+    return <Badge variant="outline" className="gap-1"><User className="h-3 w-3" />Manual</Badge>;
+  };
+
+  const unlockReview = async (c: ConversionRow) => {
+    if (!confirm("Destravar recálculo automático desta comissão? Os valores serão recalculados a partir do Stripe no próximo processamento.")) return;
+    const { error } = await supabase
+      .from("commission_conversions")
+      .update({ manually_reviewed: false, override_fields: [], reviewed_by: null, reviewed_at: null })
+      .eq("id", c.id);
+    if (error) {
+      toast({ title: "Erro ao destravar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Recálculo destravado" });
+    onChanged();
+  };
+
 
   return (
     <Card className="mt-4">
@@ -95,6 +125,23 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               <SelectItem value="ignored">Ignorado</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas origens</SelectItem>
+              <SelectItem value="stripe">Stripe</SelectItem>
+              <SelectItem value="import">Importado</SelectItem>
+              <SelectItem value="manual">Manual</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={reviewFilter} onValueChange={setReviewFilter}>
+            <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas revisões</SelectItem>
+              <SelectItem value="locked">Revisadas (travadas)</SelectItem>
+              <SelectItem value="auto">Automáticas</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={sellerFilter} onValueChange={setSellerFilter}>
             <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -115,6 +162,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="text-left">Origem</TableHead>
               <TableHead className="text-left">Mês Venda</TableHead>
               <TableHead className="text-left">Mês Pagto</TableHead>
               <TableHead className="text-left">Cliente</TableHead>
@@ -130,13 +178,36 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                   Nenhuma conversão encontrada.
                 </TableCell>
               </TableRow>
             )}
             {filtered.slice(0, 500).map((c) => (
-              <TableRow key={c.id}>
+              <TableRow key={c.id} className={c.manually_reviewed ? "bg-amber-50/50 dark:bg-amber-950/10" : undefined}>
+                <TableCell className="text-left">
+                  <div className="flex items-center gap-1">
+                    {sourceBadge(c.source || "manual")}
+                    {c.manually_reviewed && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Lock className="h-3.5 w-3.5 text-amber-600" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <div className="text-xs">
+                              Revisada manualmente
+                              {c.reviewed_at && ` em ${new Date(c.reviewed_at).toLocaleString("pt-BR")}`}
+                              {c.override_fields?.length > 0 && (
+                                <div className="mt-1">Campos travados: {c.override_fields.join(", ")}</div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-left">{fmtMonth(c.sale_month)}</TableCell>
                 <TableCell className="text-left">{fmtMonth(c.payment_month)}</TableCell>
                 <TableCell className="text-left">
@@ -173,6 +244,11 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                     {isAdmin && (
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditTarget(c)} title="Editar">
                         <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {isAdmin && c.manually_reviewed && c.source === "stripe" && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => unlockReview(c)} title="Destravar recálculo">
+                        <Unlock className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>

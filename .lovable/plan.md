@@ -1,78 +1,141 @@
 ## Objetivo
 
-Toda vez que uma conversa do Chatwoot for criada/atualizada, anexar uma nota no contato correspondente do ActiveCampaign com o link da conversa. Matching por **email** (chave primária) e **telefone** (fallback). Sem match → loga em `integration_sync_errors`, sem criar contato.
+Fazer a tela **Comissionamento** usar a mesma inteligência de apuração do Stripe que **Metas** e **Conversões por Área** já usam (`stripe_conversions` + `commission_price_map` + `resolve_stripe_seller`), gerando comissões automaticamente. Permitir revisão manual travando o recálculo e manter o fluxo de importação CSV atual convivendo sem conflito.
 
-## Como funciona
+## Como está hoje (resumo)
 
-**Formato da nota anexada no AC** (uma por conversa, em modo append):
-```
-[Chatwoot] Conv #1234 — 30/06/2026 14:32
-https://app.chatwoot.com/app/accounts/1/conversations/1234
-Status: open · Tabulação: qualificado
-```
+- **Metas / Conversões por área** consomem `stripe_conversions`, populado pelo webhook do Stripe com MRR normalizado, área/vendedor via `commission_price_map` e `resolve_stripe_seller`.
+- **Comissionamento** hoje vive num universo paralelo (`commission_conversions`) alimentado só por CSV/entrada manual. Não lê `stripe_conversions`. Não tem trava de revisão. Não tem dedup.
+- Os dois sistemas não se cruzam.
 
-Para evitar duplicar a mesma nota em re-syncs, guardamos em uma tabela de controle `chatwoot_ac_note_links (conversation_id, ac_contact_id, ac_note_id, synced_at)` — se já existir registro para a conversa+contato, fazemos **UPDATE** da nota em vez de criar nova.
+## O que muda
 
-## Componentes
+### 1. `commission_conversions` passa a ter origem explícita e trava de revisão
 
-### 1. Tabela de controle (migration)
-`chatwoot_ac_note_links` — vincula conversa Chatwoot ↔ nota no AC para idempotência.
-- chatwoot_conversation_id (bigint)
-- ac_contact_id (text)
-- ac_note_id (text)
-- match_method ('email' | 'phone')
-- last_synced_at
-- UNIQUE (chatwoot_conversation_id, ac_contact_id)
+Alterações de schema (migração):
 
-### 2. Edge function `chatwoot-to-ac-sync`
-Recebe `{ conversation_id }`, faz:
-1. Lê conversa de `chatwoot_conversations` (+ `chatwoot_contacts` para emails/telefones adicionais).
-2. Procura contato no AC: `GET /api/3/contacts?email=...` → se não achar, `?filters[phone]=...`.
-3. Sem match → grava `integration_sync_errors` (entity_type='chatwoot_ac_note', motivo) e retorna.
-4. Com match → monta texto da nota; se já existe registro em `chatwoot_ac_note_links` para essa conv+contato, faz `PUT /api/3/notes/{id}`; senão `POST /api/3/notes` (relType=Contact) e grava o id.
-5. Atualiza `last_synced_at`.
+- Adicionar colunas em `commission_conversions`:
+  - `source text NOT NULL DEFAULT 'manual'` — valores: `stripe` | `manual` | `import`.
+  - `stripe_conversion_id uuid NULL REFERENCES stripe_conversions(id) ON DELETE SET NULL`.
+  - `manually_reviewed boolean NOT NULL DEFAULT false` — trava o recálculo automático.
+  - `reviewed_by uuid NULL REFERENCES auth.users(id)`, `reviewed_at timestamptz NULL`.
+  - `override_fields text[] NOT NULL DEFAULT '{}'` — lista dos campos travados (ex.: `{seller,mrr,commission_pct}`).
+- Backfill: linhas existentes viram `source='import'` se `import_id IS NOT NULL`, senão `source='manual'`.
+- Índice único parcial: `UNIQUE (stripe_conversion_id) WHERE source='stripe'` — garante uma comissão automática por conversão Stripe.
+- GRANTs mantidos; RLS existente cobre as novas colunas.
 
-Usa secrets já existentes `AC_API_URL` e `AC_API_KEY`.
+Nova tabela de auditoria de edição manual:
 
-### 3. Trigger automático
-No `chatwoot-webhook` (já existe), após upsert da conversa em eventos `conversation_created`, `conversation_updated`, `conversation_status_changed`, fazer fire-and-forget chamando `chatwoot-to-ac-sync`.
+- `commission_conversion_edits` (id, conversion_id FK, edited_by, edited_at, diff jsonb) — mesma ideia do audit-trail que `stripe-update-conversion` já faz em `integration_sync_errors`.
 
-### 4. UI na seção Integração
-Nova página `src/pages/ChatwootAcIntegration.tsx` (rota `/integracao/chatwoot-ac`) com:
-- **Status**: total de conversas, quantas sincronizadas, quantas sem match.
-- **Backfill**: botão "Sincronizar últimas N conversas" (input N, padrão 100) → chama edge function `chatwoot-ac-backfill` que itera por `chatwoot_conversations` ordenadas por `last_message_at` e invoca `chatwoot-to-ac-sync` para cada.
-- **Re-sync individual**: input com conversation_id + botão.
-- **Erros recentes**: tabela lendo `integration_sync_errors` filtrando `entity_type='chatwoot_ac_note'`.
-- **Tabela de links recentes**: últimos 20 de `chatwoot_ac_note_links` com link pro AC e pro Chatwoot.
+### 2. Apuração automática a partir do Stripe
 
-Acesso restrito a admin (segue padrão da `ChatwootIntegration.tsx`).
+Nova Edge Function `commissions-apply-stripe` (assíncrona, `verify_jwt=true`, admin-only) que:
 
-### 5. Entry no menu lateral
-Adicionar item "Chatwoot ↔ AC" sob a seção Integrações no `AppSidebar.tsx`.
+1. Lê `stripe_conversions` num intervalo (`from`, `to`, default: últimos 90 dias) ou por `id` específico.
+2. Para cada linha:
+   - Resolve regra em `commission_reference` via `commission_price_map` (`stripe_price_id` → `plan_name` + `payment_type`).
+   - Vendedor = `stripe_conversions.assigned_seller_id` (fallback: `commission_price_map.seller_user_id`).
+   - MRR = `stripe_conversions.mrr` (já normalizado pelo webhook).
+   - `commission_pct` = `av_pct` se `payment_type='anual_avista'`, senão `commission_pct`.
+   - `commission_amount = mrr × pct`.
+   - `sale_month` = `date_trunc('month', converted_at)`.
+   - `payment_month` = `sale_month + t_plus_months` (usa `commission_settings`, mesmo padrão do trigger antigo).
+3. Upsert em `commission_conversions` por `stripe_conversion_id`:
+   - Se linha não existe → INSERT com `source='stripe'`.
+   - Se existe e `manually_reviewed=false` → UPDATE todos os campos calculados.
+   - Se existe e `manually_reviewed=true` → **não** sobrescreve campos em `override_fields`; recalcula só o restante. Marca `recalc_skipped_reason='manual_review'` num log.
+   - Se `commission_price_map` não mapeia → grava com `status='pending_mapping'`, `commission_amount=0`.
+   - Se `requires_commission=false` no mapa → `status='calculated'`, `commission_amount=0`.
+4. Retorna resumo (inserted, updated, skipped, pending_mapping).
+
+Gatilho automático: função Postgres `apply_commission_from_stripe(conversion_id uuid)` disparada por trigger `AFTER INSERT OR UPDATE OF mrr, converted_at, assigned_seller_id, stripe_price_id ON stripe_conversions` — reaproveita a mesma lógica (versão SQL da Edge Function para os casos triviais; a Edge cobre backfill em lote).
+
+Assim: **toda conversão Stripe nova/atualizada gera ou atualiza automaticamente a comissão correspondente**, respeitando a trava manual.
+
+### 3. Convivência das três origens sem conflito
+
+- **`source='stripe'`**: gerada pelo trigger/Edge acima. Chave: `stripe_conversion_id`.
+- **`source='import'`**: CSV atual continua igual. Chave: `import_id` + linha. **Nunca** disputa `stripe_conversion_id` (fica NULL). O CSV é usado só para o que não vem do Stripe (planos legados, comissões avulsas, correções de meses fechados).
+- **`source='manual'`**: entrada avulsa via `ManualConversionDialog`. Também com `stripe_conversion_id=NULL`.
+
+Regras de UI/backend para evitar duplicidade percebida:
+
+- No `Overview` e `Conversões`, adicionar filtro/badge por `source` (Stripe / Manual / Importado CSV).
+- No importador CSV: avisar (banner amarelo) quando uma linha do CSV cair num `customer_email + sale_month` que já tem `source='stripe'`. Não bloquear — apenas marcar `origem_cliente='ajuste_manual'` para o auditor.
+
+### 4. Revisão manual com trava
+
+Alterações na UI:
+
+- `ManualConversionDialog` (modo edit): adicionar switch **"Marcar como revisada manualmente (trava recálculo)"**. Quando ativado:
+  - `manually_reviewed=true`, `reviewed_by=auth.uid()`, `reviewed_at=now()`.
+  - `override_fields` = lista dos campos alterados nesta edição (detectados por diff).
+- Nova ação **"Destravar recálculo"** na tabela (admin) → limpa `manually_reviewed` e `override_fields`, reaplica cálculo automático no próximo run.
+- Toda edição grava linha em `commission_conversion_edits` com diff.
+- Badge visual: linhas travadas ganham ícone de cadeado + tooltip "Editado manualmente por X em Y".
+
+### 5. Tela de Comissionamento
+
+Ajustes em `src/pages/Comissionamento.tsx` e componentes:
+
+- Nova aba/seção **"Sincronizar do Stripe"** (admin), com:
+  - Range de datas (`converted_at`).
+  - Botão "Recalcular agora" → chama `commissions-apply-stripe`.
+  - Progress + resumo (inserted/updated/skipped/pending).
+- Aba `Conversões` (`ComissionamentoConversions`):
+  - Nova coluna **Origem** (Stripe / CSV / Manual) com filtro.
+  - Nova coluna **Revisão** (ícone cadeado se travada).
+  - Botão "Ver no Stripe" (link para `/insights/conversions?id=…`) quando `source='stripe'`.
+- Aba `Visão Geral` (`ComissionamentoOverview`): breakdown por origem.
+- Aba `Importar`: mantém CSV atual; adiciona aviso de sobreposição com Stripe (item 3).
+- Aba `Referência` e `Mapa de Preços`: sem mudança funcional; ganham indicador de "quantas conversões Stripe estão pendentes de mapeamento".
+
+### 6. Consistência com Metas
+
+Não há mudança em `stripe_conversions`, `resolve_stripe_seller`, `classify_stripe_conversion`, nem em `GoalsTracking`. Comissionamento passa a ser **derivado** da mesma fonte que Metas — quando um vendedor é reatribuído em `stripe_conversions` (via `stripe-update-conversion`), o trigger recalcula a comissão automaticamente (respeitando trava).
 
 ## Detalhes técnicos
 
-- **Idempotência**: chave `(chatwoot_conversation_id, ac_contact_id)`. Re-rodar não duplica notas.
-- **Match telefone**: usa `normalize_phone_digits()` (já existe). AC armazena com formatação variável; filtramos por sufixo de 11 dígitos via `filters[phone]`.
-- **Múltiplos contatos AC com mesmo email**: pega o primeiro (AC permite duplicatas raramente; loga aviso se >1).
-- **Rate limit AC**: 5 req/s. No backfill, throttle de 200ms entre chamadas.
-- **Fallback assíncrono**: o webhook não bloqueia esperando AC; invoca a function com `supabase.functions.invoke` sem await em try/catch separado.
+**Migrações (schema only):**
+1. Colunas novas + índice único parcial em `commission_conversions`.
+2. Tabela `commission_conversion_edits` + RLS (admin RW, seller SELECT own).
+3. Função SQL `public.apply_commission_from_stripe(uuid)` (SECURITY DEFINER) + trigger em `stripe_conversions`.
+4. Backfill: `UPDATE commission_conversions SET source = CASE WHEN import_id IS NOT NULL THEN 'import' ELSE 'manual' END`.
 
-## Arquivos a criar/editar
+**Edge Function `commissions-apply-stripe`:**
+- `supabase/functions/commissions-apply-stripe/index.ts`.
+- Verifica JWT + `has_role(uid, 'admin')`.
+- Faz o loop em lotes de 500 conversões Stripe. Reusa mesma lógica de `resolveRow` (porta o cálculo para SQL/TS server-side).
+- `config.toml`: função nova com `verify_jwt = true` (default; sem override).
 
-**Criar:**
-- `supabase/migrations/<ts>_chatwoot_ac_note_links.sql`
-- `supabase/functions/chatwoot-to-ac-sync/index.ts`
-- `supabase/functions/chatwoot-ac-backfill/index.ts`
-- `src/pages/ChatwootAcIntegration.tsx`
+**Front:**
+- `src/lib/commissioning.ts`: extrair `calcCommissionFromStripeRow()` reutilizável e testável.
+- `src/components/comissionamento/ComissionamentoConversions.tsx`: coluna Origem, filtro, badge de trava, ação destravar.
+- `src/components/comissionamento/ManualConversionDialog.tsx`: switch de revisão + captura de `override_fields`.
+- Nova aba `ComissionamentoStripeSync.tsx` chamando a Edge Function.
+- `src/components/comissionamento/ComissionamentoOverview.tsx`: card "Por origem".
 
-**Editar:**
-- `supabase/functions/chatwoot-webhook/index.ts` (disparar sync após upsert)
-- `supabase/config.toml` (registrar 2 functions com `verify_jwt = false` se necessário — backfill protegido via JWT, sync interno via service role)
-- `src/App.tsx` (rota nova)
-- `src/components/AppSidebar.tsx` (link de menu)
+**Fluxo de dados (ASCII):**
 
-## Fora de escopo
-- Criar contato novo no AC quando não houver match (você optou por ignorar+logar).
-- Sincronizar mensagens individuais — só o link da conversa.
-- Sync reverso (AC → Chatwoot).
+```text
+Stripe webhook ──► stripe_conversions ──► trigger apply_commission_from_stripe
+                                             │
+                                             ├─► INSERT/UPDATE commission_conversions (source='stripe')
+                                             │       └─► respeita manually_reviewed + override_fields
+                                             │
+CSV Import   ──► commission_imports ─────────┼─► INSERT commission_conversions (source='import', stripe_conversion_id=NULL)
+                                             │
+Entrada UI   ─────────────────────────────────┴─► INSERT commission_conversions (source='manual', stripe_conversion_id=NULL)
+
+Edição UI ──► ManualConversionDialog ──► UPDATE commission_conversions + INSERT commission_conversion_edits
+                                             └─► se "revisada manualmente" → manually_reviewed=true, override_fields=[…]
+```
+
+**Não muda:** trigger `generate_commission_on_won`, tabela legada `commissions`, página `/commissions`, tabelas de goals, `stripe_conversions` schema.
+
+## O que fica fora deste plano
+
+- Aplicação de `commission_triggers` (bônus por meta) — segue sem uso, como hoje.
+- Deprecar o sistema legado `commissions` / `/commissions` — decisão separada.
+- Mudanças em `GoalsTracking` ou `StripeConversions`.
