@@ -51,6 +51,7 @@ import OnePageDiretoria from "./pages/OnePageDiretoria";
 import PropostaPublica from "./pages/PropostaPublica";
 
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 import { RequireArea } from "./components/AccessDenied";
 import { CohortSyncProvider } from "./contexts/CohortSyncContext";
 import { GlobalCohortSyncBanner } from "./components/GlobalCohortSyncBanner";
@@ -138,6 +139,7 @@ function AppRoutes() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/one-page-diretoria" element={<OnePageDiretoria />} />
       <Route path="/relatorio" element={<OnePageDiretoria />} />
+      <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
