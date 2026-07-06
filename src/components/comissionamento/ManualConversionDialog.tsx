@@ -177,7 +177,7 @@ export function ManualConversionDialog({ reference, profiles, existing, onClose,
         conversion_id: existing!.id,
         edited_by: session?.user?.id ?? null,
         action: "update",
-        diff: diff as unknown as Record<string, unknown>,
+        diff: JSON.parse(JSON.stringify(diff)),
       });
     }
 
