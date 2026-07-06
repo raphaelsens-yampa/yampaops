@@ -121,6 +121,7 @@ export function ComissionamentoImport({ priceMap, reference, onImported }: Props
 
     const payload = parsed.map((p) => ({
       import_id: importRow.id,
+      source: "import" as const,
       sale_month: toDateOnly(saleMonth),
       payment_month: toDateOnly(paymentMonth),
       company_id: p.company_id,
