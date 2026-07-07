@@ -28,6 +28,9 @@ export default function CommissionSettings() {
         setGuaranteeMonths(data.guarantee_months.toString());
         setPaymentDay(data.payment_day.toString());
         setTPlusMonths(data.t_plus_months.toString());
+        if ((data as any).reactivation_gap_months != null) {
+          setReactivationGapMonths(String((data as any).reactivation_gap_months));
+        }
       }
       setLoading(false);
     })();
@@ -40,7 +43,8 @@ export default function CommissionSettings() {
       guarantee_months: Number(guaranteeMonths),
       payment_day: Number(paymentDay),
       t_plus_months: Number(tPlusMonths),
-    }).eq("id", settingsId);
+      reactivation_gap_months: Number(reactivationGapMonths),
+    } as any).eq("id", settingsId);
     setSaving(false);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
