@@ -102,6 +102,7 @@ function presetRange(key: string): { start: string; end: string } {
 
 export default function StripeConversions() {
   const { role } = useAuth();
+  const { toast } = useToast();
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   const [periodPreset, setPeriodPreset] = useState("last_90");
