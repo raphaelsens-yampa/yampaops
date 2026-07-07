@@ -110,6 +110,8 @@ export default function StripeConversions() {
   const [areaFilter, setAreaFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all"); // all | none
+  const [reactivationOnly, setReactivationOnly] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
 
   function changePreset(p: string) {
