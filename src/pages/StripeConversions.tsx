@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PieChart as PieChartIcon, Download, Pencil } from "lucide-react";
+import { PieChart as PieChartIcon, Download, Pencil, RefreshCw, RotateCcw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import {
@@ -59,6 +60,8 @@ interface Conversion {
   delta_mrr: number;
   assigned_seller_id: string | null;
   attribution_source: string | null;
+  is_reactivation: boolean | null;
+  previous_churn_at: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -99,6 +102,7 @@ function presetRange(key: string): { start: string; end: string } {
 
 export default function StripeConversions() {
   const { role } = useAuth();
+  const { toast } = useToast();
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   const [periodPreset, setPeriodPreset] = useState("last_90");
@@ -108,6 +112,8 @@ export default function StripeConversions() {
   const [areaFilter, setAreaFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all"); // all | none
+  const [reactivationOnly, setReactivationOnly] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
 
   function changePreset(p: string) {
@@ -116,11 +122,11 @@ export default function StripeConversions() {
   }
 
   const { data: rows = [], isLoading, refetch } = useQuery({
-    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter],
+    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter, reactivationOnly],
     queryFn: async () => {
       let q = supabase
         .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source")
+        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
         .order("converted_at", { ascending: false });
@@ -130,6 +136,7 @@ export default function StripeConversions() {
       if (areaFilter !== "all") q = q.eq("area", areaFilter);
       if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
       if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
+      if (reactivationOnly) q = q.eq("is_reactivation", true);
       const { data, error } = await q.limit(5000);
       if (error) throw error;
       return (data || []) as Conversion[];
@@ -169,8 +176,29 @@ export default function StripeConversions() {
       .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
     const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
-    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount };
+    const reactivationCount = rows.filter(r => r.is_reactivation).length;
+    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount, reactivationCount };
   }, [rows]);
+
+  async function handleReprocessReactivations() {
+    if (!confirm(`Reprocessar reativações no período ${period.start} → ${period.end}?`)) return;
+    setReprocessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-backfill-reactivations", {
+        body: { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, limit: 2000 },
+      });
+      if (error) throw error;
+      toast({
+        title: "Reprocessamento concluído",
+        description: `Analisadas ${data?.scanned ?? 0} conversões · ${data?.marked ?? 0} marcadas como reativação`,
+      });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReprocessing(false);
+    }
+  }
 
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
@@ -283,18 +311,26 @@ export default function StripeConversions() {
             </h1>
             <p className="text-sm text-muted-foreground">Acompanhamento de todas as conversões pagas vindas do Stripe, classificadas por área do produto.</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={!rows.length}>
-                <Download className="h-4 w-4 mr-2" /> Exportar
+          <div className="flex items-center gap-2">
+            {role === "admin" && (
+              <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
+                {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                Reprocessar reativações
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportCSV}>CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={exportXLSX}>Excel (XLSX)</DropdownMenuItem>
-              <DropdownMenuItem onClick={exportPDF}>PDF</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={!rows.length}>
+                  <Download className="h-4 w-4 mr-2" /> Exportar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportCSV}>CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportXLSX}>Excel (XLSX)</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportPDF}>PDF</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Filtros */}
@@ -361,6 +397,12 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={reactivationOnly} onChange={e => setReactivationOnly(e.target.checked)} />
+                  Somente reativações
+                </Label>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -371,8 +413,8 @@ export default function StripeConversions() {
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">MRR Total</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold">{fmtBRL(stats.ticketMedio)}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansion MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Reativações</p><p className="text-2xl font-bold">{stats.reactivationCount}</p><p className="text-[10px] text-muted-foreground">clientes que voltaram</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Sem vendedor</p><p className="text-2xl font-bold">{stats.noSellerCount}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Áreas ativas</p><p className="text-2xl font-bold">{stats.areasCount}</p></CardContent></Card>
         </div>
 
         {/* Gráficos */}
@@ -461,9 +503,20 @@ export default function StripeConversions() {
                       <TableCell>{fmtDate(r.converted_at)}</TableCell>
                       <TableCell className="text-muted-foreground">{fmtDate(r.registered_at)}</TableCell>
                       <TableCell>
-                        <Badge style={{ backgroundColor: TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new, color: "white" }}>
-                          {TYPE_LABEL[r.conversion_type] || r.conversion_type}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge style={{ backgroundColor: TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new, color: "white" }}>
+                            {TYPE_LABEL[r.conversion_type] || r.conversion_type}
+                          </Badge>
+                          {r.is_reactivation && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-amber-500 text-amber-700"
+                              title={r.previous_churn_at ? `Voltou após ${fmtDate(r.previous_churn_at)}` : "Cliente reativado"}
+                            >
+                              Reativação
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>

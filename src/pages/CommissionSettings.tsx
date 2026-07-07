@@ -18,6 +18,7 @@ export default function CommissionSettings() {
   const [guaranteeMonths, setGuaranteeMonths] = useState("3");
   const [paymentDay, setPaymentDay] = useState("10");
   const [tPlusMonths, setTPlusMonths] = useState("2");
+  const [reactivationGapMonths, setReactivationGapMonths] = useState("2");
 
   useEffect(() => {
     (async () => {
@@ -27,6 +28,9 @@ export default function CommissionSettings() {
         setGuaranteeMonths(data.guarantee_months.toString());
         setPaymentDay(data.payment_day.toString());
         setTPlusMonths(data.t_plus_months.toString());
+        if ((data as any).reactivation_gap_months != null) {
+          setReactivationGapMonths(String((data as any).reactivation_gap_months));
+        }
       }
       setLoading(false);
     })();
@@ -39,7 +43,8 @@ export default function CommissionSettings() {
       guarantee_months: Number(guaranteeMonths),
       payment_day: Number(paymentDay),
       t_plus_months: Number(tPlusMonths),
-    }).eq("id", settingsId);
+      reactivation_gap_months: Number(reactivationGapMonths),
+    } as any).eq("id", settingsId);
     setSaving(false);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -65,7 +70,7 @@ export default function CommissionSettings() {
               <div className="text-center py-6 text-muted-foreground">Carregando...</div>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <Label>Meses de Garantia (Clawback)</Label>
                     <Input type="number" value={guaranteeMonths} onChange={(e) => setGuaranteeMonths(e.target.value)} min="0" />
@@ -80,6 +85,11 @@ export default function CommissionSettings() {
                     <Label>T+ (Meses)</Label>
                     <Input type="number" value={tPlusMonths} onChange={(e) => setTPlusMonths(e.target.value)} min="0" />
                     <p className="text-xs text-muted-foreground mt-1">Meses após a venda para pagamento</p>
+                  </div>
+                  <div>
+                    <Label>Gap p/ Reativação (meses)</Label>
+                    <Input type="number" value={reactivationGapMonths} onChange={(e) => setReactivationGapMonths(e.target.value)} min="1" max="24" />
+                    <p className="text-xs text-muted-foreground mt-1">Cliente que voltou após esse gap conta como nova venda</p>
                   </div>
                 </div>
                 <Button onClick={handleSave} disabled={saving}>

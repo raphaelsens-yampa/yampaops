@@ -374,6 +374,69 @@ Deno.serve(async (req) => {
     console.error("classify_stripe_conversion failed:", err);
   }
 
+  // ─── Detecção de reativação (cliente cancelou e voltou) ───
+  // Combina 2 sinais: subscription anterior com status=canceled OU gap >= N meses
+  // desde a última invoice.paid anterior à conversão atual.
+  // Quando reativação é detectada, força conversion_type='new' para entrar como nova venda.
+  let isReactivation = false;
+  let previousChurnAt: string | null = null;
+  if (customerId && finalConvertedAt) {
+    try {
+      const { data: settingsRow } = await supabase
+        .from("commission_settings")
+        .select("reactivation_gap_months")
+        .limit(1)
+        .maybeSingle();
+      const gapMonths = Number((settingsRow as any)?.reactivation_gap_months ?? 2);
+      const convTs = new Date(finalConvertedAt).getTime();
+
+      // Sinal 1: subscription cancelada anterior à conversão atual
+      let canceledEndedAtMs: number | null = null;
+      const canceledSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "canceled",
+        limit: 10,
+      });
+      for (const sub of canceledSubs.data) {
+        if (subscriptionId && sub.id === subscriptionId) continue;
+        const ts = (sub.ended_at ?? sub.canceled_at ?? sub.created) * 1000;
+        if (ts < convTs && (canceledEndedAtMs === null || ts > canceledEndedAtMs)) {
+          canceledEndedAtMs = ts;
+        }
+      }
+
+      // Sinal 2: última invoice paga anterior à conversão atual
+      let lastPaidBeforeMs: number | null = null;
+      const paidInvoices = await stripe.invoices.list({
+        customer: customerId,
+        status: "paid",
+        limit: 100,
+      });
+      for (const inv of paidInvoices.data) {
+        const ts = (inv.status_transitions?.paid_at ?? inv.created) * 1000;
+        // < convTs por pelo menos 1 dia (evita contar a própria fatura atual)
+        if (ts < convTs - 86_400_000 && (lastPaidBeforeMs === null || ts > lastPaidBeforeMs)) {
+          lastPaidBeforeMs = ts;
+        }
+      }
+
+      const referenceMs = Math.max(canceledEndedAtMs ?? 0, lastPaidBeforeMs ?? 0) || null;
+      if (referenceMs) {
+        previousChurnAt = new Date(referenceMs).toISOString();
+        // Gap em meses (aproximado, 30.44 dias/mês)
+        const gapMs = convTs - referenceMs;
+        const gapMonthsActual = gapMs / (1000 * 60 * 60 * 24 * 30.44);
+        const hasCanceledSignal = canceledEndedAtMs !== null;
+        if ((hasCanceledSignal || lastPaidBeforeMs !== null) && gapMonthsActual >= gapMonths) {
+          isReactivation = true;
+          conversionType = "new"; // força nova venda
+        }
+      }
+    } catch (err) {
+      console.error("reactivation detection failed:", err);
+    }
+  }
+
   // ─── Resolução do vendedor (Chatwoot / campanhas / conversão anterior) ───
   let assignedSellerId: string | null = null;
   let attributionSource: string | null = null;
@@ -410,6 +473,8 @@ Deno.serve(async (req) => {
     previous_conversion_id: previousConversionId,
     assigned_seller_id: assignedSellerId,
     attribution_source: attributionSource,
+    is_reactivation: isReactivation,
+    previous_churn_at: previousChurnAt,
   };
 
   const conversionExists = !!existingRow;
@@ -468,14 +533,27 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Auditoria: reativação detectada (marcada como nova venda)
+  if (!conversionExists && isReactivation) {
+    await supabase.from("integration_sync_errors").insert({
+      entity_type: "stripe_reactivation_detected",
+      ac_id: subscriptionId || customerId || event.id,
+      error_message: `Reativação detectada: ${normEmail} voltou após churn em ${previousChurnAt}`,
+      payload: { event_id: event.id, customer_id: customerId, subscription_id: subscriptionId, price_id: priceId, previous_churn_at: previousChurnAt, converted_at: finalConvertedAt },
+      resolved: true,
+    });
+  }
+
   await supabase.from("stripe_events")
-    .update({ result: conversionExists ? `duplicate:${conversionType}` : `recorded:${conversionType}` })
+    .update({ result: conversionExists ? `duplicate:${conversionType}` : `recorded:${conversionType}${isReactivation ? ":reactivation" : ""}` })
     .eq("stripe_event_id", event.id);
 
   return ok({
     ok: true,
     recorded: !conversionExists,
     conversion_type: conversionType,
+    is_reactivation: isReactivation,
+    previous_churn_at: previousChurnAt,
     previous_mrr: previousMrr,
     delta_mrr: convMrr - previousMrr,
     assigned_seller_id: assignedSellerId,

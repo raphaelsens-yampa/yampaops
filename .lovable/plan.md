@@ -1,141 +1,81 @@
+
 ## Objetivo
 
-Fazer a tela **Comissionamento** usar a mesma inteligência de apuração do Stripe que **Metas** e **Conversões por Área** já usam (`stripe_conversions` + `commission_price_map` + `resolve_stripe_seller`), gerando comissões automaticamente. Permitir revisão manual travando o recálculo e manter o fluxo de importação CSV atual convivendo sem conflito.
+Distinguir **reativação** (cliente que cancelou e voltou depois de ≥ 2 meses) de **recorrência/upsell/downgrade** no webhook do Stripe, sem quebrar Metas nem Comissionamento.
 
-## Como está hoje (resumo)
+## Regra de negócio
 
-- **Metas / Conversões por área** consomem `stripe_conversions`, populado pelo webhook do Stripe com MRR normalizado, área/vendedor via `commission_price_map` e `resolve_stripe_seller`.
-- **Comissionamento** hoje vive num universo paralelo (`commission_conversions`) alimentado só por CSV/entrada manual. Não lê `stripe_conversions`. Não tem trava de revisão. Não tem dedup.
-- Os dois sistemas não se cruzam.
+Uma conversão é considerada **reativação (nova venda)** quando:
 
-## O que muda
+- Existe subscription anterior do mesmo customer com `status = canceled` (sinal explícito), **OU**
+- O gap entre a última `invoice.paid` do customer no Stripe e a nova conversão for **≥ 2 meses** (configurável).
 
-### 1. `commission_conversions` passa a ter origem explícita e trava de revisão
+Quando reativação é detectada, a conversão continua com `conversion_type = 'new'` (não quebra código atual), mas ganha duas marcações novas:
 
-Alterações de schema (migração):
+- `is_reactivation = true`
+- `previous_churn_at = <ended_at da sub cancelada OU data da última invoice paga>`
 
-- Adicionar colunas em `commission_conversions`:
-  - `source text NOT NULL DEFAULT 'manual'` — valores: `stripe` | `manual` | `import`.
-  - `stripe_conversion_id uuid NULL REFERENCES stripe_conversions(id) ON DELETE SET NULL`.
-  - `manually_reviewed boolean NOT NULL DEFAULT false` — trava o recálculo automático.
-  - `reviewed_by uuid NULL REFERENCES auth.users(id)`, `reviewed_at timestamptz NULL`.
-  - `override_fields text[] NOT NULL DEFAULT '{}'` — lista dos campos travados (ex.: `{seller,mrr,commission_pct}`).
-- Backfill: linhas existentes viram `source='import'` se `import_id IS NOT NULL`, senão `source='manual'`.
-- Índice único parcial: `UNIQUE (stripe_conversion_id) WHERE source='stripe'` — garante uma comissão automática por conversão Stripe.
-- GRANTs mantidos; RLS existente cobre as novas colunas.
+Assim, Metas e Comissionamento continuam tratando como "new" (que é o comportamento correto: nova comissão, entra no funil de nova venda), e ganhamos relatório "quantas das novas vendas do mês foram reativações".
 
-Nova tabela de auditoria de edição manual:
+## Mudanças de banco (migration)
 
-- `commission_conversion_edits` (id, conversion_id FK, edited_by, edited_at, diff jsonb) — mesma ideia do audit-trail que `stripe-update-conversion` já faz em `integration_sync_errors`.
+1. `ALTER TABLE public.stripe_conversions` — adicionar:
+   - `is_reactivation boolean NOT NULL DEFAULT false`
+   - `previous_churn_at timestamptz NULL`
 
-### 2. Apuração automática a partir do Stripe
+2. `ALTER TABLE public.commission_settings` — adicionar:
+   - `reactivation_gap_months int NOT NULL DEFAULT 2`
 
-Nova Edge Function `commissions-apply-stripe` (assíncrona, `verify_jwt=true`, admin-only) que:
+3. Atualizar `classify_stripe_conversion` para receber `p_reactivation_gap_months int` e retornar duas colunas adicionais: `is_reactivation boolean`, `previous_churn_at timestamptz`. Continua devolvendo `conversion_type = 'new'` no caso de reativação; apenas seta as flags.
 
-1. Lê `stripe_conversions` num intervalo (`from`, `to`, default: últimos 90 dias) ou por `id` específico.
-2. Para cada linha:
-   - Resolve regra em `commission_reference` via `commission_price_map` (`stripe_price_id` → `plan_name` + `payment_type`).
-   - Vendedor = `stripe_conversions.assigned_seller_id` (fallback: `commission_price_map.seller_user_id`).
-   - MRR = `stripe_conversions.mrr` (já normalizado pelo webhook).
-   - `commission_pct` = `av_pct` se `payment_type='anual_avista'`, senão `commission_pct`.
-   - `commission_amount = mrr × pct`.
-   - `sale_month` = `date_trunc('month', converted_at)`.
-   - `payment_month` = `sale_month + t_plus_months` (usa `commission_settings`, mesmo padrão do trigger antigo).
-3. Upsert em `commission_conversions` por `stripe_conversion_id`:
-   - Se linha não existe → INSERT com `source='stripe'`.
-   - Se existe e `manually_reviewed=false` → UPDATE todos os campos calculados.
-   - Se existe e `manually_reviewed=true` → **não** sobrescreve campos em `override_fields`; recalcula só o restante. Marca `recalc_skipped_reason='manual_review'` num log.
-   - Se `commission_price_map` não mapeia → grava com `status='pending_mapping'`, `commission_amount=0`.
-   - Se `requires_commission=false` no mapa → `status='calculated'`, `commission_amount=0`.
-4. Retorna resumo (inserted, updated, skipped, pending_mapping).
+## Mudanças no webhook `stripe-webhook`
 
-Gatilho automático: função Postgres `apply_commission_from_stripe(conversion_id uuid)` disparada por trigger `AFTER INSERT OR UPDATE OF mrr, converted_at, assigned_seller_id, stripe_price_id ON stripe_conversions` — reaproveita a mesma lógica (versão SQL da Edge Function para os casos triviais; a Edge cobre backfill em lote).
+Antes de chamar `classify_stripe_conversion`:
 
-Assim: **toda conversão Stripe nova/atualizada gera ou atualiza automaticamente a comissão correspondente**, respeitando a trava manual.
+- Buscar `stripe.subscriptions.list({ customer, status: 'canceled', limit: 5 })` — pegar `ended_at` mais recente.
+- Buscar `stripe.invoices.list({ customer, status: 'paid', limit: 100 })` — pegar `paid_at` mais recente **anterior** à conversão atual.
+- Calcular `previous_churn_at = max(subscription_canceled.ended_at, ultima_invoice_paid.paid_at)`.
+- Se existe qualquer um dos sinais **E** `(convertedAt - previous_churn_at) >= reactivation_gap_months meses`, marcar `is_reactivation = true`.
 
-### 3. Convivência das três origens sem conflito
+Passar esses valores para o insert/update de `stripe_conversions`. `conversion_type` continua vindo do RPC (será `new` no cenário de reativação porque o gap grande também impacta o "último registro"; mesmo se voltar como `renewal`, sobrescrever para `new` quando `is_reactivation=true`).
 
-- **`source='stripe'`**: gerada pelo trigger/Edge acima. Chave: `stripe_conversion_id`.
-- **`source='import'`**: CSV atual continua igual. Chave: `import_id` + linha. **Nunca** disputa `stripe_conversion_id` (fica NULL). O CSV é usado só para o que não vem do Stripe (planos legados, comissões avulsas, correções de meses fechados).
-- **`source='manual'`**: entrada avulsa via `ManualConversionDialog`. Também com `stripe_conversion_id=NULL`.
+Registrar em `integration_sync_errors` (resolved=true, tipo `stripe_reactivation_detected`) para auditoria da primeira leva.
 
-Regras de UI/backend para evitar duplicidade percebida:
+## Backfill
 
-- No `Overview` e `Conversões`, adicionar filtro/badge por `source` (Stripe / Manual / Importado CSV).
-- No importador CSV: avisar (banner amarelo) quando uma linha do CSV cair num `customer_email + sale_month` que já tem `source='stripe'`. Não bloquear — apenas marcar `origem_cliente='ajuste_manual'` para o auditor.
+Nova Edge Function `stripe-backfill-reactivations` (admin-only, `verify_jwt=true`):
 
-### 4. Revisão manual com trava
+- Itera `stripe_conversions` ordenadas por `converted_at`.
+- Para cada uma, aplica a mesma lógica do webhook (chama Stripe para invoices/subscriptions anteriores ao `converted_at` da linha).
+- Atualiza `is_reactivation`, `previous_churn_at`, e se aplicável, `conversion_type = 'new'` (só quando muda de renewal→new por reativação; nunca sobrescreve upsell/downgrade se o MRR mudou).
+- Body opcional: `{ from, to, limit }`. Retorna contagem processada/marcada.
 
-Alterações na UI:
+## UI
 
-- `ManualConversionDialog` (modo edit): adicionar switch **"Marcar como revisada manualmente (trava recálculo)"**. Quando ativado:
-  - `manually_reviewed=true`, `reviewed_by=auth.uid()`, `reviewed_at=now()`.
-  - `override_fields` = lista dos campos alterados nesta edição (detectados por diff).
-- Nova ação **"Destravar recálculo"** na tabela (admin) → limpa `manually_reviewed` e `override_fields`, reaplica cálculo automático no próximo run.
-- Toda edição grava linha em `commission_conversion_edits` com diff.
-- Badge visual: linhas travadas ganham ícone de cadeado + tooltip "Editado manualmente por X em Y".
+Escopo mínimo, só o essencial pra visibilidade:
 
-### 5. Tela de Comissionamento
+- `src/pages/StripeConversions.tsx`: badge "Reativação" na linha quando `is_reactivation = true`, com tooltip mostrando `previous_churn_at`. Filtro "Somente reativações" (checkbox).
+- `src/pages/CommissionSettings.tsx` (ou onde vive `commission_settings`): campo numérico "Gap mínimo para reativação (meses)", default 2.
+- Botão "Reprocessar reativações" (admin) em `StripeConversions.tsx` que chama a nova Edge Function com range de data.
 
-Ajustes em `src/pages/Comissionamento.tsx` e componentes:
+## O que NÃO muda
 
-- Nova aba/seção **"Sincronizar do Stripe"** (admin), com:
-  - Range de datas (`converted_at`).
-  - Botão "Recalcular agora" → chama `commissions-apply-stripe`.
-  - Progress + resumo (inserted/updated/skipped/pending).
-- Aba `Conversões` (`ComissionamentoConversions`):
-  - Nova coluna **Origem** (Stripe / CSV / Manual) com filtro.
-  - Nova coluna **Revisão** (ícone cadeado se travada).
-  - Botão "Ver no Stripe" (link para `/insights/conversions?id=…`) quando `source='stripe'`.
-- Aba `Visão Geral` (`ComissionamentoOverview`): breakdown por origem.
-- Aba `Importar`: mantém CSV atual; adiciona aviso de sobreposição com Stripe (item 3).
-- Aba `Referência` e `Mapa de Preços`: sem mudança funcional; ganham indicador de "quantas conversões Stripe estão pendentes de mapeamento".
-
-### 6. Consistência com Metas
-
-Não há mudança em `stripe_conversions`, `resolve_stripe_seller`, `classify_stripe_conversion`, nem em `GoalsTracking`. Comissionamento passa a ser **derivado** da mesma fonte que Metas — quando um vendedor é reatribuído em `stripe_conversions` (via `stripe-update-conversion`), o trigger recalcula a comissão automaticamente (respeitando trava).
+- `resolve_stripe_seller`, `apply_commission_from_stripe`, Metas (`GoalsTracking`), `commission_conversions`.
+- Regras de dedup (subscription/price, customer/price/converted_at, event_id) permanecem.
+- Fluxo de importação manual de comissões.
 
 ## Detalhes técnicos
 
-**Migrações (schema only):**
-1. Colunas novas + índice único parcial em `commission_conversions`.
-2. Tabela `commission_conversion_edits` + RLS (admin RW, seller SELECT own).
-3. Função SQL `public.apply_commission_from_stripe(uuid)` (SECURITY DEFINER) + trigger em `stripe_conversions`.
-4. Backfill: `UPDATE commission_conversions SET source = CASE WHEN import_id IS NOT NULL THEN 'import' ELSE 'manual' END`.
+- Timezone: comparações em UTC (padrão atual das colunas `timestamptz`).
+- Cliente sem histórico no Stripe (primeira compra): `is_reactivation = false`, `previous_churn_at = null`, `conversion_type = 'new'` como hoje.
+- Cliente ativo pagando mensal: última invoice paga é recente → gap < 2 meses → `is_reactivation = false`, comportamento atual preservado (renewal/upsell/downgrade).
+- Cliente que cancelou há 3 meses e voltou: sub cancelada + gap ≥ 2 → `is_reactivation = true`, `conversion_type = 'new'`.
 
-**Edge Function `commissions-apply-stripe`:**
-- `supabase/functions/commissions-apply-stripe/index.ts`.
-- Verifica JWT + `has_role(uid, 'admin')`.
-- Faz o loop em lotes de 500 conversões Stripe. Reusa mesma lógica de `resolveRow` (porta o cálculo para SQL/TS server-side).
-- `config.toml`: função nova com `verify_jwt = true` (default; sem override).
+## Arquivos afetados
 
-**Front:**
-- `src/lib/commissioning.ts`: extrair `calcCommissionFromStripeRow()` reutilizável e testável.
-- `src/components/comissionamento/ComissionamentoConversions.tsx`: coluna Origem, filtro, badge de trava, ação destravar.
-- `src/components/comissionamento/ManualConversionDialog.tsx`: switch de revisão + captura de `override_fields`.
-- Nova aba `ComissionamentoStripeSync.tsx` chamando a Edge Function.
-- `src/components/comissionamento/ComissionamentoOverview.tsx`: card "Por origem".
-
-**Fluxo de dados (ASCII):**
-
-```text
-Stripe webhook ──► stripe_conversions ──► trigger apply_commission_from_stripe
-                                             │
-                                             ├─► INSERT/UPDATE commission_conversions (source='stripe')
-                                             │       └─► respeita manually_reviewed + override_fields
-                                             │
-CSV Import   ──► commission_imports ─────────┼─► INSERT commission_conversions (source='import', stripe_conversion_id=NULL)
-                                             │
-Entrada UI   ─────────────────────────────────┴─► INSERT commission_conversions (source='manual', stripe_conversion_id=NULL)
-
-Edição UI ──► ManualConversionDialog ──► UPDATE commission_conversions + INSERT commission_conversion_edits
-                                             └─► se "revisada manualmente" → manually_reviewed=true, override_fields=[…]
-```
-
-**Não muda:** trigger `generate_commission_on_won`, tabela legada `commissions`, página `/commissions`, tabelas de goals, `stripe_conversions` schema.
-
-## O que fica fora deste plano
-
-- Aplicação de `commission_triggers` (bônus por meta) — segue sem uso, como hoje.
-- Deprecar o sistema legado `commissions` / `/commissions` — decisão separada.
-- Mudanças em `GoalsTracking` ou `StripeConversions`.
+- migration: nova (colunas + update da função `classify_stripe_conversion`).
+- `supabase/functions/stripe-webhook/index.ts` — lookup de churn + set das flags.
+- `supabase/functions/stripe-backfill-reactivations/index.ts` — nova.
+- `src/pages/StripeConversions.tsx` — badge, filtro, botão de reprocesso.
+- `src/pages/CommissionSettings.tsx` — campo `reactivation_gap_months`.
+- `src/integrations/supabase/types.ts` — regenerado pela migration.

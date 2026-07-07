@@ -1230,6 +1230,7 @@ export type Database = {
           guarantee_months: number
           id: string
           payment_day: number
+          reactivation_gap_months: number
           t_plus_months: number
           updated_at: string
         }
@@ -1238,6 +1239,7 @@ export type Database = {
           guarantee_months?: number
           id?: string
           payment_day?: number
+          reactivation_gap_months?: number
           t_plus_months?: number
           updated_at?: string
         }
@@ -1246,6 +1248,7 @@ export type Database = {
           guarantee_months?: number
           id?: string
           payment_day?: number
+          reactivation_gap_months?: number
           t_plus_months?: number
           updated_at?: string
         }
@@ -2820,10 +2823,12 @@ export type Database = {
           customer_email: string | null
           delta_mrr: number | null
           id: string
+          is_reactivation: boolean
           matched_contact_id: string | null
           matched_opportunity_id: string | null
           mrr: number
           plan_name: string | null
+          previous_churn_at: string | null
           previous_conversion_id: string | null
           previous_mrr: number
           previous_price_id: string | null
@@ -2845,10 +2850,12 @@ export type Database = {
           customer_email?: string | null
           delta_mrr?: number | null
           id?: string
+          is_reactivation?: boolean
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
           mrr?: number
           plan_name?: string | null
+          previous_churn_at?: string | null
           previous_conversion_id?: string | null
           previous_mrr?: number
           previous_price_id?: string | null
@@ -2870,10 +2877,12 @@ export type Database = {
           customer_email?: string | null
           delta_mrr?: number | null
           id?: string
+          is_reactivation?: boolean
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
           mrr?: number
           plan_name?: string | null
+          previous_churn_at?: string | null
           previous_conversion_id?: string | null
           previous_mrr?: number
           previous_price_id?: string | null
