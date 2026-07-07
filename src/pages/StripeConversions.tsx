@@ -120,11 +120,11 @@ export default function StripeConversions() {
   }
 
   const { data: rows = [], isLoading, refetch } = useQuery({
-    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter],
+    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter, reactivationOnly],
     queryFn: async () => {
       let q = supabase
         .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source")
+        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
         .order("converted_at", { ascending: false });
@@ -134,6 +134,7 @@ export default function StripeConversions() {
       if (areaFilter !== "all") q = q.eq("area", areaFilter);
       if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
       if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
+      if (reactivationOnly) q = q.eq("is_reactivation", true);
       const { data, error } = await q.limit(5000);
       if (error) throw error;
       return (data || []) as Conversion[];
