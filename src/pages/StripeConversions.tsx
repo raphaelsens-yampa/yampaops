@@ -397,6 +397,12 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={reactivationOnly} onChange={e => setReactivationOnly(e.target.checked)} />
+                  Somente reativações
+                </Label>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -407,8 +413,8 @@ export default function StripeConversions() {
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">MRR Total</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold">{fmtBRL(stats.ticketMedio)}</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansion MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Reativações</p><p className="text-2xl font-bold">{stats.reactivationCount}</p><p className="text-[10px] text-muted-foreground">clientes que voltaram</p></CardContent></Card>
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Sem vendedor</p><p className="text-2xl font-bold">{stats.noSellerCount}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Áreas ativas</p><p className="text-2xl font-bold">{stats.areasCount}</p></CardContent></Card>
         </div>
 
         {/* Gráficos */}
