@@ -473,6 +473,8 @@ Deno.serve(async (req) => {
     previous_conversion_id: previousConversionId,
     assigned_seller_id: assignedSellerId,
     attribution_source: attributionSource,
+    is_reactivation: isReactivation,
+    previous_churn_at: previousChurnAt,
   };
 
   const conversionExists = !!existingRow;
