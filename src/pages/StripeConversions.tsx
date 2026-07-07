@@ -503,9 +503,20 @@ export default function StripeConversions() {
                       <TableCell>{fmtDate(r.converted_at)}</TableCell>
                       <TableCell className="text-muted-foreground">{fmtDate(r.registered_at)}</TableCell>
                       <TableCell>
-                        <Badge style={{ backgroundColor: TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new, color: "white" }}>
-                          {TYPE_LABEL[r.conversion_type] || r.conversion_type}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge style={{ backgroundColor: TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new, color: "white" }}>
+                            {TYPE_LABEL[r.conversion_type] || r.conversion_type}
+                          </Badge>
+                          {r.is_reactivation && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-amber-500 text-amber-700"
+                              title={r.previous_churn_at ? `Voltou após ${fmtDate(r.previous_churn_at)}` : "Cliente reativado"}
+                            >
+                              Reativação
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>
