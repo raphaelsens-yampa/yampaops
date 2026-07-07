@@ -176,8 +176,29 @@ export default function StripeConversions() {
       .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
     const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
-    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount };
+    const reactivationCount = rows.filter(r => r.is_reactivation).length;
+    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount, reactivationCount };
   }, [rows]);
+
+  async function handleReprocessReactivations() {
+    if (!confirm(`Reprocessar reativações no período ${period.start} → ${period.end}?`)) return;
+    setReprocessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-backfill-reactivations", {
+        body: { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, limit: 2000 },
+      });
+      if (error) throw error;
+      toast({
+        title: "Reprocessamento concluído",
+        description: `Analisadas ${data?.scanned ?? 0} conversões · ${data?.marked ?? 0} marcadas como reativação`,
+      });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReprocessing(false);
+    }
+  }
 
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
