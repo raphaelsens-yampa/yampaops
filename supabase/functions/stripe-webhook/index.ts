@@ -533,14 +533,27 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Auditoria: reativação detectada (marcada como nova venda)
+  if (!conversionExists && isReactivation) {
+    await supabase.from("integration_sync_errors").insert({
+      entity_type: "stripe_reactivation_detected",
+      ac_id: subscriptionId || customerId || event.id,
+      error_message: `Reativação detectada: ${normEmail} voltou após churn em ${previousChurnAt}`,
+      payload: { event_id: event.id, customer_id: customerId, subscription_id: subscriptionId, price_id: priceId, previous_churn_at: previousChurnAt, converted_at: finalConvertedAt },
+      resolved: true,
+    });
+  }
+
   await supabase.from("stripe_events")
-    .update({ result: conversionExists ? `duplicate:${conversionType}` : `recorded:${conversionType}` })
+    .update({ result: conversionExists ? `duplicate:${conversionType}` : `recorded:${conversionType}${isReactivation ? ":reactivation" : ""}` })
     .eq("stripe_event_id", event.id);
 
   return ok({
     ok: true,
     recorded: !conversionExists,
     conversion_type: conversionType,
+    is_reactivation: isReactivation,
+    previous_churn_at: previousChurnAt,
     previous_mrr: previousMrr,
     delta_mrr: convMrr - previousMrr,
     assigned_seller_id: assignedSellerId,
