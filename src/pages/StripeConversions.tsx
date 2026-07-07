@@ -59,6 +59,8 @@ interface Conversion {
   delta_mrr: number;
   assigned_seller_id: string | null;
   attribution_source: string | null;
+  is_reactivation: boolean | null;
+  previous_churn_at: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
