@@ -311,18 +311,26 @@ export default function StripeConversions() {
             </h1>
             <p className="text-sm text-muted-foreground">Acompanhamento de todas as conversões pagas vindas do Stripe, classificadas por área do produto.</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={!rows.length}>
-                <Download className="h-4 w-4 mr-2" /> Exportar
+          <div className="flex items-center gap-2">
+            {role === "admin" && (
+              <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
+                {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                Reprocessar reativações
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportCSV}>CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={exportXLSX}>Excel (XLSX)</DropdownMenuItem>
-              <DropdownMenuItem onClick={exportPDF}>PDF</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={!rows.length}>
+                  <Download className="h-4 w-4 mr-2" /> Exportar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportCSV}>CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportXLSX}>Excel (XLSX)</DropdownMenuItem>
+                <DropdownMenuItem onClick={exportPDF}>PDF</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Filtros */}
