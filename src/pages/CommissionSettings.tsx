@@ -18,6 +18,7 @@ export default function CommissionSettings() {
   const [guaranteeMonths, setGuaranteeMonths] = useState("3");
   const [paymentDay, setPaymentDay] = useState("10");
   const [tPlusMonths, setTPlusMonths] = useState("2");
+  const [reactivationGapMonths, setReactivationGapMonths] = useState("2");
 
   useEffect(() => {
     (async () => {
