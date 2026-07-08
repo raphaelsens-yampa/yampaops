@@ -1,0 +1,3 @@
+UPDATE public.stripe_conversions SET is_reactivation = true, previous_churn_at = '2024-03-06T00:00:00Z', conversion_type = CASE WHEN conversion_type IN ('renewal','new') THEN 'new' ELSE conversion_type END WHERE id = '9ae47381-0239-4dac-8ff0-13a5ead908b0';
+UPDATE public.stripe_conversions SET is_reactivation = true, previous_churn_at = '2025-12-29T00:00:00Z', conversion_type = CASE WHEN conversion_type IN ('renewal','new') THEN 'new' ELSE conversion_type END WHERE id = '9c11937e-ed3c-4b28-9354-6ad2c93cb885';
+UPDATE public.stripe_conversions SET is_reactivation = true, previous_churn_at = '2025-07-06T00:00:00Z', conversion_type = CASE WHEN conversion_type IN ('renewal','new') THEN 'new' ELSE conversion_type END WHERE id = '7ae5a07c-fde7-48d4-9ed2-e67b0c1bfecd';
