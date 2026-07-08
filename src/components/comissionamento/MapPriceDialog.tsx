@@ -202,9 +202,48 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
           .eq("resolved", false);
       }
 
+      // Reprocessa TODAS as pendências: um mapeamento novo pode ter resolvido
+      // outras linhas (mesmo plano/oferta, novo price_id na Referência, etc.).
+      let extraResolved = 0;
+      try {
+        const { data: pendingRows } = await supabase
+          .from("commission_conversions")
+          .select("sale_month")
+          .eq("source", "stripe")
+          .eq("status", "pending_mapping")
+          .order("sale_month", { ascending: true })
+          .limit(1);
+        const minMonth = pendingRows?.[0]?.sale_month as string | undefined;
+        if (minMonth) {
+          const fromIso = new Date(`${minMonth}T00:00:00Z`).toISOString();
+          const toIso = new Date().toISOString();
+          const beforeCount = await supabase
+            .from("commission_conversions")
+            .select("id", { count: "exact", head: true })
+            .eq("source", "stripe")
+            .eq("status", "pending_mapping");
+          const { error: rpcErr } = await supabase.rpc("apply_commissions_from_stripe_range", {
+            p_from: fromIso,
+            p_to: toIso,
+          });
+          if (!rpcErr) {
+            const afterCount = await supabase
+              .from("commission_conversions")
+              .select("id", { count: "exact", head: true })
+              .eq("source", "stripe")
+              .eq("status", "pending_mapping");
+            const before = beforeCount.count ?? 0;
+            const after = afterCount.count ?? 0;
+            extraResolved = Math.max(0, before - after);
+          }
+        }
+      } catch {
+        // não bloqueia: recalculo em massa é best-effort
+      }
+
       toast({
         title: "Mapeamento salvo",
-        description: `${recalculated} conversão(ões) de comissão e ${stripeUpdated} conversão(ões) Stripe atualizadas.${ref ? "" : " (Plano sem regra ativa na Referência.)"}`,
+        description: `${recalculated} conversão(ões) de comissão e ${stripeUpdated} conversão(ões) Stripe atualizadas.${extraResolved > 0 ? ` ${extraResolved} pendência(s) resolvida(s) em cascata.` : ""}${ref ? "" : " (Plano sem regra ativa na Referência.)"}`,
       });
 
 
