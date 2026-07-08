@@ -177,9 +177,24 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
             </SelectContent>
           </Select>
           {isAdmin && (
-            <Button size="sm" onClick={() => setManualOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Adicionar manual
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDupOpen(true)}
+                disabled={duplicateCount === 0}
+                title={duplicateCount === 0 ? "Nenhuma duplicata detectada" : `${duplicateCount} duplicata(s) detectada(s)`}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                Remover duplicatas
+                {duplicateCount > 0 && (
+                  <Badge variant="destructive" className="ml-2 h-5 px-1.5">{duplicateCount}</Badge>
+                )}
+              </Button>
+              <Button size="sm" onClick={() => setManualOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Adicionar manual
+              </Button>
+            </>
           )}
         </div>
       </CardHeader>
