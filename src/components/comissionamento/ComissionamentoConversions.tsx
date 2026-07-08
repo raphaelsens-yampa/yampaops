@@ -157,6 +157,45 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     onChanged();
   };
 
+  const exportXlsx = () => {
+    const statusLbl: Record<string, string> = {
+      calculated: "Calculado",
+      pending_mapping: "Pendente mapeamento",
+      ignored: "Ignorado",
+    };
+    const data = filtered.map((c) => ({
+      Origem: c.source || "manual",
+      "Mês Venda": c.sale_month || "",
+      "Mês Pagamento": c.payment_month || "",
+      Cliente: c.customer_name || "",
+      "Email Cliente": c.customer_email || "",
+      Vendedor: sellerName(c),
+      Plano: c.resolved_plan || "",
+      Periodicidade: c.resolved_payment_type
+        ? PAYMENT_TYPE_LABEL[c.resolved_payment_type as PaymentType]
+        : "",
+      Oferta: c.offer_name || "",
+      "Price ID": c.price_id || "",
+      "MRR (R$)": Number(c.mrr || 0),
+      "Comissão %": Number(c.commission_pct || 0),
+      "Comissão (R$)": Number(c.commission_amount || 0),
+      Status: statusLbl[c.status] || c.status,
+      "Revisada Manualmente": c.manually_reviewed ? "Sim" : "Não",
+      "Origem Cliente": c.origem_cliente || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Conversões");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const stamp = new Date().toISOString().slice(0, 10);
+    saveAs(
+      new Blob([buf], { type: "application/octet-stream" }),
+      `conversoes_comissionamento_${stamp}.xlsx`,
+    );
+    toast({ title: "Exportação concluída", description: `${data.length} linhas exportadas.` });
+  };
+
+
 
   return (
     <Card className="mt-4">
