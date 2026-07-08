@@ -34,12 +34,35 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
+  const [saleMonthFilter, setSaleMonthFilter] = useState<string>("all"); // YYYY-MM
+  const [payMonthFilter, setPayMonthFilter] = useState<string>("all"); // YYYY-MM
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
   const [dupOpen, setDupOpen] = useState(false);
 
-  const duplicateCount = useMemo(() => {
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const monthLabel = (k: string) => {
+    const [y, m] = k.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+  };
+
+  const { saleMonths, payMonths } = useMemo(() => {
+    const s = new Set<string>();
+    const p = new Set<string>();
+    for (const c of conversions) {
+      const sd = parseDateOnly(c.sale_month);
+      const pd = parseDateOnly(c.payment_month);
+      if (sd) s.add(monthKey(sd));
+      if (pd) p.add(monthKey(pd));
+    }
+    const sortDesc = (a: string, b: string) => b.localeCompare(a);
+    return {
+      saleMonths: Array.from(s).sort(sortDesc),
+      payMonths: Array.from(p).sort(sortDesc),
+    };
+  }, [conversions]);
+
     const stripeKeys = new Set<string>();
     for (const c of conversions) {
       if ((c.source || "manual") !== "stripe") continue;
