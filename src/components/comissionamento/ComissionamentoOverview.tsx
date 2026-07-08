@@ -176,10 +176,10 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   return (
     <div className="space-y-4 sm:space-y-6 mt-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-          <TabsList>
-            <TabsTrigger value="payment">Mês de Pagamento</TabsTrigger>
-            <TabsTrigger value="sale">Mês da Venda</TabsTrigger>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full sm:w-auto">
+          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+            <TabsTrigger value="payment" className="text-xs sm:text-sm px-2 sm:px-3">Mês de Pagamento</TabsTrigger>
+            <TabsTrigger value="sale" className="text-xs sm:text-sm px-2 sm:px-3">Mês da Venda</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="flex items-center gap-2">
