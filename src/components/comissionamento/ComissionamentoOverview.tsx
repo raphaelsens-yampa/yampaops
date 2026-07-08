@@ -389,14 +389,14 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
                   {planColumns.map((plan) => {
                     const cell = s.plans[plan];
                     return (
-                      <>
-                        <TableCell key={`${plan}-qty`} className="text-right tabular-nums border-l">
+                      <Fragment key={plan}>
+                        <TableCell className="text-right tabular-nums border-l">
                           {cell?.count || "—"}
                         </TableCell>
-                        <TableCell key={`${plan}-mrr`} className="text-right tabular-nums text-xs text-muted-foreground">
+                        <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
                           {cell?.mrr ? BRL(cell.mrr) : "—"}
                         </TableCell>
-                      </>
+                      </Fragment>
                     );
                   })}
                   <TableCell className="text-right font-bold tabular-nums border-l">{s.totalCount}</TableCell>
