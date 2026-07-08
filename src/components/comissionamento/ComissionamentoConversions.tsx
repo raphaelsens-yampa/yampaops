@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BRL, PAYMENT_TYPE_LABEL, parseDateOnly, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User, Copy } from "lucide-react";
+import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User, Copy, Download, X } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
 import { ManualConversionDialog } from "./ManualConversionDialog";
 import { DuplicatesDialog } from "./DuplicatesDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 
 interface Props {
@@ -32,11 +34,34 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
+  const [saleMonthFilter, setSaleMonthFilter] = useState<string>("all"); // YYYY-MM
+  const [payMonthFilter, setPayMonthFilter] = useState<string>("all"); // YYYY-MM
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
   const [dupOpen, setDupOpen] = useState(false);
 
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const monthLabel = (k: string) => {
+    const [y, m] = k.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+  };
+
+  const { saleMonths, payMonths } = useMemo(() => {
+    const s = new Set<string>();
+    const p = new Set<string>();
+    for (const c of conversions) {
+      const sd = parseDateOnly(c.sale_month);
+      const pd = parseDateOnly(c.payment_month);
+      if (sd) s.add(monthKey(sd));
+      if (pd) p.add(monthKey(pd));
+    }
+    const sortDesc = (a: string, b: string) => b.localeCompare(a);
+    return {
+      saleMonths: Array.from(s).sort(sortDesc),
+      payMonths: Array.from(p).sort(sortDesc),
+    };
+  }, [conversions]);
   const duplicateCount = useMemo(() => {
     const stripeKeys = new Set<string>();
     for (const c of conversions) {
@@ -81,13 +106,21 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
         const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
         if (key !== sellerFilter) return false;
       }
+      if (saleMonthFilter !== "all") {
+        const d = parseDateOnly(c.sale_month);
+        if (!d || monthKey(d) !== saleMonthFilter) return false;
+      }
+      if (payMonthFilter !== "all") {
+        const d = parseDateOnly(c.payment_month);
+        if (!d || monthKey(d) !== payMonthFilter) return false;
+      }
       if (q) {
         const hay = `${c.customer_name || ""} ${c.customer_email || ""} ${c.offer_name || ""} ${c.price_id || ""} ${c.resolved_plan || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter]);
+  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter, saleMonthFilter, payMonthFilter]);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
@@ -123,6 +156,45 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     toast({ title: "Recálculo destravado" });
     onChanged();
   };
+
+  const exportXlsx = () => {
+    const statusLbl: Record<string, string> = {
+      calculated: "Calculado",
+      pending_mapping: "Pendente mapeamento",
+      ignored: "Ignorado",
+    };
+    const data = filtered.map((c) => ({
+      Origem: c.source || "manual",
+      "Mês Venda": c.sale_month || "",
+      "Mês Pagamento": c.payment_month || "",
+      Cliente: c.customer_name || "",
+      "Email Cliente": c.customer_email || "",
+      Vendedor: sellerName(c),
+      Plano: c.resolved_plan || "",
+      Periodicidade: c.resolved_payment_type
+        ? PAYMENT_TYPE_LABEL[c.resolved_payment_type as PaymentType]
+        : "",
+      Oferta: c.offer_name || "",
+      "Price ID": c.price_id || "",
+      "MRR (R$)": Number(c.mrr || 0),
+      "Comissão %": Number(c.commission_pct || 0),
+      "Comissão (R$)": Number(c.commission_amount || 0),
+      Status: statusLbl[c.status] || c.status,
+      "Revisada Manualmente": c.manually_reviewed ? "Sim" : "Não",
+      "Origem Cliente": c.origem_cliente || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Conversões");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const stamp = new Date().toISOString().slice(0, 10);
+    saveAs(
+      new Blob([buf], { type: "application/octet-stream" }),
+      `conversoes_comissionamento_${stamp}.xlsx`,
+    );
+    toast({ title: "Exportação concluída", description: `${data.length} linhas exportadas.` });
+  };
+
 
 
   return (
@@ -176,6 +248,47 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               ))}
             </SelectContent>
           </Select>
+          <Select value={saleMonthFilter} onValueChange={setSaleMonthFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Mês Venda" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos meses (Venda)</SelectItem>
+              {saleMonths.map((k) => (
+                <SelectItem key={k} value={k} className="capitalize">Venda: {monthLabel(k)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={payMonthFilter} onValueChange={setPayMonthFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Mês Pagto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos meses (Pagto)</SelectItem>
+              {payMonths.map((k) => (
+                <SelectItem key={k} value={k} className="capitalize">Pagto: {monthLabel(k)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(saleMonthFilter !== "all" || payMonthFilter !== "all") && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setSaleMonthFilter("all"); setPayMonthFilter("all"); }}
+              title="Limpar filtros de mês"
+            >
+              <X className="h-4 w-4 mr-1" /> Limpar meses
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportXlsx}
+            disabled={filtered.length === 0}
+            title="Exportar em Excel"
+          >
+            <Download className="h-4 w-4 mr-1" /> Exportar XLSX
+          </Button>
           {isAdmin && (
             <>
               <Button

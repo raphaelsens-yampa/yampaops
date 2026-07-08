@@ -110,6 +110,7 @@ export default function Comissionamento() {
             <ComissionamentoOverview
               conversions={filteredConversions}
               profiles={profiles}
+              priceMap={priceMap}
               isAdmin={isAdmin}
               loading={loading}
             />
