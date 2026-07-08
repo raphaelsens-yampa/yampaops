@@ -35,6 +35,29 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
+  const [dupOpen, setDupOpen] = useState(false);
+
+  const duplicateCount = useMemo(() => {
+    const stripeKeys = new Set<string>();
+    for (const c of conversions) {
+      if ((c.source || "manual") !== "stripe") continue;
+      const email = (c.customer_email || "").trim().toLowerCase();
+      const dt = parseDateOnly(c.sale_month);
+      if (!email || !dt) continue;
+      stripeKeys.add(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`);
+    }
+    let n = 0;
+    for (const c of conversions) {
+      const src = c.source || "manual";
+      if (src === "stripe") continue;
+      const email = (c.customer_email || "").trim().toLowerCase();
+      const dt = parseDateOnly(c.sale_month);
+      if (!email || !dt) continue;
+      if (stripeKeys.has(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`)) n++;
+    }
+    return n;
+  }, [conversions]);
+
 
   const sellers = useMemo(() => {
     const set = new Map<string, string>();
