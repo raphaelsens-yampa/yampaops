@@ -106,13 +106,21 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
         const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
         if (key !== sellerFilter) return false;
       }
+      if (saleMonthFilter !== "all") {
+        const d = parseDateOnly(c.sale_month);
+        if (!d || monthKey(d) !== saleMonthFilter) return false;
+      }
+      if (payMonthFilter !== "all") {
+        const d = parseDateOnly(c.payment_month);
+        if (!d || monthKey(d) !== payMonthFilter) return false;
+      }
       if (q) {
         const hay = `${c.customer_name || ""} ${c.customer_email || ""} ${c.offer_name || ""} ${c.price_id || ""} ${c.resolved_plan || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter]);
+  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter, saleMonthFilter, payMonthFilter]);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
