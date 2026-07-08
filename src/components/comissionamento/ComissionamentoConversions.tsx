@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BRL, PAYMENT_TYPE_LABEL, parseDateOnly, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User } from "lucide-react";
+import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User, Copy } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
 import { ManualConversionDialog } from "./ManualConversionDialog";
+import { DuplicatesDialog } from "./DuplicatesDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { parseDateOnly as _pd } from "@/lib/commissioning";
 
 interface Props {
   conversions: ConversionRow[];
