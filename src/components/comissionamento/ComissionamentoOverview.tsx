@@ -174,7 +174,7 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   const modeLabel = mode === "payment" ? "Mês de Pagamento" : "Mês da Venda";
 
   return (
-    <div className="space-y-4 sm:space-y-6 mt-4">
+    <div className="space-y-4 sm:space-y-6 mt-4 w-full max-w-full overflow-x-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between min-w-0">
         <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full sm:w-auto min-w-0">
           <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
