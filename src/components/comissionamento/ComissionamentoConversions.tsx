@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BRL, PAYMENT_TYPE_LABEL, parseDateOnly, type CommissionReference, type PriceMapEntry, type PaymentType } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
-import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User } from "lucide-react";
+import { MapPin, Plus, Pencil, Lock, Unlock, Zap, FileUp, User, Copy } from "lucide-react";
 import { MapPriceDialog } from "./MapPriceDialog";
 import { ManualConversionDialog } from "./ManualConversionDialog";
+import { DuplicatesDialog } from "./DuplicatesDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
 
 interface Props {
   conversions: ConversionRow[];
@@ -33,6 +35,29 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
+  const [dupOpen, setDupOpen] = useState(false);
+
+  const duplicateCount = useMemo(() => {
+    const stripeKeys = new Set<string>();
+    for (const c of conversions) {
+      if ((c.source || "manual") !== "stripe") continue;
+      const email = (c.customer_email || "").trim().toLowerCase();
+      const dt = parseDateOnly(c.sale_month);
+      if (!email || !dt) continue;
+      stripeKeys.add(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`);
+    }
+    let n = 0;
+    for (const c of conversions) {
+      const src = c.source || "manual";
+      if (src === "stripe") continue;
+      const email = (c.customer_email || "").trim().toLowerCase();
+      const dt = parseDateOnly(c.sale_month);
+      if (!email || !dt) continue;
+      if (stripeKeys.has(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`)) n++;
+    }
+    return n;
+  }, [conversions]);
+
 
   const sellers = useMemo(() => {
     const set = new Map<string, string>();
@@ -152,9 +177,24 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
             </SelectContent>
           </Select>
           {isAdmin && (
-            <Button size="sm" onClick={() => setManualOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Adicionar manual
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDupOpen(true)}
+                disabled={duplicateCount === 0}
+                title={duplicateCount === 0 ? "Nenhuma duplicata detectada" : `${duplicateCount} duplicata(s) detectada(s)`}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                Remover duplicatas
+                {duplicateCount > 0 && (
+                  <Badge variant="destructive" className="ml-2 h-5 px-1.5">{duplicateCount}</Badge>
+                )}
+              </Button>
+              <Button size="sm" onClick={() => setManualOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Adicionar manual
+              </Button>
+            </>
           )}
         </div>
       </CardHeader>
@@ -288,6 +328,13 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           existing={editTarget}
           onClose={() => setEditTarget(null)}
           onSaved={() => { setEditTarget(null); onChanged(); }}
+        />
+      )}
+      {dupOpen && (
+        <DuplicatesDialog
+          conversions={conversions}
+          onClose={() => setDupOpen(false)}
+          onDone={() => { setDupOpen(false); onChanged(); }}
         />
       )}
     </Card>
