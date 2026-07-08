@@ -248,6 +248,47 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               ))}
             </SelectContent>
           </Select>
+          <Select value={saleMonthFilter} onValueChange={setSaleMonthFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Mês Venda" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos meses (Venda)</SelectItem>
+              {saleMonths.map((k) => (
+                <SelectItem key={k} value={k} className="capitalize">Venda: {monthLabel(k)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={payMonthFilter} onValueChange={setPayMonthFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Mês Pagto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos meses (Pagto)</SelectItem>
+              {payMonths.map((k) => (
+                <SelectItem key={k} value={k} className="capitalize">Pagto: {monthLabel(k)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(saleMonthFilter !== "all" || payMonthFilter !== "all") && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setSaleMonthFilter("all"); setPayMonthFilter("all"); }}
+              title="Limpar filtros de mês"
+            >
+              <X className="h-4 w-4 mr-1" /> Limpar meses
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportXlsx}
+            disabled={filtered.length === 0}
+            title="Exportar em Excel"
+          >
+            <Download className="h-4 w-4 mr-1" /> Exportar XLSX
+          </Button>
           {isAdmin && (
             <>
               <Button
