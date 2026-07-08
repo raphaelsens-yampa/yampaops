@@ -62,7 +62,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       payMonths: Array.from(p).sort(sortDesc),
     };
   }, [conversions]);
-
+  const duplicateCount = useMemo(() => {
     const stripeKeys = new Set<string>();
     for (const c of conversions) {
       if ((c.source || "manual") !== "stripe") continue;
