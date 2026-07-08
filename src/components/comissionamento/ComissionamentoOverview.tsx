@@ -366,10 +366,10 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
               </TableRow>
               <TableRow>
                 {planColumns.map((plan) => (
-                  <>
-                    <TableHead key={`${plan}-qty`} className="text-right border-l text-[11px] font-normal">Qtd</TableHead>
-                    <TableHead key={`${plan}-mrr`} className="text-right text-[11px] font-normal">MRR</TableHead>
-                  </>
+                  <Fragment key={plan}>
+                    <TableHead className="text-right border-l text-[11px] font-normal">Qtd</TableHead>
+                    <TableHead className="text-right text-[11px] font-normal">MRR</TableHead>
+                  </Fragment>
                 ))}
                 <TableHead className="text-right border-l text-[11px] font-normal">Qtd</TableHead>
                 <TableHead className="text-right text-[11px] font-normal">MRR</TableHead>
