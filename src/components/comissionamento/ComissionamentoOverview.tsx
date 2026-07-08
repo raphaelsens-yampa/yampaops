@@ -175,18 +175,18 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
 
   return (
     <div className="space-y-4 sm:space-y-6 mt-4">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between min-w-0">
+        <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)} className="w-full sm:w-auto min-w-0">
           <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
-            <TabsTrigger value="payment" className="text-xs sm:text-sm px-2 sm:px-3">Mês de Pagamento</TabsTrigger>
-            <TabsTrigger value="sale" className="text-xs sm:text-sm px-2 sm:px-3">Mês da Venda</TabsTrigger>
+            <TabsTrigger value="payment" className="text-xs sm:text-sm px-2 sm:px-3 truncate">Mês de Pagamento</TabsTrigger>
+            <TabsTrigger value="sale" className="text-xs sm:text-sm px-2 sm:px-3 truncate">Mês da Venda</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
           {isAdmin && (
             <Select value={selectedSeller} onValueChange={setSelectedSeller}>
-              <SelectTrigger className="w-[220px]">
-                <Filter className="h-4 w-4 mr-2 opacity-50" />
+              <SelectTrigger className="w-full sm:w-[220px] min-w-0">
+                <Filter className="h-4 w-4 mr-2 opacity-50 shrink-0" />
                 <SelectValue placeholder="Todos os vendedores" />
               </SelectTrigger>
               <SelectContent>
