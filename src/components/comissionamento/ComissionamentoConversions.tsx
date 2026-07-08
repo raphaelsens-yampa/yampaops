@@ -330,6 +330,13 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           onSaved={() => { setEditTarget(null); onChanged(); }}
         />
       )}
+      {dupOpen && (
+        <DuplicatesDialog
+          conversions={conversions}
+          onClose={() => setDupOpen(false)}
+          onDone={() => { setDupOpen(false); onChanged(); }}
+        />
+      )}
     </Card>
   );
 }
