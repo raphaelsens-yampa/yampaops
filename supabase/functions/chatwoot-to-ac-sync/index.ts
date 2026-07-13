@@ -45,14 +45,29 @@ async function findAcContactByEmail(email: string): Promise<{ id: string } | nul
 }
 
 async function findAcContactByPhone(phoneDigits: string): Promise<{ id: string } | null> {
-  // AC supports filters[phone] as substring; we try last 11/10/9 digits.
-  const candidates = Array.from(new Set([phoneDigits, phoneDigits.slice(-11), phoneDigits.slice(-10), phoneDigits.slice(-9)].filter((s) => s.length >= 8)));
+  // AC's filters[phone] is a substring search and can return unrelated contacts.
+  // We must validate that a returned contact actually has this phone.
+  // Query with the last 10-11 digits (national number w/ DDD), then require
+  // an exact normalized-digit match on the contact's phone field(s).
+  const candidates = Array.from(new Set(
+    [phoneDigits, phoneDigits.slice(-11), phoneDigits.slice(-10)].filter((s) => s.length >= 10),
+  ));
   for (const q of candidates) {
-    const r = await acFetch(`/api/3/contacts?filters%5Bphone%5D=${encodeURIComponent(q)}&limit=5`);
+    const r = await acFetch(`/api/3/contacts?filters%5Bphone%5D=${encodeURIComponent(q)}&limit=20`);
     if (!r.ok) continue;
     const j = await r.json();
     const list = j.contacts || [];
-    if (list.length > 0) return { id: String(list[0].id) };
+    for (const c of list) {
+      const fields = [c?.phone, ...(Array.isArray(c?.phoneNumbers) ? c.phoneNumbers.map((p: any) => p?.phone) : [])];
+      for (const f of fields) {
+        const n = normPhone(f);
+        if (!n) continue;
+        // Require exact match on last 10 or 11 digits (BR national number).
+        if (n === phoneDigits || n.slice(-11) === phoneDigits.slice(-11) || n.slice(-10) === phoneDigits.slice(-10)) {
+          return { id: String(c.id) };
+        }
+      }
+    }
   }
   return null;
 }
