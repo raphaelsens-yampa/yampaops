@@ -597,6 +597,35 @@ export default function StripeConversions() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
+                        {r.mrr_net != null ? (
+                          <div>
+                            <div className="font-medium">{fmtBRL(Number(r.mrr_net))}</div>
+                            {r.discount_amount != null && r.discount_amount > 0 && (
+                              <div className="text-[10px] text-muted-foreground">
+                                −{fmtBRL(Number(r.discount_amount))}
+                              </div>
+                            )}
+                            {r.coupon_id && (
+                              <Badge
+                                variant="outline"
+                                className="mt-1 text-[9px] border-emerald-500 text-emerald-700"
+                                title={[
+                                  r.coupon_name || r.coupon_id,
+                                  r.coupon_percent_off ? `${r.coupon_percent_off}% off` : null,
+                                  r.coupon_amount_off ? `R$${r.coupon_amount_off} off` : null,
+                                  r.promotion_code ? `código: ${r.promotion_code}` : null,
+                                  r.discount_duration ? `duração: ${r.discount_duration}` : null,
+                                ].filter(Boolean).join(" · ")}
+                              >
+                                {r.coupon_name || r.promotion_code || "Cupom"}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground italic">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {r.area === "desconhecida" && r.stripe_price_id && (
                             <MapStripePriceButton
