@@ -618,14 +618,27 @@ Deno.serve(async (req) => {
     }
 
   } else {
-    // Idempotente: atualiza apenas datas estáveis se mudaram; não sobrescreve atribuição manual.
-    const changed =
-      existingRow.converted_at !== finalConvertedAt ||
-      existingRow.registered_at !== finalRegisteredAt;
-    if (changed) {
-      await supabase.from("stripe_conversions")
-        .update({ converted_at: finalConvertedAt, registered_at: finalRegisteredAt })
-        .eq("id", existingRow.id);
+    // Idempotente: atualiza datas estáveis e hidrata campos de valor líquido se ainda vazios.
+    const patch: Record<string, unknown> = {};
+    if (existingRow.converted_at !== finalConvertedAt) patch.converted_at = finalConvertedAt;
+    if (existingRow.registered_at !== finalRegisteredAt) patch.registered_at = finalRegisteredAt;
+    if (netAmountSource === "invoice") {
+      patch.gross_amount = grossAmount;
+      patch.net_amount = netAmount;
+      patch.discount_amount = discountAmount;
+      patch.mrr_net = mrrNet;
+      patch.coupon_id = couponId;
+      patch.coupon_name = couponName;
+      patch.coupon_percent_off = couponPercentOff;
+      patch.coupon_amount_off = couponAmountOff;
+      patch.promotion_code = promotionCode;
+      patch.discount_duration = discountDuration;
+      patch.discount_duration_in_months = discountDurationInMonths;
+      patch.stripe_invoice_id = stripeInvoiceId;
+      patch.net_amount_source = netAmountSource;
+    }
+    if (Object.keys(patch).length > 0) {
+      await supabase.from("stripe_conversions").update(patch).eq("id", existingRow.id);
     }
   }
 
