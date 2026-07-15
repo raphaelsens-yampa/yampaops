@@ -124,7 +124,9 @@ export default function StripeConversions() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all"); // all | none
   const [reactivationOnly, setReactivationOnly] = useState(false);
+  const [couponOnly, setCouponOnly] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
+  const [backfillingNet, setBackfillingNet] = useState(false);
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
 
   function changePreset(p: string) {
