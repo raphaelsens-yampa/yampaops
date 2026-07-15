@@ -29,6 +29,15 @@ export interface ConversionToEdit {
   previous_price_id?: string | null;
   assigned_seller_id?: string | null;
   attribution_source?: string | null;
+  gross_amount?: number | null;
+  net_amount?: number | null;
+  discount_amount?: number | null;
+  mrr_net?: number | null;
+  coupon_id?: string | null;
+  coupon_name?: string | null;
+  promotion_code?: string | null;
+  discount_duration?: string | null;
+  stripe_invoice_id?: string | null;
 }
 
 interface Props {
