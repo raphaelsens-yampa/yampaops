@@ -219,6 +219,111 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ─── Lookup de invoice + valores líquidos (com desconto de cupom) ───
+  // Fonte de verdade para "quanto foi cobrado de fato": a invoice do Stripe.
+  let grossAmount: number | null = null;
+  let netAmount: number | null = null;
+  let discountAmount = 0;
+  let mrrNet: number | null = null;
+  let couponId: string | null = null;
+  let couponName: string | null = null;
+  let couponPercentOff: number | null = null;
+  let couponAmountOff: number | null = null;
+  let promotionCode: string | null = null;
+  let discountDuration: string | null = null;
+  let discountDurationInMonths: number | null = null;
+  let stripeInvoiceId: string | null = null;
+  let netAmountSource: "invoice" | "price_fallback" = "price_fallback";
+
+  try {
+    let targetInvoiceId: string | null = null;
+    const obj: any = event.data.object;
+
+    if (event.type === "invoice.paid") {
+      targetInvoiceId = obj?.id ?? null;
+    } else if (event.type === "checkout.session.completed") {
+      targetInvoiceId = (typeof obj?.invoice === "string" ? obj.invoice : obj?.invoice?.id) ?? null;
+    }
+    // Fallback / subscription events: pega última invoice paga da subscription
+    if (!targetInvoiceId && subscriptionId) {
+      const inv = await stripe.invoices.list({
+        subscription: subscriptionId,
+        status: "paid",
+        limit: 1,
+      });
+      targetInvoiceId = inv.data[0]?.id ?? null;
+    }
+
+    if (targetInvoiceId) {
+      const invoice = await stripe.invoices.retrieve(targetInvoiceId, {
+        expand: ["discounts", "lines.data.discounts", "total_discount_amounts.discount"],
+      });
+      stripeInvoiceId = invoice.id;
+      grossAmount = (invoice.subtotal ?? 0) / 100;
+      netAmount = (invoice.amount_paid ?? invoice.total ?? 0) / 100;
+      const totalDiscCents = (invoice.total_discount_amounts ?? [])
+        .reduce((s: number, d: any) => s + Number(d?.amount || 0), 0);
+      discountAmount = totalDiscCents / 100;
+
+      // Cupom / desconto (pega o primeiro discount aplicado)
+      const discounts: any[] = (invoice as any).discounts ?? [];
+      const firstDisc = discounts[0];
+      if (firstDisc && typeof firstDisc === "object") {
+        const coupon = firstDisc.coupon;
+        if (coupon) {
+          couponId = coupon.id ?? null;
+          couponName = coupon.name ?? null;
+          couponPercentOff = coupon.percent_off ?? null;
+          couponAmountOff = coupon.amount_off != null ? coupon.amount_off / 100 : null;
+          discountDuration = coupon.duration ?? null;
+          discountDurationInMonths = coupon.duration_in_months ?? null;
+        }
+        if (firstDisc.promotion_code) {
+          const pc = firstDisc.promotion_code;
+          promotionCode = typeof pc === "string" ? pc : (pc?.code ?? pc?.id ?? null);
+        }
+      }
+
+      // MRR líquido: acha a linha da invoice do priceId, subtrai desconto rateado e normaliza pra mês
+      if (priceId) {
+        const line = (invoice.lines?.data ?? []).find(
+          (l: any) => l?.price?.id === priceId,
+        ) as any;
+        if (line) {
+          const lineGrossCents = Number(line.amount ?? 0);
+          const lineDiscCents = (line.discount_amounts ?? [])
+            .reduce((s: number, d: any) => s + Number(d?.amount || 0), 0);
+          const netCents = Math.max(0, lineGrossCents - lineDiscCents);
+          const netValue = netCents / 100;
+          const interval = line.price?.recurring?.interval;
+          const count = line.price?.recurring?.interval_count || 1;
+          if (interval) {
+            switch (interval) {
+              case "month": mrrNet = netValue / count; break;
+              case "year":  mrrNet = netValue / (12 * count); break;
+              case "week":  mrrNet = (netValue * 4.345) / count; break;
+              case "day":   mrrNet = (netValue * 30) / count; break;
+            }
+          } else if (netValue > 0) {
+            mrrNet = netValue;
+          }
+        }
+      }
+
+      netAmountSource = "invoice";
+    }
+  } catch (err) {
+    console.error("invoice net-amount lookup failed:", err);
+    await supabase.from("integration_sync_errors").insert({
+      entity_type: "stripe_invoice_lookup_failed",
+      ac_id: subscriptionId || customerId || event.id,
+      error_message: `Falha ao buscar invoice p/ valor líquido: ${(err as any)?.message || String(err)}`,
+      payload: { event_id: event.id, event_type: event.type, subscription_id: subscriptionId, customer_id: customerId, price_id: priceId },
+      resolved: true,
+    });
+  }
+
+
   // ─── Descartar somente pagamento zerado ───
   // Regra: se MRR final = 0 (oferta gratuita / sem cobrança recorrente), descarta.
   // Se MRR > 0 mas price não mapeado, segue em frente — fica como pendência de mapeamento.
