@@ -62,6 +62,17 @@ interface Conversion {
   attribution_source: string | null;
   is_reactivation: boolean | null;
   previous_churn_at: string | null;
+  gross_amount: number | null;
+  net_amount: number | null;
+  discount_amount: number | null;
+  mrr_net: number | null;
+  coupon_id: string | null;
+  coupon_name: string | null;
+  coupon_percent_off: number | null;
+  coupon_amount_off: number | null;
+  promotion_code: string | null;
+  discount_duration: string | null;
+  stripe_invoice_id: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
