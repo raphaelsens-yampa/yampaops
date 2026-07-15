@@ -657,6 +657,15 @@ export default function StripeConversions() {
                               previous_price_id: r.previous_price_id,
                               assigned_seller_id: r.assigned_seller_id,
                               attribution_source: r.attribution_source,
+                              gross_amount: r.gross_amount,
+                              net_amount: r.net_amount,
+                              discount_amount: r.discount_amount,
+                              mrr_net: r.mrr_net,
+                              coupon_id: r.coupon_id,
+                              coupon_name: r.coupon_name,
+                              promotion_code: r.promotion_code,
+                              discount_duration: r.discount_duration,
+                              stripe_invoice_id: r.stripe_invoice_id,
                             })}
                             title="Auditar / editar conversão"
                           >
