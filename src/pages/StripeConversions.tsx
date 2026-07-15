@@ -62,6 +62,17 @@ interface Conversion {
   attribution_source: string | null;
   is_reactivation: boolean | null;
   previous_churn_at: string | null;
+  gross_amount: number | null;
+  net_amount: number | null;
+  discount_amount: number | null;
+  mrr_net: number | null;
+  coupon_id: string | null;
+  coupon_name: string | null;
+  coupon_percent_off: number | null;
+  coupon_amount_off: number | null;
+  promotion_code: string | null;
+  discount_duration: string | null;
+  stripe_invoice_id: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -113,7 +124,9 @@ export default function StripeConversions() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all"); // all | none
   const [reactivationOnly, setReactivationOnly] = useState(false);
+  const [couponOnly, setCouponOnly] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
+  const [backfillingNet, setBackfillingNet] = useState(false);
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
 
   function changePreset(p: string) {
@@ -122,11 +135,11 @@ export default function StripeConversions() {
   }
 
   const { data: rows = [], isLoading, refetch } = useQuery({
-    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter, reactivationOnly],
+    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly],
     queryFn: async () => {
       let q = supabase
         .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at")
+        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
         .order("converted_at", { ascending: false });
@@ -137,6 +150,7 @@ export default function StripeConversions() {
       if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
       if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
       if (reactivationOnly) q = q.eq("is_reactivation", true);
+      if (couponOnly) q = q.not("coupon_id", "is", null);
       const { data, error } = await q.limit(5000);
       if (error) throw error;
       return (data || []) as Conversion[];
@@ -197,6 +211,26 @@ export default function StripeConversions() {
       toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
     } finally {
       setReprocessing(false);
+    }
+  }
+
+  async function handleBackfillNetAmounts() {
+    if (!confirm(`Buscar valores líquidos (com cupom) para conversões no período ${period.start} → ${period.end}?\n\nPreenche gross_amount, net_amount, discount_amount, mrr_net e cupom nas conversões que ainda não têm esses dados.`)) return;
+    setBackfillingNet(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-backfill-net-amounts", {
+        body: { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, limit: 2000, only_missing: true },
+      });
+      if (error) throw error;
+      toast({
+        title: "Backfill concluído",
+        description: `Analisadas ${data?.scanned ?? 0} · atualizadas ${data?.updated ?? 0} · sem invoice ${data?.skipped_no_invoice ?? 0} · erros ${data?.failed ?? 0}`,
+      });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setBackfillingNet(false);
     }
   }
 
@@ -313,10 +347,16 @@ export default function StripeConversions() {
           </div>
           <div className="flex items-center gap-2">
             {role === "admin" && (
-              <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
-                {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
-                Reprocessar reativações
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>
+                  {backfillingNet ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Buscar valor líquido
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
+                  {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                  Reprocessar reativações
+                </Button>
+              </>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -401,6 +441,12 @@ export default function StripeConversions() {
                 <Label className="text-xs flex items-center gap-2 mt-5">
                   <input type="checkbox" checked={reactivationOnly} onChange={e => setReactivationOnly(e.target.checked)} />
                   Somente reativações
+                </Label>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={couponOnly} onChange={e => setCouponOnly(e.target.checked)} />
+                  Somente com cupom
                 </Label>
               </div>
             </div>
@@ -488,15 +534,16 @@ export default function StripeConversions() {
                     <TableHead>Email</TableHead>
                     <TableHead>Vendedor</TableHead>
                     <TableHead className="text-right">MRR / Δ</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
@@ -550,6 +597,35 @@ export default function StripeConversions() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
+                        {r.mrr_net != null ? (
+                          <div>
+                            <div className="font-medium">{fmtBRL(Number(r.mrr_net))}</div>
+                            {r.discount_amount != null && r.discount_amount > 0 && (
+                              <div className="text-[10px] text-muted-foreground">
+                                −{fmtBRL(Number(r.discount_amount))}
+                              </div>
+                            )}
+                            {r.coupon_id && (
+                              <Badge
+                                variant="outline"
+                                className="mt-1 text-[9px] border-emerald-500 text-emerald-700"
+                                title={[
+                                  r.coupon_name || r.coupon_id,
+                                  r.coupon_percent_off ? `${r.coupon_percent_off}% off` : null,
+                                  r.coupon_amount_off ? `R$${r.coupon_amount_off} off` : null,
+                                  r.promotion_code ? `código: ${r.promotion_code}` : null,
+                                  r.discount_duration ? `duração: ${r.discount_duration}` : null,
+                                ].filter(Boolean).join(" · ")}
+                              >
+                                {r.coupon_name || r.promotion_code || "Cupom"}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground italic">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {r.area === "desconhecida" && r.stripe_price_id && (
                             <MapStripePriceButton
@@ -581,6 +657,15 @@ export default function StripeConversions() {
                               previous_price_id: r.previous_price_id,
                               assigned_seller_id: r.assigned_seller_id,
                               attribution_source: r.attribution_source,
+                              gross_amount: r.gross_amount,
+                              net_amount: r.net_amount,
+                              discount_amount: r.discount_amount,
+                              mrr_net: r.mrr_net,
+                              coupon_id: r.coupon_id,
+                              coupon_name: r.coupon_name,
+                              promotion_code: r.promotion_code,
+                              discount_duration: r.discount_duration,
+                              stripe_invoice_id: r.stripe_invoice_id,
                             })}
                             title="Auditar / editar conversão"
                           >

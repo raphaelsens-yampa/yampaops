@@ -1226,6 +1226,7 @@ export type Database = {
       }
       commission_settings: {
         Row: {
+          commission_base: string
           created_at: string
           guarantee_months: number
           id: string
@@ -1235,6 +1236,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          commission_base?: string
           created_at?: string
           guarantee_months?: number
           id?: string
@@ -1244,6 +1246,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          commission_base?: string
           created_at?: string
           guarantee_months?: number
           id?: string
@@ -2819,23 +2822,36 @@ export type Database = {
           attribution_source: string | null
           conversion_type: string
           converted_at: string | null
+          coupon_amount_off: number | null
+          coupon_id: string | null
+          coupon_name: string | null
+          coupon_percent_off: number | null
           created_at: string
           customer_email: string | null
           delta_mrr: number | null
+          discount_amount: number
+          discount_duration: string | null
+          discount_duration_in_months: number | null
+          gross_amount: number | null
           id: string
           is_reactivation: boolean
           matched_contact_id: string | null
           matched_opportunity_id: string | null
           mrr: number
+          mrr_net: number | null
+          net_amount: number | null
+          net_amount_source: string | null
           plan_name: string | null
           previous_churn_at: string | null
           previous_conversion_id: string | null
           previous_mrr: number
           previous_price_id: string | null
           product_name: string | null
+          promotion_code: string | null
           registered_at: string | null
           stripe_customer_id: string | null
           stripe_event_id: string | null
+          stripe_invoice_id: string | null
           stripe_price_id: string | null
           stripe_subscription_id: string | null
           updated_at: string
@@ -2846,23 +2862,36 @@ export type Database = {
           attribution_source?: string | null
           conversion_type?: string
           converted_at?: string | null
+          coupon_amount_off?: number | null
+          coupon_id?: string | null
+          coupon_name?: string | null
+          coupon_percent_off?: number | null
           created_at?: string
           customer_email?: string | null
           delta_mrr?: number | null
+          discount_amount?: number
+          discount_duration?: string | null
+          discount_duration_in_months?: number | null
+          gross_amount?: number | null
           id?: string
           is_reactivation?: boolean
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
           mrr?: number
+          mrr_net?: number | null
+          net_amount?: number | null
+          net_amount_source?: string | null
           plan_name?: string | null
           previous_churn_at?: string | null
           previous_conversion_id?: string | null
           previous_mrr?: number
           previous_price_id?: string | null
           product_name?: string | null
+          promotion_code?: string | null
           registered_at?: string | null
           stripe_customer_id?: string | null
           stripe_event_id?: string | null
+          stripe_invoice_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
@@ -2873,23 +2902,36 @@ export type Database = {
           attribution_source?: string | null
           conversion_type?: string
           converted_at?: string | null
+          coupon_amount_off?: number | null
+          coupon_id?: string | null
+          coupon_name?: string | null
+          coupon_percent_off?: number | null
           created_at?: string
           customer_email?: string | null
           delta_mrr?: number | null
+          discount_amount?: number
+          discount_duration?: string | null
+          discount_duration_in_months?: number | null
+          gross_amount?: number | null
           id?: string
           is_reactivation?: boolean
           matched_contact_id?: string | null
           matched_opportunity_id?: string | null
           mrr?: number
+          mrr_net?: number | null
+          net_amount?: number | null
+          net_amount_source?: string | null
           plan_name?: string | null
           previous_churn_at?: string | null
           previous_conversion_id?: string | null
           previous_mrr?: number
           previous_price_id?: string | null
           product_name?: string | null
+          promotion_code?: string | null
           registered_at?: string | null
           stripe_customer_id?: string | null
           stripe_event_id?: string | null
+          stripe_invoice_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
           updated_at?: string
