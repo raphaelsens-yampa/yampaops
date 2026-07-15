@@ -347,10 +347,16 @@ export default function StripeConversions() {
           </div>
           <div className="flex items-center gap-2">
             {role === "admin" && (
-              <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
-                {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
-                Reprocessar reativações
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>
+                  {backfillingNet ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Buscar valor líquido
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
+                  {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                  Reprocessar reativações
+                </Button>
+              </>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
