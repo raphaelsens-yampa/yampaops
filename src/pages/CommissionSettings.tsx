@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Settings } from "lucide-react";
 import { ProductPricingTable } from "@/components/commissions/ProductPricingTable";
@@ -19,6 +20,7 @@ export default function CommissionSettings() {
   const [paymentDay, setPaymentDay] = useState("10");
   const [tPlusMonths, setTPlusMonths] = useState("2");
   const [reactivationGapMonths, setReactivationGapMonths] = useState("2");
+  const [commissionBase, setCommissionBase] = useState<"net" | "gross">("net");
 
   useEffect(() => {
     (async () => {
@@ -30,6 +32,9 @@ export default function CommissionSettings() {
         setTPlusMonths(data.t_plus_months.toString());
         if ((data as any).reactivation_gap_months != null) {
           setReactivationGapMonths(String((data as any).reactivation_gap_months));
+        }
+        if ((data as any).commission_base) {
+          setCommissionBase((data as any).commission_base as "net" | "gross");
         }
       }
       setLoading(false);
@@ -44,6 +49,7 @@ export default function CommissionSettings() {
       payment_day: Number(paymentDay),
       t_plus_months: Number(tPlusMonths),
       reactivation_gap_months: Number(reactivationGapMonths),
+      commission_base: commissionBase,
     } as any).eq("id", settingsId);
     setSaving(false);
     if (error) {
@@ -92,6 +98,21 @@ export default function CommissionSettings() {
                     <p className="text-xs text-muted-foreground mt-1">Cliente que voltou após esse gap conta como nova venda</p>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Base de cálculo da comissão</Label>
+                    <Select value={commissionBase} onValueChange={(v) => setCommissionBase(v as "net" | "gross")}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="net">Valor líquido (com desconto de cupom)</SelectItem>
+                        <SelectItem value="gross">Valor bruto (price de tabela)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Quando o mapa de preços define um <code>mrr_override</code>, ele prevalece sobre essa configuração.
+                    </p>
+                  </div>
+                </div>
                 <Button onClick={handleSave} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                   Salvar Configurações
@@ -108,3 +129,4 @@ export default function CommissionSettings() {
     </Layout>
   );
 }
+
