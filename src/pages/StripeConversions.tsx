@@ -534,15 +534,16 @@ export default function StripeConversions() {
                     <TableHead>Email</TableHead>
                     <TableHead>Vendedor</TableHead>
                     <TableHead className="text-right">MRR / Δ</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
                   {rows.slice(0, 500).map(r => (
                     <TableRow key={r.id}>
