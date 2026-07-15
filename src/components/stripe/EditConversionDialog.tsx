@@ -267,6 +267,35 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
             <Label>Justificativa (obrigatória)</Label>
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Por que essa conversão está sendo ajustada?" />
           </div>
+          {(conversion.net_amount != null || conversion.mrr_net != null || conversion.coupon_id) && (
+            <div className="rounded-md border bg-emerald-50 dark:bg-emerald-950/30 p-2 text-[11px] space-y-1">
+              <div className="font-medium text-emerald-800 dark:text-emerald-300">Valores do Stripe (com cupom)</div>
+              <div className="grid grid-cols-3 gap-2">
+                {conversion.gross_amount != null && (
+                  <div><span className="text-muted-foreground">Bruto:</span> R$ {Number(conversion.gross_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                )}
+                {conversion.net_amount != null && (
+                  <div><span className="text-muted-foreground">Pago:</span> R$ {Number(conversion.net_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                )}
+                {conversion.discount_amount != null && conversion.discount_amount > 0 && (
+                  <div><span className="text-muted-foreground">Desconto:</span> R$ {Number(conversion.discount_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                )}
+                {conversion.mrr_net != null && (
+                  <div><span className="text-muted-foreground">MRR líquido:</span> R$ {Number(conversion.mrr_net).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                )}
+              </div>
+              {(conversion.coupon_name || conversion.coupon_id || conversion.promotion_code) && (
+                <div>
+                  <span className="text-muted-foreground">Cupom:</span> {conversion.coupon_name || conversion.coupon_id}
+                  {conversion.promotion_code && <> · <span className="text-muted-foreground">código:</span> {conversion.promotion_code}</>}
+                  {conversion.discount_duration && <> · <span className="text-muted-foreground">duração:</span> {conversion.discount_duration}</>}
+                </div>
+              )}
+              {conversion.stripe_invoice_id && (
+                <div className="font-mono text-[10px] text-muted-foreground">invoice: {conversion.stripe_invoice_id}</div>
+              )}
+            </div>
+          )}
           <div className="rounded-md border bg-muted/30 p-2 text-[11px] text-muted-foreground space-y-0.5 font-mono">
             <div>conversion_id: {conversion.conversion_id}</div>
             {conversion.subscription_id && <div>subscription: {conversion.subscription_id}</div>}
