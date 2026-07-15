@@ -443,6 +443,12 @@ export default function StripeConversions() {
                   Somente reativações
                 </Label>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={couponOnly} onChange={e => setCouponOnly(e.target.checked)} />
+                  Somente com cupom
+                </Label>
+              </div>
             </div>
           </CardContent>
         </Card>
