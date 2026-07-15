@@ -580,6 +580,19 @@ Deno.serve(async (req) => {
     attribution_source: attributionSource,
     is_reactivation: isReactivation,
     previous_churn_at: previousChurnAt,
+    gross_amount: grossAmount,
+    net_amount: netAmount,
+    discount_amount: discountAmount,
+    mrr_net: mrrNet,
+    coupon_id: couponId,
+    coupon_name: couponName,
+    coupon_percent_off: couponPercentOff,
+    coupon_amount_off: couponAmountOff,
+    promotion_code: promotionCode,
+    discount_duration: discountDuration,
+    discount_duration_in_months: discountDurationInMonths,
+    stripe_invoice_id: stripeInvoiceId,
+    net_amount_source: netAmountSource,
   };
 
   const conversionExists = !!existingRow;
