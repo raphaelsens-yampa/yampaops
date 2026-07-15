@@ -214,6 +214,26 @@ export default function StripeConversions() {
     }
   }
 
+  async function handleBackfillNetAmounts() {
+    if (!confirm(`Buscar valores líquidos (com cupom) para conversões no período ${period.start} → ${period.end}?\n\nPreenche gross_amount, net_amount, discount_amount, mrr_net e cupom nas conversões que ainda não têm esses dados.`)) return;
+    setBackfillingNet(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-backfill-net-amounts", {
+        body: { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, limit: 2000, only_missing: true },
+      });
+      if (error) throw error;
+      toast({
+        title: "Backfill concluído",
+        description: `Analisadas ${data?.scanned ?? 0} · atualizadas ${data?.updated ?? 0} · sem invoice ${data?.skipped_no_invoice ?? 0} · erros ${data?.failed ?? 0}`,
+      });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setBackfillingNet(false);
+    }
+  }
+
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
     for (const r of rows) {
