@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
   let convPlanName: string | null = null;
   let convMrr = 0;
   let priceMapped = false;
+  let hasMrrOverride = false;
   if (priceId) {
     const { data: pm } = await supabase
       .from("commission_price_map")
@@ -193,7 +194,10 @@ Deno.serve(async (req) => {
       convArea = pm.area || "desconhecida";
       convProductName = pm.offer_name || null;
       convPlanName = pm.plan_name || pm.price_name || null;
-      if (pm.mrr_override != null) convMrr = Number(pm.mrr_override);
+      if (pm.mrr_override != null) {
+        convMrr = Number(pm.mrr_override);
+        hasMrrOverride = true;
+      }
     }
   }
 
@@ -323,6 +327,13 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ─── MRR gravado = valor LÍQUIDO efetivamente cobrado (com cupom aplicado). ───
+  // Sempre que temos mrrNet calculado a partir da invoice, ele é a fonte de
+  // verdade — inclusive quando o mapa define mrr_override (o override passa a
+  // ser usado apenas como fallback de comissão quando não há invoice paga).
+  if (mrrNet != null && mrrNet > 0) {
+    convMrr = mrrNet;
+  }
 
   // ─── Descartar somente pagamento zerado ───
   // Regra: se MRR final = 0 (oferta gratuita / sem cobrança recorrente), descarta.
