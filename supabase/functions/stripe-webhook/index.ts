@@ -653,6 +653,57 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ─── Validação de consistência do valor líquido (best-effort). ───
+  // Roda logo após persistir. Se detectar problema, grava/atualiza um alerta em
+  // integration_sync_errors do tipo 'stripe_net_amount_mismatch' que fica visível
+  // no painel de Divergências. Não bloqueia a conversão.
+  try {
+    const convId = existingRow?.id
+      ?? (await supabase
+            .from("stripe_conversions")
+            .select("id")
+            .eq("stripe_customer_id", customerId ?? "")
+            .eq("stripe_price_id", priceId ?? "")
+            .eq("converted_at", finalConvertedAt)
+            .maybeSingle()).data?.id;
+    if (convId) {
+      const { data: issues } = await supabase.rpc("validate_stripe_net_amount", { p_id: convId });
+      const list = Array.isArray(issues) ? (issues as string[]) : [];
+      if (list.length === 0) {
+        await supabase.from("integration_sync_errors")
+          .update({ resolved: true })
+          .eq("entity_type", "stripe_net_amount_mismatch")
+          .eq("ac_id", convId)
+          .eq("resolved", false);
+      } else {
+        const msg = list.join(" | ");
+        const { data: existing } = await supabase
+          .from("integration_sync_errors")
+          .select("id, error_message")
+          .eq("entity_type", "stripe_net_amount_mismatch")
+          .eq("ac_id", convId)
+          .eq("resolved", false)
+          .maybeSingle();
+        if (!existing) {
+          await supabase.from("integration_sync_errors").insert({
+            entity_type: "stripe_net_amount_mismatch",
+            ac_id: convId,
+            error_message: msg,
+            payload: { event_id: event.id, event_type: event.type, price_id: priceId, invoice_id: stripeInvoiceId, mrr: convMrr, mrr_net: mrrNet, net_amount: netAmount, discount_amount: discountAmount, coupon_id: couponId },
+            resolved: false,
+          });
+        } else if (existing.error_message !== msg) {
+          await supabase.from("integration_sync_errors")
+            .update({ error_message: msg, payload: { event_id: event.id, mrr: convMrr, mrr_net: mrrNet, net_amount: netAmount, coupon_id: couponId } })
+            .eq("id", existing.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("validate_stripe_net_amount failed:", err);
+  }
+
+
   // Sinaliza price_id não mapeado no Mapa de Preços
   if (priceId && convArea === "desconhecida") {
     await supabase.from("integration_sync_errors").insert({
