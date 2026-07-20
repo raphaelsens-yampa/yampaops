@@ -49,12 +49,18 @@ Deno.serve(async (req) => {
   let to: string | null = null;
   let limit = 500;
   let onlyMissing = true;
+  let idsFilter: string[] | null = null;
   try {
     const body = await req.json();
     if (body?.from) from = String(body.from);
     if (body?.to) to = String(body.to);
     if (body?.limit) limit = Math.max(1, Math.min(2000, Number(body.limit)));
     if (typeof body?.only_missing === "boolean") onlyMissing = body.only_missing;
+    if (Array.isArray(body?.ids) && body.ids.length > 0) {
+      idsFilter = body.ids.map((s: any) => String(s)).slice(0, 500);
+      // Quando o caller pede por IDs específicos, ignora only_missing
+      onlyMissing = false;
+    }
   } catch {}
 
   let q = supabase
@@ -63,9 +69,13 @@ Deno.serve(async (req) => {
     .not("converted_at", "is", null)
     .order("converted_at", { ascending: true })
     .limit(limit);
-  if (from) q = q.gte("converted_at", from);
-  if (to) q = q.lte("converted_at", to);
-  if (onlyMissing) q = q.is("net_amount", null);
+  if (idsFilter) {
+    q = q.in("id", idsFilter);
+  } else {
+    if (from) q = q.gte("converted_at", from);
+    if (to) q = q.lte("converted_at", to);
+    if (onlyMissing) q = q.is("net_amount", null);
+  }
 
   const { data: rows, error } = await q;
   if (error) return ok({ error: error.message }, 500);
