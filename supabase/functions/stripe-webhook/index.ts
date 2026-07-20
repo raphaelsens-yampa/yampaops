@@ -327,6 +327,13 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ─── MRR gravado = valor LÍQUIDO efetivamente cobrado (com cupom aplicado). ───
+  // Sobrescreve o convMrr baseado no price cheio quando a invoice já foi paga
+  // e conseguimos calcular o líquido. Preserva mrr_override do mapa (valor de
+  // tabela definido explicitamente pelo admin).
+  if (!hasMrrOverride && mrrNet != null && mrrNet > 0) {
+    convMrr = mrrNet;
+  }
 
   // ─── Descartar somente pagamento zerado ───
   // Regra: se MRR final = 0 (oferta gratuita / sem cobrança recorrente), descarta.
