@@ -1189,6 +1189,7 @@ export type Database = {
         Row: {
           av_pct: number | null
           commission_pct: number
+          coupon_id: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -1201,6 +1202,7 @@ export type Database = {
         Insert: {
           av_pct?: number | null
           commission_pct?: number
+          coupon_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -1213,6 +1215,7 @@ export type Database = {
         Update: {
           av_pct?: number | null
           commission_pct?: number
+          coupon_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -3286,6 +3289,11 @@ export type Database = {
       scc_refresh_first_contact: {
         Args: { p_campaign_id: string }
         Returns: number
+      }
+      validate_stripe_net_amount: { Args: { p_id: string }; Returns: string[] }
+      validate_stripe_net_amount_range: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
       }
     }
     Enums: {
