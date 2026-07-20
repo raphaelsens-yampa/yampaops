@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const { error: updErr } = await supabase.from("stripe_conversions").update({
+      const updatePayload: Record<string, unknown> = {
         gross_amount: grossAmount,
         net_amount: netAmount,
         discount_amount: discountAmount,
@@ -207,10 +207,55 @@ Deno.serve(async (req) => {
         discount_duration_in_months: discountDurationInMonths,
         stripe_invoice_id: invoice.id,
         net_amount_source: "invoice",
-      }).eq("id", row.id);
+      };
+      // Alinha mrr ao líquido quando temos o valor efetivo cobrado.
+      if (mrrNet != null && mrrNet > 0) updatePayload.mrr = mrrNet;
 
-      if (updErr) { failed++; errors.push(`${row.id}: ${updErr.message}`); }
-      else updated++;
+      const { error: updErr } = await supabase
+        .from("stripe_conversions")
+        .update(updatePayload)
+        .eq("id", row.id);
+
+      if (updErr) { failed++; errors.push(`${row.id}: ${updErr.message}`); continue; }
+      updated++;
+
+      // Reaplica comissão + valida consistência (grava divergência se houver)
+      try {
+        await supabase.rpc("apply_commission_from_stripe", { p_stripe_id: row.id });
+      } catch (_) { /* apply é tolerante */ }
+      try {
+        const { data: issues } = await supabase.rpc("validate_stripe_net_amount", { p_id: row.id });
+        const list = Array.isArray(issues) ? (issues as string[]) : [];
+        if (list.length === 0) {
+          await supabase.from("integration_sync_errors")
+            .update({ resolved: true })
+            .eq("entity_type", "stripe_net_amount_mismatch")
+            .eq("ac_id", row.id)
+            .eq("resolved", false);
+        } else {
+          const msg = list.join(" | ");
+          const { data: existing } = await supabase
+            .from("integration_sync_errors")
+            .select("id, error_message")
+            .eq("entity_type", "stripe_net_amount_mismatch")
+            .eq("ac_id", row.id)
+            .eq("resolved", false)
+            .maybeSingle();
+          if (!existing) {
+            await supabase.from("integration_sync_errors").insert({
+              entity_type: "stripe_net_amount_mismatch",
+              ac_id: row.id,
+              error_message: msg,
+              payload: { gross_amount: grossAmount, net_amount: netAmount, discount_amount: discountAmount, mrr_net: mrrNet, coupon_id: couponId },
+              resolved: false,
+            });
+          } else if (existing.error_message !== msg) {
+            await supabase.from("integration_sync_errors")
+              .update({ error_message: msg })
+              .eq("id", existing.id);
+          }
+        }
+      } catch (_) { /* validação é best-effort */ }
     } catch (e: any) {
       failed++;
       errors.push(`${row.id}: ${e?.message || String(e)}`);
