@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
   let convPlanName: string | null = null;
   let convMrr = 0;
   let priceMapped = false;
+  let hasMrrOverride = false;
   if (priceId) {
     const { data: pm } = await supabase
       .from("commission_price_map")
@@ -193,7 +194,10 @@ Deno.serve(async (req) => {
       convArea = pm.area || "desconhecida";
       convProductName = pm.offer_name || null;
       convPlanName = pm.plan_name || pm.price_name || null;
-      if (pm.mrr_override != null) convMrr = Number(pm.mrr_override);
+      if (pm.mrr_override != null) {
+        convMrr = Number(pm.mrr_override);
+        hasMrrOverride = true;
+      }
     }
   }
 
