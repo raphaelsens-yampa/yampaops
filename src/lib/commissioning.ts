@@ -20,6 +20,7 @@ export interface CommissionReference {
   commission_pct: number;
   av_pct: number | null;
   is_active: boolean;
+  coupon_id: string | null;
 }
 
 export interface PriceMapEntry {
