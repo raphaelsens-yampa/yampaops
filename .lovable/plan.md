@@ -1,133 +1,114 @@
-## Problema
+## Contexto atual (verificado)
 
-Hoje o `mrr` da conversão vem de:
+- `stripe_conversions` já tem: `gross_amount`, `net_amount` (invoice.amount_paid), `discount_amount`, `mrr_net` (líquido normalizado pra mês), `coupon_*`, `stripe_invoice_id`, `net_amount_source` ('invoice' | 'price_fallback').
+- Webhook (`stripe-webhook`) e backfill (`stripe-backfill-net-amounts`) já populam esses campos, e o `mrr` gravado agora reflete o líquido quando há invoice paga.
+- Hoje **não existe validação cruzada**: se o webhook cair no meio do lookup da invoice, a linha entra com `net_amount_source='price_fallback'` (valor bruto) e ninguém sinaliza.
+- Comissão é decidida por `commission_price_map(price_id → plan_name/payment_type)` + `commission_reference(plan_name, payment_type → %)`. Cupons não entram na chave — o único ajuste que o cupom faz hoje é no **valor base** (via `mrr_net`), não na **regra** aplicada.
 
-1. `commission_price_map.mrr_override` (valor fixo do mapa), **ou**
-2. `stripe.prices.retrieve(priceId).unit_amount` normalizado pra mês.
+## Escopo
 
-Nenhum dos dois considera **cupom / desconto** aplicado no checkout. Cliente que fecha com 20% off entra pelo valor cheio do price. Isso quebra:
+Duas frentes independentes, entregues juntas:
 
-- comissão real (paga sobre valor bruto, não sobre o que a Yampa recebeu),
-- forecast/receita real,
-- relatórios de ticket médio.
+### 1) Validação de consistência net_amount ↔ amount_paid
 
-## Solução
+**Onde validar (mesma função em 3 pontos):**
 
-Sempre que houver um evento com invoice associada, buscar o valor **líquido efetivamente cobrado** da invoice no Stripe e persistir em novas colunas dedicadas. O `mrr` continua sendo a régua de plano (pra Metas e séries históricas comparáveis), e ganhamos campos separados de valor real recebido + desconto aplicado.
+- No `stripe-webhook`, logo após popular os campos da invoice.
+- No `stripe-backfill-net-amounts`, para cada linha atualizada.
+- Sob demanda, num novo botão "Validar consistência" na aba Stripe da tela de Conversões.
 
-### Nova origem de dado
+**Regras da validação** (roda pra cada `stripe_conversions` que tenha `stripe_invoice_id`):
 
-Para cada conversão, buscar a **invoice de referência**:
+```text
+DIVERGENCIA se qualquer uma:
+  - net_amount IS NULL AND stripe_invoice_id IS NOT NULL
+  - discount_amount > 0 AND (coupon_id IS NULL AND promotion_code IS NULL)
+  - net_amount_source = 'price_fallback' AND converted_at > (hoje - 30 dias)   -- deveria ter invoice
+  - gross_amount IS NOT NULL AND net_amount IS NOT NULL
+    AND ABS(gross_amount - discount_amount - net_amount) > 0.02
+  - mrr_net IS NULL AND net_amount IS NOT NULL AND net_amount > 0
+  - mrr > 0 AND mrr_net IS NOT NULL AND mrr_net > 0 AND ABS(mrr - mrr_net) > 0.02
+    (mrr deveria estar espelhando mrr_net após a última migration)
+```
 
-- `checkout.session.completed` → `session.invoice` (ou primeira invoice da subscription criada).
-- `customer.subscription.created` → `stripe.invoices.list({ subscription, limit: 1 })` mais recente com `status='paid'`.
-- `customer.subscription.updated` (troca de plano) → última invoice paga da sub após o update.
-- `invoice.paid` → a própria invoice do evento.
+Cada divergência é gravada em `integration_sync_errors` com:
 
-Da invoice, extrair:
+- `entity_type = 'stripe_net_amount_mismatch'`
+- `ac_id = stripe_conversions.id`
+- `error_message` = motivo humano ("mrr não bate com mrr_net", "discount sem cupom identificado", etc.)
+- `payload` = snapshot dos campos relevantes
+- `resolved = false` (pra aparecer como pendência acionável)
 
-- `amount_paid` (centavos, já com desconto e antes de refund) → **valor líquido**
-- `subtotal` → valor bruto antes do desconto
-- `total_discount_amounts[].amount` (soma) → desconto total em R$
-- `discount.coupon.id` / `coupon.name` / `coupon.percent_off` / `coupon.amount_off` → cupom aplicado
-- `discount.promotion_code` (quando houver) → código promocional usado
+**Recheque em tempo real no webhook:** se a divergência for do tipo "faltou invoice" ou "mrr desalinhado", o webhook grava a divergência **mas não bloqueia** a conversão — a linha entra e vai ser corrigida depois pelo backfill.
 
-### Cálculo de MRR líquido
+### 2) UI: fila de correção
 
-Para o **MRR líquido** (recorrente), usar a linha da invoice referente ao price da conversão:
+Nova seção **"Divergências de valor líquido"** dentro de `StripeConversions.tsx` (visível pra admin/tatico):
 
-- `line.amount` = valor líquido dessa linha (já com desconto rateado por linha quando o cupom aplica ao item).
-- Normalizar pela recorrência do price (mesma lógica atual: month/year/week/day).
-- Se o cupom for `duration=once` ou `repeating`, o desconto **só vale nos primeiros ciclos** — guardar isso em `discount_duration` pra relatório saber que é temporário.
+- Cards com contagem por tipo de divergência.
+- Tabela das linhas em `integration_sync_errors` do tipo `stripe_net_amount_mismatch` não resolvidas, com colunas: cliente, plano, converted_at, motivo, valores atuais (mrr, mrr_net, net_amount, discount).
+- Ações por linha:
+  - **"Rebuscar invoice"** → chama `stripe-backfill-net-amounts` com `{ ids: [conversion_id], force: true }` (novo parâmetro; hoje só aceita range).
+  - **"Reaplicar comissão"** → chama RPC `apply_commission_from_stripe(id)` já existente.
+  - **"Marcar como resolvida"** → soft close manual (`resolved = true`) para casos aceitos como corretos.
+- Ação em lote no header: "Rebuscar todas" e "Validar consistência agora" (dispara a validação por todo o range visível).
 
-Se a invoice não existir (ex.: subscription criada em trial sem invoice paga ainda), cai no comportamento atual (valor do price) e marca `net_amount_source='price_fallback'`.
+### 3) Reestruturação da chave de comissão para conviver com cupons
 
-## Mudanças de banco (migration)
+**Diagnóstico:** o modelo atual (`price_id → plano/periodicidade → %`) funciona para valor, mas não distingue vendas do mesmo price com cupom que muda a natureza da oferta (ex.: cupom "Parceiro" com regra de comissão diferente). Precisamos permitir **regra específica por combinação price+cupom** sem quebrar o caminho comum.
 
-`ALTER TABLE public.stripe_conversions` — adicionar:
+**Mudanças de banco:**
 
-- `gross_amount numeric` — subtotal bruto da invoice (R$)
-- `net_amount numeric` — valor efetivamente pago (R$)
-- `discount_amount numeric NOT NULL DEFAULT 0`
-- `mrr_net numeric` — MRR normalizado já com desconto
-- `coupon_id text`
-- `coupon_name text`
-- `coupon_percent_off numeric`
-- `coupon_amount_off numeric`
-- `promotion_code text`
-- `discount_duration text` — `once` / `repeating` / `forever` / `null`
-- `discount_duration_in_months int`
-- `stripe_invoice_id text`
-- `net_amount_source text` — `invoice` | `price_fallback`
+- `commission_price_map`: adicionar coluna opcional `coupon_id text` (nullable, default NULL) e ajustar unique para `(price_id, COALESCE(coupon_id, ''))`.
+- `commission_reference`: adicionar coluna opcional `coupon_id text` (nullable) para permitir % diferente por (plano, periodicidade, cupom).
+- Nenhum registro existente muda de valor — todos ficam com `coupon_id = NULL` e continuam sendo o "match padrão".
 
-Index leve em `coupon_id` pra relatório futuro.
+**Nova lógica de resolução (na função `apply_commission_from_stripe`):**
 
-`stripe_conversions` **não** muda `mrr` — permanece igual. Comissionamento continua usando `mrr` (ou passa a usar `mrr_net` — ver decisão abaixo).
+```text
+1. Tenta match exato: price_map WHERE price_id = X AND coupon_id = <cupom da conversão>
+2. Se não achar, fallback pro match atual: price_id = X AND coupon_id IS NULL
+3. Mesmo esquema em commission_reference (plano, periodicidade, cupom → % ; fallback pra cupom NULL)
+```
 
-## Comissionamento: qual valor usar?
+**UI de mapeamento** (`ComissionamentoPriceMap.tsx` + `MapPriceDialog.tsx`):
 
-Duas opções, precisa decidir uma:
+- Novo campo opcional "Cupom" no diálogo de mapeamento (autocomplete alimentado pelos `coupon_id` distintos presentes em `stripe_conversions`).
+- Linha da tabela ganha coluna "Cupom" (mostra "— (padrão)" quando NULL).
+- No diálogo aparece um alerta quando o admin está criando um mapeamento sobreposto (mesmo price já tem regra sem cupom e essa nova é específica).
 
-**A) Comissão sobre valor líquido (recomendado)** — `apply_commission_from_stripe` passa a usar `COALESCE(mrr_net, mrr)`. Vendedor não ganha em cima de desconto que a Yampa deu. Impacto: comissões futuras caem em contratos com cupom. Contratos já pagos ficam iguais (não retroage sem backfill).
+**Pergunta de decisão** (bloqueia só a parte 3):
 
-**B) Comissão continua sobre `mrr` (valor de tabela)** — só adiciona os campos de líquido pra relatório/forecast. Vendedor mantém política atual.
+- A regra especial por cupom deve mudar apenas o **percentual** (mantendo plano/periodicidade do match padrão), ou também pode redefinir plano/periodicidade/seller? Padrão proposto: **redefine tudo** (mais poderoso, o admin escolhe se preenche cada campo).
 
-Vou implementar **A** por padrão, com uma flag em `commission_settings.commission_base` (`gross` | `net`, default `net`), pra permitir reverter sem migration.
+## Ordem de execução
 
-## Mudanças no webhook `stripe-webhook`
-
-Depois de resolver `priceId` e antes de gravar em `stripe_conversions`:
-
-1. Descobrir `invoiceId` conforme o tipo do evento (regras acima).
-2. `stripe.invoices.retrieve(invoiceId, { expand: ['discounts', 'total_discount_amounts', 'lines.data.discounts'] })`.
-3. Popular `gross_amount`, `net_amount`, `discount_amount`, `stripe_invoice_id`.
-4. Se houver `invoice.discount` ou `invoice.discounts[0]`, popular `coupon_*`, `promotion_code`, `discount_duration`, `discount_duration_in_months`.
-5. Calcular `mrr_net` a partir da linha do price (com desconto rateado) normalizado pra mês.
-6. Setar `net_amount_source`.
-7. Persistir no insert/update existente.
-
-Se qualquer chamada falhar, logar em `integration_sync_errors` (`stripe_invoice_lookup_failed`, `resolved=true`) e seguir com fallback do preço — não bloquear a conversão.
-
-## Backfill
-
-Nova Edge Function `stripe-backfill-net-amounts` (admin-only, `verify_jwt=true`):
-
-- Body: `{ from, to, limit, only_missing }`.
-- Itera `stripe_conversions` sem `net_amount` (ou dentro do range), busca a invoice correspondente por `stripe_subscription_id` + `converted_at` (invoice mais próxima, `status=paid`), aplica a mesma lógica do webhook e atualiza as colunas novas.
-- Não mexe em `mrr` nem em comissões já lançadas — apenas hidrata os campos novos.
-- Botão opcional em `StripeConversions.tsx` (admin) pra disparar.
-
-## UI
-
-- `src/pages/StripeConversions.tsx`:
-  - Nova coluna "Valor líquido" (`net_amount`) ao lado de "MRR".
-  - Badge "Cupom" quando `coupon_id != null`, com tooltip mostrando `coupon_name`, `percent_off`/`amount_off` e `discount_duration`.
-  - Filtro "Somente com cupom".
-- `src/components/stripe/EditConversionDialog.tsx`:
-  - Mostrar (read-only) `gross_amount`, `net_amount`, `discount_amount`, `coupon_name`, `promotion_code`, `stripe_invoice_id`.
-  - Não permitir edição manual desses campos (vieram do Stripe).
-- `src/pages/CommissionSettings.tsx`:
-  - Novo select "Base de cálculo de comissão": Valor bruto (price) / Valor líquido (com desconto) — grava `commission_settings.commission_base`.
-
-## O que NÃO muda
-
-- Regras de dedup, `resolve_stripe_seller`, Metas (continuam olhando `mrr` como régua de plano), importação manual.
-- `mrr` permanece; nada retroage sem o backfill explícito.
-- Comissões já lançadas em `commission_conversions` não são recalculadas — só as novas usam a nova base.
+1. Função utilitária de validação (SQL função + wrapper TS reutilizável no webhook e no backfill).
+2. Instrumentação no webhook e no backfill + parâmetro `ids` no backfill.
+3. Painel de divergências em `StripeConversions.tsx`.
+4. Migration da nova chave `coupon_id` em price_map + reference (aditiva, sem quebra).
+5. Atualização de `apply_commission_from_stripe` com o novo fallback.
+6. UI do mapeamento de cupom.
+7. Reprocessamento único das conversões existentes com cupom pra validar o novo caminho e gerar as primeiras divergências reais na fila.
 
 ## Arquivos afetados
 
-- migration: nova (colunas + `commission_settings.commission_base` + ajuste em `apply_commission_from_stripe` pra ler `COALESCE(mrr_net, mrr)` conforme setting).
-- `supabase/functions/stripe-webhook/index.ts` — lookup de invoice, cálculo líquido, gravação dos novos campos.
-- `supabase/functions/stripe-backfill-net-amounts/index.ts` — nova.
-- `supabase/functions/stripe-force-conversion/index.ts` — mesma lógica pra manter paridade.
-- `src/pages/StripeConversions.tsx` — coluna, badge, filtro, botão de backfill.
-- `src/components/stripe/EditConversionDialog.tsx` — bloco read-only com valores do Stripe.
-- `src/pages/CommissionSettings.tsx` — seletor de base de comissão.
-- `src/integrations/supabase/types.ts` — regenerado.
+- `supabase/functions/stripe-webhook/index.ts` — chama validação após popular invoice.
+- `supabase/functions/stripe-backfill-net-amounts/index.ts` — aceita `ids: string[]` + chama validação.
+- `supabase/functions/_shared/validate-net-amount.ts` — novo, lógica única de checagem.
+- migration — coluna `coupon_id` em `commission_price_map` e `commission_reference`, nova versão de `apply_commission_from_stripe`, índice.
+- `src/pages/StripeConversions.tsx` — nova aba/seção "Divergências" com ações.
+- `src/components/comissionamento/ComissionamentoPriceMap.tsx` — coluna Cupom.
+- `src/components/comissionamento/MapPriceDialog.tsx` — campo Cupom.
 
-## Perguntas antes de implementar
+## O que NÃO muda
 
-1. **Comissão em cima do bruto ou do líquido?** (padrão do plano: líquido, com flag pra reverter). **Conversão em cima do Líquido.**
-2. **Cupom `repeating` (ex.: 3 meses de desconto)** — quer que o `mrr_net` mostre o valor com desconto do primeiro ciclo, ou o MRR "estabilizado" pós-cupom? Recomendo: `mrr_net` = valor efetivamente cobrado agora; adicionar `mrr_net_after_discount_ends` opcional se precisar do outro. **Pode seguir com a sua recomendação**
-3. **Backfill agora ou só daqui pra frente?** (posso deixar a função pronta e você decide quando rodar). **Rodar para as vendas de Maio em diante**
+- Fluxo de webhook, dedup e resolução de vendedor.
+- Comissões já revisadas manualmente (`manually_reviewed = true`) continuam travadas por campo.
+- Metas continuam olhando `mrr` (agora já líquido).
+
+## Confirmar antes de implementar
+
+1. **Escopo da regra por cupom:** só percentual ou pode redefinir plano/periodicidade/seller? O CUPOM SÓ MUDA PERCENTUAL.
+2. **Divergência "price_fallback recente"** — quer o threshold de 30 dias ou outro? (proposta: 30d). 30D 
+3. **Ação "Marcar como resolvida"** — apenas admin, ou tatico também? (proposta: admin + tatico). ADMIN+TATICO
