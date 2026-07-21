@@ -26,6 +26,7 @@ export function NetAmountDivergences() {
   const { toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [validatingAll, setValidatingAll] = useState(false);
+  const [editing, setEditing] = useState<ConversionToEdit | null>(null);
 
   const { data: rows = [], refetch, isLoading } = useQuery({
     queryKey: ["net-amount-divergences"],
