@@ -272,6 +272,12 @@ export function NetAmountDivergences() {
           </>
         )}
       </CardContent>
+      <EditConversionDialog
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
+        conversion={editing}
+        onSaved={() => { setEditing(null); refetch(); }}
+      />
     </Card>
   );
 }
