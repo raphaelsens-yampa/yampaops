@@ -16,7 +16,7 @@ import { PieChart as PieChartIcon, Download, Pencil, RefreshCw, RotateCcw } from
 import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
-import { NetAmountDivergences } from "@/components/stripe/NetAmountDivergences";
+
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
@@ -374,7 +374,7 @@ export default function StripeConversions() {
           </div>
         </div>
 
-        {(role === "admin" || role === "tatico") && <NetAmountDivergences />}
+        
 
         {/* Filtros */}
         <Card>
