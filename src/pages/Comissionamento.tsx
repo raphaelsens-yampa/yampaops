@@ -128,8 +128,9 @@ export default function Comissionamento() {
           </TabsContent>
 
           {isAdmin && (
-            <TabsContent value="stripe">
+            <TabsContent value="stripe" className="space-y-4">
               <ComissionamentoStripeSync onDone={fetchAll} />
+              <NetAmountDivergences />
             </TabsContent>
           )}
 
