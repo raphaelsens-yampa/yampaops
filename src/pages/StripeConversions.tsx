@@ -374,7 +374,7 @@ export default function StripeConversions() {
           </div>
         </div>
 
-        {(role === "admin" || role === "tatico") && <NetAmountDivergences />}
+        
 
         {/* Filtros */}
         <Card>
