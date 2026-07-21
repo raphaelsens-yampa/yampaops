@@ -203,6 +203,50 @@ export function NetAmountDivergences() {
                         <TableCell className="text-right">
                           <div className="flex gap-1 justify-end">
                             <Button size="sm" variant="ghost" disabled={busyId === r.ac_id}
+                              onClick={async () => {
+                                setBusyId(r.ac_id);
+                                const { data, error } = await supabase
+                                  .from("stripe_conversions")
+                                  .select("id, customer_email, area, mrr, plan_name, product_name, converted_at, registered_at, stripe_subscription_id, stripe_customer_id, stripe_price_id, conversion_type, previous_mrr, previous_price_id, assigned_seller_id, attribution_source, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, promotion_code, discount_duration, stripe_invoice_id")
+                                  .eq("id", r.ac_id)
+                                  .maybeSingle();
+                                setBusyId(null);
+                                if (error || !data) {
+                                  toast({ title: "Erro", description: error?.message ?? "Conversão não encontrada", variant: "destructive" });
+                                  return;
+                                }
+                                setEditing({
+                                  conversion_id: data.id,
+                                  email: data.customer_email ?? "",
+                                  area: data.area,
+                                  mrr: data.mrr,
+                                  plan_name: data.plan_name,
+                                  product_name: data.product_name,
+                                  converted_at: data.converted_at,
+                                  registered_at: data.registered_at,
+                                  subscription_id: data.stripe_subscription_id,
+                                  customer_id: data.stripe_customer_id,
+                                  price_id: data.stripe_price_id,
+                                  conversion_type: data.conversion_type,
+                                  previous_mrr: data.previous_mrr,
+                                  previous_price_id: data.previous_price_id,
+                                  assigned_seller_id: data.assigned_seller_id,
+                                  attribution_source: data.attribution_source,
+                                  gross_amount: data.gross_amount,
+                                  net_amount: data.net_amount,
+                                  discount_amount: data.discount_amount,
+                                  mrr_net: data.mrr_net,
+                                  coupon_id: data.coupon_id,
+                                  coupon_name: data.coupon_name,
+                                  promotion_code: data.promotion_code,
+                                  discount_duration: data.discount_duration,
+                                  stripe_invoice_id: data.stripe_invoice_id,
+                                });
+                              }}
+                              title="Editar conversão manualmente">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={busyId === r.ac_id}
                               onClick={() => refetchInvoice(r.ac_id)}
                               title="Rebuscar invoice no Stripe">
                               <RefreshCw className={`h-3.5 w-3.5 ${busyId === r.ac_id ? "animate-spin" : ""}`} />
