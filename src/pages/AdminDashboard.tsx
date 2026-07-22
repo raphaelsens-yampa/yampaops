@@ -139,16 +139,11 @@ export default function AdminDashboard() {
   });
 
   const goalsProgress = currentGoals.map(g => {
-    const channelLeads = g.channel
-      ? wonLeads.filter(l => l.origin === g.channel)
-      : wonLeads;
-    const achieved = channelLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
-    const pipelineLeads = g.channel
-      ? activeLeads.filter(l => l.origin === g.channel)
-      : activeLeads;
-    const weighted = pipelineLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0) * (STAGE_WEIGHTS[l.stage] || 0), 0);
+    const achieved = wonLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0), 0);
+    const weighted = activeLeads.reduce((s: number, l: any) => s + (l.estimated_mrr || 0) * (STAGE_WEIGHTS[l.stage] || 0), 0);
     return {
-      channel: g.channel, target_mrr: g.target_mrr || 0,
+      label: g.scope === "company" ? "Empresa" : g.scope,
+      target_mrr: g.target_mrr || 0,
       achieved_mrr: achieved, weighted_pipeline: weighted,
     };
   });

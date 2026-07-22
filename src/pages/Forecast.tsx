@@ -6,24 +6,8 @@ import { ScenarioAnalysis } from "@/components/forecast/ScenarioAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 
-interface StageGoals {
-  target_prospeccoes: number;
-  target_respostas: number;
-  target_agendamentos: number;
-  target_comparecimentos: number;
-  target_conversoes: number;
-  target_taxa_resposta: number | null;
-  target_taxa_agendamento: number | null;
-  target_taxa_comparecimento: number | null;
-  target_taxa_conversao: number | null;
-}
 
-const DEFAULT_STAGE_GOALS: StageGoals = {
-  target_prospeccoes: 0, target_respostas: 0, target_agendamentos: 0,
-  target_comparecimentos: 0, target_conversoes: 0,
-  target_taxa_resposta: null, target_taxa_agendamento: null,
-  target_taxa_comparecimento: null, target_taxa_conversao: null,
-};
+
 
 export interface DynamicTransition {
   key: string;
@@ -40,7 +24,7 @@ export default function Forecast() {
   const [currentWon, setCurrentWon] = useState(0);
   const [currentMrr, setCurrentMrr] = useState(0);
   const [sellerCount, setSellerCount] = useState(1);
-  const [stageGoals, setStageGoals] = useState<StageGoals>(DEFAULT_STAGE_GOALS);
+  
   const [loading, setLoading] = useState(true);
 
   const { stages, stageOrder, stageLabels, wonStage, lostStage, loading: stagesLoading } = usePipelineStages();
@@ -115,19 +99,8 @@ export default function Forecast() {
       setTargetDeals(totalTargetDeals || 10);
       setTargetMrr(totalTargetMrr || 50000);
 
-      const aggregated: StageGoals = { ...DEFAULT_STAGE_GOALS };
-      goals.forEach((g: any) => {
-        aggregated.target_prospeccoes += Number(g.target_prospeccoes ?? 0);
-        aggregated.target_respostas += Number(g.target_respostas ?? 0);
-        aggregated.target_agendamentos += Number(g.target_agendamentos ?? 0);
-        aggregated.target_comparecimentos += Number(g.target_comparecimentos ?? 0);
-        aggregated.target_conversoes += Number(g.target_conversoes ?? 0);
-        if (g.target_taxa_resposta != null) aggregated.target_taxa_resposta = Number(g.target_taxa_resposta);
-        if (g.target_taxa_agendamento != null) aggregated.target_taxa_agendamento = Number(g.target_taxa_agendamento);
-        if (g.target_taxa_comparecimento != null) aggregated.target_taxa_comparecimento = Number(g.target_taxa_comparecimento);
-        if (g.target_taxa_conversao != null) aggregated.target_taxa_conversao = Number(g.target_taxa_conversao);
-      });
-      setStageGoals(aggregated);
+
+
 
       // Build cumulative counts for rate calculation
       // Order: from last active stage backwards, accumulating
@@ -182,7 +155,6 @@ export default function Forecast() {
         <ConversionRates
           actualRates={actualRates}
           stageCounts={stageCounts}
-          stageGoals={stageGoals}
           transitions={transitions}
           stageLabels={stageLabels}
         />

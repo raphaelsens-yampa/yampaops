@@ -9,46 +9,77 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, Lock } from "lucide-react";
+import { Plus, Trash2, Lock, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AREA_LABELS, METRIC_TYPE_LABELS, type CategoryArea, type MetricType, type GoalCategory } from "@/lib/goalCategories";
+import {
+  AREA_LABELS, METRIC_TYPE_LABELS, AUTO_SOURCE_LABELS, STRIPE_AREA_PRESETS,
+  type CategoryArea, type MetricType, type AutoSource, type GoalCategory,
+} from "@/lib/goalCategories";
+
+const AUTO_KEYS: AutoSource[] = ["manual", "stripe", "stripe_ltv", "stripe_cac", "stripe_ltv_cac", "deals_count"];
 
 export function CategoryManager() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<GoalCategory | null>(null);
+
   const [name, setName] = useState("");
   const [area, setArea] = useState<CategoryArea>("sales");
   const [metricType, setMetricType] = useState<MetricType>("mrr");
   const [description, setDescription] = useState("");
+  const [autoSource, setAutoSource] = useState<AutoSource>("manual");
+  const [stripeArea, setStripeArea] = useState<string>("");
 
   async function load() {
     const { data } = await supabase.from("goal_categories").select("*").order("area").order("name");
     setCategories((data as GoalCategory[]) || []);
   }
-
   useEffect(() => { load(); }, []);
 
   function slugify(s: string) {
     return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
   }
 
-  async function createCategory() {
+  function resetForm() {
+    setEditing(null);
+    setName(""); setDescription(""); setArea("sales"); setMetricType("mrr");
+    setAutoSource("manual"); setStripeArea("");
+  }
+
+  function openEdit(c: GoalCategory) {
+    setEditing(c);
+    setName(c.name);
+    setArea(c.area);
+    setMetricType(c.metric_type);
+    setDescription(c.description || "");
+    setAutoSource((c.auto_source as AutoSource) || "manual");
+    setStripeArea(c.stripe_area || "");
+    setOpen(true);
+  }
+
+  async function save() {
     if (!name.trim()) return;
-    const { error } = await supabase.from("goal_categories").insert({
+    const payload: any = {
       name: name.trim(),
-      slug: slugify(name) + "_" + Date.now().toString(36),
       area,
       metric_type: metricType,
       description: description || null,
-      is_system: false,
-      is_active: true,
-    });
+      auto_source: autoSource,
+      stripe_area: autoSource === "stripe" ? (stripeArea || null) : null,
+    };
+    let error;
+    if (editing) {
+      ({ error } = await supabase.from("goal_categories").update(payload).eq("id", editing.id));
+    } else {
+      payload.slug = slugify(name) + "_" + Date.now().toString(36);
+      payload.is_system = false;
+      payload.is_active = true;
+      ({ error } = await supabase.from("goal_categories").insert(payload));
+    }
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Categoria criada" });
-    setOpen(false);
-    setName(""); setDescription(""); setArea("sales"); setMetricType("mrr");
-    load();
+    toast({ title: editing ? "Categoria atualizada" : "Categoria criada" });
+    setOpen(false); resetForm(); load();
   }
 
   async function toggleActive(c: GoalCategory) {
@@ -69,40 +100,66 @@ export function CategoryManager() {
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="text-lg">Categorias de Meta</CardTitle>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Categoria</Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Nova Categoria</DialogTitle></DialogHeader>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>{editing ? "Editar Categoria" : "Nova Categoria"}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div>
                 <Label>Nome</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Expansão Enterprise" />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Área</Label>
+                  <Select value={area} onValueChange={(v) => setArea(v as CategoryArea)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(AREA_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Tipo de Métrica</Label>
+                  <Select value={metricType} onValueChange={(v) => setMetricType(v as MetricType)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(METRIC_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div>
-                <Label>Área</Label>
-                <Select value={area} onValueChange={(v) => setArea(v as CategoryArea)}>
+                <Label>Fonte do realizado</Label>
+                <Select value={autoSource} onValueChange={(v) => setAutoSource(v as AutoSource)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(AREA_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    {AUTO_KEYS.map((k) => <SelectItem key={k} value={k}>{AUTO_SOURCE_LABELS[k]}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Tipo de Métrica</Label>
-                <Select value={metricType} onValueChange={(v) => setMetricType(v as MetricType)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(METRIC_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {autoSource === "stripe" && (
+                <div>
+                  <Label>Área Stripe (stripe_conversions.area)</Label>
+                  <Select value={stripeArea || "__none"} onValueChange={(v) => setStripeArea(v === "__none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">— Nenhuma —</SelectItem>
+                      {STRIPE_AREA_PRESETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O realizado dessa categoria virá da soma do MRR líquido das conversões Stripe cujo <code>area</code> bate com este valor.
+                  </p>
+                </div>
+              )}
               <div>
                 <Label>Descrição (opcional)</Label>
                 <Input value={description} onChange={e => setDescription(e.target.value)} />
               </div>
-              <Button onClick={createCategory} className="w-full">Criar</Button>
+              <Button onClick={save} className="w-full">{editing ? "Salvar" : "Criar"}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -114,6 +171,8 @@ export function CategoryManager() {
               <TableHead>Nome</TableHead>
               <TableHead>Área</TableHead>
               <TableHead>Métrica</TableHead>
+              <TableHead>Fonte</TableHead>
+              <TableHead>Área Stripe</TableHead>
               <TableHead className="text-center">Ativa</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -127,20 +186,27 @@ export function CategoryManager() {
                 </TableCell>
                 <TableCell><Badge variant="outline">{AREA_LABELS[c.area]}</Badge></TableCell>
                 <TableCell className="text-sm text-muted-foreground">{METRIC_TYPE_LABELS[c.metric_type]}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{AUTO_SOURCE_LABELS[(c.auto_source as AutoSource) || "manual"]}</TableCell>
+                <TableCell className="text-xs">{c.stripe_area || <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-center">
                   <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c)} />
                 </TableCell>
                 <TableCell className="text-right">
-                  {!c.is_system && (
-                    <Button variant="ghost" size="icon" onClick={() => deleteCategory(c)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  )}
+                    {!c.is_system && (
+                      <Button variant="ghost" size="icon" onClick={() => deleteCategory(c)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
             {categories.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

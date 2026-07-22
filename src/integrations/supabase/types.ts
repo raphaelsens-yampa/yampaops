@@ -1505,6 +1505,7 @@ export type Database = {
       goal_categories: {
         Row: {
           area: string
+          auto_source: string
           created_at: string
           description: string | null
           id: string
@@ -1513,10 +1514,12 @@ export type Database = {
           metric_type: string
           name: string
           slug: string
+          stripe_area: string | null
           updated_at: string
         }
         Insert: {
           area: string
+          auto_source?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -1525,10 +1528,12 @@ export type Database = {
           metric_type?: string
           name: string
           slug: string
+          stripe_area?: string | null
           updated_at?: string
         }
         Update: {
           area?: string
+          auto_source?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -1537,6 +1542,7 @@ export type Database = {
           metric_type?: string
           name?: string
           slug?: string
+          stripe_area?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1544,8 +1550,8 @@ export type Database = {
       goals: {
         Row: {
           campaign: string | null
+          campaign_id: string | null
           category_id: string | null
-          channel: Database["public"]["Enums"]["lead_origin"] | null
           created_at: string
           id: string
           period_end: string
@@ -1553,17 +1559,8 @@ export type Database = {
           realized_override: number | null
           realized_source_note: string | null
           scope: string | null
-          target_agendamentos: number | null
-          target_comparecimentos: number | null
-          target_conversoes: number | null
           target_deals: number | null
           target_mrr: number | null
-          target_prospeccoes: number | null
-          target_respostas: number | null
-          target_taxa_agendamento: number | null
-          target_taxa_comparecimento: number | null
-          target_taxa_conversao: number | null
-          target_taxa_resposta: number | null
           target_tpv: number | null
           team_id: string | null
           updated_at: string
@@ -1571,8 +1568,8 @@ export type Database = {
         }
         Insert: {
           campaign?: string | null
+          campaign_id?: string | null
           category_id?: string | null
-          channel?: Database["public"]["Enums"]["lead_origin"] | null
           created_at?: string
           id?: string
           period_end: string
@@ -1580,17 +1577,8 @@ export type Database = {
           realized_override?: number | null
           realized_source_note?: string | null
           scope?: string | null
-          target_agendamentos?: number | null
-          target_comparecimentos?: number | null
-          target_conversoes?: number | null
           target_deals?: number | null
           target_mrr?: number | null
-          target_prospeccoes?: number | null
-          target_respostas?: number | null
-          target_taxa_agendamento?: number | null
-          target_taxa_comparecimento?: number | null
-          target_taxa_conversao?: number | null
-          target_taxa_resposta?: number | null
           target_tpv?: number | null
           team_id?: string | null
           updated_at?: string
@@ -1598,8 +1586,8 @@ export type Database = {
         }
         Update: {
           campaign?: string | null
+          campaign_id?: string | null
           category_id?: string | null
-          channel?: Database["public"]["Enums"]["lead_origin"] | null
           created_at?: string
           id?: string
           period_end?: string
@@ -1607,23 +1595,21 @@ export type Database = {
           realized_override?: number | null
           realized_source_note?: string | null
           scope?: string | null
-          target_agendamentos?: number | null
-          target_comparecimentos?: number | null
-          target_conversoes?: number | null
           target_deals?: number | null
           target_mrr?: number | null
-          target_prospeccoes?: number | null
-          target_respostas?: number | null
-          target_taxa_agendamento?: number | null
-          target_taxa_comparecimento?: number | null
-          target_taxa_conversao?: number | null
-          target_taxa_resposta?: number | null
           target_tpv?: number | null
           team_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "goals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sales_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "goals_team_id_fkey"
             columns: ["team_id"]
@@ -3106,6 +3092,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          stripe_area: string | null
           updated_at: string
         }
         Insert: {
@@ -3113,6 +3100,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          stripe_area?: string | null
           updated_at?: string
         }
         Update: {
@@ -3120,6 +3108,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          stripe_area?: string | null
           updated_at?: string
         }
         Relationships: []
