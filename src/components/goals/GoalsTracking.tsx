@@ -14,15 +14,27 @@ import {
   differenceInCalendarDays, isAfter, startOfDay,
 } from "date-fns";
 import { GoalsBreakdownByCategory, type CategoryRow } from "./GoalsBreakdownByCategory";
-import { AREA_LABELS, FINANCIAL_SLUGS, STRIPE_DRIVEN_SLUGS, STRIPE_AREA_BY_SLUG, type GoalCategory } from "@/lib/goalCategories";
+import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
 }
 
+// Preferimos assigned_seller_id gravado direto na conversão Stripe; usamos deal casado
+// ou o mapa de preços apenas como fallback.
 function getConversionSellerId(sc: any, oppById: Map<string, any>, priceMapByPriceId: Map<string, any>) {
+  if (sc.assigned_seller_id) return sc.assigned_seller_id;
   const opp = sc.matched_opportunity_id ? oppById.get(sc.matched_opportunity_id) : null;
-  return opp?.consultant_id || (sc.stripe_price_id ? priceMapByPriceId.get(sc.stripe_price_id)?.seller_user_id : null) || null;
+  if (opp?.consultant_id) return opp.consultant_id;
+  if (sc.stripe_price_id) return priceMapByPriceId.get(sc.stripe_price_id)?.seller_user_id || null;
+  return null;
+}
+
+// MRR sempre líquido quando disponível
+function convMrr(sc: any) {
+  const net = Number(sc.mrr_net);
+  if (net > 0) return net;
+  return Number(sc.mrr) || 0;
 }
 
 export function GoalsTracking() {
@@ -43,6 +55,7 @@ export function GoalsTracking() {
   const [stripeConversions, setStripeConversions] = useState<any[]>([]);
   const [priceMap, setPriceMap] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoalCategory[]>([]);
+  const [campaignContacts, setCampaignContacts] = useState<any[]>([]);
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
   const [wonStageSlugs, setWonStageSlugs] = useState<Set<string>>(new Set());
@@ -50,7 +63,7 @@ export function GoalsTracking() {
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes, sccRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -59,8 +72,9 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, converted_at, matched_opportunity_id, stripe_price_id, area"),
+        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type"),
         supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
+        supabase.from("sales_campaign_contacts").select("id, campaign_id, mrr_generated, cw_first_contact_at, updated_at"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -71,6 +85,7 @@ export function GoalsTracking() {
       setFinanceSettings(fRes.data as any);
       setStripeConversions(scRes.data || []);
       setPriceMap(pmRes.data || []);
+      setCampaignContacts(sccRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
@@ -84,7 +99,6 @@ export function GoalsTracking() {
   const monthStart = useMemo(() => startOfMonth(anchorDate), [anchorDate]);
   const monthEnd = useMemo(() => endOfMonth(anchorDate), [anchorDate]);
 
-  // Resolve sellers in scope
   const sellersInScope = useMemo(() => {
     let list = profiles;
     if (!isAdmin && user) list = list.filter((p) => p.user_id === user.id);
@@ -100,13 +114,16 @@ export function GoalsTracking() {
 
   const priceMapByPriceId = useMemo(() => {
     const map = new Map<string, any>();
-    priceMap.forEach((m) => {
-      if (m.price_id) map.set(m.price_id, m);
-    });
+    priceMap.forEach((m) => { if (m.price_id) map.set(m.price_id, m); });
     return map;
   }, [priceMap]);
 
-  // Won opportunities in current period for sellers in scope
+  const oppById = useMemo(() => {
+    const map = new Map<string, any>();
+    opportunities.forEach((o) => map.set(o.id, o));
+    return map;
+  }, [opportunities]);
+
   const wonInPeriod = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
     return opportunities.filter((o) => {
@@ -120,26 +137,23 @@ export function GoalsTracking() {
     });
   }, [opportunities, sellersInScope, start, end, sellerFilter, categoryFilter, wonStageIds, wonStageSlugs]);
 
-  // MRR Realizado = soma das conversões Stripe no período, respeitando filtros de vendedor/equipe.
-  // Em visão da empresa (admin sem filtros), considera todas as conversões; com filtros, apenas as
-  // que tenham deal casado com vendedor em escopo.
-  const realized = useMemo(() => {
+  const stripeInScope = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
-    const oppById = new Map<string, any>();
-    opportunities.forEach((o) => oppById.set(o.id, o));
-    return stripeConversions.reduce((sum: number, sc: any) => {
-      if (!sc.converted_at) return sum;
+    const openScope = sellerFilter === "all" && teamFilter === "all" && isAdmin;
+    return stripeConversions.filter((sc: any) => {
+      if (!sc.converted_at) return false;
       const d = new Date(sc.converted_at);
-      if (d < start || d > end) return sum;
-      if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
-        const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
-        if (!cid || !sellerIds.has(cid)) return sum;
-      }
-      return sum + (Number(sc.mrr) || 0);
-    }, 0);
-  }, [stripeConversions, opportunities, priceMapByPriceId, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
+      if (d < start || d > end) return false;
+      if (openScope) return true;
+      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
+      return !!cid && sellerIds.has(cid);
+    });
+  }, [stripeConversions, sellersInScope, oppById, priceMapByPriceId, start, end, sellerFilter, teamFilter, isAdmin]);
 
-  // Resolve monthly target for the scope
+  const realized = useMemo(() => stripeInScope.reduce((s, sc) => s + convMrr(sc), 0), [stripeInScope]);
+
+  const dealsRealized = useMemo(() => stripeInScope.length, [stripeInScope]);
+
   const monthlyTarget = useMemo(() => {
     const overlapsMonth = (g: any) => {
       const gs = new Date(g.period_start); const ge = new Date(g.period_end);
@@ -154,29 +168,37 @@ export function GoalsTracking() {
     if (teamFilter !== "all") {
       const teamGoals = matches.filter((g) => g.scope === "team" && g.team_id === teamFilter);
       if (teamGoals.length) return teamGoals.reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
-      // fallback: sum of user goals of team members
       const memberIds = new Set(teamMembers.filter((m) => m.team_id === teamFilter).map((m) => m.user_id));
       return matches.filter((g) => g.scope === "user" && memberIds.has(g.user_id)).reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
     }
     if (!isAdmin && user) {
       return matches.filter((g) => g.scope === "user" && g.user_id === user.id).reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
     }
-    // Company-wide
     const companyGoals = matches.filter((g) => g.scope === "company");
     if (companyGoals.length) return companyGoals.reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
-    // fallback: sum of all user goals
     return matches.filter((g) => g.scope === "user").reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
   }, [goals, monthStart, monthEnd, teamFilter, sellerFilter, teamMembers, isAdmin, user]);
 
-  // Period target derived from monthly
+  const monthlyDealsTarget = useMemo(() => {
+    const overlapsMonth = (g: any) => {
+      const gs = new Date(g.period_start); const ge = new Date(g.period_end);
+      return gs <= monthEnd && ge >= monthStart;
+    };
+    const matches = goals.filter(overlapsMonth);
+    if (sellerFilter !== "all") return matches.filter((g) => g.scope === "user" && g.user_id === sellerFilter).reduce((s, g) => s + (Number(g.target_deals) || 0), 0);
+    if (teamFilter !== "all") {
+      const teamGoals = matches.filter((g) => g.scope === "team" && g.team_id === teamFilter);
+      if (teamGoals.length) return teamGoals.reduce((s, g) => s + (Number(g.target_deals) || 0), 0);
+    }
+    const companyGoals = matches.filter((g) => g.scope === "company");
+    if (companyGoals.length) return companyGoals.reduce((s, g) => s + (Number(g.target_deals) || 0), 0);
+    return 0;
+  }, [goals, monthStart, monthEnd, teamFilter, sellerFilter]);
+
   const periodTarget = useMemo(() => {
     const monthBizDays = businessDaysInRange(monthStart, monthEnd) || 1;
     if (granularity === "month") return monthlyTarget;
-    if (granularity === "day") {
-      if (isWeekend(anchorDate)) return 0;
-      return monthlyTarget / monthBizDays;
-    }
-    // week
+    if (granularity === "day") return isWeekend(anchorDate) ? 0 : monthlyTarget / monthBizDays;
     const weekBizDays = businessDaysInRange(start, end);
     return (monthlyTarget / monthBizDays) * weekBizDays;
   }, [granularity, monthlyTarget, monthStart, monthEnd, anchorDate, start, end]);
@@ -187,28 +209,24 @@ export function GoalsTracking() {
   const daysElapsed = Math.max(0, Math.min(elapsedRaw, totalDays));
   const pace = daysElapsed > 0 ? (realized / daysElapsed) * totalDays : 0;
 
-  // Realizado por vendedor a partir das conversões Stripe (mesma fonte do KPI)
-  const realizedBySeller = useMemo(() => {
-    const oppById = new Map<string, any>();
-    opportunities.forEach((o) => oppById.set(o.id, o));
-    const map = new Map<string, number>();
+  const { realizedBySeller, reactivationsBySeller } = useMemo(() => {
+    const mrrMap = new Map<string, number>();
+    const reactMap = new Map<string, number>();
     stripeConversions.forEach((sc: any) => {
       if (!sc.converted_at) return;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
       const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (!cid) return;
-      map.set(cid, (map.get(cid) || 0) + (Number(sc.mrr) || 0));
+      mrrMap.set(cid, (mrrMap.get(cid) || 0) + convMrr(sc));
+      if (sc.conversion_type === "reactivation") reactMap.set(cid, (reactMap.get(cid) || 0) + 1);
     });
-    return map;
-  }, [stripeConversions, opportunities, priceMapByPriceId, start, end]);
+    return { realizedBySeller: mrrMap, reactivationsBySeller: reactMap };
+  }, [stripeConversions, oppById, priceMapByPriceId, start, end]);
 
-  // Per-seller rows
   const sellerRows: SellerRow[] = useMemo(() => {
     return sellersInScope.map((p) => {
       const sellerRealized = realizedBySeller.get(p.user_id) || 0;
-
-      // seller monthly target
       const userMonthly = goals
         .filter((g) => g.scope === "user" && g.user_id === p.user_id)
         .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
@@ -218,15 +236,17 @@ export function GoalsTracking() {
       if (granularity === "day") target = isWeekend(anchorDate) ? 0 : userMonthly / monthBiz;
       else if (granularity === "week") target = (userMonthly / monthBiz) * businessDaysInRange(start, end);
 
-      return { user_id: p.user_id, name: p.full_name || "—", target, realized: sellerRealized };
+      return {
+        user_id: p.user_id,
+        name: p.full_name || "—",
+        target,
+        realized: sellerRealized,
+        reactivations: reactivationsBySeller.get(p.user_id) || 0,
+      };
     });
-  }, [sellersInScope, realizedBySeller, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
+  }, [sellersInScope, realizedBySeller, reactivationsBySeller, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
 
-  // MRR órfão por área Stripe (sem vendedor atribuído via opp.consultant_id nem price_map.seller_user_id)
-  // — usado para reconciliar a equipe (ex.: Sales) com o total da área correspondente na tela Conversões.
   const orphanMrrByArea = useMemo(() => {
-    const oppById = new Map<string, any>();
-    opportunities.forEach((o) => oppById.set(o.id, o));
     const map = new Map<string, number>();
     stripeConversions.forEach((sc: any) => {
       if (!sc.converted_at) return;
@@ -235,31 +255,26 @@ export function GoalsTracking() {
       const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (cid) return;
       const a = sc.area || "desconhecida";
-      map.set(a, (map.get(a) || 0) + (Number(sc.mrr) || 0));
+      map.set(a, (map.get(a) || 0) + convMrr(sc));
     });
     return map;
-  }, [stripeConversions, opportunities, priceMapByPriceId, start, end]);
+  }, [stripeConversions, oppById, priceMapByPriceId, start, end]);
 
-  // Per-team rows (admin only)
   const teamRows: TeamRow[] = useMemo(() => {
     if (!isAdmin) return [];
     return teams.map((t) => {
       const memberIds = new Set(teamMembers.filter((m) => m.team_id === t.id).map((m) => m.user_id));
       const teamSellers = sellerRows.filter((r) => memberIds.has(r.user_id));
       const membersRealized = teamSellers.reduce((s, r) => s + r.realized, 0);
-      // Conversões da área Stripe equivalente ao nome do time, sem vendedor atribuído
-      const orphanForTeam = orphanMrrByArea.get(t.name) || 0;
+      const teamArea = (t as any).stripe_area || t.name;
+      const orphanForTeam = orphanMrrByArea.get(teamArea) || 0;
       const realizedSum = membersRealized + orphanForTeam;
 
-      // Team-scope monthly goal, fallback to sum of members
       const teamMonthly = goals
         .filter((g) => g.scope === "team" && g.team_id === t.id)
         .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
         .reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
-      let target = teamMonthly || teamSellers.reduce((s, r) => {
-        if (granularity === "month") return s + r.target;
-        return s + 0;
-      }, 0);
+      let target = teamMonthly;
       if (teamMonthly) {
         const monthBiz = businessDaysInRange(monthStart, monthEnd) || 1;
         if (granularity === "day") target = isWeekend(anchorDate) ? 0 : teamMonthly / monthBiz;
@@ -273,31 +288,14 @@ export function GoalsTracking() {
     });
   }, [isAdmin, teams, teamMembers, sellerRows, orphanMrrByArea, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
 
-
-  // Chart usa as conversões Stripe (mesma fonte do KPI Realizado)
   const wonForChart = useMemo(() => {
-    const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
-    const oppById = new Map<string, any>();
-    opportunities.forEach((o) => oppById.set(o.id, o));
-    const out: { date: Date; mrr: number }[] = [];
-    stripeConversions.forEach((sc: any) => {
-      if (!sc.converted_at) return;
-      const d = new Date(sc.converted_at);
-      if (d < start || d > end) return;
-      if (!(sellerFilter === "all" && teamFilter === "all" && isAdmin)) {
-        const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
-        if (!cid || !sellerIds.has(cid)) return;
-      }
-      out.push({ date: d, mrr: Number(sc.mrr) || 0 });
-    });
-    return out;
-  }, [stripeConversions, opportunities, priceMapByPriceId, sellersInScope, start, end, sellerFilter, teamFilter, isAdmin]);
+    return stripeInScope.map((sc: any) => ({ date: new Date(sc.converted_at), mrr: convMrr(sc) }));
+  }, [stripeInScope]);
 
-  // Breakdown por categoria
+  // Breakdown por categoria — usa auto_source + stripe_area do banco
   const categoryRows: CategoryRow[] = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
 
-    // Won opportunities in scope (sem filtrar por categoria — para breakdown)
     const wonScope = opportunities.filter((o) => {
       if (!isWonOpp(o)) return false;
       if (o.consultant_id && !sellerIds.has(o.consultant_id)) return false;
@@ -308,32 +306,25 @@ export function GoalsTracking() {
     });
 
     const monthBiz = businessDaysInRange(monthStart, monthEnd) || 1;
-
     const proratedTarget = (monthly: number) => {
       if (granularity === "month") return monthly;
       if (granularity === "day") return isWeekend(anchorDate) ? 0 : monthly / monthBiz;
       return (monthly / monthBiz) * businessDaysInRange(start, end);
     };
 
-    // Index opportunities by id for Stripe-driven attribution
-    const oppById = new Map<string, any>();
-    opportunities.forEach((o) => oppById.set(o.id, o));
-
-    // Stripe conversions já filtradas pelo período e escopo de vendedor
-    const stripeInScope = stripeConversions.filter((sc: any) => {
-      if (!sc.converted_at) return false;
-      const d = new Date(sc.converted_at);
-      if (d < start || d > end) return false;
-      if (sellerFilter === "all" && teamFilter === "all" && isAdmin) return true;
-      const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
-      if (!cid) return false;
-      return sellerIds.has(cid);
-    });
-    const stripeMrrSum = stripeInScope.reduce((s: number, sc: any) => s + (Number(sc.mrr) || 0), 0);
     const stripeMrrByArea = new Map<string, number>();
     stripeInScope.forEach((sc: any) => {
       const a = sc.area || "desconhecida";
-      stripeMrrByArea.set(a, (stripeMrrByArea.get(a) || 0) + (Number(sc.mrr) || 0));
+      stripeMrrByArea.set(a, (stripeMrrByArea.get(a) || 0) + convMrr(sc));
+    });
+
+    // MRR de campanhas (para escopo campaign)
+    const campaignMrrById = new Map<string, number>();
+    campaignContacts.forEach((c: any) => {
+      const ts = c.cw_first_contact_at ? new Date(c.cw_first_contact_at) : (c.updated_at ? new Date(c.updated_at) : null);
+      if (!ts || ts < start || ts > end) return;
+      if (!c.campaign_id) return;
+      campaignMrrById.set(c.campaign_id, (campaignMrrById.get(c.campaign_id) || 0) + (Number(c.mrr_generated) || 0));
     });
 
     return categories.map((cat) => {
@@ -348,53 +339,60 @@ export function GoalsTracking() {
       const monthlyTargetCat = matchingGoals.reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
       const target = proratedTarget(monthlyTargetCat);
 
+      const overrideSum = matchingGoals.reduce((s, g) => {
+        const v = (g as any).realized_override;
+        return v != null ? s + Number(v) : s;
+      }, 0);
+      const hasOverride = matchingGoals.some((g) => (g as any).realized_override != null);
+
+      const autoSource = cat.auto_source || "manual";
+      const stripeArea = cat.stripe_area || null;
+      const stripeAutoForCat = stripeArea ? (stripeMrrByArea.get(stripeArea) || 0) : 0;
+
       let realizedCat = 0;
       let source: "stripe" | "manual" | "calculated" = "calculated";
       let manualOverride = false;
-      const overrideSum = matchingGoals.reduce((s, g) => {
-        const v = g.realized_override;
-        return v != null ? s + Number(v) : s;
-      }, 0);
-      const hasOverride = matchingGoals.some((g) => g.realized_override != null);
 
-      // Valor automático Stripe específico para esta categoria (filtrado por área)
-      const stripeArea = STRIPE_AREA_BY_SLUG[cat.slug];
-      const stripeAutoForCat = stripeArea ? (stripeMrrByArea.get(stripeArea) || 0) : 0;
-
-      if (STRIPE_DRIVEN_SLUGS.has(cat.slug)) {
+      if (hasOverride) {
+        realizedCat = overrideSum;
+        manualOverride = true;
+        source = "manual";
+      } else if (autoSource === "stripe") {
         source = "stripe";
-        if (hasOverride) {
-          realizedCat = overrideSum;
-          manualOverride = true;
-          source = "manual";
-        } else {
-          realizedCat = stripeAutoForCat;
-        }
-      } else if (cat.slug === FINANCIAL_SLUGS.LTV) {
+        realizedCat = stripeAutoForCat;
+      } else if (autoSource === "stripe_ltv") {
         const wonAll = wonScope;
         const avgMrr = wonAll.length ? wonAll.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0) / wonAll.length : 0;
         const churn = (financeSettings?.avg_churn_rate || 0) / 100;
         realizedCat = churn > 0 ? avgMrr / churn : 0;
-      } else if (cat.slug === FINANCIAL_SLUGS.CAC) {
-        const campaignCat = categories.find((c) => c.slug === FINANCIAL_SLUGS.CAMPANHA_MRR);
-        const conversions = campaignCat ? wonScope.filter((o) => o.category_id === campaignCat.id).length : 0;
+      } else if (autoSource === "stripe_cac") {
+        const conversions = stripeMrrByArea.get("Marketing") ? (stripeInScope.filter((sc: any) => sc.area === "Marketing").length) : 0;
         const cost = financeSettings?.avg_campaign_cost || 0;
         realizedCat = conversions > 0 ? cost / conversions : 0;
-      } else if (cat.slug === FINANCIAL_SLUGS.LTV_CAC) {
+      } else if (autoSource === "stripe_ltv_cac") {
         const wonAll = wonScope;
         const avgMrr = wonAll.length ? wonAll.reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0) / wonAll.length : 0;
         const churn = (financeSettings?.avg_churn_rate || 0) / 100;
         const ltv = churn > 0 ? avgMrr / churn : 0;
-        const campaignCat = categories.find((c) => c.slug === FINANCIAL_SLUGS.CAMPANHA_MRR);
-        const conversions = campaignCat ? wonScope.filter((o) => o.category_id === campaignCat.id).length : 0;
+        const conversions = stripeInScope.filter((sc: any) => sc.area === "Marketing").length;
         const cost = financeSettings?.avg_campaign_cost || 0;
         const cac = conversions > 0 ? cost / conversions : 0;
         realizedCat = cac > 0 ? ltv / cac : 0;
+      } else if (autoSource === "deals_count") {
+        realizedCat = wonScope.filter((o) => o.category_id === cat.id).length;
       } else if (cat.metric_type === "count") {
         realizedCat = wonScope.filter((o) => o.category_id === cat.id).length;
       } else {
-        realizedCat = wonScope.filter((o) => o.category_id === cat.id).reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
+        // manual/other: campanhas vinculadas ou opps ganhas na categoria
+        const campaignGoalIds = matchingGoals.map((g) => (g as any).campaign_id).filter(Boolean);
+        if (campaignGoalIds.length) {
+          realizedCat = campaignGoalIds.reduce((s: number, id: string) => s + (campaignMrrById.get(id) || 0), 0);
+        } else {
+          realizedCat = wonScope.filter((o) => o.category_id === cat.id).reduce((s, o) => s + (Number(o.estimated_mrr) || 0), 0);
+        }
       }
+
+      const isStripeDriven = autoSource.startsWith("stripe");
 
       return {
         category: cat,
@@ -403,10 +401,10 @@ export function GoalsTracking() {
         source,
         manualOverride,
         goalIds: matchingGoals.map((g) => g.id),
-        autoValue: STRIPE_DRIVEN_SLUGS.has(cat.slug) ? stripeAutoForCat : null,
+        autoValue: isStripeDriven ? stripeAutoForCat : null,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, stripeConversions, priceMapByPriceId, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, isAdmin]);
+  }, [categories, goals, opportunities, stripeInScope, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, campaignContacts]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
@@ -465,7 +463,15 @@ export function GoalsTracking() {
         </CardContent>
       </Card>
 
-      <GoalKpiCards realized={realized} target={periodTarget} pace={pace} daysElapsed={daysElapsed} totalDays={totalDays} />
+      <GoalKpiCards
+        realized={realized}
+        target={periodTarget}
+        pace={pace}
+        daysElapsed={daysElapsed}
+        totalDays={totalDays}
+        dealsRealized={dealsRealized}
+        dealsTarget={monthlyDealsTarget}
+      />
 
       <GoalProgressChart start={start} end={end} target={periodTarget} won={wonForChart} />
 
