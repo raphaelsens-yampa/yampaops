@@ -4,29 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { DynamicTransition } from "@/pages/Forecast";
 
-interface StageGoals {
-  target_prospeccoes: number;
-  target_respostas: number;
-  target_agendamentos: number;
-  target_comparecimentos: number;
-  target_conversoes: number;
-  target_taxa_resposta: number | null;
-  target_taxa_agendamento: number | null;
-  target_taxa_comparecimento: number | null;
-  target_taxa_conversao: number | null;
-}
-
 interface ConversionRatesProps {
   actualRates: Record<string, number | null>;
   stageCounts: Record<string, number>;
-  stageGoals: StageGoals;
   transitions: DynamicTransition[];
   stageLabels: Record<string, string>;
 }
 
 const DEFAULT_BENCHMARK = 0.25; // fallback benchmark when no specific one exists
 
-export function ConversionRates({ actualRates, stageCounts, stageGoals, transitions, stageLabels }: ConversionRatesProps) {
+export function ConversionRates({ actualRates, stageCounts, transitions, stageLabels }: ConversionRatesProps) {
   return (
     <Card>
       <CardHeader>

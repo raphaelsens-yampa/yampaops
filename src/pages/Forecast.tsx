@@ -99,19 +99,8 @@ export default function Forecast() {
       setTargetDeals(totalTargetDeals || 10);
       setTargetMrr(totalTargetMrr || 50000);
 
-      const aggregated: StageGoals = { ...DEFAULT_STAGE_GOALS };
-      goals.forEach((g: any) => {
-        aggregated.target_prospeccoes += Number(g.target_prospeccoes ?? 0);
-        aggregated.target_respostas += Number(g.target_respostas ?? 0);
-        aggregated.target_agendamentos += Number(g.target_agendamentos ?? 0);
-        aggregated.target_comparecimentos += Number(g.target_comparecimentos ?? 0);
-        aggregated.target_conversoes += Number(g.target_conversoes ?? 0);
-        if (g.target_taxa_resposta != null) aggregated.target_taxa_resposta = Number(g.target_taxa_resposta);
-        if (g.target_taxa_agendamento != null) aggregated.target_taxa_agendamento = Number(g.target_taxa_agendamento);
-        if (g.target_taxa_comparecimento != null) aggregated.target_taxa_comparecimento = Number(g.target_taxa_comparecimento);
-        if (g.target_taxa_conversao != null) aggregated.target_taxa_conversao = Number(g.target_taxa_conversao);
-      });
-      setStageGoals(aggregated);
+
+
 
       // Build cumulative counts for rate calculation
       // Order: from last active stage backwards, accumulating
@@ -166,7 +155,6 @@ export default function Forecast() {
         <ConversionRates
           actualRates={actualRates}
           stageCounts={stageCounts}
-          stageGoals={stageGoals}
           transitions={transitions}
           stageLabels={stageLabels}
         />
