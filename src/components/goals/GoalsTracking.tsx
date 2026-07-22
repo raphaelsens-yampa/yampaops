@@ -293,6 +293,18 @@ export function GoalsTracking() {
     return stripeInScope.map((sc: any) => ({ date: new Date(sc.converted_at), mrr: convMrr(sc) }));
   }, [stripeInScope]);
 
+  const productRows: ProductRow[] = useMemo(() => {
+    const map = new Map<string, { deals: number; mrr: number }>();
+    stripeInScope.forEach((sc: any) => {
+      const name = (sc.product_name || sc.plan_name || "Sem produto").toString().trim() || "Sem produto";
+      const cur = map.get(name) || { deals: 0, mrr: 0 };
+      cur.deals += 1;
+      cur.mrr += convMrr(sc);
+      map.set(name, cur);
+    });
+    return Array.from(map.entries()).map(([name, v]) => ({ name, deals: v.deals, mrr: v.mrr }));
+  }, [stripeInScope]);
+
   // Breakdown por categoria — usa auto_source + stripe_area do banco
   const categoryRows: CategoryRow[] = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
