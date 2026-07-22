@@ -1,9 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ORIGIN_LABELS, STAGE_WEIGHTS } from "@/lib/constants";
 
 interface GoalData {
-  channel: string | null;
+  label?: string | null;
   target_mrr: number;
   achieved_mrr: number;
   weighted_pipeline: number;
@@ -30,7 +29,7 @@ export function GoalsProgress({ goals }: Props) {
           return (
             <div key={i} className="space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="font-medium">{g.channel ? ORIGIN_LABELS[g.channel] || g.channel : "Total"}</span>
+                <span className="font-medium">{g.label || "Total"}</span>
                 <span className="text-muted-foreground">
                   R$ {g.achieved_mrr.toLocaleString("pt-BR")} / R$ {g.target_mrr.toLocaleString("pt-BR")}
                 </span>

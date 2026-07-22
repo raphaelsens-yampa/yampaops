@@ -119,7 +119,8 @@ export default function SellerKanban() {
   const now = new Date();
   const currentGoals = goals.filter(g => new Date(g.period_start) <= now && new Date(g.period_end) >= now);
   const goalsData = currentGoals.map(g => ({
-    channel: g.channel, target_mrr: g.target_mrr || 0,
+    label: g.scope === "company" ? "Empresa" : g.scope,
+    target_mrr: g.target_mrr || 0,
     achieved_mrr: closedMRR,
     weighted_pipeline: activeLeads.reduce((s, l) => s + (l.estimated_mrr || 0) * (STAGE_WEIGHTS[l.stage] || 0), 0),
   }));
