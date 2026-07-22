@@ -72,7 +72,7 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type"),
+        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type, product_name, plan_name"),
         supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
         supabase.from("sales_campaign_contacts").select("id, campaign_id, mrr_generated, cw_first_contact_at, updated_at"),
       ]);
