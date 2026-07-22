@@ -1,5 +1,12 @@
 export type CategoryArea = "sales" | "cs" | "campaign" | "financial";
 export type MetricType = "mrr" | "count" | "ratio" | "currency";
+export type AutoSource =
+  | "manual"
+  | "stripe"
+  | "stripe_ltv"
+  | "stripe_cac"
+  | "stripe_ltv_cac"
+  | "deals_count";
 
 export interface GoalCategory {
   id: string;
@@ -10,6 +17,8 @@ export interface GoalCategory {
   is_system: boolean;
   is_active: boolean;
   description?: string | null;
+  stripe_area?: string | null;
+  auto_source?: AutoSource | string | null;
 }
 
 export const AREA_LABELS: Record<CategoryArea, string> = {
@@ -26,21 +35,16 @@ export const METRIC_TYPE_LABELS: Record<MetricType, string> = {
   currency: "Valor (R$)",
 };
 
-export const FINANCIAL_SLUGS = {
-  LTV: "ltv",
-  CAC: "cac",
-  LTV_CAC: "ltv_cac",
-  CAMPANHA_MRR: "campanha_mrr",
+export const AUTO_SOURCE_LABELS: Record<AutoSource, string> = {
+  manual: "Manual (opps ganhas ou override)",
+  stripe: "Stripe — soma MRR líquido da área",
+  stripe_ltv: "Stripe — LTV (MRR médio ÷ churn)",
+  stripe_cac: "Stripe — CAC (custo ÷ conversões Marketing)",
+  stripe_ltv_cac: "Stripe — LTV/CAC",
+  deals_count: "Contagem de opps ganhas na categoria",
 };
 
-// Categorias cujo realizado é calculado automaticamente pela integração Stripe.
-// Cada slug é associado a uma área do Stripe (stripe_conversions.area), garantindo
-// que o valor exibido na tela de Metas bata exatamente com "Conversões por Área".
-export const STRIPE_AREA_BY_SLUG: Record<string, string> = {
-  new_mrr: "Sales",
-  campanha_mrr: "Marketing",
-};
-export const STRIPE_DRIVEN_SLUGS = new Set<string>(Object.keys(STRIPE_AREA_BY_SLUG));
+export const STRIPE_AREA_PRESETS = ["Sales", "Marketing", "CS", "Outros"];
 
 export function groupByArea(categories: GoalCategory[]): Record<CategoryArea, GoalCategory[]> {
   return categories.reduce((acc, c) => {
