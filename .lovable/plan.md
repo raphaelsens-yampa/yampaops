@@ -1,114 +1,71 @@
-## Contexto atual (verificado)
+## Refactor completo da tela de Metas
 
-- `stripe_conversions` já tem: `gross_amount`, `net_amount` (invoice.amount_paid), `discount_amount`, `mrr_net` (líquido normalizado pra mês), `coupon_*`, `stripe_invoice_id`, `net_amount_source` ('invoice' | 'price_fallback').
-- Webhook (`stripe-webhook`) e backfill (`stripe-backfill-net-amounts`) já populam esses campos, e o `mrr` gravado agora reflete o líquido quando há invoice paga.
-- Hoje **não existe validação cruzada**: se o webhook cair no meio do lookup da invoice, a linha entra com `net_amount_source='price_fallback'` (valor bruto) e ninguém sinaliza.
-- Comissão é decidida por `commission_price_map(price_id → plan_name/payment_type)` + `commission_reference(plan_name, payment_type → %)`. Cupons não entram na chave — o único ajuste que o cupom faz hoje é no **valor base** (via `mrr_net`), não na **regra** aplicada.
+Alinhar Metas com a nova verdade unificada (MRR líquido, `assigned_seller_id`, `sales_campaigns`), remover herança do ActiveCampaign, matar campos não usados e tornar mapeamento Stripe↔categoria configurável.
 
-## Escopo
+### 1. Fonte de verdade: Stripe líquido
 
-Duas frentes independentes, entregues juntas:
+`GoalsTracking.tsx`
+- Trocar `sc.mrr` por `COALESCE(sc.mrr_net, sc.mrr)` em `realized`, `realizedBySeller`, `wonForChart`, `orphanMrrByArea`, `stripeMrrByArea`.
+- Substituir `getConversionSellerId` por: `sc.assigned_seller_id ?? opp.consultant_id ?? price_map.seller_user_id`. Isso passa a bater 1:1 com Comissionamento.
+- Remover `wonInPeriod` (nunca é consumido).
 
-### 1) Validação de consistência net_amount ↔ amount_paid
+### 2. Mapeamento Stripe↔categoria configurável
 
-**Onde validar (mesma função em 3 pontos):**
+Migração:
+- Adicionar `goal_categories.stripe_area text` (nullable) e `goal_categories.auto_source text` com valores `stripe`, `stripe_ltv`, `stripe_cac`, `stripe_ltv_cac`, `deals_count`, `manual`.
+- Backfill: `new_mrr → stripe_area='Sales', auto_source='stripe'`; `campanha_mrr → stripe_area='Marketing', auto_source='stripe'`; `ltv/cac/ltv_cac → auto_source='stripe_*'`.
 
-- No `stripe-webhook`, logo após popular os campos da invoice.
-- No `stripe-backfill-net-amounts`, para cada linha atualizada.
-- Sob demanda, num novo botão "Validar consistência" na aba Stripe da tela de Conversões.
+`goalCategories.ts`:
+- Remover `STRIPE_AREA_BY_SLUG` / `STRIPE_DRIVEN_SLUGS` / `FINANCIAL_SLUGS` hardcoded. Trocar por leitura dos novos campos.
 
-**Regras da validação** (roda pra cada `stripe_conversions` que tenha `stripe_invoice_id`):
+`CategoryManager.tsx`:
+- Adicionar selects para Área Stripe (livre + presets Sales/Marketing) e Fonte automática.
 
-```text
-DIVERGENCIA se qualquer uma:
-  - net_amount IS NULL AND stripe_invoice_id IS NOT NULL
-  - discount_amount > 0 AND (coupon_id IS NULL AND promotion_code IS NULL)
-  - net_amount_source = 'price_fallback' AND converted_at > (hoje - 30 dias)   -- deveria ter invoice
-  - gross_amount IS NOT NULL AND net_amount IS NOT NULL
-    AND ABS(gross_amount - discount_amount - net_amount) > 0.02
-  - mrr_net IS NULL AND net_amount IS NOT NULL AND net_amount > 0
-  - mrr > 0 AND mrr_net IS NOT NULL AND mrr_net > 0 AND ABS(mrr - mrr_net) > 0.02
-    (mrr deveria estar espelhando mrr_net após a última migration)
-```
+### 3. LTV/CAC via Stripe
 
-Cada divergência é gravada em `integration_sync_errors` com:
+Base = conversões Stripe do período (não `opportunities.estimated_mrr`):
+- LTV = média(`mrr_net`) das conversões Stripe no escopo ÷ churn.
+- CAC = `finance_settings.avg_campaign_cost` ÷ nº conversões Stripe da área "Marketing" no período.
+- LTV/CAC = derivado dos dois.
 
-- `entity_type = 'stripe_net_amount_mismatch'`
-- `ac_id = stripe_conversions.id`
-- `error_message` = motivo humano ("mrr não bate com mrr_net", "discount sem cupom identificado", etc.)
-- `payload` = snapshot dos campos relevantes
-- `resolved = false` (pra aparecer como pendência acionável)
+### 4. Remover legado ActiveCampaign / campos zumbis
 
-**Recheque em tempo real no webhook:** se a divergência for do tipo "faltou invoice" ou "mrr desalinhado", o webhook grava a divergência **mas não bloqueia** a conversão — a linha entra e vai ser corrigida depois pelo backfill.
+Migração:
+- `ALTER TABLE goals DROP COLUMN target_prospeccoes, target_respostas, target_agendamentos, target_comparecimentos, target_conversoes, target_taxa_resposta, target_taxa_agendamento, target_taxa_comparecimento, target_taxa_conversao`.
+- Remover `channel` do enum de escopo (converter registros existentes para `company` + aviso no log).
 
-### 2) UI: fila de correção
+`Goals.tsx`:
+- Remover estados `gProspeccoes/gRespostas/.../gTaxa*` e todos os inputs "Volume por etapa" / "Meta de conversão por etapa".
+- Remover escopo `channel` de `SCOPE_LABELS`, filtros, formulário e listagem.
+- Remover import `ORIGIN_LABELS`.
 
-Nova seção **"Divergências de valor líquido"** dentro de `StripeConversions.tsx` (visível pra admin/tatico):
+### 5. Escopo `campaign` ligado a `sales_campaigns`
 
-- Cards com contagem por tipo de divergência.
-- Tabela das linhas em `integration_sync_errors` do tipo `stripe_net_amount_mismatch` não resolvidas, com colunas: cliente, plano, converted_at, motivo, valores atuais (mrr, mrr_net, net_amount, discount).
-- Ações por linha:
-  - **"Rebuscar invoice"** → chama `stripe-backfill-net-amounts` com `{ ids: [conversion_id], force: true }` (novo parâmetro; hoje só aceita range).
-  - **"Reaplicar comissão"** → chama RPC `apply_commission_from_stripe(id)` já existente.
-  - **"Marcar como resolvida"** → soft close manual (`resolved = true`) para casos aceitos como corretos.
-- Ação em lote no header: "Rebuscar todas" e "Validar consistência agora" (dispara a validação por todo o range visível).
+- Trocar `Input` texto livre por `Select` populado por `sales_campaigns` (id + name).
+- Migração: `ALTER TABLE goals ADD COLUMN campaign_id uuid REFERENCES sales_campaigns(id)`. Manter `campaign` (texto) por retrocompatibilidade + backfill best-effort por nome.
+- Realizado do escopo campanha = soma de `mrr_generated` de `sales_campaign_contacts` da campanha no período (ou conversões Stripe ligadas — a decidir na implementação; padrão: `sales_campaign_snapshots` mais recente do período).
 
-### 3) Reestruturação da chave de comissão para conviver com cupons
+### 6. Prorateamento por dias úteis + reativação
 
-**Diagnóstico:** o modelo atual (`price_id → plano/periodicidade → %`) funciona para valor, mas não distingue vendas do mesmo price com cupom que muda a natureza da oferta (ex.: cupom "Parceiro" com regra de comissão diferente). Precisamos permitir **regra específica por combinação price+cupom** sem quebrar o caminho comum.
+- `periodTarget`, `sellerRows.target`, `teamRows.target`, `proratedTarget`: já usam `businessDaysInRange`. Ajustar granularidade "dia" para não retornar 0 no fim de semana quando houver conversão real (mostrar meta = 0 mas realizado real).
+- Adicionar coluna "Reativações" (badge) no `SellerRankingTable`, contando `stripe_conversions` com `is_reactivation=true` no período/escopo.
 
-**Mudanças de banco:**
+### 7. Reconciliação de órfãs por área
 
-- `commission_price_map`: adicionar coluna opcional `coupon_id text` (nullable, default NULL) e ajustar unique para `(price_id, COALESCE(coupon_id, ''))`.
-- `commission_reference`: adicionar coluna opcional `coupon_id text` (nullable) para permitir % diferente por (plano, periodicidade, cupom).
-- Nenhum registro existente muda de valor — todos ficam com `coupon_id = NULL` e continuam sendo o "match padrão".
+- `orphanMrrByArea` hoje casa nome do time == `sc.area` (string frágil).
+- Migração: `ALTER TABLE teams ADD COLUMN stripe_area text`. `TeamRankingTable` passa a somar órfãs por `stripe_area` do time.
 
-**Nova lógica de resolução (na função `apply_commission_from_stripe`):**
+### 8. KPI de deals
 
-```text
-1. Tenta match exato: price_map WHERE price_id = X AND coupon_id = <cupom da conversão>
-2. Se não achar, fallback pro match atual: price_id = X AND coupon_id IS NULL
-3. Mesmo esquema em commission_reference (plano, periodicidade, cupom → % ; fallback pra cupom NULL)
-```
+- `GoalKpiCards`: adicionar 5º card "Deals fechados" = count de `stripe_conversions` no escopo, comparando com `target_deals` do escopo (nunca era exibido).
 
-**UI de mapeamento** (`ComissionamentoPriceMap.tsx` + `MapPriceDialog.tsx`):
+### Ordem de execução
 
-- Novo campo opcional "Cupom" no diálogo de mapeamento (autocomplete alimentado pelos `coupon_id` distintos presentes em `stripe_conversions`).
-- Linha da tabela ganha coluna "Cupom" (mostra "— (padrão)" quando NULL).
-- No diálogo aparece um alerta quando o admin está criando um mapeamento sobreposto (mesmo price já tem regra sem cupom e essa nova é específica).
+1. Migração única (drop colunas zumbis + drop escopo channel + add colunas `goal_categories.stripe_area/auto_source` + `teams.stripe_area` + `goals.campaign_id` + backfill).
+2. Ajustes em `goalCategories.ts`, `GoalsTracking.tsx`, `Goals.tsx`, `CategoryManager.tsx`, `SellerRankingTable.tsx`, `TeamRankingTable.tsx`, `GoalKpiCards.tsx`, `GoalsBreakdownByCategory.tsx`.
+3. Validação visual em `/metas` (KPIs batendo com Comissionamento → Overview e Stripe → Conversões por Área).
 
-**Pergunta de decisão** (bloqueia só a parte 3):
+### Fora de escopo desta rodada
 
-- A regra especial por cupom deve mudar apenas o **percentual** (mantendo plano/periodicidade do match padrão), ou também pode redefinir plano/periodicidade/seller? Padrão proposto: **redefine tudo** (mais poderoso, o admin escolhe se preenche cada campo).
-
-## Ordem de execução
-
-1. Função utilitária de validação (SQL função + wrapper TS reutilizável no webhook e no backfill).
-2. Instrumentação no webhook e no backfill + parâmetro `ids` no backfill.
-3. Painel de divergências em `StripeConversions.tsx`.
-4. Migration da nova chave `coupon_id` em price_map + reference (aditiva, sem quebra).
-5. Atualização de `apply_commission_from_stripe` com o novo fallback.
-6. UI do mapeamento de cupom.
-7. Reprocessamento único das conversões existentes com cupom pra validar o novo caminho e gerar as primeiras divergências reais na fila.
-
-## Arquivos afetados
-
-- `supabase/functions/stripe-webhook/index.ts` — chama validação após popular invoice.
-- `supabase/functions/stripe-backfill-net-amounts/index.ts` — aceita `ids: string[]` + chama validação.
-- `supabase/functions/_shared/validate-net-amount.ts` — novo, lógica única de checagem.
-- migration — coluna `coupon_id` em `commission_price_map` e `commission_reference`, nova versão de `apply_commission_from_stripe`, índice.
-- `src/pages/StripeConversions.tsx` — nova aba/seção "Divergências" com ações.
-- `src/components/comissionamento/ComissionamentoPriceMap.tsx` — coluna Cupom.
-- `src/components/comissionamento/MapPriceDialog.tsx` — campo Cupom.
-
-## O que NÃO muda
-
-- Fluxo de webhook, dedup e resolução de vendedor.
-- Comissões já revisadas manualmente (`manually_reviewed = true`) continuam travadas por campo.
-- Metas continuam olhando `mrr` (agora já líquido).
-
-## Confirmar antes de implementar
-
-1. **Escopo da regra por cupom:** só percentual ou pode redefinir plano/periodicidade/seller? O CUPOM SÓ MUDA PERCENTUAL.
-2. **Divergência "price_fallback recente"** — quer o threshold de 30 dias ou outro? (proposta: 30d). 30D 
-3. **Ação "Marcar como resolvida"** — apenas admin, ou tatico também? (proposta: admin + tatico). ADMIN+TATICO
+- Recriar tracking de funil (prospecções/respostas/etc.) via Chatwoot — quando pedido, virá de outra fonte.
+- Alterar cálculo de comissão (permanece como já unificado).
