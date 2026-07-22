@@ -9,6 +9,7 @@ import { GoalKpiCards } from "./GoalKpiCards";
 import { GoalProgressChart } from "./GoalProgressChart";
 import { SellerRankingTable, type SellerRow } from "./SellerRankingTable";
 import { TeamRankingTable, type TeamRow } from "./TeamRankingTable";
+import { ProductRankingTable, type ProductRow } from "./ProductRankingTable";
 import {
   startOfMonth, endOfMonth, eachDayOfInterval, isWeekend,
   differenceInCalendarDays, isAfter, startOfDay,
@@ -72,7 +73,7 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type"),
+        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type, product_name, plan_name"),
         supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
         supabase.from("sales_campaign_contacts").select("id, campaign_id, mrr_generated, cw_first_contact_at, updated_at"),
       ]);
@@ -292,6 +293,18 @@ export function GoalsTracking() {
     return stripeInScope.map((sc: any) => ({ date: new Date(sc.converted_at), mrr: convMrr(sc) }));
   }, [stripeInScope]);
 
+  const productRows: ProductRow[] = useMemo(() => {
+    const map = new Map<string, { deals: number; mrr: number }>();
+    stripeInScope.forEach((sc: any) => {
+      const name = (sc.product_name || sc.plan_name || "Sem produto").toString().trim() || "Sem produto";
+      const cur = map.get(name) || { deals: 0, mrr: 0 };
+      cur.deals += 1;
+      cur.mrr += convMrr(sc);
+      map.set(name, cur);
+    });
+    return Array.from(map.entries()).map(([name, v]) => ({ name, deals: v.deals, mrr: v.mrr }));
+  }, [stripeInScope]);
+
   // Breakdown por categoria — usa auto_source + stripe_area do banco
   const categoryRows: CategoryRow[] = useMemo(() => {
     const sellerIds = new Set(sellersInScope.map((s) => s.user_id));
@@ -484,6 +497,8 @@ export function GoalsTracking() {
       />
 
       <SellerRankingTable rows={sellerRows} />
+
+      <ProductRankingTable rows={productRows} />
 
       {isAdmin && <TeamRankingTable rows={teamRows} />}
     </div>
