@@ -498,6 +498,8 @@ export function GoalsTracking() {
 
       <SellerRankingTable rows={sellerRows} />
 
+      <ProductRankingTable rows={productRows} />
+
       {isAdmin && <TeamRankingTable rows={teamRows} />}
     </div>
   );
