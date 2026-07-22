@@ -9,6 +9,7 @@ import { GoalKpiCards } from "./GoalKpiCards";
 import { GoalProgressChart } from "./GoalProgressChart";
 import { SellerRankingTable, type SellerRow } from "./SellerRankingTable";
 import { TeamRankingTable, type TeamRow } from "./TeamRankingTable";
+import { ProductRankingTable, type ProductRow } from "./ProductRankingTable";
 import {
   startOfMonth, endOfMonth, eachDayOfInterval, isWeekend,
   differenceInCalendarDays, isAfter, startOfDay,
