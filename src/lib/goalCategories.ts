@@ -1,11 +1,15 @@
 export type CategoryArea = "sales" | "cs" | "campaign" | "financial";
 export type MetricType = "mrr" | "count" | "ratio" | "currency";
+export type GoalDirection = "gte" | "lte";
 export type AutoSource =
   | "manual"
   | "stripe"
   | "stripe_ltv"
   | "stripe_cac"
   | "stripe_ltv_cac"
+  | "stripe_churn_mrr"
+  | "stripe_churn_logos"
+  | "stripe_churn_rate_logos"
   | "deals_count";
 
 export interface GoalCategory {
@@ -19,6 +23,7 @@ export interface GoalCategory {
   description?: string | null;
   stripe_area?: string | null;
   auto_source?: AutoSource | string | null;
+  goal_direction?: GoalDirection | string | null;
 }
 
 export const AREA_LABELS: Record<CategoryArea, string> = {
@@ -31,7 +36,7 @@ export const AREA_LABELS: Record<CategoryArea, string> = {
 export const METRIC_TYPE_LABELS: Record<MetricType, string> = {
   mrr: "MRR (R$)",
   count: "Quantidade",
-  ratio: "Razão",
+  ratio: "Razão / %",
   currency: "Valor (R$)",
 };
 
@@ -41,10 +46,47 @@ export const AUTO_SOURCE_LABELS: Record<AutoSource, string> = {
   stripe_ltv: "Stripe — LTV (MRR médio ÷ churn)",
   stripe_cac: "Stripe — CAC (custo ÷ conversões Marketing)",
   stripe_ltv_cac: "Stripe — LTV/CAC",
+  stripe_churn_mrr: "Stripe — Churn de MRR (R$ perdido)",
+  stripe_churn_logos: "Stripe — Churn de logos (contagem)",
+  stripe_churn_rate_logos: "Stripe — Churn % (logos ÷ base inicial)",
   deals_count: "Contagem de opps ganhas na categoria",
 };
 
-export const STRIPE_AREA_PRESETS = ["Sales", "Marketing", "CS", "Outros"];
+export const GOAL_DIRECTION_LABELS: Record<GoalDirection, string> = {
+  gte: "Alvo mínimo (maior é melhor)",
+  lte: "Teto (menor é melhor)",
+};
+
+export const STRIPE_AREA_PRESETS = ["Sales", "Marketing", "CS", "Produto", "Outros"];
+
+export function isBetterBelow(direction?: string | null): boolean {
+  return direction === "lte";
+}
+
+/** Progresso comparável — quando lte, inverte para "quanto abaixo do teto". */
+export function progressPct(realized: number, target: number, direction?: string | null): number {
+  if (!target || target <= 0) return 0;
+  if (isBetterBelow(direction)) {
+    if (realized <= 0) return 100;
+    return Math.min(100, (target / realized) * 100);
+  }
+  return (realized / target) * 100;
+}
+
+/** Cor de status considerando direção. */
+export function statusColorFor(realized: number, target: number, direction?: string | null): string {
+  if (!target || target <= 0) return "bg-muted";
+  if (isBetterBelow(direction)) {
+    const ratio = realized / target;
+    if (ratio <= 1) return "bg-emerald-500";
+    if (ratio <= 1.2) return "bg-amber-500";
+    return "bg-rose-500";
+  }
+  const pct = (realized / target) * 100;
+  if (pct >= 100) return "bg-emerald-500";
+  if (pct >= 70) return "bg-amber-500";
+  return "bg-rose-500";
+}
 
 export function groupByArea(categories: GoalCategory[]): Record<CategoryArea, GoalCategory[]> {
   return categories.reduce((acc, c) => {
@@ -59,7 +101,7 @@ export function formatMetric(value: number, type: MetricType): string {
     return `R$ ${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
   }
   if (type === "ratio") {
-    return value.toFixed(2) + "x";
+    return `${value.toFixed(2)}%`;
   }
   return value.toLocaleString("pt-BR");
 }

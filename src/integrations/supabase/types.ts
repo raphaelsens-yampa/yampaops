@@ -1508,6 +1508,7 @@ export type Database = {
           auto_source: string
           created_at: string
           description: string | null
+          goal_direction: string
           id: string
           is_active: boolean
           is_system: boolean
@@ -1522,6 +1523,7 @@ export type Database = {
           auto_source?: string
           created_at?: string
           description?: string | null
+          goal_direction?: string
           id?: string
           is_active?: boolean
           is_system?: boolean
@@ -1536,6 +1538,7 @@ export type Database = {
           auto_source?: string
           created_at?: string
           description?: string | null
+          goal_direction?: string
           id?: string
           is_active?: boolean
           is_system?: boolean
@@ -2800,6 +2803,60 @@ export type Database = {
           target_conversions?: number
           target_mrr?: number
           target_replies?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stripe_churn_events: {
+        Row: {
+          assigned_seller_id: string | null
+          canceled_at: string
+          cancellation_reason: string | null
+          created_at: string
+          customer_email: string | null
+          id: string
+          mrr_lost: number
+          plan_name: string | null
+          raw_event: Json | null
+          source: string
+          stripe_area: string | null
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_seller_id?: string | null
+          canceled_at: string
+          cancellation_reason?: string | null
+          created_at?: string
+          customer_email?: string | null
+          id?: string
+          mrr_lost?: number
+          plan_name?: string | null
+          raw_event?: Json | null
+          source?: string
+          stripe_area?: string | null
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_seller_id?: string | null
+          canceled_at?: string
+          cancellation_reason?: string | null
+          created_at?: string
+          customer_email?: string | null
+          id?: string
+          mrr_lost?: number
+          plan_name?: string | null
+          raw_event?: Json | null
+          source?: string
+          stripe_area?: string | null
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -60,11 +60,12 @@ export function GoalsTracking() {
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
   const [wonStageSlugs, setWonStageSlugs] = useState<Set<string>>(new Set());
+  const [churnEvents, setChurnEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes, sccRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes, sccRes, chRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -73,9 +74,10 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type, product_name, plan_name"),
+        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type, product_name, plan_name, stripe_customer_id"),
         supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
         supabase.from("sales_campaign_contacts").select("id, campaign_id, mrr_generated, cw_first_contact_at, updated_at"),
+        supabase.from("stripe_churn_events").select("id, canceled_at, mrr_lost, stripe_customer_id, stripe_area"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -87,6 +89,7 @@ export function GoalsTracking() {
       setStripeConversions(scRes.data || []);
       setPriceMap(pmRes.data || []);
       setCampaignContacts(sccRes.data || []);
+      setChurnEvents(chRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
@@ -341,6 +344,44 @@ export function GoalsTracking() {
       stripeMrrByArea.set(a, (stripeMrrByArea.get(a) || 0) + convMrr(sc));
     });
 
+    // Eventos de churn dentro do período
+    const churnInPeriod = churnEvents.filter((e: any) => {
+      if (!e.canceled_at) return false;
+      const d = new Date(e.canceled_at);
+      return d >= start && d <= end;
+    });
+    const churnMrrByArea = new Map<string, number>();
+    const churnLogosByArea = new Map<string, Set<string>>();
+    let totalChurnMrr = 0;
+    const totalChurnLogos = new Set<string>();
+    churnInPeriod.forEach((e: any) => {
+      const a = e.stripe_area || "desconhecida";
+      churnMrrByArea.set(a, (churnMrrByArea.get(a) || 0) + (Number(e.mrr_lost) || 0));
+      if (!churnLogosByArea.has(a)) churnLogosByArea.set(a, new Set());
+      if (e.stripe_customer_id) churnLogosByArea.get(a)!.add(e.stripe_customer_id);
+      totalChurnMrr += Number(e.mrr_lost) || 0;
+      if (e.stripe_customer_id) totalChurnLogos.add(e.stripe_customer_id);
+    });
+
+    // Base ativa no início do período (para churn %)
+    // Aproximação: clientes distintos com conversão antes de `start` e sem churn antes de `start`.
+    const churnedBefore = new Set<string>();
+    churnEvents.forEach((e: any) => {
+      if (!e.canceled_at || !e.stripe_customer_id) return;
+      if (new Date(e.canceled_at) < start) churnedBefore.add(e.stripe_customer_id);
+    });
+    const activeBaseByArea = new Map<string, Set<string>>();
+    const activeBaseAll = new Set<string>();
+    stripeConversions.forEach((sc: any) => {
+      if (!sc.converted_at || !sc.stripe_customer_id) return;
+      if (new Date(sc.converted_at) >= start) return;
+      if (churnedBefore.has(sc.stripe_customer_id)) return;
+      const a = sc.area || "desconhecida";
+      if (!activeBaseByArea.has(a)) activeBaseByArea.set(a, new Set());
+      activeBaseByArea.get(a)!.add(sc.stripe_customer_id);
+      activeBaseAll.add(sc.stripe_customer_id);
+    });
+
     // MRR de campanhas (para escopo campaign)
     const campaignMrrById = new Map<string, number>();
     campaignContacts.forEach((c: any) => {
@@ -401,6 +442,23 @@ export function GoalsTracking() {
         const cost = financeSettings?.avg_campaign_cost || 0;
         const cac = conversions > 0 ? cost / conversions : 0;
         realizedCat = cac > 0 ? ltv / cac : 0;
+      } else if (autoSource === "stripe_churn_mrr") {
+        source = "stripe";
+        realizedCat = stripeArea ? (churnMrrByArea.get(stripeArea) || 0) : totalChurnMrr;
+      } else if (autoSource === "stripe_churn_logos") {
+        source = "stripe";
+        realizedCat = stripeArea
+          ? (churnLogosByArea.get(stripeArea)?.size || 0)
+          : totalChurnLogos.size;
+      } else if (autoSource === "stripe_churn_rate_logos") {
+        source = "stripe";
+        const churned = stripeArea
+          ? (churnLogosByArea.get(stripeArea)?.size || 0)
+          : totalChurnLogos.size;
+        const base = stripeArea
+          ? (activeBaseByArea.get(stripeArea)?.size || 0)
+          : activeBaseAll.size;
+        realizedCat = base > 0 ? (churned / base) * 100 : 0;
       } else if (autoSource === "deals_count") {
         realizedCat = wonScope.filter((o) => o.category_id === cat.id).length;
       } else if (cat.metric_type === "count") {
@@ -416,6 +474,14 @@ export function GoalsTracking() {
       }
 
       const isStripeDriven = autoSource.startsWith("stripe");
+      // autoValue apenas informativo quando existe override; para churn expõe o valor calculado.
+      let autoValue: number | null = null;
+      if (isStripeDriven) {
+        if (autoSource === "stripe_churn_mrr") autoValue = stripeArea ? (churnMrrByArea.get(stripeArea) || 0) : totalChurnMrr;
+        else if (autoSource === "stripe_churn_logos") autoValue = stripeArea ? (churnLogosByArea.get(stripeArea)?.size || 0) : totalChurnLogos.size;
+        else if (autoSource === "stripe_churn_rate_logos") autoValue = realizedCat;
+        else autoValue = stripeAutoForCat;
+      }
 
       return {
         category: cat,
@@ -424,10 +490,10 @@ export function GoalsTracking() {
         source,
         manualOverride,
         goalIds: matchingGoals.map((g) => g.id),
-        autoValue: isStripeDriven ? stripeAutoForCat : null,
+        autoValue,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, stripeInScope, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, campaignContacts]);
+  }, [categories, goals, opportunities, stripeInScope, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, campaignContacts, churnEvents, stripeConversions]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 

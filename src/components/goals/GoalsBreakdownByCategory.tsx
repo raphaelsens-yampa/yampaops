@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Label } from "@/components/ui/label";
 import { Zap, Pencil, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AREA_LABELS, formatMetric, type CategoryArea, type GoalCategory } from "@/lib/goalCategories";
+import { AREA_LABELS, formatMetric, isBetterBelow, progressPct, statusColorFor, type CategoryArea, type GoalCategory } from "@/lib/goalCategories";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -27,13 +27,14 @@ interface Props {
   onChanged?: () => void;
 }
 
-function statusColor(pct: number) {
-  if (pct >= 100) return "bg-emerald-500";
-  if (pct >= 70) return "bg-amber-500";
-  return "bg-rose-500";
-}
-
-function statusLabel(pct: number): { label: string; variant: "default" | "secondary" | "destructive" } {
+function statusLabel(pct: number, direction?: string | null): { label: string; variant: "default" | "secondary" | "destructive" } {
+  const lte = isBetterBelow(direction);
+  if (lte) {
+    // pct aqui é target/realized*100 (progressPct). >=100 = dentro do teto.
+    if (pct >= 100) return { label: "Dentro do teto", variant: "default" };
+    if (pct >= 80) return { label: "Alerta", variant: "secondary" };
+    return { label: "Estourou", variant: "destructive" };
+  }
   if (pct >= 100) return { label: "Atingido", variant: "default" };
   if (pct >= 70) return { label: "No ritmo", variant: "secondary" };
   return { label: "Atrasado", variant: "destructive" };
@@ -93,8 +94,12 @@ export function GoalsBreakdownByCategory({ rows, onChanged }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {areaRows.map((row) => {
                 const { category, target, realized, source, manualOverride, autoValue, goalIds } = row;
-                const pct = target > 0 ? (realized / target) * 100 : 0;
-                const status = statusLabel(pct);
+                const lte = isBetterBelow(category.goal_direction);
+                const pct = progressPct(realized, target, category.goal_direction);
+                const barPct = lte
+                  ? Math.min(100, target > 0 ? (realized / target) * 100 : 0)
+                  : Math.min(100, pct);
+                const status = statusLabel(pct, category.goal_direction);
                 const canEdit = isAdmin && source && source !== "calculated" && (goalIds?.length || 0) > 0;
                 return (
                   <Card key={category.id}>
@@ -106,7 +111,7 @@ export function GoalsBreakdownByCategory({ rows, onChanged }: Props) {
                       {source === "stripe" && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                           <Zap className="h-3 w-3 text-primary" />
-                          <span>Atualizado automaticamente pela Stripe</span>
+                          <span>{lte ? "Churn calculado via Stripe" : "Atualizado automaticamente pela Stripe"}</span>
                         </div>
                       )}
                       {source === "manual" && (
@@ -119,13 +124,19 @@ export function GoalsBreakdownByCategory({ rows, onChanged }: Props) {
                     <CardContent className="space-y-2">
                       <div className="flex items-baseline justify-between">
                         <span className="text-2xl font-bold">{formatMetric(realized, category.metric_type)}</span>
-                        <span className="text-xs text-muted-foreground">/ {formatMetric(target, category.metric_type)}</span>
+                        <span className="text-xs text-muted-foreground">/ {lte ? "teto " : ""}{formatMetric(target, category.metric_type)}</span>
                       </div>
                       <div className="space-y-1">
                         <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                          <div className={cn("h-full transition-all", statusColor(pct))} style={{ width: `${Math.min(pct, 100)}%` }} />
+                          <div className={cn("h-full transition-all", statusColorFor(realized, target, category.goal_direction))} style={{ width: `${barPct}%` }} />
                         </div>
-                        <p className="text-xs text-muted-foreground text-right">{pct.toFixed(0)}% atingido</p>
+                        <p className="text-xs text-muted-foreground text-right">
+                          {lte
+                            ? (realized <= target
+                                ? `${formatMetric(Math.max(0, target - realized), category.metric_type)} de folga`
+                                : `Excedeu em ${formatMetric(realized - target, category.metric_type)}`)
+                            : `${pct.toFixed(0)}% atingido`}
+                        </p>
                       </div>
                       {canEdit && (
                         <div className="flex justify-end pt-1">

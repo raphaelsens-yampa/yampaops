@@ -12,6 +12,7 @@ import { ComissionamentoReference } from "@/components/comissionamento/Comission
 import { ComissionamentoPriceMap } from "@/components/comissionamento/ComissionamentoPriceMap";
 import { ComissionamentoStripeSync } from "@/components/comissionamento/ComissionamentoStripeSync";
 import { NetAmountDivergences } from "@/components/stripe/NetAmountDivergences";
+import { ChurnBackfillPanel } from "@/components/comissionamento/ChurnBackfillPanel";
 
 export type ConversionSource = "stripe" | "manual" | "import";
 
@@ -131,6 +132,7 @@ export default function Comissionamento() {
           {isAdmin && (
             <TabsContent value="stripe" className="space-y-4">
               <ComissionamentoStripeSync onDone={fetchAll} />
+              <ChurnBackfillPanel />
               <NetAmountDivergences />
             </TabsContent>
           )}

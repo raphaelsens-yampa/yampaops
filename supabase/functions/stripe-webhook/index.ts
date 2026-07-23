@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
     "checkout.session.completed",
     "customer.subscription.created",
     "customer.subscription.updated",
+    "customer.subscription.deleted",
     "invoice.paid",
   ]);
   if (!RELEVANT.has(event.type)) {
@@ -83,6 +84,72 @@ Deno.serve(async (req) => {
       .eq("stripe_event_id", event.id);
     return ok({ ok: true, ignored: event.type });
   }
+
+  // customer.subscription.deleted → registra churn e finaliza
+  if (event.type === "customer.subscription.deleted") {
+    try {
+      const sub: any = event.data.object;
+      const subId: string | null = sub?.id || null;
+      const customerId: string | null = typeof sub?.customer === "string" ? sub.customer : (sub?.customer?.id || null);
+      const canceledAt = sub?.canceled_at
+        ? new Date(sub.canceled_at * 1000).toISOString()
+        : (sub?.ended_at ? new Date(sub.ended_at * 1000).toISOString() : new Date().toISOString());
+      const priceId: string | null = sub?.items?.data?.[0]?.price?.id || null;
+      const reason: string | null = sub?.cancellation_details?.reason || sub?.cancellation_details?.feedback || null;
+
+      // Pega última conversão desse customer/subscription para herdar contexto (mrr, area, seller)
+      let mrrLost = 0;
+      let planName: string | null = null;
+      let stripeArea: string | null = null;
+      let assignedSellerId: string | null = null;
+      let email: string | null = sub?.customer_email || null;
+      if (customerId || subId) {
+        const query = supabase.from("stripe_conversions")
+          .select("mrr, mrr_net, plan_name, product_name, area, assigned_seller_id, customer_email, converted_at")
+          .order("converted_at", { ascending: false })
+          .limit(1);
+        const { data: prev } = customerId
+          ? await query.eq("stripe_customer_id", customerId)
+          : await query.eq("stripe_subscription_id", subId!);
+        const row: any = prev?.[0];
+        if (row) {
+          mrrLost = Number(row.mrr_net) > 0 ? Number(row.mrr_net) : (Number(row.mrr) || 0);
+          planName = row.plan_name || row.product_name || null;
+          stripeArea = row.area || null;
+          assignedSellerId = row.assigned_seller_id || null;
+          email = email || row.customer_email || null;
+        }
+      }
+
+      const { error: churnErr } = await supabase.from("stripe_churn_events").upsert({
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subId,
+        customer_email: email,
+        canceled_at: canceledAt,
+        mrr_lost: mrrLost,
+        plan_name: planName,
+        stripe_price_id: priceId,
+        stripe_area: stripeArea,
+        assigned_seller_id: assignedSellerId,
+        cancellation_reason: reason,
+        source: "webhook",
+        raw_event: event as unknown as Record<string, unknown>,
+      }, { onConflict: "stripe_subscription_id" });
+
+      await supabase.from("stripe_events")
+        .update({ result: churnErr ? `churn_error:${churnErr.message}` : "churn_recorded" })
+        .eq("stripe_event_id", event.id);
+
+      return ok({ ok: true, churn: !churnErr, mrr_lost: mrrLost });
+    } catch (err) {
+      console.error("Churn capture failed:", err);
+      await supabase.from("stripe_events")
+        .update({ result: `churn_exception:${(err as Error).message}` })
+        .eq("stripe_event_id", event.id);
+      return ok({ ok: false, error: "churn_exception" });
+    }
+  }
+
 
   // Filtro: ignorar cobranças recorrentes — só processar criação de assinatura nova
   if (event.type === "invoice.paid") {

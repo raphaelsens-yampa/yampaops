@@ -12,11 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Lock, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AREA_LABELS, METRIC_TYPE_LABELS, AUTO_SOURCE_LABELS, STRIPE_AREA_PRESETS,
-  type CategoryArea, type MetricType, type AutoSource, type GoalCategory,
+  AREA_LABELS, METRIC_TYPE_LABELS, AUTO_SOURCE_LABELS, GOAL_DIRECTION_LABELS, STRIPE_AREA_PRESETS,
+  type CategoryArea, type MetricType, type AutoSource, type GoalCategory, type GoalDirection,
 } from "@/lib/goalCategories";
 
-const AUTO_KEYS: AutoSource[] = ["manual", "stripe", "stripe_ltv", "stripe_cac", "stripe_ltv_cac", "deals_count"];
+const AUTO_KEYS: AutoSource[] = [
+  "manual", "stripe", "stripe_ltv", "stripe_cac", "stripe_ltv_cac",
+  "stripe_churn_mrr", "stripe_churn_logos", "stripe_churn_rate_logos",
+  "deals_count",
+];
+const CHURN_SOURCES = new Set<AutoSource>(["stripe_churn_mrr", "stripe_churn_logos", "stripe_churn_rate_logos"]);
 
 export function CategoryManager() {
   const { toast } = useToast();
@@ -30,6 +35,7 @@ export function CategoryManager() {
   const [description, setDescription] = useState("");
   const [autoSource, setAutoSource] = useState<AutoSource>("manual");
   const [stripeArea, setStripeArea] = useState<string>("");
+  const [goalDirection, setGoalDirection] = useState<GoalDirection>("gte");
 
   async function load() {
     const { data } = await supabase.from("goal_categories").select("*").order("area").order("name");
@@ -44,7 +50,7 @@ export function CategoryManager() {
   function resetForm() {
     setEditing(null);
     setName(""); setDescription(""); setArea("sales"); setMetricType("mrr");
-    setAutoSource("manual"); setStripeArea("");
+    setAutoSource("manual"); setStripeArea(""); setGoalDirection("gte");
   }
 
   function openEdit(c: GoalCategory) {
@@ -55,18 +61,21 @@ export function CategoryManager() {
     setDescription(c.description || "");
     setAutoSource((c.auto_source as AutoSource) || "manual");
     setStripeArea(c.stripe_area || "");
+    setGoalDirection((c.goal_direction as GoalDirection) || "gte");
     setOpen(true);
   }
 
   async function save() {
     if (!name.trim()) return;
+    const usesStripeArea = autoSource === "stripe" || CHURN_SOURCES.has(autoSource);
     const payload: any = {
       name: name.trim(),
       area,
       metric_type: metricType,
       description: description || null,
       auto_source: autoSource,
-      stripe_area: autoSource === "stripe" ? (stripeArea || null) : null,
+      stripe_area: usesStripeArea ? (stripeArea || null) : null,
+      goal_direction: goalDirection,
     };
     let error;
     if (editing) {
@@ -140,21 +149,37 @@ export function CategoryManager() {
                   </SelectContent>
                 </Select>
               </div>
-              {autoSource === "stripe" && (
+              {(autoSource === "stripe" || CHURN_SOURCES.has(autoSource)) && (
                 <div>
-                  <Label>Área Stripe (stripe_conversions.area)</Label>
+                  <Label>Área Stripe (filtro)</Label>
                   <Select value={stripeArea || "__none"} onValueChange={(v) => setStripeArea(v === "__none" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">— Nenhuma —</SelectItem>
+                      <SelectItem value="__none">— Todas —</SelectItem>
                       {STRIPE_AREA_PRESETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    O realizado dessa categoria virá da soma do MRR líquido das conversões Stripe cujo <code>area</code> bate com este valor.
+                    {CHURN_SOURCES.has(autoSource)
+                      ? "Se preenchido, considera apenas cancelamentos cuja área bata com este valor."
+                      : "O realizado virá da soma do MRR líquido das conversões cujo área bate com este valor."}
                   </p>
                 </div>
               )}
+              <div>
+                <Label>Direção do alvo</Label>
+                <Select value={goalDirection} onValueChange={(v) => setGoalDirection(v as GoalDirection)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(GOAL_DIRECTION_LABELS) as GoalDirection[]).map((k) => (
+                      <SelectItem key={k} value={k}>{GOAL_DIRECTION_LABELS[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use "Teto" para métricas como churn, em que o objetivo é ficar abaixo do valor.
+                </p>
+              </div>
               <div>
                 <Label>Descrição (opcional)</Label>
                 <Input value={description} onChange={e => setDescription(e.target.value)} />
@@ -173,6 +198,7 @@ export function CategoryManager() {
               <TableHead>Métrica</TableHead>
               <TableHead>Fonte</TableHead>
               <TableHead>Área Stripe</TableHead>
+              <TableHead>Direção</TableHead>
               <TableHead className="text-center">Ativa</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -188,6 +214,11 @@ export function CategoryManager() {
                 <TableCell className="text-sm text-muted-foreground">{METRIC_TYPE_LABELS[c.metric_type]}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{AUTO_SOURCE_LABELS[(c.auto_source as AutoSource) || "manual"]}</TableCell>
                 <TableCell className="text-xs">{c.stripe_area || <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-xs">
+                  <Badge variant={c.goal_direction === "lte" ? "secondary" : "outline"} className="text-[10px]">
+                    {c.goal_direction === "lte" ? "Teto" : "Alvo"}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-center">
                   <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c)} />
                 </TableCell>
@@ -206,7 +237,7 @@ export function CategoryManager() {
               </TableRow>
             ))}
             {categories.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
