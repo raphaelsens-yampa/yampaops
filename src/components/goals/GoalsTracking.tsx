@@ -263,11 +263,13 @@ export function GoalsTracking() {
 
   const teamRows: TeamRow[] = useMemo(() => {
     if (!isAdmin) return [];
-    return teams.map((t) => {
+    const coveredAreas = new Set<string>();
+    const rows = teams.map((t) => {
       const memberIds = new Set(teamMembers.filter((m) => m.team_id === t.id).map((m) => m.user_id));
       const teamSellers = sellerRows.filter((r) => memberIds.has(r.user_id));
       const membersRealized = teamSellers.reduce((s, r) => s + r.realized, 0);
       const teamArea = (t as any).stripe_area || t.name;
+      coveredAreas.add(teamArea);
       const orphanForTeam = orphanMrrByArea.get(teamArea) || 0;
       const realizedSum = membersRealized + orphanForTeam;
 
@@ -287,6 +289,14 @@ export function GoalsTracking() {
       const top = [...teamSellers].sort((a, b) => b.realized - a.realized)[0];
       return { team_id: t.id, name: t.name, target, realized: realizedSum, topPerformer: top && top.realized > 0 ? top.name : undefined };
     });
+
+    // Inclui áreas Stripe sem equipe cadastrada (ex.: "Produto") para não perder MRR do ranking
+    orphanMrrByArea.forEach((mrr, area) => {
+      if (!area || area === "desconhecida" || coveredAreas.has(area) || mrr <= 0) return;
+      rows.push({ team_id: `area:${area}`, name: area, target: 0, realized: mrr, topPerformer: undefined });
+    });
+
+    return rows;
   }, [isAdmin, teams, teamMembers, sellerRows, orphanMrrByArea, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
 
   const wonForChart = useMemo(() => {
