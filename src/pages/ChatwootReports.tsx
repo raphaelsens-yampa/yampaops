@@ -816,9 +816,14 @@ export default function ChatwootReports() {
                 <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
                   <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
                 </Button>
+                <Button variant="outline" size="sm" onClick={exportMessagesCsv} disabled={!filtered.length || msgExporting}>
+                  {msgExporting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
+                  Exportar Conversas (CSV)
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
                   <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
                 </Button>
+
               </div>
             </div>
           </CardContent>
