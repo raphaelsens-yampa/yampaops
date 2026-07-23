@@ -293,7 +293,7 @@ export function GoalsTracking() {
     // Inclui áreas Stripe sem equipe cadastrada (ex.: "Produto") para não perder MRR do ranking
     orphanMrrByArea.forEach((mrr, area) => {
       if (!area || area === "desconhecida" || coveredAreas.has(area) || mrr <= 0) return;
-      rows.push({ team_id: `area:${area}`, name: area, target: 0, realized: mrr });
+      rows.push({ team_id: `area:${area}`, name: area, target: 0, realized: mrr, topPerformer: undefined });
     });
 
     return rows;
