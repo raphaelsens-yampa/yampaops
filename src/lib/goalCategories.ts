@@ -4,6 +4,7 @@ export type GoalDirection = "gte" | "lte";
 export type AutoSource =
   | "manual"
   | "stripe"
+  | "stripe_net_mrr"
   | "stripe_ltv"
   | "stripe_cac"
   | "stripe_ltv_cac"
@@ -43,6 +44,7 @@ export const METRIC_TYPE_LABELS: Record<MetricType, string> = {
 export const AUTO_SOURCE_LABELS: Record<AutoSource, string> = {
   manual: "Manual (opps ganhas ou override)",
   stripe: "Stripe — soma MRR líquido da área",
+  stripe_net_mrr: "Stripe — Net MRR (Novo + Expansão − Downgrade − Churn)",
   stripe_ltv: "Stripe — LTV (MRR médio ÷ churn)",
   stripe_cac: "Stripe — CAC (custo ÷ conversões Marketing)",
   stripe_ltv_cac: "Stripe — LTV/CAC",
