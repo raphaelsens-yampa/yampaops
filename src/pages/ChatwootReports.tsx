@@ -1039,9 +1039,7 @@ function TabulacaoFilter({
 
   function toggle(value: string, e: React.MouseEvent) {
     const idx = allOptions.indexOf(value);
-    // Se nada está selecionado (= "todas" implícito), começa com tudo marcado
-    // para que o clique funcione como "desmarcar este".
-    const base = selected.length === 0 ? allOptions.slice() : selected;
+    const base = selected.slice();
 
     // Shift+click = range
     if (e.shiftKey && anchor != null && idx >= 0) {
@@ -1059,6 +1057,7 @@ function TabulacaoFilter({
     if (set.has(value)) set.delete(value); else set.add(value);
     onChange(Array.from(set));
   }
+
 
   function selectAll() { onChange(allOptions.slice()); }
   function clearAll() { onChange([]); }
