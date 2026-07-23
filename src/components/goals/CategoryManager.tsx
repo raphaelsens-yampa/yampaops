@@ -12,11 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Lock, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AREA_LABELS, METRIC_TYPE_LABELS, AUTO_SOURCE_LABELS, STRIPE_AREA_PRESETS,
-  type CategoryArea, type MetricType, type AutoSource, type GoalCategory,
+  AREA_LABELS, METRIC_TYPE_LABELS, AUTO_SOURCE_LABELS, GOAL_DIRECTION_LABELS, STRIPE_AREA_PRESETS,
+  type CategoryArea, type MetricType, type AutoSource, type GoalCategory, type GoalDirection,
 } from "@/lib/goalCategories";
 
-const AUTO_KEYS: AutoSource[] = ["manual", "stripe", "stripe_ltv", "stripe_cac", "stripe_ltv_cac", "deals_count"];
+const AUTO_KEYS: AutoSource[] = [
+  "manual", "stripe", "stripe_ltv", "stripe_cac", "stripe_ltv_cac",
+  "stripe_churn_mrr", "stripe_churn_logos", "stripe_churn_rate_logos",
+  "deals_count",
+];
+const CHURN_SOURCES = new Set<AutoSource>(["stripe_churn_mrr", "stripe_churn_logos", "stripe_churn_rate_logos"]);
 
 export function CategoryManager() {
   const { toast } = useToast();
@@ -30,6 +35,7 @@ export function CategoryManager() {
   const [description, setDescription] = useState("");
   const [autoSource, setAutoSource] = useState<AutoSource>("manual");
   const [stripeArea, setStripeArea] = useState<string>("");
+  const [goalDirection, setGoalDirection] = useState<GoalDirection>("gte");
 
   async function load() {
     const { data } = await supabase.from("goal_categories").select("*").order("area").order("name");
@@ -44,7 +50,7 @@ export function CategoryManager() {
   function resetForm() {
     setEditing(null);
     setName(""); setDescription(""); setArea("sales"); setMetricType("mrr");
-    setAutoSource("manual"); setStripeArea("");
+    setAutoSource("manual"); setStripeArea(""); setGoalDirection("gte");
   }
 
   function openEdit(c: GoalCategory) {
@@ -55,18 +61,21 @@ export function CategoryManager() {
     setDescription(c.description || "");
     setAutoSource((c.auto_source as AutoSource) || "manual");
     setStripeArea(c.stripe_area || "");
+    setGoalDirection((c.goal_direction as GoalDirection) || "gte");
     setOpen(true);
   }
 
   async function save() {
     if (!name.trim()) return;
+    const usesStripeArea = autoSource === "stripe" || CHURN_SOURCES.has(autoSource);
     const payload: any = {
       name: name.trim(),
       area,
       metric_type: metricType,
       description: description || null,
       auto_source: autoSource,
-      stripe_area: autoSource === "stripe" ? (stripeArea || null) : null,
+      stripe_area: usesStripeArea ? (stripeArea || null) : null,
+      goal_direction: goalDirection,
     };
     let error;
     if (editing) {
