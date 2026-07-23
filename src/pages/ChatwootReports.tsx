@@ -542,6 +542,97 @@ export default function ChatwootReports() {
     URL.revokeObjectURL(url);
   }
 
+  const [msgExporting, setMsgExporting] = useState(false);
+  async function exportMessagesCsv() {
+    if (!filtered.length) return;
+    setMsgExporting(true);
+    try {
+      const ids = filtered.map((r) => r.chatwoot_conversation_id);
+      const CHUNK = 200;
+      const all: any[] = [];
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        // paginate messages within chunk to avoid PostgREST row cap
+        let offset = 0;
+        const PAGE = 1000;
+        // Loop until fewer than PAGE returned
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await supabase
+            .from("chatwoot_messages")
+            .select(
+              "chatwoot_conversation_id,chatwoot_message_id,message_created_at,sender_type,sender_name,sender_email,message_type,is_private,content_preview"
+            )
+            .in("chatwoot_conversation_id", chunk)
+            .order("message_created_at", { ascending: true })
+            .range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          const rows = data || [];
+          all.push(...rows);
+          if (rows.length < PAGE) break;
+          offset += PAGE;
+        }
+      }
+
+      // Build context map from filtered conversations
+      const ctx = new Map<number, Conv>();
+      filtered.forEach((r) => ctx.set(r.chatwoot_conversation_id, r));
+
+      const typeLabel = (t: number | null | undefined) => {
+        switch (t) {
+          case 0: return "entrada";
+          case 1: return "saida";
+          case 2: return "atividade";
+          case 3: return "template";
+          default: return String(t ?? "");
+        }
+      };
+
+      const header = [
+        "Ticket", "Link", "Cliente", "Email do Cliente", "Telefone", "Agente", "Time", "Caixa de Entrada", "Tabulação",
+        "Mensagem ID", "Enviado em", "Tipo Remetente", "Nome Remetente", "Email Remetente",
+        "Direção", "Privada", "Mensagem",
+      ];
+
+      const lines = all.map((m) => {
+        const r = ctx.get(m.chatwoot_conversation_id);
+        const link = r ? ticketUrl(r) : null;
+        return [
+          m.chatwoot_conversation_id,
+          link || "",
+          r?.contact_name, r?.contact_email, r?.contact_phone,
+          r?.assignee_name, r?.team_name, r?.inbox_name, r?.tabulacao_atendimento,
+          m.chatwoot_message_id,
+          fmtDateTime(m.message_created_at),
+          m.sender_type,
+          m.sender_name,
+          m.sender_email,
+          typeLabel(m.message_type),
+          m.is_private ? "sim" : "não",
+          m.content_preview,
+        ].map((v) => {
+          const s = (v ?? "").toString().replace(/"/g, '""');
+          return /[",;\n]/.test(s) ? `"${s}"` : s;
+        }).join(";");
+      });
+
+      const csv = "\uFEFF" + [header.join(";"), ...lines].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `conversas_${from}_${to}${businessHoursOnly ? "_horario-comercial" : ""}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("exportMessagesCsv", e);
+      alert("Erro ao exportar conversas: " + (e as any)?.message);
+    } finally {
+      setMsgExporting(false);
+    }
+  }
+
+
   async function exportPdf() {
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
@@ -725,9 +816,14 @@ export default function ChatwootReports() {
                 <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
                   <Download className="h-4 w-4 mr-1.5" /> Exportar CSV
                 </Button>
+                <Button variant="outline" size="sm" onClick={exportMessagesCsv} disabled={!filtered.length || msgExporting}>
+                  {msgExporting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
+                  Exportar Conversas (CSV)
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportPdf} disabled={!filtered.length}>
                   <FileText className="h-4 w-4 mr-1.5" /> Exportar PDF
                 </Button>
+
               </div>
             </div>
           </CardContent>
@@ -1039,9 +1135,7 @@ function TabulacaoFilter({
 
   function toggle(value: string, e: React.MouseEvent) {
     const idx = allOptions.indexOf(value);
-    // Se nada está selecionado (= "todas" implícito), começa com tudo marcado
-    // para que o clique funcione como "desmarcar este".
-    const base = selected.length === 0 ? allOptions.slice() : selected;
+    const base = selected.slice();
 
     // Shift+click = range
     if (e.shiftKey && anchor != null && idx >= 0) {
@@ -1059,6 +1153,7 @@ function TabulacaoFilter({
     if (set.has(value)) set.delete(value); else set.add(value);
     onChange(Array.from(set));
   }
+
 
   function selectAll() { onChange(allOptions.slice()); }
   function clearAll() { onChange([]); }
