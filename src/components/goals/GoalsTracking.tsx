@@ -306,6 +306,51 @@ export function GoalsTracking() {
     return stripeInScope.map((sc: any) => ({ date: new Date(sc.converted_at), mrr: convMrr(sc) }));
   }, [stripeInScope]);
 
+  // Net MRR do período (Novo + Expansão − Downgrade − Churn) — escopo Empresa
+  const netMrr = useMemo(() => {
+    let novo = 0, expansao = 0, downgrade = 0;
+    stripeInScope.forEach((sc: any) => {
+      const net = convMrr(sc);
+      const prev = Number(sc.previous_mrr) || 0;
+      switch (sc.conversion_type) {
+        case "new":
+        case "reactivation":
+          novo += net;
+          break;
+        case "upsell":
+          expansao += Math.max(0, net - prev);
+          break;
+        case "downgrade":
+          downgrade += Math.max(0, prev - net);
+          break;
+        default:
+          break;
+      }
+    });
+    const churn = churnEvents.reduce((s: number, e: any) => {
+      if (!e.canceled_at) return s;
+      const d = new Date(e.canceled_at);
+      if (d < start || d > end) return s;
+      return s + (Number(e.mrr_lost) || 0);
+    }, 0);
+    return { novo, expansao, downgrade, churn, total: novo + expansao - downgrade - churn };
+  }, [stripeInScope, churnEvents, start, end]);
+
+  const netMrrTarget = useMemo(() => {
+    const cat = categories.find((c) => (c.auto_source || "") === "stripe_net_mrr");
+    if (!cat) return 0;
+    const monthly = goals
+      .filter((g) => g.category_id === cat.id && g.scope === "company")
+      .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
+      .reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
+    if (!monthly) return 0;
+    const monthBiz = businessDaysInRange(monthStart, monthEnd) || 1;
+    if (granularity === "day") return isWeekend(anchorDate) ? 0 : monthly / monthBiz;
+    if (granularity === "week") return (monthly / monthBiz) * businessDaysInRange(start, end);
+    return monthly;
+  }, [categories, goals, monthStart, monthEnd, granularity, anchorDate, start, end]);
+
+
   const productRows: ProductRow[] = useMemo(() => {
     const map = new Map<string, { deals: number; mrr: number }>();
     stripeInScope.forEach((sc: any) => {
@@ -459,6 +504,9 @@ export function GoalsTracking() {
           ? (activeBaseByArea.get(stripeArea)?.size || 0)
           : activeBaseAll.size;
         realizedCat = base > 0 ? (churned / base) * 100 : 0;
+      } else if (autoSource === "stripe_net_mrr") {
+        source = "stripe";
+        realizedCat = netMrr.total;
       } else if (autoSource === "deals_count") {
         realizedCat = wonScope.filter((o) => o.category_id === cat.id).length;
       } else if (cat.metric_type === "count") {
@@ -560,6 +608,8 @@ export function GoalsTracking() {
         totalDays={totalDays}
         dealsRealized={dealsRealized}
         dealsTarget={monthlyDealsTarget}
+        netMrr={netMrr}
+        netMrrTarget={netMrrTarget}
       />
 
       <GoalProgressChart start={start} end={end} target={periodTarget} won={wonForChart} />
