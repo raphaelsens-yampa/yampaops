@@ -60,11 +60,12 @@ export function GoalsTracking() {
   const [financeSettings, setFinanceSettings] = useState<{ avg_churn_rate: number; avg_campaign_cost: number } | null>(null);
   const [wonStageIds, setWonStageIds] = useState<Set<string>>(new Set());
   const [wonStageSlugs, setWonStageSlugs] = useState<Set<string>>(new Set());
+  const [churnEvents, setChurnEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes, sccRes] = await Promise.all([
+      const [pRes, tRes, tmRes, gRes, oRes, sRes, cRes, fRes, scRes, pmRes, sccRes, chRes] = await Promise.all([
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("*"),
         supabase.from("team_members").select("*"),
@@ -73,9 +74,10 @@ export function GoalsTracking() {
         supabase.from("pipeline_stages").select("id, slug, is_won"),
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("finance_settings").select("avg_churn_rate, avg_campaign_cost").limit(1).maybeSingle(),
-        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type, product_name, plan_name"),
+        supabase.from("stripe_conversions").select("id, mrr, mrr_net, converted_at, matched_opportunity_id, stripe_price_id, area, assigned_seller_id, conversion_type, product_name, plan_name, stripe_customer_id"),
         supabase.from("commission_price_map").select("price_id, area, seller_user_id, seller_label"),
         supabase.from("sales_campaign_contacts").select("id, campaign_id, mrr_generated, cw_first_contact_at, updated_at"),
+        supabase.from("stripe_churn_events").select("id, canceled_at, mrr_lost, stripe_customer_id, stripe_area"),
       ]);
       setProfiles(pRes.data || []);
       setTeams(tRes.data || []);
@@ -87,6 +89,7 @@ export function GoalsTracking() {
       setStripeConversions(scRes.data || []);
       setPriceMap(pmRes.data || []);
       setCampaignContacts(sccRes.data || []);
+      setChurnEvents(chRes.data || []);
       const wonIds = new Set<string>();
       const wonSlugs = new Set<string>(["fechado_won"]);
       (sRes.data || []).filter((s: any) => s.is_won).forEach((s: any) => { wonIds.add(s.id); wonSlugs.add(s.slug); });
