@@ -442,6 +442,23 @@ export function GoalsTracking() {
         const cost = financeSettings?.avg_campaign_cost || 0;
         const cac = conversions > 0 ? cost / conversions : 0;
         realizedCat = cac > 0 ? ltv / cac : 0;
+      } else if (autoSource === "stripe_churn_mrr") {
+        source = "stripe";
+        realizedCat = stripeArea ? (churnMrrByArea.get(stripeArea) || 0) : totalChurnMrr;
+      } else if (autoSource === "stripe_churn_logos") {
+        source = "stripe";
+        realizedCat = stripeArea
+          ? (churnLogosByArea.get(stripeArea)?.size || 0)
+          : totalChurnLogos.size;
+      } else if (autoSource === "stripe_churn_rate_logos") {
+        source = "stripe";
+        const churned = stripeArea
+          ? (churnLogosByArea.get(stripeArea)?.size || 0)
+          : totalChurnLogos.size;
+        const base = stripeArea
+          ? (activeBaseByArea.get(stripeArea)?.size || 0)
+          : activeBaseAll.size;
+        realizedCat = base > 0 ? (churned / base) * 100 : 0;
       } else if (autoSource === "deals_count") {
         realizedCat = wonScope.filter((o) => o.category_id === cat.id).length;
       } else if (cat.metric_type === "count") {
@@ -457,6 +474,14 @@ export function GoalsTracking() {
       }
 
       const isStripeDriven = autoSource.startsWith("stripe");
+      // autoValue apenas informativo quando existe override; para churn expõe o valor calculado.
+      let autoValue: number | null = null;
+      if (isStripeDriven) {
+        if (autoSource === "stripe_churn_mrr") autoValue = stripeArea ? (churnMrrByArea.get(stripeArea) || 0) : totalChurnMrr;
+        else if (autoSource === "stripe_churn_logos") autoValue = stripeArea ? (churnLogosByArea.get(stripeArea)?.size || 0) : totalChurnLogos.size;
+        else if (autoSource === "stripe_churn_rate_logos") autoValue = realizedCat;
+        else autoValue = stripeAutoForCat;
+      }
 
       return {
         category: cat,
@@ -465,10 +490,10 @@ export function GoalsTracking() {
         source,
         manualOverride,
         goalIds: matchingGoals.map((g) => g.id),
-        autoValue: isStripeDriven ? stripeAutoForCat : null,
+        autoValue,
       };
     }).filter((r) => r.target > 0 || r.realized > 0);
-  }, [categories, goals, opportunities, stripeInScope, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, campaignContacts]);
+  }, [categories, goals, opportunities, stripeInScope, sellersInScope, sellerFilter, teamFilter, start, end, monthStart, monthEnd, granularity, anchorDate, financeSettings, wonStageIds, wonStageSlugs, campaignContacts, churnEvents, stripeConversions]);
 
   if (loading) return <p className="text-muted-foreground p-8">Carregando acompanhamento...</p>;
 
