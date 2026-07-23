@@ -344,6 +344,44 @@ export function GoalsTracking() {
       stripeMrrByArea.set(a, (stripeMrrByArea.get(a) || 0) + convMrr(sc));
     });
 
+    // Eventos de churn dentro do período
+    const churnInPeriod = churnEvents.filter((e: any) => {
+      if (!e.canceled_at) return false;
+      const d = new Date(e.canceled_at);
+      return d >= start && d <= end;
+    });
+    const churnMrrByArea = new Map<string, number>();
+    const churnLogosByArea = new Map<string, Set<string>>();
+    let totalChurnMrr = 0;
+    const totalChurnLogos = new Set<string>();
+    churnInPeriod.forEach((e: any) => {
+      const a = e.stripe_area || "desconhecida";
+      churnMrrByArea.set(a, (churnMrrByArea.get(a) || 0) + (Number(e.mrr_lost) || 0));
+      if (!churnLogosByArea.has(a)) churnLogosByArea.set(a, new Set());
+      if (e.stripe_customer_id) churnLogosByArea.get(a)!.add(e.stripe_customer_id);
+      totalChurnMrr += Number(e.mrr_lost) || 0;
+      if (e.stripe_customer_id) totalChurnLogos.add(e.stripe_customer_id);
+    });
+
+    // Base ativa no início do período (para churn %)
+    // Aproximação: clientes distintos com conversão antes de `start` e sem churn antes de `start`.
+    const churnedBefore = new Set<string>();
+    churnEvents.forEach((e: any) => {
+      if (!e.canceled_at || !e.stripe_customer_id) return;
+      if (new Date(e.canceled_at) < start) churnedBefore.add(e.stripe_customer_id);
+    });
+    const activeBaseByArea = new Map<string, Set<string>>();
+    const activeBaseAll = new Set<string>();
+    stripeConversions.forEach((sc: any) => {
+      if (!sc.converted_at || !sc.stripe_customer_id) return;
+      if (new Date(sc.converted_at) >= start) return;
+      if (churnedBefore.has(sc.stripe_customer_id)) return;
+      const a = sc.area || "desconhecida";
+      if (!activeBaseByArea.has(a)) activeBaseByArea.set(a, new Set());
+      activeBaseByArea.get(a)!.add(sc.stripe_customer_id);
+      activeBaseAll.add(sc.stripe_customer_id);
+    });
+
     // MRR de campanhas (para escopo campaign)
     const campaignMrrById = new Map<string, number>();
     campaignContacts.forEach((c: any) => {
