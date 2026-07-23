@@ -1,71 +1,95 @@
-## Refactor completo da tela de Metas
+## Objetivo
 
-Alinhar Metas com a nova verdade unificada (MRR líquido, `assigned_seller_id`, `sales_campaigns`), remover herança do ActiveCampaign, matar campos não usados e tornar mapeamento Stripe↔categoria configurável.
+Suportar metas de **Retenção/Churn** (CS) — métricas em que "menor é melhor" — com captura de eventos de cancelamento vindos do Stripe e novas variações de churn expostas como fontes automáticas nas categorias de meta.
 
-### 1. Fonte de verdade: Stripe líquido
+## 1. Captura de churn no Stripe
 
-`GoalsTracking.tsx`
-- Trocar `sc.mrr` por `COALESCE(sc.mrr_net, sc.mrr)` em `realized`, `realizedBySeller`, `wonForChart`, `orphanMrrByArea`, `stripeMrrByArea`.
-- Substituir `getConversionSellerId` por: `sc.assigned_seller_id ?? opp.consultant_id ?? price_map.seller_user_id`. Isso passa a bater 1:1 com Comissionamento.
-- Remover `wonInPeriod` (nunca é consumido).
+Nova tabela `public.stripe_churn_events`:
 
-### 2. Mapeamento Stripe↔categoria configurável
+| coluna | tipo | descrição |
+|---|---|---|
+| id | uuid pk | |
+| stripe_customer_id | text | |
+| stripe_subscription_id | text (unique) | evita duplicidade |
+| customer_email | text | |
+| canceled_at | timestamptz | data do cancelamento |
+| mrr_lost | numeric | MRR mensal perdido (usa `mrr_net`/`mrr` da conversão ativa) |
+| plan_name | text | derivado do price mapping |
+| stripe_area | text | mesma coluna usada nas conversões (Sales/CS/Produto/etc.) |
+| assigned_seller_id | uuid | herdado da última conversão do cliente |
+| cancellation_reason | text | `cancellation_details.reason` do Stripe quando disponível |
+| raw_event | jsonb | payload |
 
-Migração:
-- Adicionar `goal_categories.stripe_area text` (nullable) e `goal_categories.auto_source text` com valores `stripe`, `stripe_ltv`, `stripe_cac`, `stripe_ltv_cac`, `deals_count`, `manual`.
-- Backfill: `new_mrr → stripe_area='Sales', auto_source='stripe'`; `campanha_mrr → stripe_area='Marketing', auto_source='stripe'`; `ltv/cac/ltv_cac → auto_source='stripe_*'`.
++ GRANTs padrão (`authenticated` SELECT, `service_role` ALL), RLS lendo para admin/tatico.
 
-`goalCategories.ts`:
-- Remover `STRIPE_AREA_BY_SLUG` / `STRIPE_DRIVEN_SLUGS` / `FINANCIAL_SLUGS` hardcoded. Trocar por leitura dos novos campos.
+Atualizar `supabase/functions/stripe-webhook/index.ts`:
+- Tratar `customer.subscription.deleted` (e `updated` quando muda para `canceled`): insere linha em `stripe_churn_events` com `mrr_lost` = MRR da última conversão ativa daquele customer/subscription, `stripe_area` copiado dela.
+- Ignorar quando existe uma nova conversão do mesmo cliente dentro do gap de reativação (evita contar reativação como churn definitivo — mantém coerência com a regra atual).
 
-`CategoryManager.tsx`:
-- Adicionar selects para Área Stripe (livre + presets Sales/Marketing) e Fonte automática.
+Nova Edge Function `stripe-backfill-churn` para popular histórico varrendo `stripe.subscriptions.list({status:'canceled'})` — botão na aba **Stripe** de Comissionamento.
 
-### 3. LTV/CAC via Stripe
+## 2. Categorias com direção de meta
 
-Base = conversões Stripe do período (não `opportunities.estimated_mrr`):
-- LTV = média(`mrr_net`) das conversões Stripe no escopo ÷ churn.
-- CAC = `finance_settings.avg_campaign_cost` ÷ nº conversões Stripe da área "Marketing" no período.
-- LTV/CAC = derivado dos dois.
+Migração em `goal_categories`:
+- Nova coluna `goal_direction text default 'gte' check (goal_direction in ('gte','lte'))`.
+- Novos valores permitidos em `auto_source`: `stripe_churn_mrr`, `stripe_churn_logos`, `stripe_churn_rate_logos`.
+- Categorias seed (system):
+  - "Churn de MRR" — area=cs, metric_type=currency, auto_source=stripe_churn_mrr, goal_direction=lte
+  - "Churn de Logos" — area=cs, metric_type=count, auto_source=stripe_churn_logos, goal_direction=lte
+  - "Churn % (logos)" — area=cs, metric_type=ratio, auto_source=stripe_churn_rate_logos, goal_direction=lte
 
-### 4. Remover legado ActiveCampaign / campos zumbis
+Atualizar `src/lib/goalCategories.ts`:
+- Adicionar tipos `GoalDirection = 'gte' | 'lte'` e novos `AutoSource`.
+- `AUTO_SOURCE_LABELS` ganha rótulos PT-BR.
+- Helper `isBetterBelow(direction)` e `progressPct(realized, target, direction)` — quando `lte`, `% = target/realized` limitado, e "faltar" vira "excedeu em".
 
-Migração:
-- `ALTER TABLE goals DROP COLUMN target_prospeccoes, target_respostas, target_agendamentos, target_comparecimentos, target_conversoes, target_taxa_resposta, target_taxa_agendamento, target_taxa_comparecimento, target_taxa_conversao`.
-- Remover `channel` do enum de escopo (converter registros existentes para `company` + aviso no log).
+Atualizar `CategoryManager.tsx` para expor selector de **Direção do alvo** e novas fontes.
 
-`Goals.tsx`:
-- Remover estados `gProspeccoes/gRespostas/.../gTaxa*` e todos os inputs "Volume por etapa" / "Meta de conversão por etapa".
-- Remover escopo `channel` de `SCOPE_LABELS`, filtros, formulário e listagem.
-- Remover import `ORIGIN_LABELS`.
+## 3. Cálculo no acompanhamento
 
-### 5. Escopo `campaign` ligado a `sales_campaigns`
+Em `src/components/goals/GoalsTracking.tsx`:
+- Carregar `stripe_churn_events` do período atual (mesmo filtro de datas já usado para conversões).
+- No `breakdownByCategory`, quando `auto_source` for de churn:
+  - `stripe_churn_mrr` → soma `mrr_lost` no período (filtrado por `stripe_area` se preenchido).
+  - `stripe_churn_logos` → contagem distinta de `stripe_customer_id`.
+  - `stripe_churn_rate_logos` → churn_logos ÷ base ativa no início do período (clientes com MRR ativo em `period_start`, derivado das `stripe_conversions`).
+- Escopo **Empresa** e **Equipe**: filtra `stripe_area` = área da equipe (compatível com a lógica já existente).
+- Passar `goal_direction` para `GoalKpiCards` e para as tabelas de progresso.
 
-- Trocar `Input` texto livre por `Select` populado por `sales_campaigns` (id + name).
-- Migração: `ALTER TABLE goals ADD COLUMN campaign_id uuid REFERENCES sales_campaigns(id)`. Manter `campaign` (texto) por retrocompatibilidade + backfill best-effort por nome.
-- Realizado do escopo campanha = soma de `mrr_generated` de `sales_campaign_contacts` da campanha no período (ou conversões Stripe ligadas — a decidir na implementação; padrão: `sales_campaign_snapshots` mais recente do período).
+## 4. UI de "menor é melhor"
 
-### 6. Prorateamento por dias úteis + reativação
+`GoalKpiCards.tsx` e cards de progresso:
+- Prop `direction: 'gte' | 'lte'`.
+- Cor: `lte` → verde quando realizado ≤ alvo, âmbar até 120% do alvo, vermelho acima.
+- Labels: "Teto" em vez de "Meta", "Excedeu em R$ X" em vez de "Faltam".
+- Ícone: `ShieldCheck`/`TrendingDown` quando `lte`.
 
-- `periodTarget`, `sellerRows.target`, `teamRows.target`, `proratedTarget`: já usam `businessDaysInRange`. Ajustar granularidade "dia" para não retornar 0 no fim de semana quando houver conversão real (mostrar meta = 0 mas realizado real).
-- Adicionar coluna "Reativações" (badge) no `SellerRankingTable`, contando `stripe_conversions` com `is_reactivation=true` no período/escopo.
+Ajustar `SellerRankingTable`/`TeamRankingTable` para exibir badge "Churn" e ordenar crescente quando a categoria selecionada for `lte`.
 
-### 7. Reconciliação de órfãs por área
+## 5. Cadastro de meta
 
-- `orphanMrrByArea` hoje casa nome do time == `sc.area` (string frágil).
-- Migração: `ALTER TABLE teams ADD COLUMN stripe_area text`. `TeamRankingTable` passa a somar órfãs por `stripe_area` do time.
+`src/pages/Goals.tsx` não muda estrutura — o campo `target_mrr` já cobre R$ de churn, `target_deals` cobre logos, `target_tpv` pode ser reaproveitado para % (ou adicionamos placeholder dinâmico conforme `metric_type` da categoria selecionada). Ajuste apenas os placeholders do form para refletir a categoria escolhida (ex: "Teto de Churn (R$)").
 
-### 8. KPI de deals
+## Detalhes técnicos
 
-- `GoalKpiCards`: adicionar 5º card "Deals fechados" = count de `stripe_conversions` no escopo, comparando com `target_deals` do escopo (nunca era exibido).
+```text
+Fluxo de dados
+──────────────
+Stripe webhook ──subscription.deleted──▶ stripe_churn_events
+                                              │
+                                              ▼
+                                    GoalsTracking (period filter)
+                                              │
+                          ┌───────────────────┼────────────────────┐
+                          ▼                   ▼                    ▼
+                    Churn MRR (R$)      Churn logos (#)      Churn % (logos)
+                          │                   │                    │
+                          └────────── GoalKpiCards(direction=lte) ─┘
+```
 
-### Ordem de execução
+Ordem das migrações:
+1. `create table stripe_churn_events` + GRANTs + RLS + policies (admin/tatico read; service_role write via webhook).
+2. `alter table goal_categories add column goal_direction`.
+3. Seed das 3 categorias CS via `insert` tool.
 
-1. Migração única (drop colunas zumbis + drop escopo channel + add colunas `goal_categories.stripe_area/auto_source` + `teams.stripe_area` + `goals.campaign_id` + backfill).
-2. Ajustes em `goalCategories.ts`, `GoalsTracking.tsx`, `Goals.tsx`, `CategoryManager.tsx`, `SellerRankingTable.tsx`, `TeamRankingTable.tsx`, `GoalKpiCards.tsx`, `GoalsBreakdownByCategory.tsx`.
-3. Validação visual em `/metas` (KPIs batendo com Comissionamento → Overview e Stripe → Conversões por Área).
-
-### Fora de escopo desta rodada
-
-- Recriar tracking de funil (prospecções/respostas/etc.) via Chatwoot — quando pedido, virá de outra fonte.
-- Alterar cálculo de comissão (permanece como já unificado).
+Fora de escopo desta iteração: NRR, motivos de cancelamento detalhados na UI, alerta automático quando churn ultrapassa o teto.
