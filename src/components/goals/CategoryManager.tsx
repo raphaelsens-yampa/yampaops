@@ -149,21 +149,37 @@ export function CategoryManager() {
                   </SelectContent>
                 </Select>
               </div>
-              {autoSource === "stripe" && (
+              {(autoSource === "stripe" || CHURN_SOURCES.has(autoSource)) && (
                 <div>
-                  <Label>Área Stripe (stripe_conversions.area)</Label>
+                  <Label>Área Stripe (filtro)</Label>
                   <Select value={stripeArea || "__none"} onValueChange={(v) => setStripeArea(v === "__none" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="Selecione a área" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">— Nenhuma —</SelectItem>
+                      <SelectItem value="__none">— Todas —</SelectItem>
                       {STRIPE_AREA_PRESETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    O realizado dessa categoria virá da soma do MRR líquido das conversões Stripe cujo <code>area</code> bate com este valor.
+                    {CHURN_SOURCES.has(autoSource)
+                      ? "Se preenchido, considera apenas cancelamentos cuja área bata com este valor."
+                      : "O realizado virá da soma do MRR líquido das conversões cujo área bate com este valor."}
                   </p>
                 </div>
               )}
+              <div>
+                <Label>Direção do alvo</Label>
+                <Select value={goalDirection} onValueChange={(v) => setGoalDirection(v as GoalDirection)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(GOAL_DIRECTION_LABELS) as GoalDirection[]).map((k) => (
+                      <SelectItem key={k} value={k}>{GOAL_DIRECTION_LABELS[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use "Teto" para métricas como churn, em que o objetivo é ficar abaixo do valor.
+                </p>
+              </div>
               <div>
                 <Label>Descrição (opcional)</Label>
                 <Input value={description} onChange={e => setDescription(e.target.value)} />
@@ -182,6 +198,7 @@ export function CategoryManager() {
               <TableHead>Métrica</TableHead>
               <TableHead>Fonte</TableHead>
               <TableHead>Área Stripe</TableHead>
+              <TableHead>Direção</TableHead>
               <TableHead className="text-center">Ativa</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
