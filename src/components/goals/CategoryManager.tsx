@@ -214,6 +214,11 @@ export function CategoryManager() {
                 <TableCell className="text-sm text-muted-foreground">{METRIC_TYPE_LABELS[c.metric_type]}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{AUTO_SOURCE_LABELS[(c.auto_source as AutoSource) || "manual"]}</TableCell>
                 <TableCell className="text-xs">{c.stripe_area || <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-xs">
+                  <Badge variant={c.goal_direction === "lte" ? "secondary" : "outline"} className="text-[10px]">
+                    {c.goal_direction === "lte" ? "Teto" : "Alvo"}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-center">
                   <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c)} />
                 </TableCell>
@@ -232,7 +237,7 @@ export function CategoryManager() {
               </TableRow>
             ))}
             {categories.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground p-6">Nenhuma categoria</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
