@@ -81,6 +81,8 @@ export function MetabaseTracking() {
   const [customTo, setCustomTo] = useState(new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10));
   const [year, setYear] = useState(now.getFullYear());
   const [compareMode, setCompareMode] = useState<CompareMode>("to_date");
+  const [chartType, setChartType] = useState<"bar" | "line">("bar");
+
 
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
