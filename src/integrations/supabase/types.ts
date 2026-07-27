@@ -2117,6 +2117,111 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_de_para_price_id: {
+        Row: {
+          area: string | null
+          ativo: boolean
+          atualizado_em: string
+          criado_em: string
+          nome_oferta: string | null
+          observacao: string | null
+          plano: string | null
+          stripe_price_id: string
+          team_id: string | null
+          user_id: string | null
+          vendedor: string | null
+        }
+        Insert: {
+          area?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          nome_oferta?: string | null
+          observacao?: string | null
+          plano?: string | null
+          stripe_price_id: string
+          team_id?: string | null
+          user_id?: string | null
+          vendedor?: string | null
+        }
+        Update: {
+          area?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          nome_oferta?: string | null
+          observacao?: string | null
+          plano?: string | null
+          stripe_price_id?: string
+          team_id?: string | null
+          user_id?: string | null
+          vendedor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_de_para_price_id_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_de_para_price_id_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      metas_price_daily: {
+        Row: {
+          classificacao: string
+          coletado_em: string
+          data: string
+          fonte: string
+          gateway: string | null
+          id: number
+          mes_ref: string
+          mrr_mtd: number
+          nome_oferta: string | null
+          origem_cliente: string | null
+          qtd_mtd: number
+          stripe_price_id: string
+          tipo_snapshot: string
+        }
+        Insert: {
+          classificacao: string
+          coletado_em?: string
+          data: string
+          fonte?: string
+          gateway?: string | null
+          id?: number
+          mes_ref: string
+          mrr_mtd?: number
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          qtd_mtd?: number
+          stripe_price_id?: string
+          tipo_snapshot?: string
+        }
+        Update: {
+          classificacao?: string
+          coletado_em?: string
+          data?: string
+          fonte?: string
+          gateway?: string | null
+          id?: number
+          mes_ref?: string
+          mrr_mtd?: number
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          qtd_mtd?: number
+          stripe_price_id?: string
+          tipo_snapshot?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           ac_id: string | null
@@ -3488,6 +3593,35 @@ export type Database = {
           vendedor: string | null
         }
         Relationships: []
+      }
+      metas_ranking_vendedor: {
+        Row: {
+          area: string | null
+          classificacao: string | null
+          corte: string | null
+          mes_ref: string | null
+          mrr_mtd: number | null
+          qtd_mtd: number | null
+          team_id: string | null
+          user_id: string | null
+          vendedor: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_de_para_price_id_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_de_para_price_id_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Functions: {
