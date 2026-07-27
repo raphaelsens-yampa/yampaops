@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, ingested: records.length, month_refreshed: from }),
+      JSON.stringify({ ok: true, ingested: records.length, month_refreshed: from, unresolved_metric_keys: Array.from(new Set(unresolved)) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (e) {
