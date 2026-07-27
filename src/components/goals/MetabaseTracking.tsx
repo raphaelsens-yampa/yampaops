@@ -87,6 +87,7 @@ export function MetabaseTracking() {
   const [teamId, setTeamId] = useState<string>("all");
   const [userId, setUserId] = useState<string>("all");
   const [campaignId, setCampaignId] = useState<string>("all");
+  const [goalId, setGoalId] = useState<string>("all");
 
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -127,7 +128,17 @@ export function MetabaseTracking() {
     })();
   }, []);
 
+  const selectedGoal = useMemo(() => goals.find((g) => g.id === goalId), [goals, goalId]);
+
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
+    if (selectedGoal) {
+      if (r.scope !== selectedGoal.scope) return false;
+      if ((r.category_id || null) !== (selectedGoal.category_id || null)) return false;
+      if ((r.team_id || null) !== (selectedGoal.team_id || null)) return false;
+      if ((r.user_id || null) !== (selectedGoal.user_id || null)) return false;
+      if ((r.campaign_id || null) !== (selectedGoal.campaign_id || null)) return false;
+      return true;
+    }
     if (scope !== "all" && r.scope !== scope) return false;
     if (categoryId !== "all" && r.category_id !== categoryId) return false;
     if (teamId !== "all" && r.team_id !== teamId) return false;
@@ -135,6 +146,12 @@ export function MetabaseTracking() {
     if (campaignId !== "all" && r.campaign_id !== campaignId) return false;
     return true;
   };
+
+  const filteredGoals = useMemo(() => {
+    if (selectedGoal) return [selectedGoal];
+    return goals.filter((g) => scopedFilter({ ...g }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals, selectedGoal, scope, categoryId, teamId, userId, campaignId]);
 
   const monthList = useMemo(() => Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)), [year]);
 
@@ -181,9 +198,10 @@ export function MetabaseTracking() {
   };
 
   const categoriesForTable = useMemo(() => {
+    if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
     return categories;
-  }, [categories, categoryId]);
+  }, [categories, categoryId, selectedGoal]);
 
   // Realized per (category, month) — recortado por janela
   const realizedByCatMonth = useMemo(() => {
@@ -196,28 +214,39 @@ export function MetabaseTracking() {
       map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
     });
     return map;
-  }, [agg, scope, categoryId, teamId, userId, campaignId, year, effectiveWindow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, effectiveWindow]);
 
   // Target per (category, month) — rateado pela interseção com janela efetiva
   const targetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
-    goals
-      .filter((g) => scopedFilter({ ...g }))
-      .forEach((g) => {
-        monthList.forEach((mStart, idx) => {
-          const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
-          // fração da meta que cai neste mês E dentro da janela
-          const winMonthFrom = mStart > effectiveWindow.from ? mStart : effectiveWindow.from;
-          const winMonthTo = mEnd < effectiveWindow.to ? mEnd : effectiveWindow.to;
-          if (winMonthTo < winMonthFrom) return;
-          const frac = targetFraction(g.period_start, g.period_end, winMonthFrom, winMonthTo);
-          if (frac <= 0) return;
-          const key = `${g.category_id || "none"}|${idx}`;
-          map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
-        });
+    filteredGoals.forEach((g) => {
+      monthList.forEach((mStart, idx) => {
+        const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+        const winMonthFrom = mStart > effectiveWindow.from ? mStart : effectiveWindow.from;
+        const winMonthTo = mEnd < effectiveWindow.to ? mEnd : effectiveWindow.to;
+        if (winMonthTo < winMonthFrom) return;
+        const frac = targetFraction(g.period_start, g.period_end, winMonthFrom, winMonthTo);
+        if (frac <= 0) return;
+        const key = `${g.category_id || "none"}|${idx}`;
+        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
       });
+    });
     return map;
-  }, [goals, monthList, scope, categoryId, teamId, userId, campaignId, year, effectiveWindow]);
+  }, [filteredGoals, monthList, year, effectiveWindow]);
+
+  // Meta do Período — soma total das metas selecionadas cujo intervalo intersecta a janela (SEM rateio)
+  const totalPeriodTarget = useMemo(() => {
+    let sum = 0;
+    filteredGoals.forEach((g) => {
+      const gs = parseDateBRStart(g.period_start);
+      const ge = parseDateBREnd(g.period_end);
+      if (overlapDays(gs, ge, windowRange.from, windowRange.to) > 0) {
+        sum += Number(g.target_mrr || 0);
+      }
+    });
+    return sum;
+  }, [filteredGoals, windowRange]);
 
   const monthInWindow = (idx: number) => {
     const s = new Date(year, idx, 1);
@@ -257,7 +286,7 @@ export function MetabaseTracking() {
 
   const totalRealized = chartData.reduce((s, r) => s + r.Realizado, 0);
   const totalTarget = chartData.reduce((s, r) => s + r.Meta, 0);
-  const totalPct = totalTarget > 0 ? (totalRealized / totalTarget) * 100 : 0;
+  const totalPct = totalPeriodTarget > 0 ? (totalRealized / totalPeriodTarget) * 100 : 0;
 
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
   const hasAggData = agg.length > 0;
@@ -386,8 +415,33 @@ export function MetabaseTracking() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="col-span-2 md:col-span-3 lg:col-span-3">
+              <Label className="text-xs">Meta (obrigatório para comparar)</Label>
+              <Select value={goalId} onValueChange={setGoalId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas (agregado pelos filtros acima)</SelectItem>
+                  {goals.map((g) => {
+                    const cat = categories.find((c) => c.id === g.category_id);
+                    const team = teams.find((t) => t.id === g.team_id);
+                    const prof = profiles.find((p) => p.user_id === g.user_id);
+                    const camp = campaigns.find((c) => c.id === g.campaign_id);
+                    const who = prof?.full_name || team?.name || camp?.name || (g.scope === "company" ? "Empresa" : g.scope);
+                    const ps = parseDateBR(g.period_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                    const pe = parseDateBR(g.period_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                    return (
+                      <SelectItem key={g.id} value={g.id}>
+                        {(cat?.name || "—")} · {who} · {ps}→{pe}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
             {period === "custom" && (
               <>
+
                 <div>
                   <Label className="text-xs">De</Label>
                   <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
@@ -420,7 +474,9 @@ export function MetabaseTracking() {
 
       {/* KPI resumo */}
       {(() => {
-        const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
+        const selectedCat = selectedGoal?.category_id
+          ? categories.find((c) => c.id === selectedGoal.category_id)
+          : (categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined);
         const kpiFmt = (v: number) => (selectedCat ? fmtByCategory(selectedCat, v) : fmt(v));
         const yTickFmt = (v: number) => {
           if (selectedCat?.metric_type === "count") return fmtNum(v);
@@ -429,17 +485,25 @@ export function MetabaseTracking() {
         };
         return (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card><CardContent className="p-4">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
                 <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
               </CardContent></Card>
-              <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
-                <p className="text-2xl font-bold">{kpiFmt(totalTarget)}</p>
+              <Card className="border-primary/40"><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
+                <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {goalId === "all" ? `${filteredGoals.length} meta(s) somada(s)` : "Meta selecionada"}
+                </p>
               </CardContent></Card>
               <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "rateada (parcial)" : "rateada (total)"}</p>
+                <p className="text-2xl font-bold text-muted-foreground">{kpiFmt(totalTarget)}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">referência p/ gráfico mensal</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
                 <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
               </CardContent></Card>
             </div>
