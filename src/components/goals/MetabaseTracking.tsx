@@ -741,28 +741,36 @@ export function MetabaseTracking() {
         );
       })()}
 
-      {/* Tabela pivot */}
+      {/* Tabela pivot — sempre mostra todas as categorias, independente dos filtros acima */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Metas por categoria × mês</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Metas por categoria × mês</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Arraste as linhas para reorganizar. A ordem é salva localmente.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={resetTableOrder} className="gap-1">
+            <RotateCcw className="h-3.5 w-3.5" /> Restaurar ordem padrão
+          </Button>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">Categoria</TableHead>
+                <TableHead className="sticky left-0 bg-background z-10 w-8" />
+                <TableHead className="sticky left-8 bg-background z-10 min-w-[200px]">Categoria</TableHead>
                 {monthList.map((_, idx) => (
-                  <TableHead key={idx} colSpan={3} className={`text-center border-l ${!monthInWindow(idx) ? "bg-muted/30 text-muted-foreground" : ""}`}>{MONTHS[idx]}</TableHead>
+                  <TableHead key={idx} colSpan={3} className="text-center border-l">{MONTHS[idx]}</TableHead>
                 ))}
                 <TableHead colSpan={3} className="text-center border-l bg-muted/50">YTD</TableHead>
               </TableRow>
               <TableRow>
-                <TableHead className="sticky left-0 bg-background z-10" />
+                <TableHead className="sticky left-0 bg-background z-10 w-8" />
+                <TableHead className="sticky left-8 bg-background z-10" />
                 {monthList.map((_, idx) => (
                   <Fragment key={`head-month-${idx}`}>
-                    <TableHead className={`text-right text-[10px] border-l ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>Meta</TableHead>
-                    <TableHead className={`text-right text-[10px] ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>Real.</TableHead>
-                    <TableHead className={`text-right text-[10px] ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>%</TableHead>
+                    <TableHead className="text-right text-[10px] border-l">Meta</TableHead>
+                    <TableHead className="text-right text-[10px]">Real.</TableHead>
+                    <TableHead className="text-right text-[10px]">%</TableHead>
                   </Fragment>
                 ))}
                 <TableHead className="text-right text-[10px] border-l bg-muted/50">Meta</TableHead>
@@ -770,49 +778,30 @@ export function MetabaseTracking() {
                 <TableHead className="text-right text-[10px] bg-muted/50">%</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {categoriesForTable.map((c) => {
-                const lte = isBetterBelow(c.goal_direction);
-                let ytdT = 0, ytdR = 0;
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell className="sticky left-0 bg-background z-10 font-medium">
-                      <div className="flex items-center gap-2">
-                        <span>{c.name}</span>
-                        <Badge variant="outline" className="text-[9px]">{AREA_LABELS[c.area]}</Badge>
-                      </div>
-                    </TableCell>
-                    {monthList.map((_, idx) => {
-                      const t = targetByCatMonth.get(`${c.id}|${idx}`) || 0;
-                      const r = realizedByCatMonth.get(`${c.id}|${idx}`) || 0;
-                      const pct = t > 0 ? (r / t) * 100 : 0;
-                      ytdT += t; ytdR += r;
-                      const dim = !monthInWindow(idx) ? "bg-muted/20 text-muted-foreground" : "";
-                      return (
-                        <Fragment key={`cell-month-${idx}`}>
-                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmtByCategory(c, t) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmtByCategory(c, r) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs font-semibold ${dim} ${t > 0 && monthInWindow(idx) ? pctColor(pct, lte) : "text-muted-foreground"}`}>
-                            {t > 0 ? `${pct.toFixed(0)}%` : "—"}
-                          </TableCell>
-                        </Fragment>
-                      );
-                    })}
-                    <TableCell className="text-right text-xs border-l bg-muted/30">{fmtByCategory(c, ytdT)}</TableCell>
-                    <TableCell className="text-right text-xs bg-muted/30">{fmtByCategory(c, ytdR)}</TableCell>
-                    <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor(ytdT > 0 ? (ytdR / ytdT) * 100 : 0, lte) : "text-muted-foreground"}`}>
-                      {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {categoriesForTable.length === 0 && (
-                <TableRow><TableCell colSpan={40} className="text-center text-muted-foreground py-6">Nenhuma categoria cadastrada.</TableCell></TableRow>
-              )}
-            </TableBody>
+            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
+              <SortableContext items={tableCategories.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                <TableBody>
+                  {tableCategories.map((c) => (
+                    <SortableCategoryRow
+                      key={c.id}
+                      category={c}
+                      monthList={monthList}
+                      targetMap={tableTargetByCatMonth}
+                      realizedMap={tableRealizedByCatMonth}
+                      fmt={fmtByCategory}
+                      pctColor={pctColor}
+                    />
+                  ))}
+                  {tableCategories.length === 0 && (
+                    <TableRow><TableCell colSpan={40} className="text-center text-muted-foreground py-6">Nenhuma categoria cadastrada.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </SortableContext>
+            </DndContext>
           </Table>
         </CardContent>
       </Card>
+
 
       {!hasAggData && !loading && (
         <Card>
