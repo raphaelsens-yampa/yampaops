@@ -377,13 +377,13 @@ export function MetabaseTracking() {
                       const pct = t > 0 ? (r / t) * 100 : 0;
                       ytdT += t; ytdR += r;
                       return (
-                        <>
-                          <TableCell key={`m-${idx}`} className="text-right text-xs border-l">{t > 0 ? fmt(t) : "—"}</TableCell>
-                          <TableCell key={`r-${idx}`} className="text-right text-xs">{r > 0 ? fmt(r) : "—"}</TableCell>
-                          <TableCell key={`p-${idx}`} className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
+                        <Fragment key={idx}>
+                          <TableCell className="text-right text-xs border-l">{t > 0 ? fmt(t) : "—"}</TableCell>
+                          <TableCell className="text-right text-xs">{r > 0 ? fmt(r) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
                             {t > 0 ? `${pct.toFixed(0)}%` : "—"}
                           </TableCell>
-                        </>
+                        </Fragment>
                       );
                     })}
                     <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(ytdT)}</TableCell>
