@@ -42,6 +42,7 @@ export default function GoalsPage() {
   const [open, setOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [filterScope, setFilterScope] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
 
   // Form state
   const [gScope, setGScope] = useState<GoalScope>("company");
@@ -136,7 +137,13 @@ export default function GoalsPage() {
     loadData();
   }
 
-  const filteredGoals = filterScope === "all" ? goals : goals.filter((g) => g.scope === filterScope);
+  const filteredGoals = goals.filter((g) => {
+    if (filterScope !== "all" && g.scope !== filterScope) return false;
+    if (filterCategory !== "all") {
+      if (filterCategory === "none" ? g.category_id : g.category_id !== filterCategory) return false;
+    }
+    return true;
+  });
 
   if (loading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
 
@@ -263,6 +270,23 @@ export default function GoalsPage() {
                 <SelectContent>
                   <SelectItem value="all">Todos os escopos</SelectItem>
                   {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="none">Sem categoria</SelectItem>
+                  {(["sales","cs","campaign","financial"] as const).map((area) => {
+                    const items = categories.filter((c) => c.area === area);
+                    if (!items.length) return null;
+                    return (
+                      <div key={area}>
+                        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                        {items.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </div>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               {role === "admin" && (
