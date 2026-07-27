@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -89,7 +89,7 @@ export function MetabaseTracking() {
   const [teamId, setTeamId] = useState<string>("all");
   const [userId, setUserId] = useState<string>("all");
   const [campaignId, setCampaignId] = useState<string>("all");
-  const [goalId, setGoalId] = useState<string>("all");
+  const categoryDefaultSet = useRef(false);
 
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -130,17 +130,18 @@ export function MetabaseTracking() {
     })();
   }, []);
 
-  const selectedGoal = useMemo(() => goals.find((g) => g.id === goalId), [goals, goalId]);
+  // Ao carregar as categorias, pré-seleciona "Total de MRR" como padrão
+  useEffect(() => {
+    if (categoryDefaultSet.current) return;
+    if (!categories.length) return;
+    const totalMRR = categories.find((c) => c.name === "Total de MRR");
+    if (totalMRR) {
+      setCategoryId(totalMRR.id);
+      categoryDefaultSet.current = true;
+    }
+  }, [categories]);
 
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
-    if (selectedGoal) {
-      if (r.scope !== selectedGoal.scope) return false;
-      if ((r.category_id || null) !== (selectedGoal.category_id || null)) return false;
-      if ((r.team_id || null) !== (selectedGoal.team_id || null)) return false;
-      if ((r.user_id || null) !== (selectedGoal.user_id || null)) return false;
-      if ((r.campaign_id || null) !== (selectedGoal.campaign_id || null)) return false;
-      return true;
-    }
     if (scope !== "all" && r.scope !== scope) return false;
     if (categoryId !== "all" && r.category_id !== categoryId) return false;
     if (teamId !== "all" && r.team_id !== teamId) return false;
@@ -150,10 +151,9 @@ export function MetabaseTracking() {
   };
 
   const filteredGoals = useMemo(() => {
-    if (selectedGoal) return [selectedGoal];
     return goals.filter((g) => scopedFilter({ ...g }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goals, selectedGoal, scope, categoryId, teamId, userId, campaignId]);
+  }, [goals, scope, categoryId, teamId, userId, campaignId]);
 
   // Mapa de categorias virtuais (agrupadoras) → set de componentes
   const virtualComponents = useMemo(() => {
@@ -202,17 +202,6 @@ export function MetabaseTracking() {
   }, [filteredGoals, virtualComponents]);
 
   const scopedAggFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
-    // Reusar scopedFilter mas ignorar seu check de categoria — trataremos abaixo com expansão de virtuais.
-    if (selectedGoal) {
-      if (r.scope !== selectedGoal.scope) return false;
-      if ((r.team_id || null) !== (selectedGoal.team_id || null)) return false;
-      if ((r.user_id || null) !== (selectedGoal.user_id || null)) return false;
-      if ((r.campaign_id || null) !== (selectedGoal.campaign_id || null)) return false;
-      // categoria: aceita se for a própria ou um componente (quando a meta é virtual)
-      const allowed = new Set(expandCategoryIds(selectedGoal.category_id || ""));
-      if (!r.category_id || !allowed.has(r.category_id)) return false;
-      return true;
-    }
     if (scope !== "all" && r.scope !== scope) return false;
     if (teamId !== "all" && r.team_id !== teamId) return false;
     if (userId !== "all" && r.user_id !== userId) return false;
@@ -295,8 +284,7 @@ export function MetabaseTracking() {
   // (o bucket da virtual já é a soma dos componentes via componentToVirtuals).
   const isVirtual = (id: string) => virtualComponents.has(id);
   const categoriesForTable = useMemo(() => {
-    // Seleção explícita (meta ou filtro) — mostra apenas aquela categoria
-    if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
+    // Seleção explícita por filtro — mostra apenas aquela categoria
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
     // Filtros restringiram para um conjunto de metas
     if (allowedCategoryIds) {
@@ -310,7 +298,7 @@ export function MetabaseTracking() {
     // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
     return categories.filter((c) => !isVirtual(c.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories, categoryId, selectedGoal, allowedCategoryIds, filteredGoals, virtualComponents]);
+  }, [categories, categoryId, allowedCategoryIds, filteredGoals, virtualComponents]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
@@ -333,7 +321,7 @@ export function MetabaseTracking() {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {
@@ -546,29 +534,6 @@ export function MetabaseTracking() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2 md:col-span-3 lg:col-span-3">
-              <Label className="text-xs">Meta (obrigatório para comparar)</Label>
-              <Select value={goalId} onValueChange={setGoalId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas (agregado pelos filtros acima)</SelectItem>
-                  {goals.map((g) => {
-                    const cat = categories.find((c) => c.id === g.category_id);
-                    const team = teams.find((t) => t.id === g.team_id);
-                    const prof = profiles.find((p) => p.user_id === g.user_id);
-                    const camp = campaigns.find((c) => c.id === g.campaign_id);
-                    const who = prof?.full_name || team?.name || camp?.name || (g.scope === "company" ? "Empresa" : g.scope);
-                    const ps = parseDateBR(g.period_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
-                    const pe = parseDateBR(g.period_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
-                    return (
-                      <SelectItem key={g.id} value={g.id}>
-                        {(cat?.name || "—")} · {who} · {ps}→{pe}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
 
             {period === "custom" && (
               <>
@@ -605,9 +570,7 @@ export function MetabaseTracking() {
 
       {/* KPI resumo */}
       {(() => {
-        const selectedCat = selectedGoal?.category_id
-          ? categories.find((c) => c.id === selectedGoal.category_id)
-          : (categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined);
+        const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
         const kpiFmt = (v: number) => (selectedCat ? fmtByCategory(selectedCat, v) : fmt(v));
         const yTickFmt = (v: number) => {
           if (selectedCat?.metric_type === "count") return fmtNum(v);
@@ -621,7 +584,7 @@ export function MetabaseTracking() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
                 <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {goalId === "all" ? `${filteredGoals.length} meta(s) somada(s)` : "Meta selecionada"}
+                  {filteredGoals.length} meta(s) somada(s)
                 </p>
               </CardContent></Card>
               <Card><CardContent className="p-4">
