@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
@@ -81,6 +81,8 @@ export function MetabaseTracking() {
   const [customTo, setCustomTo] = useState(new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10));
   const [year, setYear] = useState(now.getFullYear());
   const [compareMode, setCompareMode] = useState<CompareMode>("to_date");
+  const [chartType, setChartType] = useState<"bar" | "line">("bar");
+
 
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
@@ -639,20 +641,46 @@ export function MetabaseTracking() {
 
             {/* Gráfico */}
             <Card>
-              <CardHeader><CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle></CardHeader>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle>
+                  <Select value={chartType} onValueChange={(v) => setChartType(v as "bar" | "line")}>
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectValue placeholder="Tipo de gráfico" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bar">Barras</SelectItem>
+                      <SelectItem value="line">Linhas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
               <CardContent>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer>
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis dataKey="month" fontSize={12} />
-                      <YAxis fontSize={12} tickFormatter={yTickFmt} />
-                      <Tooltip formatter={(v: number) => kpiFmt(v)} />
-                      <Legend />
+                    {chartType === "bar" ? (
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="month" fontSize={12} />
+                        <YAxis fontSize={12} tickFormatter={yTickFmt} />
+                        <Tooltip formatter={(v: number) => kpiFmt(v)} />
+                        <Legend />
 
-                      <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
-                      <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
-                    </BarChart>
+                        <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
+                        <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
+                      </BarChart>
+                    ) : (
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="month" fontSize={12} />
+                        <YAxis fontSize={12} tickFormatter={yTickFmt} />
+                        <Tooltip formatter={(v: number) => kpiFmt(v)} />
+                        <Legend />
+
+                        <Line type="monotone" dataKey="Meta" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="Realizado" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                      </LineChart>
+                    )}
                   </ResponsiveContainer>
                 </div>
               </CardContent>
