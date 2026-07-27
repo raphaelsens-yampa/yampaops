@@ -217,23 +217,20 @@ export function MetabaseTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, effectiveWindow]);
 
-  // Target per (category, month) — rateado pela interseção com janela efetiva
+  // Target per (category, month) — meta cheia por mês, rateada apenas pela interseção do mês com o período da meta (sem clipe de janela)
   const targetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
     filteredGoals.forEach((g) => {
       monthList.forEach((mStart, idx) => {
         const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
-        const winMonthFrom = mStart > effectiveWindow.from ? mStart : effectiveWindow.from;
-        const winMonthTo = mEnd < effectiveWindow.to ? mEnd : effectiveWindow.to;
-        if (winMonthTo < winMonthFrom) return;
-        const frac = targetFraction(g.period_start, g.period_end, winMonthFrom, winMonthTo);
+        const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
         if (frac <= 0) return;
         const key = `${g.category_id || "none"}|${idx}`;
         map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
       });
     });
     return map;
-  }, [filteredGoals, monthList, year, effectiveWindow]);
+  }, [filteredGoals, monthList, year]);
 
   // Meta do Período — soma total das metas selecionadas cujo intervalo intersecta a janela (SEM rateio)
   const totalPeriodTarget = useMemo(() => {
