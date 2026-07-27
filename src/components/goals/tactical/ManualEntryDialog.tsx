@@ -53,9 +53,12 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
             <Select value={metricId} onValueChange={setMetricId}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                {metrics
+                  .filter((m) => m.source !== "stripe_mrr" && m.source !== "stripe_deals")
+                  .map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">Vendas e MRR são calculados automaticamente pela integração Stripe.</p>
           </div>
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label>Valor</Label><Input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} /></div>
