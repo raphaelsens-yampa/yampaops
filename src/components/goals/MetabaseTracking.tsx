@@ -286,7 +286,7 @@ export function MetabaseTracking() {
 
   const totalRealized = chartData.reduce((s, r) => s + r.Realizado, 0);
   const totalTarget = chartData.reduce((s, r) => s + r.Meta, 0);
-  const totalPct = totalTarget > 0 ? (totalRealized / totalTarget) * 100 : 0;
+  const totalPct = totalPeriodTarget > 0 ? (totalRealized / totalPeriodTarget) * 100 : 0;
 
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
   const hasAggData = agg.length > 0;
