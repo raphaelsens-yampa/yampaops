@@ -570,9 +570,7 @@ export function MetabaseTracking() {
 
       {/* KPI resumo */}
       {(() => {
-        const selectedCat = selectedGoal?.category_id
-          ? categories.find((c) => c.id === selectedGoal.category_id)
-          : (categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined);
+        const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
         const kpiFmt = (v: number) => (selectedCat ? fmtByCategory(selectedCat, v) : fmt(v));
         const yTickFmt = (v: number) => {
           if (selectedCat?.metric_type === "count") return fmtNum(v);
@@ -586,7 +584,7 @@ export function MetabaseTracking() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
                 <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {goalId === "all" ? `${filteredGoals.length} meta(s) somada(s)` : "Meta selecionada"}
+                  {filteredGoals.length} meta(s) somada(s)
                 </p>
               </CardContent></Card>
               <Card><CardContent className="p-4">
