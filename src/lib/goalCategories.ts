@@ -25,6 +25,7 @@ export interface GoalCategory {
   stripe_area?: string | null;
   auto_source?: AutoSource | string | null;
   goal_direction?: GoalDirection | string | null;
+  component_category_ids?: string[] | null;
 }
 
 export const AREA_LABELS: Record<CategoryArea, string> = {
