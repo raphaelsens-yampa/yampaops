@@ -42,6 +42,7 @@ export default function GoalsPage() {
   const [open, setOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [filterScope, setFilterScope] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
 
   // Form state
   const [gScope, setGScope] = useState<GoalScope>("company");
