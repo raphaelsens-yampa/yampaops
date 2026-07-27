@@ -485,17 +485,25 @@ export function MetabaseTracking() {
         };
         return (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card><CardContent className="p-4">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
                 <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
               </CardContent></Card>
-              <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
-                <p className="text-2xl font-bold">{kpiFmt(totalTarget)}</p>
+              <Card className="border-primary/40"><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
+                <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {goalId === "all" ? `${filteredGoals.length} meta(s) somada(s)` : "Meta selecionada"}
+                </p>
               </CardContent></Card>
               <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "rateada (parcial)" : "rateada (total)"}</p>
+                <p className="text-2xl font-bold text-muted-foreground">{kpiFmt(totalTarget)}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">referência p/ gráfico mensal</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
                 <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
               </CardContent></Card>
             </div>
