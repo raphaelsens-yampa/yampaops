@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
-type Period = "day" | "week" | "month" | "custom";
+type Period = "day" | "week" | "month" | "custom" | "year";
+type CompareMode = "to_date" | "full";
 
 interface AggRow {
   year_month: string;
@@ -38,23 +39,47 @@ interface Goal {
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-function monthsIntersect(gStart: string, gEnd: string, ymStart: Date, ymEnd: Date): number {
+function daysBetween(a: Date, b: Date) {
+  return (b.getTime() - a.getTime()) / 86400000 + 1;
+}
+
+function overlapDays(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+  const s = aStart > bStart ? aStart : bStart;
+  const e = aEnd < bEnd ? aEnd : bEnd;
+  if (e < s) return 0;
+  return daysBetween(s, e);
+}
+
+function targetFraction(gStart: string, gEnd: string, winFrom: Date, winTo: Date): number {
   const gs = new Date(gStart);
   const ge = new Date(gEnd);
-  const overlapStart = gs > ymStart ? gs : ymStart;
-  const overlapEnd = ge < ymEnd ? ge : ymEnd;
-  if (overlapEnd < overlapStart) return 0;
-  const goalDays = Math.max(1, (ge.getTime() - gs.getTime()) / 86400000 + 1);
-  const overlapDays = (overlapEnd.getTime() - overlapStart.getTime()) / 86400000 + 1;
-  return overlapDays / goalDays;
+  const goalDays = Math.max(1, daysBetween(gs, ge));
+  const ov = overlapDays(gs, ge, winFrom, winTo);
+  return ov / goalDays;
+}
+
+function startOfWeek(d: Date) {
+  const x = new Date(d);
+  const day = (x.getDay() + 6) % 7; // Monday=0
+  x.setDate(x.getDate() - day);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfWeek(d: Date) {
+  const s = startOfWeek(d);
+  s.setDate(s.getDate() + 6);
+  s.setHours(23, 59, 59, 999);
+  return s;
 }
 
 export function MetabaseTracking() {
-  const [period, setPeriod] = useState<Period>("month");
+  const [period, setPeriod] = useState<Period>("year");
   const now = new Date();
   const [customFrom, setCustomFrom] = useState(new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10));
   const [year, setYear] = useState(now.getFullYear());
+  const [compareMode, setCompareMode] = useState<CompareMode>("to_date");
 
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
@@ -68,6 +93,7 @@ export function MetabaseTracking() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [agg, setAgg] = useState<AggRow[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,12 +114,14 @@ export function MetabaseTracking() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [aggRes, goalsRes] = await Promise.all([
+      const [aggRes, goalsRes, capRes] = await Promise.all([
         supabase.from("metabase_monthly_agg").select("*"),
         supabase.from("goals").select("*"),
+        supabase.from("metabase_daily_raw").select("capture_date").order("capture_date", { ascending: false }).limit(1),
       ]);
       setAgg((aggRes.data as AggRow[]) || []);
       setGoals((goalsRes.data as Goal[]) || []);
+      setMaxCapture(((capRes.data as any[]) || [])[0]?.capture_date || null);
       setLoading(false);
     })();
   }, []);
@@ -107,67 +135,134 @@ export function MetabaseTracking() {
     return true;
   };
 
-  // Build months of the selected year
-  const monthList = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
-  }, [year]);
+  const monthList = useMemo(() => Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)), [year]);
+
+  // Janela efetiva do filtro Período
+  const windowRange = useMemo(() => {
+    const today = new Date(); today.setHours(23, 59, 59, 999);
+    if (period === "day") {
+      const s = new Date(); s.setHours(0, 0, 0, 0);
+      return { from: s, to: today };
+    }
+    if (period === "week") return { from: startOfWeek(new Date()), to: endOfWeek(new Date()) };
+    if (period === "month") {
+      const s = new Date(now.getFullYear(), now.getMonth(), 1);
+      const e = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      return { from: s, to: e };
+    }
+    if (period === "custom") {
+      const s = new Date(customFrom + "T00:00:00");
+      const e = new Date(customTo + "T23:59:59");
+      return { from: s, to: e };
+    }
+    // year
+    return { from: new Date(year, 0, 1), to: new Date(year, 11, 31, 23, 59, 59, 999) };
+  }, [period, customFrom, customTo, year]);
+
+  // Cap superior "Comparar até hoje": limita meta ao min(windowRange.to, hoje, últimoMêsCapturado+fim)
+  const effectiveWindow = useMemo(() => {
+    if (compareMode === "full") return windowRange;
+    const today = new Date(); today.setHours(23, 59, 59, 999);
+    let cap = today < windowRange.to ? today : windowRange.to;
+    if (maxCapture) {
+      const [y, m] = maxCapture.split("-").map(Number);
+      const capMonthEnd = new Date(y, m, 0, 23, 59, 59, 999); // last day of that month
+      if (capMonthEnd < cap) cap = capMonthEnd;
+    }
+    return { from: windowRange.from, to: cap < windowRange.from ? windowRange.from : cap };
+  }, [windowRange, compareMode, maxCapture]);
+
+  const inWindow = (ym: string) => {
+    // year_month is YYYY-MM-01
+    const d = new Date(ym);
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+    return overlapDays(d, monthEnd, effectiveWindow.from, effectiveWindow.to) > 0;
+  };
 
   const categoriesForTable = useMemo(() => {
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
     return categories;
   }, [categories, categoryId]);
 
-  // Realized per (category, month)
+  // Realized per (category, month) — recortado por janela
   const realizedByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
     agg.filter(scopedFilter).forEach((r) => {
+      if (!inWindow(r.year_month)) return;
       const d = new Date(r.year_month);
       if (d.getFullYear() !== year) return;
       const key = `${r.category_id || "none"}|${d.getMonth()}`;
       map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
     });
     return map;
-  }, [agg, scope, categoryId, teamId, userId, campaignId, year]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, year, effectiveWindow]);
 
-  // Target per (category, month) — split proportionally across intersecting months
+  // Target per (category, month) — rateado pela interseção com janela efetiva
   const targetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
     goals
       .filter((g) => scopedFilter({ ...g }))
       .forEach((g) => {
         monthList.forEach((mStart, idx) => {
-          const mEnd = new Date(year, idx + 1, 0);
-          const frac = monthsIntersect(g.period_start, g.period_end, mStart, mEnd);
+          const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+          // fração da meta que cai neste mês E dentro da janela
+          const winMonthFrom = mStart > effectiveWindow.from ? mStart : effectiveWindow.from;
+          const winMonthTo = mEnd < effectiveWindow.to ? mEnd : effectiveWindow.to;
+          if (winMonthTo < winMonthFrom) return;
+          const frac = targetFraction(g.period_start, g.period_end, winMonthFrom, winMonthTo);
           if (frac <= 0) return;
           const key = `${g.category_id || "none"}|${idx}`;
           map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
         });
       });
     return map;
-  }, [goals, monthList, scope, categoryId, teamId, userId, campaignId, year]);
+  }, [goals, monthList, scope, categoryId, teamId, userId, campaignId, year, effectiveWindow]);
 
-  // Chart data: total realized/target per month across categoriesForTable
+  const monthInWindow = (idx: number) => {
+    const s = new Date(year, idx, 1);
+    const e = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+    return overlapDays(s, e, effectiveWindow.from, effectiveWindow.to) > 0;
+  };
+
   const chartData = useMemo(() => {
-    return monthList.map((d, idx) => {
+    return monthList.map((_, idx) => {
       let realized = 0;
       let target = 0;
       categoriesForTable.forEach((c) => {
         realized += realizedByCatMonth.get(`${c.id}|${idx}`) || 0;
         target += targetByCatMonth.get(`${c.id}|${idx}`) || 0;
       });
-      return { month: MONTHS[idx], Meta: Math.round(target), Realizado: Math.round(realized) };
+      return { month: MONTHS[idx], Meta: Math.round(target), Realizado: Math.round(realized), inWin: monthInWindow(idx) };
     });
-  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth]);
+  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, effectiveWindow]);
+
+  // Meses cobertos pelo Metabase no ano selecionado
+  const coveredMonths = useMemo(() => {
+    const s = new Set<number>();
+    agg.forEach((r) => {
+      const d = new Date(r.year_month);
+      if (d.getFullYear() === year) s.add(d.getMonth());
+    });
+    return s;
+  }, [agg, year]);
+
+  const missingMonthsInWindow = useMemo(() => {
+    const missing: string[] = [];
+    monthList.forEach((_, idx) => {
+      if (monthInWindow(idx) && !coveredMonths.has(idx)) missing.push(MONTHS[idx]);
+    });
+    return missing;
+  }, [monthList, coveredMonths, effectiveWindow]);
 
   const totalRealized = chartData.reduce((s, r) => s + r.Realizado, 0);
   const totalTarget = chartData.reduce((s, r) => s + r.Meta, 0);
   const totalPct = totalTarget > 0 ? (totalRealized / totalTarget) * 100 : 0;
 
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
-
   const hasAggData = agg.length > 0;
 
   const fmt = (v: number) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const fmtDate = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   const pctColor = (pct: number, lte: boolean) => {
     if (lte) {
       if (pct <= 100) return "text-emerald-600";
@@ -196,7 +291,18 @@ export function MetabaseTracking() {
                   <SelectItem value="day">Dia</SelectItem>
                   <SelectItem value="week">Semana</SelectItem>
                   <SelectItem value="month">Mês</SelectItem>
+                  <SelectItem value="year">Ano inteiro</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Comparar até</Label>
+              <Select value={compareMode} onValueChange={(v) => setCompareMode(v as CompareMode)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="to_date">Até hoje (parcial)</SelectItem>
+                  <SelectItem value="full">Período completo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -284,6 +390,22 @@ export function MetabaseTracking() {
               </>
             )}
           </div>
+
+          {/* Selos de contexto */}
+          <div className="flex flex-wrap items-center gap-2 mt-4 text-xs">
+            <Badge variant="outline">Janela: {fmtDate(effectiveWindow.from)} → {fmtDate(effectiveWindow.to)}</Badge>
+            <Badge variant="outline">
+              Base Metabase: {maxCapture ? `até ${new Date(maxCapture).toLocaleDateString("pt-BR")}` : "sem capturas"}
+            </Badge>
+            {compareMode === "to_date" && (
+              <Badge variant="secondary">Meta rateada até a captura mais recente</Badge>
+            )}
+            {missingMonthsInWindow.length > 0 && (
+              <Badge variant="outline" className="border-amber-400 text-amber-600">
+                Sem dados no Metabase para: {missingMonthsInWindow.join(", ")}
+              </Badge>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -294,7 +416,7 @@ export function MetabaseTracking() {
           <p className="text-2xl font-bold text-primary">{fmt(totalRealized)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
           <p className="text-2xl font-bold">{fmt(totalTarget)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
@@ -334,17 +456,17 @@ export function MetabaseTracking() {
               <TableRow>
                 <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">Categoria</TableHead>
                 {monthList.map((_, idx) => (
-                  <TableHead key={idx} colSpan={3} className="text-center border-l">{MONTHS[idx]}</TableHead>
+                  <TableHead key={idx} colSpan={3} className={`text-center border-l ${!monthInWindow(idx) ? "bg-muted/30 text-muted-foreground" : ""}`}>{MONTHS[idx]}</TableHead>
                 ))}
                 <TableHead colSpan={3} className="text-center border-l bg-muted/50">YTD</TableHead>
               </TableRow>
               <TableRow>
                 <TableHead className="sticky left-0 bg-background z-10" />
                 {monthList.map((_, idx) => (
-                  <Fragment key={idx}>
-                    <TableHead className="text-right text-[10px] border-l">Meta</TableHead>
-                    <TableHead className="text-right text-[10px]">Real.</TableHead>
-                    <TableHead className="text-right text-[10px]">%</TableHead>
+                  <Fragment key={`head-month-${idx}`}>
+                    <TableHead className={`text-right text-[10px] border-l ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>Meta</TableHead>
+                    <TableHead className={`text-right text-[10px] ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>Real.</TableHead>
+                    <TableHead className={`text-right text-[10px] ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>%</TableHead>
                   </Fragment>
                 ))}
                 <TableHead className="text-right text-[10px] border-l bg-muted/50">Meta</TableHead>
@@ -369,11 +491,12 @@ export function MetabaseTracking() {
                       const r = realizedByCatMonth.get(`${c.id}|${idx}`) || 0;
                       const pct = t > 0 ? (r / t) * 100 : 0;
                       ytdT += t; ytdR += r;
+                      const dim = !monthInWindow(idx) ? "bg-muted/20 text-muted-foreground" : "";
                       return (
-                        <Fragment key={idx}>
-                          <TableCell className="text-right text-xs border-l">{t > 0 ? fmt(t) : "—"}</TableCell>
-                          <TableCell className="text-right text-xs">{r > 0 ? fmt(r) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
+                        <Fragment key={`cell-month-${idx}`}>
+                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmt(t) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmt(r) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs font-semibold ${dim} ${t > 0 && monthInWindow(idx) ? pctColor(pct, lte) : "text-muted-foreground"}`}>
                             {t > 0 ? `${pct.toFixed(0)}%` : "—"}
                           </TableCell>
                         </Fragment>
