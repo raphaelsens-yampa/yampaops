@@ -2185,6 +2185,7 @@ export type Database = {
           fonte: string
           mes_ref: string
           mrr_total: number
+          net_mrr: number | null
           tipo_snapshot: string
         }
         Insert: {
@@ -2194,6 +2195,7 @@ export type Database = {
           fonte?: string
           mes_ref: string
           mrr_total: number
+          net_mrr?: number | null
           tipo_snapshot?: string
         }
         Update: {
@@ -2203,6 +2205,7 @@ export type Database = {
           fonte?: string
           mes_ref?: string
           mrr_total?: number
+          net_mrr?: number | null
           tipo_snapshot?: string
         }
         Relationships: []
