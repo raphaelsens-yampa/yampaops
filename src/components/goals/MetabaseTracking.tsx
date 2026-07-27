@@ -289,12 +289,26 @@ export function MetabaseTracking() {
     return overlapDays(d, monthEnd, compareWindow.from, compareWindow.to) > 0;
   };
 
+  // Nunca misturar categoria virtual com seus componentes para evitar dupla contagem
+  // (o bucket da virtual já é a soma dos componentes via componentToVirtuals).
+  const isVirtual = (id: string) => virtualComponents.has(id);
   const categoriesForTable = useMemo(() => {
+    // Seleção explícita (meta ou filtro) — mostra apenas aquela categoria
     if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
-    if (allowedCategoryIds) return categories.filter((c) => allowedCategoryIds.has(c.id));
-    return categories;
-  }, [categories, categoryId, selectedGoal, allowedCategoryIds]);
+    // Filtros restringiram para um conjunto de metas
+    if (allowedCategoryIds) {
+      // Se alguma meta é virtual, mostra apenas as virtuais das metas (não seus componentes)
+      const goalCatIds = new Set(filteredGoals.map((g) => g.category_id).filter(Boolean) as string[]);
+      if (Array.from(goalCatIds).some((id) => isVirtual(id))) {
+        return categories.filter((c) => goalCatIds.has(c.id));
+      }
+      return categories.filter((c) => allowedCategoryIds.has(c.id) && !isVirtual(c.id));
+    }
+    // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
+    return categories.filter((c) => !isVirtual(c.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, categoryId, selectedGoal, allowedCategoryIds, filteredGoals, virtualComponents]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
