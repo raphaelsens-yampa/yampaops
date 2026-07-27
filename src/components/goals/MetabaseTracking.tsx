@@ -321,7 +321,7 @@ export function MetabaseTracking() {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {
