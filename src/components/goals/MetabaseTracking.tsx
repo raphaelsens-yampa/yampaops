@@ -284,8 +284,7 @@ export function MetabaseTracking() {
   // (o bucket da virtual já é a soma dos componentes via componentToVirtuals).
   const isVirtual = (id: string) => virtualComponents.has(id);
   const categoriesForTable = useMemo(() => {
-    // Seleção explícita (meta ou filtro) — mostra apenas aquela categoria
-    if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
+    // Seleção explícita por filtro — mostra apenas aquela categoria
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
     // Filtros restringiram para um conjunto de metas
     if (allowedCategoryIds) {
@@ -299,7 +298,7 @@ export function MetabaseTracking() {
     // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
     return categories.filter((c) => !isVirtual(c.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories, categoryId, selectedGoal, allowedCategoryIds, filteredGoals, virtualComponents]);
+  }, [categories, categoryId, allowedCategoryIds, filteredGoals, virtualComponents]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
