@@ -213,28 +213,56 @@ export function MetabaseTracking() {
       map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
     });
     return map;
-  }, [agg, scope, categoryId, teamId, userId, campaignId, year, effectiveWindow]);
+  const categoriesForTable = useMemo(() => {
+    if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
+    if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
+    return categories;
+  }, [categories, categoryId, selectedGoal]);
+
+  // Realized per (category, month) — recortado por janela
+  const realizedByCatMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    agg.filter(scopedFilter).forEach((r) => {
+      if (!inWindow(r.year_month)) return;
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      const key = `${r.category_id || "none"}|${d.getMonth()}`;
+      map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, effectiveWindow]);
 
   // Target per (category, month) — rateado pela interseção com janela efetiva
   const targetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
-    goals
-      .filter((g) => scopedFilter({ ...g }))
-      .forEach((g) => {
-        monthList.forEach((mStart, idx) => {
-          const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
-          // fração da meta que cai neste mês E dentro da janela
-          const winMonthFrom = mStart > effectiveWindow.from ? mStart : effectiveWindow.from;
-          const winMonthTo = mEnd < effectiveWindow.to ? mEnd : effectiveWindow.to;
-          if (winMonthTo < winMonthFrom) return;
-          const frac = targetFraction(g.period_start, g.period_end, winMonthFrom, winMonthTo);
-          if (frac <= 0) return;
-          const key = `${g.category_id || "none"}|${idx}`;
-          map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
-        });
+    filteredGoals.forEach((g) => {
+      monthList.forEach((mStart, idx) => {
+        const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+        const winMonthFrom = mStart > effectiveWindow.from ? mStart : effectiveWindow.from;
+        const winMonthTo = mEnd < effectiveWindow.to ? mEnd : effectiveWindow.to;
+        if (winMonthTo < winMonthFrom) return;
+        const frac = targetFraction(g.period_start, g.period_end, winMonthFrom, winMonthTo);
+        if (frac <= 0) return;
+        const key = `${g.category_id || "none"}|${idx}`;
+        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
       });
+    });
     return map;
-  }, [goals, monthList, scope, categoryId, teamId, userId, campaignId, year, effectiveWindow]);
+  }, [filteredGoals, monthList, year, effectiveWindow]);
+
+  // Meta do Período — soma total das metas selecionadas cujo intervalo intersecta a janela (SEM rateio)
+  const totalPeriodTarget = useMemo(() => {
+    let sum = 0;
+    filteredGoals.forEach((g) => {
+      const gs = parseDateBRStart(g.period_start);
+      const ge = parseDateBREnd(g.period_end);
+      if (overlapDays(gs, ge, windowRange.from, windowRange.to) > 0) {
+        sum += Number(g.target_mrr || 0);
+      }
+    });
+    return sum;
+  }, [filteredGoals, windowRange]);
 
   const monthInWindow = (idx: number) => {
     const s = new Date(year, idx, 1);
