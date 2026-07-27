@@ -227,7 +227,7 @@ export default function GoalsPage() {
           <h1 className="text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="tracking" className="space-y-6">
+        <Tabs defaultValue="tracking" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <TabsList>
             <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
             <TabsTrigger value="metabase">Dados Metabase</TabsTrigger>
