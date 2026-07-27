@@ -415,7 +415,30 @@ export function MetabaseTracking() {
                 </SelectContent>
               </Select>
             </div>
-            {period === "custom" && (
+            <div className="col-span-2 md:col-span-3 lg:col-span-3">
+              <Label className="text-xs">Meta (obrigatório para comparar)</Label>
+              <Select value={goalId} onValueChange={setGoalId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas (agregado pelos filtros acima)</SelectItem>
+                  {goals.map((g) => {
+                    const cat = categories.find((c) => c.id === g.category_id);
+                    const team = teams.find((t) => t.id === g.team_id);
+                    const prof = profiles.find((p) => p.user_id === g.user_id);
+                    const camp = campaigns.find((c) => c.id === g.campaign_id);
+                    const who = prof?.full_name || team?.name || camp?.name || (g.scope === "company" ? "Empresa" : g.scope);
+                    const ps = parseDateBR(g.period_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                    const pe = parseDateBR(g.period_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                    return (
+                      <SelectItem key={g.id} value={g.id}>
+                        {(cat?.name || "—")} · {who} · {ps}→{pe}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
               <>
                 <div>
                   <Label className="text-xs">De</Label>
