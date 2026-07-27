@@ -198,22 +198,6 @@ export function MetabaseTracking() {
   };
 
   const categoriesForTable = useMemo(() => {
-    if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
-    return categories;
-  }, [categories, categoryId]);
-
-  // Realized per (category, month) — recortado por janela
-  const realizedByCatMonth = useMemo(() => {
-    const map = new Map<string, number>();
-    agg.filter(scopedFilter).forEach((r) => {
-      if (!inWindow(r.year_month)) return;
-      const d = parseDateBR(r.year_month);
-      if (d.getFullYear() !== year) return;
-      const key = `${r.category_id || "none"}|${d.getMonth()}`;
-      map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
-    });
-    return map;
-  const categoriesForTable = useMemo(() => {
     if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
     return categories;
