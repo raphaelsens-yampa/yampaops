@@ -153,18 +153,72 @@ export function MetabaseTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goals, selectedGoal, scope, categoryId, teamId, userId, campaignId]);
 
+  // Mapa de categorias virtuais (agrupadoras) → set de componentes
+  const virtualComponents = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    categories.forEach((c) => {
+      if (c.component_category_ids && c.component_category_ids.length) {
+        map.set(c.id, new Set(c.component_category_ids));
+      }
+    });
+    return map;
+  }, [categories]);
+
+  // Mapa reverso: componente → categorias virtuais que o agrupam
+  const componentToVirtuals = useMemo(() => {
+    const map = new Map<string, string[]>();
+    virtualComponents.forEach((comps, virtualId) => {
+      comps.forEach((comp) => {
+        const arr = map.get(comp) || [];
+        arr.push(virtualId);
+        map.set(comp, arr);
+      });
+    });
+    return map;
+  }, [virtualComponents]);
+
+  // Expande um id de categoria em: ele mesmo + componentes (se for virtual)
+  const expandCategoryIds = (id: string): string[] => {
+    const comps = virtualComponents.get(id);
+    if (!comps) return [id];
+    return [id, ...Array.from(comps)];
+  };
+
   // Restringe as categorias analisadas ao conjunto das metas filtradas.
   // Assim, quando o usuário afunila por vendedor/time/categoria e sobra 1 meta,
   // o Realizado (KPI/tabela/gráfico) considera SOMENTE a categoria da(s) meta(s) — não todas as métricas do Metabase.
+  // Se a meta é sobre uma categoria virtual (agrupadora), inclui também os componentes.
   const allowedCategoryIds = useMemo(() => {
     if (!filteredGoals.length) return null as null | Set<string>;
     const s = new Set<string>();
-    filteredGoals.forEach((g) => { if (g.category_id) s.add(g.category_id); });
+    filteredGoals.forEach((g) => {
+      if (!g.category_id) return;
+      expandCategoryIds(g.category_id).forEach((id) => s.add(id));
+    });
     return s.size ? s : null;
-  }, [filteredGoals]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredGoals, virtualComponents]);
 
   const scopedAggFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
-    if (!scopedFilter(r)) return false;
+    // Reusar scopedFilter mas ignorar seu check de categoria — trataremos abaixo com expansão de virtuais.
+    if (selectedGoal) {
+      if (r.scope !== selectedGoal.scope) return false;
+      if ((r.team_id || null) !== (selectedGoal.team_id || null)) return false;
+      if ((r.user_id || null) !== (selectedGoal.user_id || null)) return false;
+      if ((r.campaign_id || null) !== (selectedGoal.campaign_id || null)) return false;
+      // categoria: aceita se for a própria ou um componente (quando a meta é virtual)
+      const allowed = new Set(expandCategoryIds(selectedGoal.category_id || ""));
+      if (!r.category_id || !allowed.has(r.category_id)) return false;
+      return true;
+    }
+    if (scope !== "all" && r.scope !== scope) return false;
+    if (teamId !== "all" && r.team_id !== teamId) return false;
+    if (userId !== "all" && r.user_id !== userId) return false;
+    if (campaignId !== "all" && r.campaign_id !== campaignId) return false;
+    if (categoryId !== "all") {
+      const allowed = new Set(expandCategoryIds(categoryId));
+      if (!r.category_id || !allowed.has(r.category_id)) return false;
+    }
     if (allowedCategoryIds && (!r.category_id || !allowedCategoryIds.has(r.category_id))) return false;
     return true;
   };
@@ -246,16 +300,24 @@ export function MetabaseTracking() {
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
   const realizedByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
+    const addTo = (catId: string, monthIdx: number, val: number) => {
+      const key = `${catId}|${monthIdx}`;
+      map.set(key, (map.get(key) || 0) + val);
+    };
     agg.filter(scopedAggFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
-      const key = `${r.category_id || "none"}|${d.getMonth()}`;
-      map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
+      const v = Number(r.realized_amount || 0);
+      const catId = r.category_id || "none";
+      addTo(catId, d.getMonth(), v);
+      // Se essa categoria é componente de uma virtual, agrega no bucket da virtual também
+      const virtuals = componentToVirtuals.get(catId);
+      if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {

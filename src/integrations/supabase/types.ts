@@ -1506,6 +1506,7 @@ export type Database = {
         Row: {
           area: string
           auto_source: string
+          component_category_ids: string[] | null
           created_at: string
           description: string | null
           goal_direction: string
@@ -1521,6 +1522,7 @@ export type Database = {
         Insert: {
           area: string
           auto_source?: string
+          component_category_ids?: string[] | null
           created_at?: string
           description?: string | null
           goal_direction?: string
@@ -1536,6 +1538,7 @@ export type Database = {
         Update: {
           area?: string
           auto_source?: string
+          component_category_ids?: string[] | null
           created_at?: string
           description?: string | null
           goal_direction?: string
