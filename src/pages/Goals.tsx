@@ -137,7 +137,13 @@ export default function GoalsPage() {
     loadData();
   }
 
-  const filteredGoals = filterScope === "all" ? goals : goals.filter((g) => g.scope === filterScope);
+  const filteredGoals = goals.filter((g) => {
+    if (filterScope !== "all" && g.scope !== filterScope) return false;
+    if (filterCategory !== "all") {
+      if (filterCategory === "none" ? g.category_id : g.category_id !== filterCategory) return false;
+    }
+    return true;
+  });
 
   if (loading) return <Layout><p className="text-muted-foreground p-8">Carregando...</p></Layout>;
 
