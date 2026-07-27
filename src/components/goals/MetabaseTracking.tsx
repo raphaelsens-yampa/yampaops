@@ -439,7 +439,9 @@ export function MetabaseTracking() {
               </Select>
             </div>
 
+            {period === "custom" && (
               <>
+
                 <div>
                   <Label className="text-xs">De</Label>
                   <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
