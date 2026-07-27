@@ -4,11 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, RotateCcw } from "lucide-react";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
@@ -338,6 +343,90 @@ export function MetabaseTracking() {
     return map;
   }, [filteredGoals, monthList, year]);
 
+  // ===== Tabela pivot: dados INDEPENDENTES dos filtros de cima =====
+  const TABLE_ORDER_KEY = "metabase_table_order_v1";
+  const [tableOrder, setTableOrder] = useState<string[]>([]);
+  const tableOrderLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (tableOrderLoadedRef.current) return;
+    try {
+      const raw = localStorage.getItem(TABLE_ORDER_KEY);
+      if (raw) setTableOrder(JSON.parse(raw));
+    } catch {}
+    tableOrderLoadedRef.current = true;
+  }, []);
+
+  const defaultTableOrder = useMemo(() => {
+    const total = categories.find((c) => c.name === "Total de MRR");
+    const net = categories.find((c) => c.name === "Net MRR");
+    const head: string[] = [];
+    if (total) head.push(total.id);
+    if (net) head.push(net.id);
+    const rest = categories.filter((c) => !head.includes(c.id)).map((c) => c.id);
+    return [...head, ...rest];
+  }, [categories]);
+
+  const tableCategories = useMemo(() => {
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const savedValid = tableOrder.filter((id) => byId.has(id));
+    const merged = [...savedValid, ...defaultTableOrder.filter((id) => !savedValid.includes(id))];
+    return merged.map((id) => byId.get(id)!).filter(Boolean);
+  }, [categories, tableOrder, defaultTableOrder]);
+
+  const tableRealizedByCatMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    const addTo = (catId: string, mIdx: number, val: number) => {
+      const key = `${catId}|${mIdx}`;
+      map.set(key, (map.get(key) || 0) + val);
+    };
+    agg.forEach((r) => {
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      const v = Number(r.realized_amount || 0);
+      const catId = r.category_id || "none";
+      addTo(catId, d.getMonth(), v);
+      const virtuals = componentToVirtuals.get(catId);
+      if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
+    });
+    return map;
+  }, [agg, year, componentToVirtuals]);
+
+  const tableTargetByCatMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    goals.forEach((g) => {
+      monthList.forEach((mStart, idx) => {
+        const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+        const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
+        if (frac <= 0) return;
+        const key = `${g.category_id || "none"}|${idx}`;
+        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
+      });
+    });
+    return map;
+  }, [goals, monthList, year]);
+
+  const persistTableOrder = (ids: string[]) => {
+    setTableOrder(ids);
+    try { localStorage.setItem(TABLE_ORDER_KEY, JSON.stringify(ids)); } catch {}
+  };
+
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const handleTableDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = tableCategories.map((c) => c.id);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    persistTableOrder(arrayMove(ids, from, to));
+  };
+
+  const resetTableOrder = () => {
+    setTableOrder([]);
+    try { localStorage.removeItem(TABLE_ORDER_KEY); } catch {}
+  };
+
   // Meta do Período — soma total das metas selecionadas cujo intervalo intersecta a janela (SEM rateio)
   const totalPeriodTarget = useMemo(() => {
     let sum = 0;
@@ -652,28 +741,36 @@ export function MetabaseTracking() {
         );
       })()}
 
-      {/* Tabela pivot */}
+      {/* Tabela pivot — sempre mostra todas as categorias, independente dos filtros acima */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Metas por categoria × mês</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Metas por categoria × mês</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Arraste as linhas para reorganizar. A ordem é salva localmente.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={resetTableOrder} className="gap-1">
+            <RotateCcw className="h-3.5 w-3.5" /> Restaurar ordem padrão
+          </Button>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">Categoria</TableHead>
+                <TableHead className="sticky left-0 bg-background z-10 w-8" />
+                <TableHead className="sticky left-8 bg-background z-10 min-w-[200px]">Categoria</TableHead>
                 {monthList.map((_, idx) => (
-                  <TableHead key={idx} colSpan={3} className={`text-center border-l ${!monthInWindow(idx) ? "bg-muted/30 text-muted-foreground" : ""}`}>{MONTHS[idx]}</TableHead>
+                  <TableHead key={idx} colSpan={3} className="text-center border-l">{MONTHS[idx]}</TableHead>
                 ))}
                 <TableHead colSpan={3} className="text-center border-l bg-muted/50">YTD</TableHead>
               </TableRow>
               <TableRow>
-                <TableHead className="sticky left-0 bg-background z-10" />
+                <TableHead className="sticky left-0 bg-background z-10 w-8" />
+                <TableHead className="sticky left-8 bg-background z-10" />
                 {monthList.map((_, idx) => (
                   <Fragment key={`head-month-${idx}`}>
-                    <TableHead className={`text-right text-[10px] border-l ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>Meta</TableHead>
-                    <TableHead className={`text-right text-[10px] ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>Real.</TableHead>
-                    <TableHead className={`text-right text-[10px] ${!monthInWindow(idx) ? "bg-muted/30" : ""}`}>%</TableHead>
+                    <TableHead className="text-right text-[10px] border-l">Meta</TableHead>
+                    <TableHead className="text-right text-[10px]">Real.</TableHead>
+                    <TableHead className="text-right text-[10px]">%</TableHead>
                   </Fragment>
                 ))}
                 <TableHead className="text-right text-[10px] border-l bg-muted/50">Meta</TableHead>
@@ -681,49 +778,30 @@ export function MetabaseTracking() {
                 <TableHead className="text-right text-[10px] bg-muted/50">%</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {categoriesForTable.map((c) => {
-                const lte = isBetterBelow(c.goal_direction);
-                let ytdT = 0, ytdR = 0;
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell className="sticky left-0 bg-background z-10 font-medium">
-                      <div className="flex items-center gap-2">
-                        <span>{c.name}</span>
-                        <Badge variant="outline" className="text-[9px]">{AREA_LABELS[c.area]}</Badge>
-                      </div>
-                    </TableCell>
-                    {monthList.map((_, idx) => {
-                      const t = targetByCatMonth.get(`${c.id}|${idx}`) || 0;
-                      const r = realizedByCatMonth.get(`${c.id}|${idx}`) || 0;
-                      const pct = t > 0 ? (r / t) * 100 : 0;
-                      ytdT += t; ytdR += r;
-                      const dim = !monthInWindow(idx) ? "bg-muted/20 text-muted-foreground" : "";
-                      return (
-                        <Fragment key={`cell-month-${idx}`}>
-                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmtByCategory(c, t) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmtByCategory(c, r) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs font-semibold ${dim} ${t > 0 && monthInWindow(idx) ? pctColor(pct, lte) : "text-muted-foreground"}`}>
-                            {t > 0 ? `${pct.toFixed(0)}%` : "—"}
-                          </TableCell>
-                        </Fragment>
-                      );
-                    })}
-                    <TableCell className="text-right text-xs border-l bg-muted/30">{fmtByCategory(c, ytdT)}</TableCell>
-                    <TableCell className="text-right text-xs bg-muted/30">{fmtByCategory(c, ytdR)}</TableCell>
-                    <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor(ytdT > 0 ? (ytdR / ytdT) * 100 : 0, lte) : "text-muted-foreground"}`}>
-                      {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {categoriesForTable.length === 0 && (
-                <TableRow><TableCell colSpan={40} className="text-center text-muted-foreground py-6">Nenhuma categoria cadastrada.</TableCell></TableRow>
-              )}
-            </TableBody>
+            <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
+              <SortableContext items={tableCategories.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                <TableBody>
+                  {tableCategories.map((c) => (
+                    <SortableCategoryRow
+                      key={c.id}
+                      category={c}
+                      monthList={monthList}
+                      targetMap={tableTargetByCatMonth}
+                      realizedMap={tableRealizedByCatMonth}
+                      fmt={fmtByCategory}
+                      pctColor={pctColor}
+                    />
+                  ))}
+                  {tableCategories.length === 0 && (
+                    <TableRow><TableCell colSpan={40} className="text-center text-muted-foreground py-6">Nenhuma categoria cadastrada.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </SortableContext>
+            </DndContext>
           </Table>
         </CardContent>
       </Card>
+
 
       {!hasAggData && !loading && (
         <Card>
@@ -750,5 +828,60 @@ export function MetabaseTracking() {
         </Card>
       )}
     </div>
+  );
+}
+
+interface SortableCategoryRowProps {
+  category: GoalCategory;
+  monthList: Date[];
+  targetMap: Map<string, number>;
+  realizedMap: Map<string, number>;
+  fmt: (c: GoalCategory | undefined, v: number) => string;
+  pctColor: (pct: number, lte: boolean) => string;
+}
+
+function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, fmt, pctColor }: SortableCategoryRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative",
+    zIndex: isDragging ? 20 : undefined,
+  };
+  const lte = isBetterBelow(c.goal_direction);
+  let ytdT = 0, ytdR = 0;
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="sticky left-0 bg-background z-10 w-8 p-1 cursor-grab active:cursor-grabbing text-muted-foreground" {...attributes} {...listeners}>
+        <GripVertical className="h-4 w-4" />
+      </TableCell>
+      <TableCell className="sticky left-8 bg-background z-10 font-medium">
+        <div className="flex items-center gap-2">
+          <span>{c.name}</span>
+          <Badge variant="outline" className="text-[9px]">{AREA_LABELS[c.area]}</Badge>
+        </div>
+      </TableCell>
+      {monthList.map((_, idx) => {
+        const t = targetMap.get(`${c.id}|${idx}`) || 0;
+        const r = realizedMap.get(`${c.id}|${idx}`) || 0;
+        const pct = t > 0 ? (r / t) * 100 : 0;
+        ytdT += t; ytdR += r;
+        return (
+          <Fragment key={`cell-month-${idx}`}>
+            <TableCell className="text-right text-xs border-l">{t > 0 ? fmt(c, t) : "—"}</TableCell>
+            <TableCell className="text-right text-xs">{r > 0 ? fmt(c, r) : "—"}</TableCell>
+            <TableCell className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
+              {t > 0 ? `${pct.toFixed(0)}%` : "—"}
+            </TableCell>
+          </Fragment>
+        );
+      })}
+      <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(c, ytdT)}</TableCell>
+      <TableCell className="text-right text-xs bg-muted/30">{fmt(c, ytdR)}</TableCell>
+      <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
+        {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
+      </TableCell>
+    </TableRow>
   );
 }
