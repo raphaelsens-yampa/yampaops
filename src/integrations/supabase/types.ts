@@ -2036,6 +2036,87 @@ export type Database = {
           },
         ]
       }
+      metas_churn_mensal: {
+        Row: {
+          churn_mrr_inicio_mes: number | null
+          coletado_em: string
+          data_corte: string
+          fonte: string
+          mes_ref: string
+          pct_base: string | null
+          pct_churn: number | null
+          qtd_churn: number | null
+          tipo_snapshot: string
+        }
+        Insert: {
+          churn_mrr_inicio_mes?: number | null
+          coletado_em?: string
+          data_corte: string
+          fonte?: string
+          mes_ref: string
+          pct_base?: string | null
+          pct_churn?: number | null
+          qtd_churn?: number | null
+          tipo_snapshot?: string
+        }
+        Update: {
+          churn_mrr_inicio_mes?: number | null
+          coletado_em?: string
+          data_corte?: string
+          fonte?: string
+          mes_ref?: string
+          pct_base?: string | null
+          pct_churn?: number | null
+          qtd_churn?: number | null
+          tipo_snapshot?: string
+        }
+        Relationships: []
+      }
+      metas_daily: {
+        Row: {
+          area: string
+          classificacao: string
+          coletado_em: string
+          data: string
+          fonte: string
+          id: number
+          link_rastreavel: string | null
+          mes_ref: string
+          mrr_mtd: number
+          qtd_mtd: number
+          tipo_snapshot: string
+          vendedor: string
+        }
+        Insert: {
+          area?: string
+          classificacao: string
+          coletado_em?: string
+          data: string
+          fonte?: string
+          id?: number
+          link_rastreavel?: string | null
+          mes_ref: string
+          mrr_mtd?: number
+          qtd_mtd?: number
+          tipo_snapshot?: string
+          vendedor?: string
+        }
+        Update: {
+          area?: string
+          classificacao?: string
+          coletado_em?: string
+          data?: string
+          fonte?: string
+          id?: number
+          link_rastreavel?: string | null
+          mes_ref?: string
+          mrr_mtd?: number
+          qtd_mtd?: number
+          tipo_snapshot?: string
+          vendedor?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           ac_id: string | null
@@ -3393,7 +3474,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      metas_daily_delta: {
+        Row: {
+          area: string | null
+          classificacao: string | null
+          data: string | null
+          dias_desde_snapshot_anterior: number | null
+          mes_ref: string | null
+          mrr_dia: number | null
+          mrr_mtd: number | null
+          qtd_dia: number | null
+          qtd_mtd: number | null
+          vendedor: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_commission_from_stripe: {

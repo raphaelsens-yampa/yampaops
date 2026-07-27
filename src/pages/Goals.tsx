@@ -57,6 +57,11 @@ export default function GoalsPage() {
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
 
+  async function loadCategories() {
+    const { data } = await supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name");
+    setCategories((data as GoalCategory[]) || []);
+  }
+
   async function loadData() {
     const [goalsRes, profsRes, teamsRes, catsRes, campRes] = await Promise.all([
       role === "admin" ? supabase.from("goals").select("*") : supabase.from("goals").select("*").eq("user_id", user!.id),
@@ -222,7 +227,7 @@ export default function GoalsPage() {
           <h1 className="text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="tracking" className="space-y-6">
+        <Tabs defaultValue="tracking" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <TabsList>
             <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
             <TabsTrigger value="metabase">Dados Metabase</TabsTrigger>
@@ -261,7 +266,7 @@ export default function GoalsPage() {
                 </SelectContent>
               </Select>
               {role === "admin" && (
-                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
                   <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
                   <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
