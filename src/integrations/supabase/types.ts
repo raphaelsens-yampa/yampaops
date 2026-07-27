@@ -1903,6 +1903,139 @@ export type Database = {
         }
         Relationships: []
       }
+      metabase_daily_raw: {
+        Row: {
+          amount: number
+          area: string | null
+          campaign_id: string | null
+          capture_date: string
+          captured_at: string
+          category_id: string | null
+          created_at: string
+          currency: string
+          deals_count: number
+          dedupe_key: string
+          id: string
+          metric_key: string
+          raw_payload: Json | null
+          scope: string
+          source: string
+          source_url: string | null
+          team_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number
+          area?: string | null
+          campaign_id?: string | null
+          capture_date: string
+          captured_at?: string
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          deals_count?: number
+          dedupe_key: string
+          id?: string
+          metric_key: string
+          raw_payload?: Json | null
+          scope?: string
+          source?: string
+          source_url?: string | null
+          team_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          area?: string | null
+          campaign_id?: string | null
+          capture_date?: string
+          captured_at?: string
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          deals_count?: number
+          dedupe_key?: string
+          id?: string
+          metric_key?: string
+          raw_payload?: Json | null
+          scope?: string
+          source?: string
+          source_url?: string | null
+          team_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metabase_daily_raw_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "goal_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metabase_monthly_agg: {
+        Row: {
+          area: string | null
+          campaign_id: string | null
+          category_id: string | null
+          created_at: string
+          deals_count: number
+          id: string
+          last_synced_at: string
+          metric_key: string
+          realized_amount: number
+          scope: string
+          team_id: string | null
+          updated_at: string
+          user_id: string | null
+          year_month: string
+        }
+        Insert: {
+          area?: string | null
+          campaign_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          deals_count?: number
+          id?: string
+          last_synced_at?: string
+          metric_key: string
+          realized_amount?: number
+          scope?: string
+          team_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          year_month: string
+        }
+        Update: {
+          area?: string | null
+          campaign_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          deals_count?: number
+          id?: string
+          last_synced_at?: string
+          metric_key?: string
+          realized_amount?: number
+          scope?: string
+          team_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          year_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metabase_monthly_agg_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "goal_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunities: {
         Row: {
           ac_id: string | null
@@ -3305,6 +3438,10 @@ export type Database = {
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
+      refresh_metabase_monthly_agg: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
+      }
       resolve_stripe_seller: {
         Args: { p_at?: string; p_customer_id: string; p_email: string }
         Returns: {
