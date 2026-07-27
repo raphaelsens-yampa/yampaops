@@ -266,7 +266,7 @@ export default function GoalsPage() {
                 </SelectContent>
               </Select>
               {role === "admin" && (
-                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
                   <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
                   <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
