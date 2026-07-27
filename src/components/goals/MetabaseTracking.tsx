@@ -38,13 +38,6 @@ interface Goal {
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-function ymKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function parseYm(s: string) {
-  const [y, m] = s.slice(0, 7).split("-").map(Number);
-  return new Date(y, m - 1, 1);
-}
 function monthsIntersect(gStart: string, gEnd: string, ymStart: Date, ymEnd: Date): number {
   const gs = new Date(gStart);
   const ge = new Date(gEnd);
