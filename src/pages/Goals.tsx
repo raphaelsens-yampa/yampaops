@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GoalsTracking } from "@/components/goals/GoalsTracking";
+
 import { CategoryManager } from "@/components/goals/CategoryManager";
 import { FinanceSettings } from "@/components/goals/FinanceSettings";
 import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
