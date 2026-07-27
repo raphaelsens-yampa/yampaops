@@ -2174,6 +2174,36 @@ export type Database = {
           },
         ]
       }
+      metas_mrr_mensal: {
+        Row: {
+          ativos_pagantes: number | null
+          coletado_em: string
+          data_corte: string
+          fonte: string
+          mes_ref: string
+          mrr_total: number
+          tipo_snapshot: string
+        }
+        Insert: {
+          ativos_pagantes?: number | null
+          coletado_em?: string
+          data_corte: string
+          fonte?: string
+          mes_ref: string
+          mrr_total: number
+          tipo_snapshot?: string
+        }
+        Update: {
+          ativos_pagantes?: number | null
+          coletado_em?: string
+          data_corte?: string
+          fonte?: string
+          mes_ref?: string
+          mrr_total?: number
+          tipo_snapshot?: string
+        }
+        Relationships: []
+      }
       metas_price_daily: {
         Row: {
           classificacao: string
