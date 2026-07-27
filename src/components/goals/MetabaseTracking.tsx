@@ -830,3 +830,58 @@ export function MetabaseTracking() {
     </div>
   );
 }
+
+interface SortableCategoryRowProps {
+  category: GoalCategory;
+  monthList: Date[];
+  targetMap: Map<string, number>;
+  realizedMap: Map<string, number>;
+  fmt: (c: GoalCategory | undefined, v: number) => string;
+  pctColor: (pct: number, lte: boolean) => string;
+}
+
+function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, fmt, pctColor }: SortableCategoryRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative",
+    zIndex: isDragging ? 20 : undefined,
+  };
+  const lte = isBetterBelow(c.goal_direction);
+  let ytdT = 0, ytdR = 0;
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="sticky left-0 bg-background z-10 w-8 p-1 cursor-grab active:cursor-grabbing text-muted-foreground" {...attributes} {...listeners}>
+        <GripVertical className="h-4 w-4" />
+      </TableCell>
+      <TableCell className="sticky left-8 bg-background z-10 font-medium">
+        <div className="flex items-center gap-2">
+          <span>{c.name}</span>
+          <Badge variant="outline" className="text-[9px]">{AREA_LABELS[c.area]}</Badge>
+        </div>
+      </TableCell>
+      {monthList.map((_, idx) => {
+        const t = targetMap.get(`${c.id}|${idx}`) || 0;
+        const r = realizedMap.get(`${c.id}|${idx}`) || 0;
+        const pct = t > 0 ? (r / t) * 100 : 0;
+        ytdT += t; ytdR += r;
+        return (
+          <Fragment key={`cell-month-${idx}`}>
+            <TableCell className="text-right text-xs border-l">{t > 0 ? fmt(c, t) : "—"}</TableCell>
+            <TableCell className="text-right text-xs">{r > 0 ? fmt(c, r) : "—"}</TableCell>
+            <TableCell className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
+              {t > 0 ? `${pct.toFixed(0)}%` : "—"}
+            </TableCell>
+          </Fragment>
+        );
+      })}
+      <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(c, ytdT)}</TableCell>
+      <TableCell className="text-right text-xs bg-muted/30">{fmt(c, ytdR)}</TableCell>
+      <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
+        {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
+      </TableCell>
+    </TableRow>
+  );
+}
