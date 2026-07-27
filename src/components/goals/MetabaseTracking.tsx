@@ -128,7 +128,17 @@ export function MetabaseTracking() {
     })();
   }, []);
 
+  const selectedGoal = useMemo(() => goals.find((g) => g.id === goalId), [goals, goalId]);
+
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
+    if (selectedGoal) {
+      if (r.scope !== selectedGoal.scope) return false;
+      if ((r.category_id || null) !== (selectedGoal.category_id || null)) return false;
+      if ((r.team_id || null) !== (selectedGoal.team_id || null)) return false;
+      if ((r.user_id || null) !== (selectedGoal.user_id || null)) return false;
+      if ((r.campaign_id || null) !== (selectedGoal.campaign_id || null)) return false;
+      return true;
+    }
     if (scope !== "all" && r.scope !== scope) return false;
     if (categoryId !== "all" && r.category_id !== categoryId) return false;
     if (teamId !== "all" && r.team_id !== teamId) return false;
@@ -136,6 +146,12 @@ export function MetabaseTracking() {
     if (campaignId !== "all" && r.campaign_id !== campaignId) return false;
     return true;
   };
+
+  const filteredGoals = useMemo(() => {
+    if (selectedGoal) return [selectedGoal];
+    return goals.filter((g) => scopedFilter({ ...g }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals, selectedGoal, scope, categoryId, teamId, userId, campaignId]);
 
   const monthList = useMemo(() => Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)), [year]);
 
