@@ -348,11 +348,11 @@ export function MetabaseTracking() {
               <TableRow>
                 <TableHead className="sticky left-0 bg-background z-10" />
                 {monthList.map((_, idx) => (
-                  <>
-                    <TableHead key={`m-${idx}`} className="text-right text-[10px] border-l">Meta</TableHead>
-                    <TableHead key={`r-${idx}`} className="text-right text-[10px]">Real.</TableHead>
-                    <TableHead key={`p-${idx}`} className="text-right text-[10px]">%</TableHead>
-                  </>
+                  <Fragment key={idx}>
+                    <TableHead className="text-right text-[10px] border-l">Meta</TableHead>
+                    <TableHead className="text-right text-[10px]">Real.</TableHead>
+                    <TableHead className="text-right text-[10px]">%</TableHead>
+                  </Fragment>
                 ))}
                 <TableHead className="text-right text-[10px] border-l bg-muted/50">Meta</TableHead>
                 <TableHead className="text-right text-[10px] bg-muted/50">Real.</TableHead>
