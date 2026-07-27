@@ -75,7 +75,7 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
       const v = c[dateField] as string | null;
       if (!v) return false;
       const d = new Date(v);
-      return d.getUTCFullYear() === month.getFullYear() && d.getUTCMonth() === month.getMonth();
+      return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
     });
   }, [sellerFiltered, month, dateField]);
 
@@ -85,7 +85,7 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
     sellerFiltered
       .filter((c) => {
         const d = parseDateBR(c.payment_month);
-        return d.getUTCFullYear() === target.getFullYear() && d.getUTCMonth() === target.getMonth();
+        return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth();
       })
       .reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
