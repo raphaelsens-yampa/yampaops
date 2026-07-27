@@ -419,33 +419,44 @@ export function MetabaseTracking() {
       </Card>
 
       {/* KPI resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
-          <p className="text-2xl font-bold text-primary">{fmt(totalRealized)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
-          <p className="text-2xl font-bold">{fmt(totalTarget)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido</p>
-          <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
-        </CardContent></Card>
-      </div>
+      {(() => {
+        const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
+        const kpiFmt = (v: number) => (selectedCat ? fmtByCategory(selectedCat, v) : fmt(v));
+        const yTickFmt = (v: number) => {
+          if (selectedCat?.metric_type === "count") return fmtNum(v);
+          if (selectedCat?.metric_type === "ratio") return `${v.toFixed(0)}%`;
+          return `R$ ${(v / 1000).toFixed(0)}k`;
+        };
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
+                <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
+                <p className="text-2xl font-bold">{kpiFmt(totalTarget)}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido</p>
+                <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
+              </CardContent></Card>
+            </div>
 
-      {/* Gráfico */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle></CardHeader>
-        <CardContent>
-          <div style={{ width: "100%", height: 320 }}>
-            <ResponsiveContainer>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => fmt(v)} />
-                <Legend />
+            {/* Gráfico */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle></CardHeader>
+              <CardContent>
+                <div style={{ width: "100%", height: 320 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis dataKey="month" fontSize={12} />
+                      <YAxis fontSize={12} tickFormatter={yTickFmt} />
+                      <Tooltip formatter={(v: number) => kpiFmt(v)} />
+                      <Legend />
+
                 <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
                 <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
               </BarChart>
