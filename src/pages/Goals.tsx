@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CategoryManager } from "@/components/goals/CategoryManager";
 import { FinanceSettings } from "@/components/goals/FinanceSettings";
 import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
+import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 type GoalScope = "company" | "team" | "user" | "campaign";
@@ -237,6 +238,7 @@ export default function GoalsPage() {
         <Tabs defaultValue="metabase" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <TabsList>
             <TabsTrigger value="metabase">Acompanhamento Metas</TabsTrigger>
+            <TabsTrigger value="tactical">Metas Táticas</TabsTrigger>
             <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
             {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
@@ -244,6 +246,10 @@ export default function GoalsPage() {
 
           <TabsContent value="metabase" className="space-y-6">
             <MetabaseTracking />
+          </TabsContent>
+
+          <TabsContent value="tactical" className="space-y-6">
+            <TacticalTracking />
           </TabsContent>
 
           {role === "admin" && (
