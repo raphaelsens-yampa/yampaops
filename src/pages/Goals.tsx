@@ -272,6 +272,23 @@ export default function GoalsPage() {
                   {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="none">Sem categoria</SelectItem>
+                  {(["sales","cs","campaign","financial"] as const).map((area) => {
+                    const items = categories.filter((c) => c.area === area);
+                    if (!items.length) return null;
+                    return (
+                      <div key={area}>
+                        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[area]}</div>
+                        {items.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </div>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
               {role === "admin" && (
                 <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
                   <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
