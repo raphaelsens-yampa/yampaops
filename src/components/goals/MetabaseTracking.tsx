@@ -457,13 +457,16 @@ export function MetabaseTracking() {
                       <Tooltip formatter={(v: number) => kpiFmt(v)} />
                       <Legend />
 
-                <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
-                <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+                      <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
+                      <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      })()}
 
       {/* Tabela pivot */}
       <Card>
