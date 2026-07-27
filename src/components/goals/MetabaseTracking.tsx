@@ -667,30 +667,74 @@ export function MetabaseTracking() {
           if (selectedCat?.metric_type === "ratio") return `${v.toFixed(0)}%`;
           return `R$ ${(v / 1000).toFixed(0)}k`;
         };
+        const currentMonthIdx = year === now.getFullYear() ? now.getMonth() : 11;
+        const monthRow = chartData[currentMonthIdx];
+        const monthTarget = monthRow?.Meta || 0;
+        const monthRealized = monthRow?.Realizado || 0;
+        const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
+        const monthLabel = MONTHS[currentMonthIdx];
         return (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-primary/40"><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
-                <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {filteredGoals.length} meta(s) somada(s)
-                </p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta Rateada (YtD)</p>
-                <p className="text-2xl font-bold text-muted-foreground">{kpiFmt(totalTarget)}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">referência p/ gráfico mensal</p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
-                <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
-              </CardContent></Card>
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-xs text-muted-foreground">Visão:</span>
+              <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
+                <Button
+                  size="sm"
+                  variant={kpiView === "month" ? "default" : "ghost"}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setKpiView("month")}
+                >
+                  Mês vigente
+                </Button>
+                <Button
+                  size="sm"
+                  variant={kpiView === "period" ? "default" : "ghost"}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setKpiView("period")}
+                >
+                  Acumulado do período
+                </Button>
+              </div>
             </div>
+            {kpiView === "month" ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-primary/40"><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Mês ({monthLabel})</p>
+                  <p className="text-2xl font-bold">{kpiFmt(monthTarget)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado do Mês</p>
+                  <p className="text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
+                  <p className={`text-2xl font-bold ${pctColor(monthPct, false)}`}>{monthPct.toFixed(1)}%</p>
+                </CardContent></Card>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border-primary/40"><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
+                  <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {filteredGoals.length} meta(s) somada(s)
+                  </p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta Rateada (YtD)</p>
+                  <p className="text-2xl font-bold text-muted-foreground">{kpiFmt(totalTarget)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">referência p/ gráfico mensal</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
+                  <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
+                  <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
+                </CardContent></Card>
+              </div>
+            )}
 
             {/* Gráfico */}
             <Card>
