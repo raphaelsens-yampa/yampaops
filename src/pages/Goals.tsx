@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GoalsTracking } from "@/components/goals/GoalsTracking";
+
 import { CategoryManager } from "@/components/goals/CategoryManager";
 import { FinanceSettings } from "@/components/goals/FinanceSettings";
 import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
@@ -234,18 +234,13 @@ export default function GoalsPage() {
           <h1 className="text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="tracking" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
+        <Tabs defaultValue="metabase" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <TabsList>
-            <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
             <TabsTrigger value="metabase">Dados Metabase</TabsTrigger>
             <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
             {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
           </TabsList>
-
-          <TabsContent value="tracking" className="space-y-6">
-            <GoalsTracking />
-          </TabsContent>
 
           <TabsContent value="metabase" className="space-y-6">
             <MetabaseTracking />
