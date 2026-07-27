@@ -236,7 +236,7 @@ export default function GoalsPage() {
 
         <Tabs defaultValue="metabase" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <TabsList>
-            <TabsTrigger value="metabase">Dados Metabase</TabsTrigger>
+            <TabsTrigger value="metabase">Acompanhamento Metas</TabsTrigger>
             <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
             {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
