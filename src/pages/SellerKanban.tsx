@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import type { Database } from "@/integrations/supabase/types";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -117,7 +118,7 @@ export default function SellerKanban() {
   const closedMRR = wonLeads.reduce((s, l) => s + (l.estimated_mrr || 0), 0);
 
   const now = new Date();
-  const currentGoals = goals.filter(g => new Date(g.period_start) <= now && new Date(g.period_end) >= now);
+  const currentGoals = goals.filter(g => parseDateBRStart(g.period_start) <= now && parseDateBREnd(g.period_end) >= now);
   const goalsData = currentGoals.map(g => ({
     label: g.scope === "company" ? "Empresa" : g.scope,
     target_mrr: g.target_mrr || 0,

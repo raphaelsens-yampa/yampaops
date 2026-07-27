@@ -12,6 +12,7 @@ import { RevenueProjection } from "@/components/RevenueProjection";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 import { DollarSign, TrendingUp, Users, Zap, BarChart3 } from "lucide-react";
 import { SafraSelector } from "@/components/SafraSelector";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 
 function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
 function endOfMonth(d: Date) { const x = startOfMonth(d); x.setMonth(x.getMonth()+1); return x; }
@@ -133,8 +134,8 @@ export default function AdminDashboard() {
 
   const now_month = new Date();
   const currentGoals = goals.filter(g => {
-    const start = new Date(g.period_start);
-    const end = new Date(g.period_end);
+    const start = parseDateBRStart(g.period_start);
+    const end = parseDateBREnd(g.period_end);
     return now_month >= start && now_month <= end;
   });
 

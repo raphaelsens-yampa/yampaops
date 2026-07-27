@@ -16,6 +16,7 @@ import {
 } from "date-fns";
 import { GoalsBreakdownByCategory, type CategoryRow } from "./GoalsBreakdownByCategory";
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 
 function businessDaysInRange(start: Date, end: Date) {
   return eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d)).length;
@@ -160,7 +161,7 @@ export function GoalsTracking() {
 
   const monthlyTarget = useMemo(() => {
     const overlapsMonth = (g: any) => {
-      const gs = new Date(g.period_start); const ge = new Date(g.period_end);
+      const gs = parseDateBRStart(g.period_start); const ge = parseDateBREnd(g.period_end);
       return gs <= monthEnd && ge >= monthStart;
     };
     const matches = goals.filter(overlapsMonth);
@@ -185,7 +186,7 @@ export function GoalsTracking() {
 
   const monthlyDealsTarget = useMemo(() => {
     const overlapsMonth = (g: any) => {
-      const gs = new Date(g.period_start); const ge = new Date(g.period_end);
+      const gs = parseDateBRStart(g.period_start); const ge = parseDateBREnd(g.period_end);
       return gs <= monthEnd && ge >= monthStart;
     };
     const matches = goals.filter(overlapsMonth);
@@ -233,7 +234,7 @@ export function GoalsTracking() {
       const sellerRealized = realizedBySeller.get(p.user_id) || 0;
       const userMonthly = goals
         .filter((g) => g.scope === "user" && g.user_id === p.user_id)
-        .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
+        .filter((g) => parseDateBRStart(g.period_start) <= monthEnd && parseDateBREnd(g.period_end) >= monthStart)
         .reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
       const monthBiz = businessDaysInRange(monthStart, monthEnd) || 1;
       let target = userMonthly;
@@ -278,7 +279,7 @@ export function GoalsTracking() {
 
       const teamMonthly = goals
         .filter((g) => g.scope === "team" && g.team_id === t.id)
-        .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
+        .filter((g) => parseDateBRStart(g.period_start) <= monthEnd && parseDateBREnd(g.period_end) >= monthStart)
         .reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
       let target = teamMonthly;
       if (teamMonthly) {
@@ -341,7 +342,7 @@ export function GoalsTracking() {
     if (!cat) return 0;
     const monthly = goals
       .filter((g) => g.category_id === cat.id && g.scope === "company")
-      .filter((g) => new Date(g.period_start) <= monthEnd && new Date(g.period_end) >= monthStart)
+      .filter((g) => parseDateBRStart(g.period_start) <= monthEnd && parseDateBREnd(g.period_end) >= monthStart)
       .reduce((s, g) => s + (Number(g.target_mrr) || 0), 0);
     if (!monthly) return 0;
     const monthBiz = businessDaysInRange(monthStart, monthEnd) || 1;
@@ -439,7 +440,7 @@ export function GoalsTracking() {
     return categories.map((cat) => {
       const matchingGoals = goals.filter((g) => {
         if (g.category_id !== cat.id) return false;
-        const gs = new Date(g.period_start); const ge = new Date(g.period_end);
+        const gs = parseDateBRStart(g.period_start); const ge = parseDateBREnd(g.period_end);
         if (!(gs <= monthEnd && ge >= monthStart)) return false;
         if (sellerFilter !== "all") return g.scope === "user" && g.user_id === sellerFilter;
         if (teamFilter !== "all") return (g.scope === "team" && g.team_id === teamFilter) || (g.scope === "user" && sellerIds.has(g.user_id));

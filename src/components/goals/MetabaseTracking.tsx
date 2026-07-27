@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
@@ -51,8 +52,8 @@ function overlapDays(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
 }
 
 function targetFraction(gStart: string, gEnd: string, winFrom: Date, winTo: Date): number {
-  const gs = new Date(gStart);
-  const ge = new Date(gEnd);
+  const gs = parseDateBRStart(gStart);
+  const ge = parseDateBREnd(gEnd);
   const goalDays = Math.max(1, daysBetween(gs, ge));
   const ov = overlapDays(gs, ge, winFrom, winTo);
   return ov / goalDays;
@@ -173,8 +174,8 @@ export function MetabaseTracking() {
   }, [windowRange, compareMode, maxCapture]);
 
   const inWindow = (ym: string) => {
-    // year_month is YYYY-MM-01
-    const d = new Date(ym);
+    // year_month is YYYY-MM-01 (parse as Brazil local calendar)
+    const d = parseDateBR(ym);
     const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
     return overlapDays(d, monthEnd, effectiveWindow.from, effectiveWindow.to) > 0;
   };
@@ -189,7 +190,7 @@ export function MetabaseTracking() {
     const map = new Map<string, number>();
     agg.filter(scopedFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
-      const d = new Date(r.year_month);
+      const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
       const key = `${r.category_id || "none"}|${d.getMonth()}`;
       map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
@@ -240,7 +241,7 @@ export function MetabaseTracking() {
   const coveredMonths = useMemo(() => {
     const s = new Set<number>();
     agg.forEach((r) => {
-      const d = new Date(r.year_month);
+      const d = parseDateBR(r.year_month);
       if (d.getFullYear() === year) s.add(d.getMonth());
     });
     return s;
@@ -262,6 +263,14 @@ export function MetabaseTracking() {
   const hasAggData = agg.length > 0;
 
   const fmt = (v: number) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const fmtNum = (v: number) => (v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const fmtPct = (v: number) => `${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  const fmtByCategory = (c: GoalCategory | undefined, v: number) => {
+    const t = c?.metric_type;
+    if (t === "count") return fmtNum(v);
+    if (t === "ratio") return fmtPct(v);
+    return fmt(v);
+  };
   const fmtDate = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   const pctColor = (pct: number, lte: boolean) => {
     if (lte) {
@@ -410,40 +419,54 @@ export function MetabaseTracking() {
       </Card>
 
       {/* KPI resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
-          <p className="text-2xl font-bold text-primary">{fmt(totalRealized)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
-          <p className="text-2xl font-bold">{fmt(totalTarget)}</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido</p>
-          <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
-        </CardContent></Card>
-      </div>
+      {(() => {
+        const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
+        const kpiFmt = (v: number) => (selectedCat ? fmtByCategory(selectedCat, v) : fmt(v));
+        const yTickFmt = (v: number) => {
+          if (selectedCat?.metric_type === "count") return fmtNum(v);
+          if (selectedCat?.metric_type === "ratio") return `${v.toFixed(0)}%`;
+          return `R$ ${(v / 1000).toFixed(0)}k`;
+        };
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
+                <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta {compareMode === "to_date" ? "(parcial)" : "(total)"}</p>
+                <p className="text-2xl font-bold">{kpiFmt(totalTarget)}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido</p>
+                <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
+              </CardContent></Card>
+            </div>
 
-      {/* Gráfico */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle></CardHeader>
-        <CardContent>
-          <div style={{ width: "100%", height: 320 }}>
-            <ResponsiveContainer>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => fmt(v)} />
-                <Legend />
-                <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
-                <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Gráfico */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle></CardHeader>
+              <CardContent>
+                <div style={{ width: "100%", height: 320 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis dataKey="month" fontSize={12} />
+                      <YAxis fontSize={12} tickFormatter={yTickFmt} />
+                      <Tooltip formatter={(v: number) => kpiFmt(v)} />
+                      <Legend />
+
+                      <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
+                      <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      })()}
 
       {/* Tabela pivot */}
       <Card>
@@ -494,16 +517,16 @@ export function MetabaseTracking() {
                       const dim = !monthInWindow(idx) ? "bg-muted/20 text-muted-foreground" : "";
                       return (
                         <Fragment key={`cell-month-${idx}`}>
-                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmt(t) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmt(r) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmtByCategory(c, t) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmtByCategory(c, r) : "—"}</TableCell>
                           <TableCell className={`text-right text-xs font-semibold ${dim} ${t > 0 && monthInWindow(idx) ? pctColor(pct, lte) : "text-muted-foreground"}`}>
                             {t > 0 ? `${pct.toFixed(0)}%` : "—"}
                           </TableCell>
                         </Fragment>
                       );
                     })}
-                    <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(ytdT)}</TableCell>
-                    <TableCell className="text-right text-xs bg-muted/30">{fmt(ytdR)}</TableCell>
+                    <TableCell className="text-right text-xs border-l bg-muted/30">{fmtByCategory(c, ytdT)}</TableCell>
+                    <TableCell className="text-right text-xs bg-muted/30">{fmtByCategory(c, ytdR)}</TableCell>
                     <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor(ytdT > 0 ? (ytdR / ytdT) * 100 : 0, lte) : "text-muted-foreground"}`}>
                       {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
                     </TableCell>

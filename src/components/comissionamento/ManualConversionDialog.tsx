@@ -21,6 +21,7 @@ import {
   type PaymentType,
 } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 
 interface Props {
   reference: CommissionReference[];
@@ -40,8 +41,8 @@ export function ManualConversionDialog({ reference, profiles, existing, onClose,
 
   const initialSaleMonth = useMemo(() => {
     if (existing?.sale_month) {
-      const d = new Date(existing.sale_month);
-      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      const d = parseDateBR(existing.sale_month);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     }
     return defaultMonth;
   }, [existing, defaultMonth]);

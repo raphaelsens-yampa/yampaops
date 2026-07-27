@@ -13,6 +13,7 @@ import { BRL, PAYMENT_TYPE_LABEL, formatMonthLabel, type PaymentType, type Price
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
 import { TrendingUp, DollarSign, Users, Calendar, Filter, ShoppingBag, Building2 } from "lucide-react";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 
 interface Props {
   conversions: ConversionRow[];
@@ -74,7 +75,7 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
       const v = c[dateField] as string | null;
       if (!v) return false;
       const d = new Date(v);
-      return d.getUTCFullYear() === month.getFullYear() && d.getUTCMonth() === month.getMonth();
+      return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
     });
   }, [sellerFiltered, month, dateField]);
 
@@ -83,8 +84,8 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   const sumByPaymentMonth = (target: Date) =>
     sellerFiltered
       .filter((c) => {
-        const d = new Date(c.payment_month);
-        return d.getUTCFullYear() === target.getFullYear() && d.getUTCMonth() === target.getMonth();
+        const d = parseDateBR(c.payment_month);
+        return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth();
       })
       .reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
