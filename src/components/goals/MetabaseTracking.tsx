@@ -202,17 +202,6 @@ export function MetabaseTracking() {
   }, [filteredGoals, virtualComponents]);
 
   const scopedAggFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
-    // Reusar scopedFilter mas ignorar seu check de categoria — trataremos abaixo com expansão de virtuais.
-    if (selectedGoal) {
-      if (r.scope !== selectedGoal.scope) return false;
-      if ((r.team_id || null) !== (selectedGoal.team_id || null)) return false;
-      if ((r.user_id || null) !== (selectedGoal.user_id || null)) return false;
-      if ((r.campaign_id || null) !== (selectedGoal.campaign_id || null)) return false;
-      // categoria: aceita se for a própria ou um componente (quando a meta é virtual)
-      const allowed = new Set(expandCategoryIds(selectedGoal.category_id || ""));
-      if (!r.category_id || !allowed.has(r.category_id)) return false;
-      return true;
-    }
     if (scope !== "all" && r.scope !== scope) return false;
     if (teamId !== "all" && r.team_id !== teamId) return false;
     if (userId !== "all" && r.user_id !== userId) return false;
