@@ -89,7 +89,7 @@ export function MetabaseTracking() {
   const [teamId, setTeamId] = useState<string>("all");
   const [userId, setUserId] = useState<string>("all");
   const [campaignId, setCampaignId] = useState<string>("all");
-  const [goalId, setGoalId] = useState<string>("all");
+  const categoryDefaultSet = useRef(false);
 
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
