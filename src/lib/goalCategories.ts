@@ -59,7 +59,7 @@ export const GOAL_DIRECTION_LABELS: Record<GoalDirection, string> = {
   lte: "Teto (menor é melhor)",
 };
 
-export const STRIPE_AREA_PRESETS = ["Sales", "Marketing", "CS", "Produto", "Outros"];
+export const STRIPE_AREA_PRESETS = ["Sales", "Marketing", "CS", "Produto", "4blue", "Outros"];
 
 export function isBetterBelow(direction?: string | null): boolean {
   return direction === "lte";
