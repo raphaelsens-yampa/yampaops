@@ -57,6 +57,11 @@ export default function GoalsPage() {
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
 
+  async function loadCategories() {
+    const { data } = await supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name");
+    setCategories((data as GoalCategory[]) || []);
+  }
+
   async function loadData() {
     const [goalsRes, profsRes, teamsRes, catsRes, campRes] = await Promise.all([
       role === "admin" ? supabase.from("goals").select("*") : supabase.from("goals").select("*").eq("user_id", user!.id),
