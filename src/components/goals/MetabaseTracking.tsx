@@ -153,6 +153,22 @@ export function MetabaseTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goals, selectedGoal, scope, categoryId, teamId, userId, campaignId]);
 
+  // Restringe as categorias analisadas ao conjunto das metas filtradas.
+  // Assim, quando o usuário afunila por vendedor/time/categoria e sobra 1 meta,
+  // o Realizado (KPI/tabela/gráfico) considera SOMENTE a categoria da(s) meta(s) — não todas as métricas do Metabase.
+  const allowedCategoryIds = useMemo(() => {
+    if (!filteredGoals.length) return null as null | Set<string>;
+    const s = new Set<string>();
+    filteredGoals.forEach((g) => { if (g.category_id) s.add(g.category_id); });
+    return s.size ? s : null;
+  }, [filteredGoals]);
+
+  const scopedAggFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
+    if (!scopedFilter(r)) return false;
+    if (allowedCategoryIds && (!r.category_id || !allowedCategoryIds.has(r.category_id))) return false;
+    return true;
+  };
+
   const monthList = useMemo(() => Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)), [year]);
 
   // Janela efetiva do filtro Período
@@ -222,13 +238,15 @@ export function MetabaseTracking() {
   const categoriesForTable = useMemo(() => {
     if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
+    if (allowedCategoryIds) return categories.filter((c) => allowedCategoryIds.has(c.id));
     return categories;
-  }, [categories, categoryId, selectedGoal]);
+  }, [categories, categoryId, selectedGoal, allowedCategoryIds]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
+  // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
   const realizedByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
-    agg.filter(scopedFilter).forEach((r) => {
+    agg.filter(scopedAggFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
@@ -237,7 +255,7 @@ export function MetabaseTracking() {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {
