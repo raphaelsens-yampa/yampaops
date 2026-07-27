@@ -66,7 +66,12 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         if (dealsMetric) bump(seller, dealsMetric.id, key, 1);
       }
 
+      // Métricas com origem Stripe são calculadas 100% pela integração — ignoramos lançamentos manuais nelas
+      const stripeSourcedIds = new Set(
+        metricsData.filter((m) => m.source === "stripe_mrr" || m.source === "stripe_deals").map((m) => m.id)
+      );
       for (const m of manualRes.data || []) {
+        if (stripeSourcedIds.has((m as any).metric_id)) continue;
         bump((m as any).user_id, (m as any).metric_id, (m as any).entry_date, Number((m as any).value || 0));
       }
 
