@@ -225,6 +225,7 @@ export default function GoalsPage() {
         <Tabs defaultValue="tracking" className="space-y-6">
           <TabsList>
             <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
+            <TabsTrigger value="metabase">Dados Metabase</TabsTrigger>
             <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
             {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
@@ -232,6 +233,10 @@ export default function GoalsPage() {
 
           <TabsContent value="tracking" className="space-y-6">
             <GoalsTracking />
+          </TabsContent>
+
+          <TabsContent value="metabase" className="space-y-6">
+            <MetabaseTracking />
           </TabsContent>
 
           {role === "admin" && (
