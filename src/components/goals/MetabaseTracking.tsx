@@ -238,13 +238,15 @@ export function MetabaseTracking() {
   const categoriesForTable = useMemo(() => {
     if (selectedGoal?.category_id) return categories.filter((c) => c.id === selectedGoal.category_id);
     if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
+    if (allowedCategoryIds) return categories.filter((c) => allowedCategoryIds.has(c.id));
     return categories;
-  }, [categories, categoryId, selectedGoal]);
+  }, [categories, categoryId, selectedGoal, allowedCategoryIds]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
+  // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
   const realizedByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
-    agg.filter(scopedFilter).forEach((r) => {
+    agg.filter(scopedAggFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
@@ -253,7 +255,7 @@ export function MetabaseTracking() {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {
