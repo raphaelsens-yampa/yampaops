@@ -153,6 +153,22 @@ export function MetabaseTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goals, selectedGoal, scope, categoryId, teamId, userId, campaignId]);
 
+  // Restringe as categorias analisadas ao conjunto das metas filtradas.
+  // Assim, quando o usuário afunila por vendedor/time/categoria e sobra 1 meta,
+  // o Realizado (KPI/tabela/gráfico) considera SOMENTE a categoria da(s) meta(s) — não todas as métricas do Metabase.
+  const allowedCategoryIds = useMemo(() => {
+    if (!filteredGoals.length) return null as null | Set<string>;
+    const s = new Set<string>();
+    filteredGoals.forEach((g) => { if (g.category_id) s.add(g.category_id); });
+    return s.size ? s : null;
+  }, [filteredGoals]);
+
+  const scopedAggFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
+    if (!scopedFilter(r)) return false;
+    if (allowedCategoryIds && (!r.category_id || !allowedCategoryIds.has(r.category_id))) return false;
+    return true;
+  };
+
   const monthList = useMemo(() => Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)), [year]);
 
   // Janela efetiva do filtro Período
