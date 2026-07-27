@@ -300,16 +300,24 @@ export function MetabaseTracking() {
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
   const realizedByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
+    const addTo = (catId: string, monthIdx: number, val: number) => {
+      const key = `${catId}|${monthIdx}`;
+      map.set(key, (map.get(key) || 0) + val);
+    };
     agg.filter(scopedAggFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
-      const key = `${r.category_id || "none"}|${d.getMonth()}`;
-      map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
+      const v = Number(r.realized_amount || 0);
+      const catId = r.category_id || "none";
+      addTo(catId, d.getMonth(), v);
+      // Se essa categoria é componente de uma virtual, agrega no bucket da virtual também
+      const virtuals = componentToVirtuals.get(catId);
+      if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds]);
+  }, [agg, scope, categoryId, teamId, userId, campaignId, goalId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {
