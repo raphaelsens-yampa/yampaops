@@ -52,8 +52,8 @@ function overlapDays(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
 }
 
 function targetFraction(gStart: string, gEnd: string, winFrom: Date, winTo: Date): number {
-  const gs = new Date(gStart);
-  const ge = new Date(gEnd);
+  const gs = parseDateBRStart(gStart);
+  const ge = parseDateBREnd(gEnd);
   const goalDays = Math.max(1, daysBetween(gs, ge));
   const ov = overlapDays(gs, ge, winFrom, winTo);
   return ov / goalDays;
@@ -174,8 +174,8 @@ export function MetabaseTracking() {
   }, [windowRange, compareMode, maxCapture]);
 
   const inWindow = (ym: string) => {
-    // year_month is YYYY-MM-01
-    const d = new Date(ym);
+    // year_month is YYYY-MM-01 (parse as Brazil local calendar)
+    const d = parseDateBR(ym);
     const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
     return overlapDays(d, monthEnd, effectiveWindow.from, effectiveWindow.to) > 0;
   };
@@ -190,7 +190,7 @@ export function MetabaseTracking() {
     const map = new Map<string, number>();
     agg.filter(scopedFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
-      const d = new Date(r.year_month);
+      const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
       const key = `${r.category_id || "none"}|${d.getMonth()}`;
       map.set(key, (map.get(key) || 0) + Number(r.realized_amount || 0));
@@ -241,7 +241,7 @@ export function MetabaseTracking() {
   const coveredMonths = useMemo(() => {
     const s = new Set<number>();
     agg.forEach((r) => {
-      const d = new Date(r.year_month);
+      const d = parseDateBR(r.year_month);
       if (d.getFullYear() === year) s.add(d.getMonth());
     });
     return s;
@@ -263,6 +263,14 @@ export function MetabaseTracking() {
   const hasAggData = agg.length > 0;
 
   const fmt = (v: number) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const fmtNum = (v: number) => (v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const fmtPct = (v: number) => `${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  const fmtByCategory = (c: GoalCategory | undefined, v: number) => {
+    const t = c?.metric_type;
+    if (t === "count") return fmtNum(v);
+    if (t === "ratio") return fmtPct(v);
+    return fmt(v);
+  };
   const fmtDate = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   const pctColor = (pct: number, lte: boolean) => {
     if (lte) {
@@ -495,16 +503,16 @@ export function MetabaseTracking() {
                       const dim = !monthInWindow(idx) ? "bg-muted/20 text-muted-foreground" : "";
                       return (
                         <Fragment key={`cell-month-${idx}`}>
-                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmt(t) : "—"}</TableCell>
-                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmt(r) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs border-l ${dim}`}>{t > 0 ? fmtByCategory(c, t) : "—"}</TableCell>
+                          <TableCell className={`text-right text-xs ${dim}`}>{r > 0 ? fmtByCategory(c, r) : "—"}</TableCell>
                           <TableCell className={`text-right text-xs font-semibold ${dim} ${t > 0 && monthInWindow(idx) ? pctColor(pct, lte) : "text-muted-foreground"}`}>
                             {t > 0 ? `${pct.toFixed(0)}%` : "—"}
                           </TableCell>
                         </Fragment>
                       );
                     })}
-                    <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(ytdT)}</TableCell>
-                    <TableCell className="text-right text-xs bg-muted/30">{fmt(ytdR)}</TableCell>
+                    <TableCell className="text-right text-xs border-l bg-muted/30">{fmtByCategory(c, ytdT)}</TableCell>
+                    <TableCell className="text-right text-xs bg-muted/30">{fmtByCategory(c, ytdR)}</TableCell>
                     <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor(ytdT > 0 ? (ytdR / ytdT) * 100 : 0, lte) : "text-muted-foreground"}`}>
                       {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
                     </TableCell>
