@@ -284,7 +284,7 @@ export function MetabaseTracking() {
   const monthInWindow = (idx: number) => {
     const s = new Date(year, idx, 1);
     const e = new Date(year, idx + 1, 0, 23, 59, 59, 999);
-    return overlapDays(s, e, effectiveWindow.from, effectiveWindow.to) > 0;
+    return overlapDays(s, e, compareWindow.from, compareWindow.to) > 0;
   };
 
   const chartData = useMemo(() => {
@@ -297,7 +297,8 @@ export function MetabaseTracking() {
       });
       return { month: MONTHS[idx], Meta: Math.round(target), Realizado: Math.round(realized), inWin: monthInWindow(idx) };
     });
-  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, effectiveWindow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, compareWindow]);
 
   // Meses cobertos pelo Metabase no ano selecionado
   const coveredMonths = useMemo(() => {
@@ -315,10 +316,11 @@ export function MetabaseTracking() {
       if (monthInWindow(idx) && !coveredMonths.has(idx)) missing.push(MONTHS[idx]);
     });
     return missing;
-  }, [monthList, coveredMonths, effectiveWindow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthList, coveredMonths, compareWindow]);
 
   const totalRealized = chartData.reduce((s, r) => s + r.Realizado, 0);
-  const totalTarget = chartData.reduce((s, r) => s + r.Meta, 0);
+  const totalTarget = totalTargetProrated;
   const totalPct = totalPeriodTarget > 0 ? (totalRealized / totalPeriodTarget) * 100 : 0;
 
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
