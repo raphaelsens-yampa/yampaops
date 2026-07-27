@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GoalsTracking } from "@/components/goals/GoalsTracking";
 import { CategoryManager } from "@/components/goals/CategoryManager";
 import { FinanceSettings } from "@/components/goals/FinanceSettings";
+import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 type GoalScope = "company" | "team" | "user" | "campaign";
