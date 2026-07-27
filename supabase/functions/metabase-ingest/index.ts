@@ -44,8 +44,63 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
+    // Carrega categorias para resolver category_id a partir de metric_key
+    const { data: catRows } = await supabase
+      .from('goal_categories')
+      .select('id, slug, auto_source')
+      .eq('is_active', true);
+
+    const normalize = (s: string) =>
+      (s || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+    // Aliases: metric_key vindo do Metabase -> slug da categoria
+    const aliasToSlug: Record<string, string> = {
+      churn_pct: 'churn-rate-logos',
+      churn_rate: 'churn-rate-logos',
+      churn_rate_logos: 'churn-rate-logos',
+      churn_qtd: 'churn-logos',
+      churn_logos: 'churn-logos',
+      churn_mrr: 'churn-mrr',
+      new_mrr: 'new_mrr',
+      net_mrr: 'net-mrr',
+      ltv: 'ltv',
+      cac: 'cac',
+      ltv_cac: 'ltv_cac',
+      upsell: 'upsell',
+      downsell: 'downsell',
+      campanha_mrr: 'campanha_mrr',
+      recuperados: 'recuperados',
+      recuperacao_churn: 'recuperacao_churn',
+      retencao: 'retencao',
+      total_mrr: 'total_de_mrr_ms3g6o38',
+    };
+
+    const bySlug = new Map<string, string>();
+    const byAutoSource = new Map<string, string>();
+    for (const c of catRows || []) {
+      if (c.slug) bySlug.set(normalize(c.slug), c.id);
+      if (c.auto_source) byAutoSource.set(normalize(c.auto_source), c.id);
+    }
+
+    const resolveCategory = (metricKey?: string, provided?: string | null): string | null => {
+      if (provided) return provided;
+      if (!metricKey) return null;
+      const k = normalize(metricKey);
+      // 1) alias direto
+      const aliasSlug = aliasToSlug[k];
+      if (aliasSlug && bySlug.has(normalize(aliasSlug))) return bySlug.get(normalize(aliasSlug))!;
+      // 2) slug igual ao metric_key
+      if (bySlug.has(k)) return bySlug.get(k)!;
+      // 3) auto_source igual ao metric_key (ex.: stripe_churn_mrr)
+      if (byAutoSource.has(k)) return byAutoSource.get(k)!;
+      return null;
+    };
+
+    const unresolved: string[] = [];
     const records = rows.map((r) => {
       const scope = r.scope || 'company';
+      const resolvedCategoryId = resolveCategory(r.metric_key, r.category_id ?? null);
+      if (!resolvedCategoryId) unresolved.push(r.metric_key);
       const dedupe = [
         captureDate,
         r.metric_key,
@@ -53,7 +108,7 @@ Deno.serve(async (req) => {
         r.user_id || '-',
         r.team_id || '-',
         r.campaign_id || '-',
-        r.category_id || '-',
+        resolvedCategoryId || '-',
       ].join('|');
       return {
         capture_date: captureDate,
@@ -63,7 +118,7 @@ Deno.serve(async (req) => {
         team_id: r.team_id || null,
         campaign_id: r.campaign_id || null,
         area: r.area || null,
-        category_id: r.category_id || null,
+        category_id: resolvedCategoryId,
         amount: Number(r.amount || 0),
         deals_count: Number(r.deals_count || 0),
         source_url: r.source_url || null,
