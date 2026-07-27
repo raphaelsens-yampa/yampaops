@@ -474,7 +474,9 @@ export function MetabaseTracking() {
 
       {/* KPI resumo */}
       {(() => {
-        const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
+        const selectedCat = selectedGoal?.category_id
+          ? categories.find((c) => c.id === selectedGoal.category_id)
+          : (categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined);
         const kpiFmt = (v: number) => (selectedCat ? fmtByCategory(selectedCat, v) : fmt(v));
         const yTickFmt = (v: number) => {
           if (selectedCat?.metric_type === "count") return fmtNum(v);
