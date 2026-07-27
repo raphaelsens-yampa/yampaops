@@ -3433,6 +3433,133 @@ export type Database = {
           },
         ]
       }
+      tactical_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          daily_target: number
+          derived_from_goal_id: string | null
+          id: string
+          metric_id: string
+          period_end: string
+          period_start: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          daily_target?: number
+          derived_from_goal_id?: string | null
+          id?: string
+          metric_id: string
+          period_end: string
+          period_start: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          daily_target?: number
+          derived_from_goal_id?: string | null
+          id?: string
+          metric_id?: string
+          period_end?: string
+          period_start?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactical_goals_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "tactical_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tactical_manual_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          id: string
+          metric_id: string
+          note: string | null
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          entry_date?: string
+          id?: string
+          metric_id: string
+          note?: string | null
+          updated_at?: string
+          user_id: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          id?: string
+          metric_id?: string
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactical_manual_entries_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "tactical_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tactical_metrics: {
+        Row: {
+          activity_type: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          sort_order: number
+          source: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          activity_type?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key: string
+          label: string
+          sort_order?: number
+          source: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          activity_type?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          source?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string
