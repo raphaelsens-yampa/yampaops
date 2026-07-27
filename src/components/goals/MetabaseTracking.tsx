@@ -343,6 +343,90 @@ export function MetabaseTracking() {
     return map;
   }, [filteredGoals, monthList, year]);
 
+  // ===== Tabela pivot: dados INDEPENDENTES dos filtros de cima =====
+  const TABLE_ORDER_KEY = "metabase_table_order_v1";
+  const [tableOrder, setTableOrder] = useState<string[]>([]);
+  const tableOrderLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (tableOrderLoadedRef.current) return;
+    try {
+      const raw = localStorage.getItem(TABLE_ORDER_KEY);
+      if (raw) setTableOrder(JSON.parse(raw));
+    } catch {}
+    tableOrderLoadedRef.current = true;
+  }, []);
+
+  const defaultTableOrder = useMemo(() => {
+    const total = categories.find((c) => c.name === "Total de MRR");
+    const net = categories.find((c) => c.name === "Net MRR");
+    const head: string[] = [];
+    if (total) head.push(total.id);
+    if (net) head.push(net.id);
+    const rest = categories.filter((c) => !head.includes(c.id)).map((c) => c.id);
+    return [...head, ...rest];
+  }, [categories]);
+
+  const tableCategories = useMemo(() => {
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const savedValid = tableOrder.filter((id) => byId.has(id));
+    const merged = [...savedValid, ...defaultTableOrder.filter((id) => !savedValid.includes(id))];
+    return merged.map((id) => byId.get(id)!).filter(Boolean);
+  }, [categories, tableOrder, defaultTableOrder]);
+
+  const tableRealizedByCatMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    const addTo = (catId: string, mIdx: number, val: number) => {
+      const key = `${catId}|${mIdx}`;
+      map.set(key, (map.get(key) || 0) + val);
+    };
+    agg.forEach((r) => {
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      const v = Number(r.realized_amount || 0);
+      const catId = r.category_id || "none";
+      addTo(catId, d.getMonth(), v);
+      const virtuals = componentToVirtuals.get(catId);
+      if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
+    });
+    return map;
+  }, [agg, year, componentToVirtuals]);
+
+  const tableTargetByCatMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    goals.forEach((g) => {
+      monthList.forEach((mStart, idx) => {
+        const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
+        const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
+        if (frac <= 0) return;
+        const key = `${g.category_id || "none"}|${idx}`;
+        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
+      });
+    });
+    return map;
+  }, [goals, monthList, year]);
+
+  const persistTableOrder = (ids: string[]) => {
+    setTableOrder(ids);
+    try { localStorage.setItem(TABLE_ORDER_KEY, JSON.stringify(ids)); } catch {}
+  };
+
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const handleTableDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = tableCategories.map((c) => c.id);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    persistTableOrder(arrayMove(ids, from, to));
+  };
+
+  const resetTableOrder = () => {
+    setTableOrder([]);
+    try { localStorage.removeItem(TABLE_ORDER_KEY); } catch {}
+  };
+
   // Meta do Período — soma total das metas selecionadas cujo intervalo intersecta a janela (SEM rateio)
   const totalPeriodTarget = useMemo(() => {
     let sum = 0;
