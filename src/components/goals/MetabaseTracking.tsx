@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
+import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
