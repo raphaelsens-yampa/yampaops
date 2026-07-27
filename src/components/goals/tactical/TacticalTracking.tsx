@@ -17,9 +17,7 @@ export function TacticalTracking() {
   const [reloadKey, setReloadKey] = useState(0);
   const [filterUser, setFilterUser] = useState<string>(isAdmin ? "all" : (user?.id ?? ""));
 
-  const { metrics, goals, profiles, daily, loading } = useTacticalData(rangeStart, today);
-  // Refetch on demand via key trick
-  void reloadKey;
+  const { metrics, goals, profiles, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
 
   const visibleUsers = useMemo(() => {
     if (!isAdmin) return user ? [user.id] : [];

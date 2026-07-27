@@ -5,7 +5,7 @@ import { TacticalMetric, TacticalGoal, DailyDatum, toBRDateKey } from "./types";
 
 interface Profile { user_id: string; full_name: string | null; }
 
-export function useTacticalData(rangeStart: Date, rangeEnd: Date) {
+export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
   const [metrics, setMetrics] = useState<TacticalMetric[]>([]);
   const [goals, setGoals] = useState<TacticalGoal[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -75,7 +75,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date) {
     }
     load();
     return () => { cancelled = true; };
-  }, [rangeStart.getTime(), rangeEnd.getTime()]);
+  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
 
   return { metrics, goals, profiles, daily, loading };
 }
