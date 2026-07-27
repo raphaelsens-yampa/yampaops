@@ -1,62 +1,106 @@
-# Casar Meta × Realizado — aba Dados Metabase
 
-Hoje o gráfico soma **Meta** de todas as `goals` que interceptam o ano e **Realizado** de tudo em `metabase_monthly_agg` do ano. Os filtros de topo (Período, Escopo, Categoria, Equipe, Vendedor, Campanha) já filtram os dois lados, mas há dois desalinhamentos que causam distorção:
+# Metas Táticas e Operacionais
 
-1. O filtro **Período** (Dia/Semana/Mês/Personalizado) hoje não recorta nada — só o Ano é aplicado.
-2. Metas cobrem intervalos (ex.: Jul→Dez) e são rateadas por mês; se o Metabase ainda só enviou Julho, o gráfico compara "Realizado só de Julho" com "Meta rateada de vários meses", parecendo baixo/alto sem razão.
+Nova aba na tela de **Metas** para acompanhar rotina diária da equipe — atividades, vendas do dia e metas customizadas por vendedor, com dashboard individual + leaderboard + heatmap.
 
-## O que muda
+## Escopo funcional
 
-### 1. Recorte de período efetivo
+**Métricas rastreadas por dia por vendedor:**
+- Atividades (de `activities`): mensagens enviadas, respostas recebidas, calls, reuniões, WhatsApp, propostas
+- MRR do dia (de `stripe_conversions`): soma de `mrr_net` das conversões atribuídas ao vendedor
+- Vendas do dia: contagem de conversões
+- Métricas customizadas (definidas por admin): ex. "follow-ups", "diagnósticos enviados" — input manual do vendedor
 
-- Traduzir o filtro **Período** em uma janela `[from, to]`:
-  - `day` = hoje; `week` = semana corrente (seg–dom); `month` = mês corrente; `custom` = `customFrom`/`customTo`; padrão = ano inteiro.
-- **Realizado**: somar apenas linhas de `metabase_monthly_agg` cujo `year_month` cai no intervalo.
-- **Meta**: usar `monthsIntersect` contra a janela selecionada (não o ano inteiro), rateando proporcionalmente pelos dias sobrepostos.
-- Aplicar o mesmo recorte ao gráfico, aos KPIs e à tabela pivot.
+**Cadastro de metas diárias (híbrido):**
+- Deriva automaticamente da meta mensal cadastrada em `goals` (target ÷ dias úteis do mês)
+- Override manual por vendedor / por métrica em nova tabela `tactical_goals`
+- Admin define quais métricas são acompanhadas na rotina
 
-### 2. Modo de comparação do gráfico
+**Visualização:**
+- **Topo (por vendedor):** cards KPI de "Hoje" — meta diária vs realizado, com barra de progresso e streak (dias consecutivos batendo meta)
+- **Leaderboard:** ranking do dia e da semana por métrica selecionável
+- **Heatmap:** grid tipo GitHub (últimos 90 dias) mostrando intensidade de atividade por vendedor
+- **Filtros:** período (hoje/semana/mês), vendedor, métrica
 
-Adicionar um seletor **"Comparar até"** com duas opções:
+**Permissões:**
+- Vendedor vê apenas seus próprios números + leaderboard da equipe
+- Admin/tatico vê todos e configura metas
 
-- **Até hoje (padrão)** — só considera meses/dias com dados de realizado já capturados. Meta é rateada só até o último `year_month` presente em `metabase_monthly_agg` (ou até hoje, o que for menor). Evita o efeito "meta cheia × realizado parcial".
-- **Período completo** — comportamento atual (meta cheia do intervalo).
+## Estrutura técnica
 
-Nos cards KPI, mostrar dois selos pequenos: "Janela: Jul/26" e "Base: Metabase até 27/07".
+### Nova tabela: `tactical_metrics`
+Catálogo de métricas táticas configuráveis pelo admin.
 
-### 3. Aviso de cobertura de dados
+```
+id, key (slug), label, source, unit, is_active, sort_order
+source: 'activity_type' | 'stripe_mrr' | 'stripe_deals' | 'manual'
+```
+Seed: mensagem_enviada, resposta_recebida, call_realizada, reuniao_executada, proposta, mrr_dia, vendas_dia.
 
-Abaixo dos filtros, um badge discreto:
+### Nova tabela: `tactical_goals`
+Meta diária por métrica × vendedor (opcional) × período.
 
-- "Última captura Metabase: {max(capture_date)} — meses cobertos: Jul/26" (lido de `metabase_daily_raw` / `metabase_monthly_agg`).
-- Se algum mês do intervalo selecionado não tiver captura, mostrar aviso: "Meses sem dados no Metabase: Ago, Set — comparação parcial".
+```
+id, metric_id (fk), user_id (nullable = default equipe),
+daily_target numeric, period_start date, period_end date,
+derived_from_goal_id uuid nullable, created_by, created_at
+```
 
-### 4. Coerência de dimensões Meta × Realizado
+### Nova tabela: `tactical_manual_entries`
+Realizados manuais para métricas fora do sistema.
 
-Uma meta com `scope=user` e `user_id=X` só deve casar com linhas de realizado com o **mesmo** `scope`/`user_id`. Já é o caso hoje via `scopedFilter`, mas confirmar comportamento para metas de escopo `company` (sem team/user) versus realizado que vem detalhado por vendedor:
+```
+id, metric_id, user_id, entry_date, value numeric, note, created_at
+```
 
-- Regra: quando `scope=all` no filtro, agregar tudo — ok.
-- Quando o usuário escolhe **Escopo=Empresa**, somar realizado independentemente de `team_id`/`user_id` (o total "rola pra cima").
-- Documentar essa regra num tooltip no seletor de Escopo.
+Todas com RLS + GRANTs padrão (authenticated/service_role). Vendedor lê/escreve próprios registros; admin/tatico gerencia tudo.
 
-## Detalhes técnicos
+### Fontes de dados existentes (sem duplicar)
+- `activities` — já tem `type`, `user_id`, `created_at` — agregação direta por dia
+- `stripe_conversions` — `assigned_seller_id`, `converted_at`, `mrr_net` — agregação por dia
+- View auxiliar `v_tactical_daily` (opcional) agregando as três fontes por (metric_key, user_id, date)
 
-Arquivo único: `src/components/goals/MetabaseTracking.tsx`.
+### Componentes React
 
-- Criar `windowRange = useMemo(...)` retornando `{ from: Date, to: Date }` conforme `period`.
-- Substituir o filtro `d.getFullYear() !== year` em `realizedByCatMonth` por check contra `windowRange`.
-- Em `targetByCatMonth`, chamar `monthsIntersect(g.period_start, g.period_end, windowRange.from, windowRange.to)` além do rateio mensal — a fração final por mês vira `frac_mes × frac_janela_do_mes`.
-- Novo estado `compareMode: "to_date" | "full"`; quando `to_date`, cap superior da janela = `min(windowRange.to, maxCaptureDate)`.
-- Query auxiliar: `select max(capture_date) from metabase_daily_raw` para o badge.
-- Manter a tabela pivot mostrando os 12 meses do ano (visão anual continua útil), mas destacar em fundo `muted/30` os meses fora da janela ativa.
+Todos em `src/components/goals/tactical/`:
+- `TacticalTracking.tsx` — orquestrador da aba, filtros, layout
+- `SellerDailyCards.tsx` — cards de "Hoje" por métrica com progresso e streak
+- `TacticalLeaderboard.tsx` — ranking dia/semana
+- `ActivityHeatmap.tsx` — grid 90 dias por vendedor (recharts ou grid CSS)
+- `TacticalGoalsManager.tsx` — CRUD de metas diárias (admin) e catálogo de métricas
+- `ManualEntryDialog.tsx` — vendedor lança realizados manuais
 
-## Fora do escopo
+### Integração
+- Nova aba `<TabsTrigger value="tactical">Metas Táticas</TabsTrigger>` em `src/pages/Goals.tsx`
+- Nova rota não necessária — vive dentro de `/goals`
+- Reaproveita `parseDateBR` para timezone e `MetricCard` para KPIs
 
-- Rewriting de como o agente Claude ingere dados.
-- Mudanças em `goals`/`goal_categories`.
-- Export XLSX (posso adicionar depois).
+## Layout da aba
 
-## Perguntas rápidas (posso assumir defaults)
+```text
+┌─────────────────────────────────────────────────────────┐
+│ [Filtro Período] [Filtro Vendedor] [+ Lançar realizado] │
+├─────────────────────────────────────────────────────────┤
+│ HOJE — cards por métrica (meta vs realizado + streak)   │
+│ [Msgs 12/30] [Calls 3/5] [MRR R$ 2.1k/R$3k] [Vendas...] │
+├─────────────────────────────────────────────────────────┤
+│ LEADERBOARD (dia | semana | mês)                        │
+│ Métrica: [dropdown]                                     │
+│ 1. Ana    45 msgs  ▓▓▓▓▓▓▓▓▓░                          │
+│ 2. Bruno  38 msgs  ▓▓▓▓▓▓▓▓░░                          │
+├─────────────────────────────────────────────────────────┤
+│ HEATMAP — últimos 90 dias por vendedor                  │
+│ Ana    ░▒▓█▓▒░░▒▓█▓▒░░▒▓...                            │
+│ Bruno  ▒▓█▓▒░░▒▓█▓▒░░▒▓█...                            │
+└─────────────────────────────────────────────────────────┘
+```
 
-- Default de "Comparar até": **Até hoje**. Ok? Ok
-- Quando `Período=Dia` ou `Semana`, faz sentido comparar contra meta rateada por dias? Faz sentido, vamos ver como fica 
+## Ordem de implementação
+
+1. Migração: 3 tabelas + RLS/GRANTs + seed do catálogo de métricas
+2. `TacticalTracking.tsx` + integração da aba em `Goals.tsx`
+3. `SellerDailyCards.tsx` (queries em `activities` e `stripe_conversions`)
+4. `TacticalLeaderboard.tsx`
+5. `ActivityHeatmap.tsx`
+6. `TacticalGoalsManager.tsx` (admin) e `ManualEntryDialog.tsx` (vendedor)
+7. Cálculo de meta diária derivada (meta mensal ÷ dias úteis) com override
