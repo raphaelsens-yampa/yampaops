@@ -109,6 +109,7 @@ Deno.serve(async (req) => {
         p_customer_id: before.stripe_customer_id,
         p_email: before.customer_email,
         p_at: before.converted_at || new Date().toISOString(),
+        p_price_id: before.stripe_price_id,
       });
       const row = Array.isArray(rs) ? rs[0] : rs;
       if (row) {
