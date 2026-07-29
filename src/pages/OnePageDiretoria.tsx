@@ -242,26 +242,9 @@ export default function OnePageDiretoria() {
               </div>
             </Page>
 
-            <Page id="p3" ttl="Plano de Metas · Cresc. 40% a.a." meta={PERIODO}>
+            <Page id="p3" ttl="Plano de Metas 2026" meta={PERIODO}>
               <div className={G.g6}>{data.p3.kpis.map((k:any,i:number)=><Kpi key={i} k={k}/>)}</div>
-              <Card className="mt-3.5"><Mini>Metas vs Realizado · Mês vigente (Jun/26)</Mini>
-                <table className="w-full text-[12.5px]" style={{borderCollapse:"collapse"}}>
-                  <thead><tr style={{color:C.mute}}>
-                    <th className="text-left text-[10px] uppercase tracking-wide py-2 px-1.5" style={{borderBottom:"1px solid "+C.line}}>Métrica</th>
-                    <th className="text-right text-[10px] uppercase tracking-wide py-2 px-1.5" style={{borderBottom:"1px solid "+C.line}}>Meta</th>
-                    <th className="text-right text-[10px] uppercase tracking-wide py-2 px-1.5" style={{borderBottom:"1px solid "+C.line}}>Realizado</th>
-                    <th className="text-right text-[10px] uppercase tracking-wide py-2 px-1.5" style={{borderBottom:"1px solid "+C.line}}>Atingimento</th>
-                  </tr></thead>
-                  <tbody>{data.p3.table.map((r:any,i:number)=>(
-                    <tr key={i} style={r[5]?{background:"#16283b",color:C.blue,fontWeight:700}:undefined}>
-                      <td className="py-2 px-1.5" style={{borderBottom:"1px solid #19293a"}}>{r[0]}</td>
-                      <td className="py-2 px-1.5 text-right" style={{borderBottom:"1px solid #19293a"}}>{r[1]}</td>
-                      <td className="py-2 px-1.5 text-right font-bold" style={{borderBottom:"1px solid #19293a"}}>{r[2]}</td>
-                      <td className="py-2 px-1.5 text-right font-bold" style={{borderBottom:"1px solid #19293a",color:r[5]?undefined:vc(r[4])}}>{r[3]}</td>
-                    </tr>))}</tbody>
-                </table>
-                <div className="text-[11px] mt-2" style={{color:C.mute}}>{data.p3.nota}</div>
-              </Card>
+              <div className="text-[11px] mt-3" style={{color:C.mute}}>{data.p3.nota}</div>
             </Page>
 
             <Page id="p4" ttl="Revenue · Visão Detalhada" meta={PERIODO}>
