@@ -3834,13 +3834,26 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: number
       }
-      resolve_stripe_seller: {
-        Args: { p_at?: string; p_customer_id: string; p_email: string }
-        Returns: {
-          seller_id: string
-          source: string
-        }[]
-      }
+      resolve_stripe_seller:
+        | {
+            Args: { p_at?: string; p_customer_id: string; p_email: string }
+            Returns: {
+              seller_id: string
+              source: string
+            }[]
+          }
+        | {
+            Args: {
+              p_at?: string
+              p_customer_id: string
+              p_email: string
+              p_price_id?: string
+            }
+            Returns: {
+              seller_id: string
+              source: string
+            }[]
+          }
       scc_compute_first_contact_for: {
         Args: { p_email: string; p_phone: string }
         Returns: string
