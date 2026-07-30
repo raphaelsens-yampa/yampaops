@@ -50,7 +50,10 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
 
-  const metric = visible.find((m) => m.id === metricId) ?? visible[0];
+  const metric =
+    visible.find((m) => m.id === metricId) ??
+    visible.find((m) => m.key === "vendas_dia") ??
+    visible[0];
 
   const { from, to } = useMemo(() => {
     const end = new Date(today);
