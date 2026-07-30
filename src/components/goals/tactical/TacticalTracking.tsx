@@ -168,6 +168,7 @@ export function TacticalTracking() {
         profiles={profiles}
         teamName={isOverview ? "Visão Geral" : activeTeam?.name ?? null}
         today={today}
+        refreshKey={reloadKey}
       />
 
       <TeamRecoveriesTable
