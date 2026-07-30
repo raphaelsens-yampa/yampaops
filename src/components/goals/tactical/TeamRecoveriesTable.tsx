@@ -237,41 +237,49 @@ export function TeamRecoveriesTable({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
-        <div>
-          <CardTitle className="text-base">
-            Clientes recuperados{teamName ? ` · Time ${teamName}` : ""}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Reativações identificadas no Stripe somadas aos lançamentos manuais do time.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="Buscar cliente, e-mail ou plano..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="h-8 w-56"
-          />
-          <Select value={days} onValueChange={setDays}>
-            <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">Hoje</SelectItem>
-              <SelectItem value="7">Últimos 7 dias</SelectItem>
-              <SelectItem value="30">Últimos 30 dias</SelectItem>
-              <SelectItem value="60">Últimos 60 dias</SelectItem>
-            </SelectContent>
-          </Select>
-          <Badge variant="secondary">{totalQty} recuperados</Badge>
-          <RecoveryEntryDialog
-            profiles={profiles}
-            memberIds={memberIds}
-            today={today}
-            onSaved={() => setLocalRefresh((k) => k + 1)}
-          />
-        </div>
-      </CardHeader>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <CollapsibleTrigger asChild>
+            <button type="button" className="flex items-center gap-2 text-left">
+              <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+              <div>
+                <CardTitle className="text-base">
+                  Clientes recuperados{teamName ? ` · Time ${teamName}` : ""}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Reativações identificadas no Stripe somadas aos lançamentos manuais do time.
+                </p>
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Buscar cliente, e-mail ou plano..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-8 w-56"
+            />
+            <Select value={days} onValueChange={setDays}>
+              <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Hoje</SelectItem>
+                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                <SelectItem value="30">Últimos 30 dias</SelectItem>
+                <SelectItem value="60">Últimos 60 dias</SelectItem>
+              </SelectContent>
+            </Select>
+            <Badge variant="secondary">{totalQty} recuperados</Badge>
+            <RecoveryEntryDialog
+              profiles={profiles}
+              memberIds={memberIds}
+              today={today}
+              onSaved={() => setLocalRefresh((k) => k + 1)}
+            />
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
       <CardContent>
+
         {loading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p>
         ) : filtered.length === 0 ? (
@@ -350,6 +358,8 @@ export function TeamRecoveriesTable({
           </div>
         )}
       </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
 
       <RecoveryEditDialog
         entry={editing}
