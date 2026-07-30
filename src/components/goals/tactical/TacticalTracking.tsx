@@ -9,6 +9,7 @@ import { MissionToday } from "./MissionToday";
 import { TeamScoreboard } from "./TeamScoreboard";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { TeamConversionsTable } from "./TeamConversionsTable";
+import { TeamRecoveriesTable } from "./TeamRecoveriesTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { metricsForTeam } from "./types";
@@ -134,6 +135,14 @@ export function TacticalTracking() {
         today={today}
       />
 
+      <TeamRecoveriesTable
+        memberIds={memberIds}
+        profiles={profiles}
+        metrics={teamMetrics}
+        teamName={activeTeam?.name ?? null}
+        today={today}
+        refreshKey={reloadKey}
+      />
 
       {isAdmin && showConfig && (
         <TacticalGoalsManager
