@@ -671,8 +671,25 @@ export function MetabaseTracking() {
         const monthRow = chartData[currentMonthIdx];
         const monthTarget = monthRow?.Meta || 0;
         const monthRealized = monthRow?.Realizado || 0;
+        const monthGap = monthTarget - monthRealized;
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
         const monthLabel = MONTHS[currentMonthIdx];
+        const periodGap = totalPeriodTarget - totalRealized;
+        const isLessBetter = !!selectedCat && isBetterBelow(selectedCat);
+        const gapColor = (gap: number) => {
+          if (gap === 0) return "text-muted-foreground";
+          if (isLessBetter) {
+            return gap > 0 ? "text-emerald-600" : "text-rose-500";
+          }
+          return gap > 0 ? "text-rose-500" : "text-emerald-600";
+        };
+        const gapLabel = (gap: number) => {
+          if (gap === 0) return "Na meta";
+          if (isLessBetter) {
+            return gap > 0 ? "Dentro da meta" : "Acima do limite";
+          }
+          return gap > 0 ? "Faltam" : "Acima da meta";
+        };
         return (
           <>
             <div className="flex items-center justify-end gap-2">
