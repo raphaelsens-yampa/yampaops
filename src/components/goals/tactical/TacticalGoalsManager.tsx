@@ -51,6 +51,24 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
     if (!metricId || !target || !start || !end) return;
     if (scope === "team" && !teamId) return;
     if (scope === "user" && !userId) return;
+
+    // Evita metas duplicadas para o mesmo escopo/período: substitui as existentes
+    const dupes = goals.filter(
+      (g) =>
+        g.metric_id === metricId &&
+        (scope === "user" ? g.user_id === userId : !g.user_id) &&
+        (scope === "team" ? g.team_id === teamId : !g.team_id) &&
+        String(g.period_start).slice(0, 10) <= end &&
+        String(g.period_end).slice(0, 10) >= start,
+    );
+    if (dupes.length) {
+      const { error: delErr } = await supabase
+        .from("tactical_goals")
+        .delete()
+        .in("id", dupes.map((g) => g.id));
+      if (delErr) { toast({ title: "Erro", description: delErr.message, variant: "destructive" }); return; }
+    }
+
     const { error } = await supabase.from("tactical_goals").insert({
       metric_id: metricId,
       user_id: scope === "user" ? userId : null,
@@ -66,8 +84,10 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
   }
 
   async function del(id: string) {
-    await supabase.from("tactical_goals").delete().eq("id", id);
+    const { error } = await supabase.from("tactical_goals").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
     onChanged();
+    toast({ title: "Meta diária excluída" });
   }
 
   function startEdit(g: TacticalGoal) {
