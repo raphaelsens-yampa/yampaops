@@ -192,6 +192,9 @@ export function TeamConversionsTable({
           </div>
         )}
       </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
+
   );
 }
