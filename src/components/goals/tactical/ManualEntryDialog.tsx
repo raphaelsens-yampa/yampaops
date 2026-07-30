@@ -22,7 +22,11 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
   const [metricId, setMetricId] = useState<string>("");
   const [date, setDate] = useState<string>(toBRDateKey(new Date()));
   const [value, setValue] = useState<string>("");
+  const [mrrValue, setMrrValue] = useState<string>("");
   const [note, setNote] = useState<string>("");
+
+  const selectedMetric = metrics.find((m) => m.id === metricId);
+  const isRecuperados = selectedMetric?.key === "clientes_recuperados";
 
   async function save() {
     if (!metricId || !value || !user) return;
@@ -31,12 +35,13 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
       user_id: user.id,
       entry_date: date,
       value: parseFloat(value),
+      mrr_value: isRecuperados && mrrValue ? parseFloat(mrrValue) : 0,
       note: note || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Registro lançado" });
     setOpen(false);
-    setMetricId(""); setValue(""); setNote("");
+    setMetricId(""); setValue(""); setMrrValue(""); setNote("");
     onSaved();
   }
 
