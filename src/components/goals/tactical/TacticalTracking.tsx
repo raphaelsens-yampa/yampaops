@@ -38,9 +38,10 @@ export function TacticalTracking() {
 
   useEffect(() => {
     if (teamId) return;
-    if (myTeamId) setTeamId(myTeamId);
-    else if (isAdmin && teams.length) setTeamId(teams[0].id);
+    if (isAdmin) setTeamId(ALL_TEAMS);
+    else if (myTeamId) setTeamId(myTeamId);
   }, [myTeamId, teams, isAdmin, teamId]);
+
 
   const activeTeam = isOverview ? null : teams.find((t) => t.id === teamId) ?? null;
   const memberIds = useMemo(
