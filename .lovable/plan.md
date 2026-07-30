@@ -1,106 +1,71 @@
 
-# Metas Táticas e Operacionais
+# Metas Táticas — Missão do Dia
 
-Nova aba na tela de **Metas** para acompanhar rotina diária da equipe — atividades, vendas do dia e metas customizadas por vendedor, com dashboard individual + leaderboard + heatmap.
+Substituir o painel atual (cards genéricos + tabelas) por uma tela inspiracional e focada: cada pessoa abre e vê **o que falta fazer hoje**, ao lado do **placar do time**.
 
-## Escopo funcional
-
-**Métricas rastreadas por dia por vendedor:**
-- Atividades (de `activities`): mensagens enviadas, respostas recebidas, calls, reuniões, WhatsApp, propostas
-- MRR do dia (de `stripe_conversions`): soma de `mrr_net` das conversões atribuídas ao vendedor
-- Vendas do dia: contagem de conversões
-- Métricas customizadas (definidas por admin): ex. "follow-ups", "diagnósticos enviados" — input manual do vendedor
-
-**Cadastro de metas diárias (híbrido):**
-- Deriva automaticamente da meta mensal cadastrada em `goals` (target ÷ dias úteis do mês)
-- Override manual por vendedor / por métrica em nova tabela `tactical_goals`
-- Admin define quais métricas são acompanhadas na rotina
-
-**Visualização:**
-- **Topo (por vendedor):** cards KPI de "Hoje" — meta diária vs realizado, com barra de progresso e streak (dias consecutivos batendo meta)
-- **Leaderboard:** ranking do dia e da semana por métrica selecionável
-- **Heatmap:** grid tipo GitHub (últimos 90 dias) mostrando intensidade de atividade por vendedor
-- **Filtros:** período (hoje/semana/mês), vendedor, métrica
-
-**Permissões:**
-- Vendedor vê apenas seus próprios números + leaderboard da equipe
-- Admin/tatico vê todos e configura metas
-
-## Estrutura técnica
-
-### Nova tabela: `tactical_metrics`
-Catálogo de métricas táticas configuráveis pelo admin.
-
-```
-id, key (slug), label, source, unit, is_active, sort_order
-source: 'activity_type' | 'stripe_mrr' | 'stripe_deals' | 'manual'
-```
-Seed: mensagem_enviada, resposta_recebida, call_realizada, reuniao_executada, proposta, mrr_dia, vendas_dia.
-
-### Nova tabela: `tactical_goals`
-Meta diária por métrica × vendedor (opcional) × período.
-
-```
-id, metric_id (fk), user_id (nullable = default equipe),
-daily_target numeric, period_start date, period_end date,
-derived_from_goal_id uuid nullable, created_by, created_at
-```
-
-### Nova tabela: `tactical_manual_entries`
-Realizados manuais para métricas fora do sistema.
-
-```
-id, metric_id, user_id, entry_date, value numeric, note, created_at
-```
-
-Todas com RLS + GRANTs padrão (authenticated/service_role). Vendedor lê/escreve próprios registros; admin/tatico gerencia tudo.
-
-### Fontes de dados existentes (sem duplicar)
-- `activities` — já tem `type`, `user_id`, `created_at` — agregação direta por dia
-- `stripe_conversions` — `assigned_seller_id`, `converted_at`, `mrr_net` — agregação por dia
-- View auxiliar `v_tactical_daily` (opcional) agregando as três fontes por (metric_key, user_id, date)
-
-### Componentes React
-
-Todos em `src/components/goals/tactical/`:
-- `TacticalTracking.tsx` — orquestrador da aba, filtros, layout
-- `SellerDailyCards.tsx` — cards de "Hoje" por métrica com progresso e streak
-- `TacticalLeaderboard.tsx` — ranking dia/semana
-- `ActivityHeatmap.tsx` — grid 90 dias por vendedor (recharts ou grid CSS)
-- `TacticalGoalsManager.tsx` — CRUD de metas diárias (admin) e catálogo de métricas
-- `ManualEntryDialog.tsx` — vendedor lança realizados manuais
-
-### Integração
-- Nova aba `<TabsTrigger value="tactical">Metas Táticas</TabsTrigger>` em `src/pages/Goals.tsx`
-- Nova rota não necessária — vive dentro de `/goals`
-- Reaproveita `parseDateBR` para timezone e `MetricCard` para KPIs
-
-## Layout da aba
+## Layout novo
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│ [Filtro Período] [Filtro Vendedor] [+ Lançar realizado] │
-├─────────────────────────────────────────────────────────┤
-│ HOJE — cards por métrica (meta vs realizado + streak)   │
-│ [Msgs 12/30] [Calls 3/5] [MRR R$ 2.1k/R$3k] [Vendas...] │
-├─────────────────────────────────────────────────────────┤
-│ LEADERBOARD (dia | semana | mês)                        │
-│ Métrica: [dropdown]                                     │
-│ 1. Ana    45 msgs  ▓▓▓▓▓▓▓▓▓░                          │
-│ 2. Bruno  38 msgs  ▓▓▓▓▓▓▓▓░░                          │
-├─────────────────────────────────────────────────────────┤
-│ HEATMAP — últimos 90 dias por vendedor                  │
-│ Ana    ░▒▓█▓▒░░▒▓█▓▒░░▒▓...                            │
-│ Bruno  ▒▓█▓▒░░▒▓█▓▒░░▒▓█...                            │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ SUA MISSÃO HOJE — Eduarda · Time Sales      qui, 30/07  🔥 4  │
+├───────────────────────────────┬──────────────────────────────┤
+│  ◯ 3 NOVAS VENDAS             │  PLACAR DO TIME · HOJE       │
+│    ▓▓▓▓▓▓░░░  2 de 3          │  Métrica: [Novas vendas ▾]   │
+│    FALTAM 1 ✦                 │  1 🥇 Eduarda  2/3  ▓▓▓▓░    │
+│                               │  2 🥈 João     1/3  ▓▓░░░    │
+│  ◯ 30 MENSAGENS               │  3    Ana      0/3  ░░░░░    │
+│    ▓▓▓▓▓▓▓▓▓  32 de 30 ✓      │                              │
+│    META BATIDA!               │  Time hoje: 3 de 9  (33%)    │
+│                               │  Semana: 14 de 45            │
+│  [+ Lançar realizado]         │                              │
+├───────────────────────────────┴──────────────────────────────┤
+│ CONSISTÊNCIA — últimos 30 dias úteis (heatmap compacto)       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Ordem de implementação
+**Missão do dia (coluna esquerda, protagonista):** um card grande por métrica ativa do time da pessoa. Cada card traz anel de progresso, número gigante do que **falta** ("FALTAM 1"), a meta em texto natural ("3 novas vendas por dia"), estado de meta batida com destaque verde e selo, e streak de dias consecutivos. Mensagem motivacional muda conforme o progresso (0% / em andamento / batida / superada).
 
-1. Migração: 3 tabelas + RLS/GRANTs + seed do catálogo de métricas
-2. `TacticalTracking.tsx` + integração da aba em `Goals.tsx`
-3. `SellerDailyCards.tsx` (queries em `activities` e `stripe_conversions`)
-4. `TacticalLeaderboard.tsx`
-5. `ActivityHeatmap.tsx`
-6. `TacticalGoalsManager.tsx` (admin) e `ManualEntryDialog.tsx` (vendedor)
-7. Cálculo de meta diária derivada (meta mensal ÷ dias úteis) com override
+**Placar do time (coluna direita):** ranking do dia por métrica selecionável, com barras de progresso vs. meta diária individual, medalhas para o top 3, e o agregado do time (hoje e semana). Vendedor vê o placar do próprio time; admin/tático pode alternar entre times.
+
+**Consistência (rodapé):** heatmap compacto de 30 dias úteis por pessoa, substituindo o heatmap de 90 dias atual.
+
+Admin/tático ganha, abaixo, o bloco de configuração (metas diárias e catálogo), recolhido por padrão.
+
+## Times: CS × Sales
+
+Já existem os times `CS`, `Sales` e `Suporte` em `teams`/`team_members`. Vamos:
+- Adicionar `team_id` (nullable) em `tactical_metrics` — métrica sem time = vale para todos.
+- Filtrar as métricas exibidas pelo time da pessoa (via `team_members`).
+- Seletor de time no topo apenas para admin/tático.
+- No gerenciador de metas, permitir cadastrar meta diária por **time** (além de por pessoa e global), adicionando `team_id` em `tactical_goals`. Precedência: pessoa → time → global.
+
+## Métrica de recuperação do CS
+
+Nova métrica `clientes_recuperados` (time CS, meta ex.: 10/dia), com fonte híbrida:
+- **Automático:** conversões do Stripe marcadas como `is_reactivation`, atribuídas ao responsável e contadas no dia da conversão. (Hoje há apenas 3 registros marcados na base — o volume deve crescer conforme novas reativações entram; não haverá histórico retroativo relevante.)
+- **Manual:** o colaborador lança recuperações do dia pelo diálogo "Lançar realizado"; os dois somam no total do dia.
+
+Para isso, `tactical_metrics.source` ganha o valor `stripe_reactivation`, e o `ManualEntryDialog` passa a permitir lançamento manual nessa métrica (hoje bloqueia tudo que vem do Stripe — o bloqueio continua só para `stripe_mrr` e `stripe_deals`).
+
+## Detalhes técnicos
+
+**Migração**
+- `alter table tactical_metrics add column team_id uuid references teams(id)`
+- `alter table tactical_goals add column team_id uuid references teams(id)`
+- Seed da métrica `clientes_recuperados` (source `stripe_reactivation`, unidade count, time CS) e vínculo das métricas atuais aos times (vendas/MRR/mensagens → Sales; recuperação → CS).
+- RLS/GRANTs existentes das tabelas continuam válidos (colunas novas apenas).
+
+**Dados** (`useTacticalData.ts`)
+- Buscar `team_members` e incluir `team_id` em métricas/metas.
+- Agregar reativações: `stripe_conversions` com `is_reactivation = true` por `assigned_seller_id` e dia.
+- Manter entradas manuais somando às fontes automáticas (não mais ignoradas quando a métrica é `stripe_reactivation`).
+
+**Componentes** (`src/components/goals/tactical/`)
+- `MissionToday.tsx` (novo) — substitui `SellerDailyCards.tsx`, cards grandes com anel de progresso (SVG), "faltam X", streak e copy motivacional.
+- `TeamScoreboard.tsx` (novo) — substitui `TacticalLeaderboard.tsx`, ranking do dia com barras vs. meta e agregado do time.
+- `ActivityHeatmap.tsx` — reduzido para 30 dias úteis e visual mais compacto.
+- `TacticalTracking.tsx` — novo layout em duas colunas, seletor de time (admin), config recolhida.
+- `TacticalGoalsManager.tsx` — escopo da meta: Equipe toda / Time / Pessoa.
+- `types.ts` — `team_id` nos tipos, `source` com `stripe_reactivation`, helper de precedência de meta e de copy motivacional.
+
+Tudo com tokens semânticos do design system (sem cores hardcoded), tipografia Sora/Manrope já em uso, e textos em PT-BR.
