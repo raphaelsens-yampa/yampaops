@@ -122,7 +122,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
       <CardHeader className="pb-3 space-y-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Trophy className="h-4 w-4 text-warning" />
-          Placar {teamName ? `do time ${teamName}` : "da equipe"} · hoje
+          Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje
         </CardTitle>
         <Select value={metricId} onValueChange={setMetricId}>
           <SelectTrigger><SelectValue placeholder="Métrica" /></SelectTrigger>
