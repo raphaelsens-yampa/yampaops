@@ -78,6 +78,19 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     others.push({ id: "recuperados-card", label: "Clientes recuperados", unit: "count", value: recValue });
   }
 
+  // MRR separado por origem (vendas x recuperações)
+  const sumVirtual = (vid: string) =>
+    daily
+      .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && x.metric_id === vid)
+      .reduce((s, x) => s + (x.value ?? 0), 0);
+  const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
+  const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
+  if (mrrSales > 0 || mrrRecovery > 0) {
+    others.push({ id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency", value: mrrSales });
+    others.push({ id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency", value: mrrRecovery });
+  }
+
+
   const othersGridClass =
     others.length === 1
       ? "grid-cols-1"
