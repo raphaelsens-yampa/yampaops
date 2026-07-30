@@ -78,19 +78,22 @@ export function TacticalTracking() {
               <Select value={teamId} onValueChange={setTeamId}>
                 <SelectTrigger className="w-44"><SelectValue placeholder="Time" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={ALL_TEAMS}>Visão Geral</SelectItem>
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>Time {t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={focusUser} onValueChange={setFocusUser}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
-                <SelectContent>
-                  {memberIds.map((uid) => (
-                    <SelectItem key={uid} value={uid}>
-                      {profiles.find((p) => p.user_id === uid)?.full_name || "—"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!isOverview && (
+                <Select value={focusUser} onValueChange={setFocusUser}>
+                  <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                  <SelectContent>
+                    {memberIds.map((uid) => (
+                      <SelectItem key={uid} value={uid}>
+                        {profiles.find((p) => p.user_id === uid)?.full_name || "—"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
@@ -104,16 +107,28 @@ export function TacticalTracking() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <div className="space-y-4">
-          <MissionToday
-            userId={focusUser}
-            userName={focusName}
-            teamId={teamId || null}
-            teamName={activeTeam?.name ?? null}
-            metrics={teamMetrics}
-            goals={goals}
-            daily={daily}
-            today={today}
-          />
+          {isOverview ? (
+            <TacticalOverview
+              metrics={teamMetrics}
+              goals={goals}
+              daily={daily}
+              memberIds={memberIds}
+              members={members}
+              teams={teams}
+              today={today}
+            />
+          ) : (
+            <MissionToday
+              userId={focusUser}
+              userName={focusName}
+              teamId={teamId || null}
+              teamName={activeTeam?.name ?? null}
+              metrics={teamMetrics}
+              goals={goals}
+              daily={daily}
+              today={today}
+            />
+          )}
           {!isAdmin && (
             <ManualEntryDialog metrics={teamMetrics} onSaved={() => setReloadKey((k) => k + 1)} />
           )}
@@ -125,10 +140,14 @@ export function TacticalTracking() {
           daily={daily}
           profiles={profiles}
           memberIds={memberIds}
-          teamId={teamId || null}
+          teamId={isOverview ? null : teamId || null}
           teamName={activeTeam?.name ?? null}
           today={today}
+          groupByTeam={isOverview}
+          teams={teams}
+          members={members}
         />
+
       </div>
 
       <ActivityHeatmap
