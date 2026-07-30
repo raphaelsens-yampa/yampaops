@@ -193,9 +193,14 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
                 <TableCell className="text-right">{g.daily_target}</TableCell>
                 <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => del(g.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" aria-label="Editar meta" onClick={() => startEdit(g)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" aria-label="Excluir meta" onClick={() => del(g.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -205,6 +210,91 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar meta diária</DialogTitle>
+            <DialogDescription>Ajuste métrica, escopo, meta por dia e período de vigência.</DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Métrica</Label>
+                <Select value={editing.metric_id} onValueChange={(v) => setEditing({ ...editing, metric_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Escopo</Label>
+                <Select
+                  value={editing.scope}
+                  onValueChange={(v) => setEditing({ ...editing, scope: v as EditForm["scope"] })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Equipe toda</SelectItem>
+                    <SelectItem value="team">Time</SelectItem>
+                    <SelectItem value="user">Pessoa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editing.scope !== "all" && (
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">{editing.scope === "user" ? "Pessoa" : "Time"}</Label>
+                  {editing.scope === "user" ? (
+                    <Select value={editing.user_id} onValueChange={(v) => setEditing({ ...editing, user_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select value={editing.team_id} onValueChange={(v) => setEditing({ ...editing, team_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs">Meta/dia</Label>
+                <Input
+                  type="number"
+                  value={editing.daily_target}
+                  onChange={(e) => setEditing({ ...editing, daily_target: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Início</Label>
+                <Input
+                  type="date"
+                  value={editing.period_start}
+                  onChange={(e) => setEditing({ ...editing, period_start: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Fim</Label>
+                <Input
+                  type="date"
+                  value={editing.period_end}
+                  onChange={(e) => setEditing({ ...editing, period_end: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={saving}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Card>
   );
 }
