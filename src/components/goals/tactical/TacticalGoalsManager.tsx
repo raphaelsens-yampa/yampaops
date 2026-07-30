@@ -20,7 +20,21 @@ interface Props {
   onChanged: () => void;
 }
 
+interface EditForm {
+  id: string;
+  metric_id: string;
+  scope: "all" | "team" | "user";
+  team_id: string;
+  user_id: string;
+  daily_target: string;
+  period_start: string;
+  period_end: string;
+}
+
 export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChanged }: Props) {
+  const [editing, setEditing] = useState<EditForm | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const { toast } = useToast();
   const [metricId, setMetricId] = useState("");
   const [scope, setScope] = useState<"all" | "team" | "user">("team");
