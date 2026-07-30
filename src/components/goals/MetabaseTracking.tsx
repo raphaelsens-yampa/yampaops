@@ -528,7 +528,7 @@ export function MetabaseTracking() {
       <Collapsible defaultOpen>
         <Card>
           <CollapsibleTrigger asChild>
-            <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors">
+            <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors group">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Filtros</CardTitle>
                 <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
