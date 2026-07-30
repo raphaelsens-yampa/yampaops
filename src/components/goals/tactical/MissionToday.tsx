@@ -77,8 +77,19 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
 
   const stripeKeys = ["mrr_dia", "vendas_dia"];
   const withGoal = rows.filter((r) => r.target > 0);
-  const others = rows.filter((r) => r.target <= 0 || stripeKeys.includes(r.m.key));
+  const others = rows.filter(
+    (r) => (r.target <= 0 || stripeKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0),
+  );
+  const othersGridClass =
+    others.length === 1
+      ? "grid-cols-1"
+      : others.length === 2
+        ? "grid-cols-2"
+        : others.length === 3
+          ? "grid-cols-2 sm:grid-cols-3"
+          : "grid-cols-2 md:grid-cols-4";
   const done = withGoal.filter((r) => r.missing === 0).length;
+
 
 
 
