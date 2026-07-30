@@ -16,6 +16,8 @@ interface Props {
   teamId: string | null;
   teamName: string | null;
   metrics: TacticalMetric[];
+  allMetrics?: TacticalMetric[];
+
   goals: TacticalGoal[];
   daily: DailyDatum[];
   today: Date;
