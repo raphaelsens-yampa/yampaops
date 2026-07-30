@@ -102,10 +102,16 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
   if (mrrSales > 0 || mrrRecovery > 0) {
-    others.push({ id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency", value: mrrSales });
-    others.push({ id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency", value: mrrRecovery });
-  }
+    const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
+    const salesCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency" as const, value: mrrSales };
+    if (idxVendas >= 0) others.splice(idxVendas + 1, 0, salesCard);
+    else others.push(salesCard);
 
+    const idxRec = others.findIndex((o) => o.label.toLowerCase().includes("recuperad") && o.unit !== "currency");
+    const recCard = { id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency" as const, value: mrrRecovery };
+    if (idxRec >= 0) others.splice(idxRec + 1, 0, recCard);
+    else others.push(recCard);
+  }
 
   const othersGridClass =
     others.length === 1
@@ -114,7 +120,12 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
         ? "grid-cols-2"
         : others.length === 3
           ? "grid-cols-2 sm:grid-cols-3"
-          : "grid-cols-2 md:grid-cols-4";
+          : others.length === 4
+            ? "grid-cols-2 md:grid-cols-4"
+            : others.length % 3 === 0
+              ? "grid-cols-2 sm:grid-cols-3"
+              : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5";
+
   const done = withGoal.filter((r) => r.missing === 0).length;
 
 
