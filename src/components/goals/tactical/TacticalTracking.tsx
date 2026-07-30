@@ -156,14 +156,14 @@ export function TacticalTracking() {
         daily={daily}
         profiles={profiles}
         memberIds={memberIds}
-        teamId={teamId || null}
+        teamId={isOverview ? null : teamId || null}
         today={today}
       />
 
       <TeamConversionsTable
         memberIds={memberIds}
         profiles={profiles}
-        teamName={activeTeam?.name ?? null}
+        teamName={isOverview ? "Visão Geral" : activeTeam?.name ?? null}
         today={today}
       />
 
@@ -171,7 +171,8 @@ export function TacticalTracking() {
         memberIds={memberIds}
         profiles={profiles}
         metrics={teamMetrics}
-        teamName={activeTeam?.name ?? null}
+        teamName={isOverview ? "Visão Geral" : activeTeam?.name ?? null}
+
         today={today}
         refreshKey={reloadKey}
       />
