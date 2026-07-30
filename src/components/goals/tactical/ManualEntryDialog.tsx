@@ -8,17 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TacticalMetric, toBRDateKey } from "./types";
+import { TacticalMetric, Profile, toBRDateKey } from "./types";
 
 interface Props {
   metrics: TacticalMetric[];
+  profiles?: Profile[];
+  memberIds?: string[];
+  defaultUserId?: string;
   onSaved: () => void;
 }
 
-export function ManualEntryDialog({ metrics, onSaved }: Props) {
+export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defaultUserId, onSaved }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [ownerId, setOwnerId] = useState<string>(defaultUserId || "");
   const [metricId, setMetricId] = useState<string>("");
   const [date, setDate] = useState<string>(toBRDateKey(new Date()));
   const [value, setValue] = useState<string>("");

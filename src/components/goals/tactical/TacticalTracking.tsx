@@ -80,7 +80,7 @@ export function TacticalTracking() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <ManualEntryDialog metrics={teamMetrics} onSaved={() => setReloadKey((k) => k + 1)} />
+              <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
               <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
                 <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
               </Button>
