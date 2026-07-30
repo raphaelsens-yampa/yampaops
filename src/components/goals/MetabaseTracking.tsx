@@ -671,8 +671,25 @@ export function MetabaseTracking() {
         const monthRow = chartData[currentMonthIdx];
         const monthTarget = monthRow?.Meta || 0;
         const monthRealized = monthRow?.Realizado || 0;
+        const monthGap = monthTarget - monthRealized;
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
         const monthLabel = MONTHS[currentMonthIdx];
+        const periodGap = totalPeriodTarget - totalRealized;
+        const isLessBetter = !!selectedCat && isBetterBelow(selectedCat.goal_direction);
+        const gapColor = (gap: number) => {
+          if (gap === 0) return "text-muted-foreground";
+          if (isLessBetter) {
+            return gap > 0 ? "text-emerald-600" : "text-rose-500";
+          }
+          return gap > 0 ? "text-rose-500" : "text-emerald-600";
+        };
+        const gapLabel = (gap: number) => {
+          if (gap === 0) return "Na meta";
+          if (isLessBetter) {
+            return gap > 0 ? "Dentro da meta" : "Acima do limite";
+          }
+          return gap > 0 ? "Faltam" : "Acima da meta";
+        };
         return (
           <>
             <div className="flex items-center justify-end gap-2">
@@ -697,7 +714,7 @@ export function MetabaseTracking() {
               </div>
             </div>
             {kpiView === "month" ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-primary/40"><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Mês ({monthLabel})</p>
                   <p className="text-2xl font-bold">{kpiFmt(monthTarget)}</p>
@@ -707,12 +724,17 @@ export function MetabaseTracking() {
                   <p className="text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo para Meta</p>
+                  <p className={`text-2xl font-bold ${gapColor(monthGap)}`}>{kpiFmt(monthGap)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(monthPct, false)}`}>{monthPct.toFixed(1)}%</p>
+                  <p className={`text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card className="border-primary/40"><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
                   <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
@@ -730,8 +752,13 @@ export function MetabaseTracking() {
                   <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo para Meta</p>
+                  <p className={`text-2xl font-bold ${gapColor(periodGap)}`}>{kpiFmt(periodGap)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(periodGap)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
+                  <p className={`text-2xl font-bold ${pctColor(totalPct, isLessBetter)}`}>{totalPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             )}
