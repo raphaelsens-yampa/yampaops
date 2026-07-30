@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings2 } from "lucide-react";
+import { Settings2, RefreshCw } from "lucide-react";
 import { useTacticalData } from "./useTacticalData";
 import { MissionToday } from "./MissionToday";
 import { TeamScoreboard } from "./TeamScoreboard";
@@ -71,6 +71,12 @@ export function TacticalTracking() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
+          <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
+        </Button>
+      </div>
+
       {isAdmin && (
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
