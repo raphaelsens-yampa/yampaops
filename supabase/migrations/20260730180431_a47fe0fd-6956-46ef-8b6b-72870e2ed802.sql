@@ -1,0 +1,1 @@
+UPDATE public.tactical_metrics SET team_id = NULL, updated_at = now() WHERE key IN ('mrr_dia','vendas_dia');
