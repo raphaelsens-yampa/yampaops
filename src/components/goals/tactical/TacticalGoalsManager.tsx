@@ -56,6 +56,56 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
     onChanged();
   }
 
+  function startEdit(g: TacticalGoal) {
+    setEditing({
+      id: g.id,
+      metric_id: g.metric_id,
+      scope: g.user_id ? "user" : g.team_id ? "team" : "all",
+      team_id: g.team_id || "",
+      user_id: g.user_id || "",
+      daily_target: String(g.daily_target ?? ""),
+      period_start: String(g.period_start).slice(0, 10),
+      period_end: String(g.period_end).slice(0, 10),
+    });
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    if (!editing.metric_id || !editing.daily_target || !editing.period_start || !editing.period_end) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    if (editing.scope === "team" && !editing.team_id) {
+      toast({ title: "Selecione o time", variant: "destructive" });
+      return;
+    }
+    if (editing.scope === "user" && !editing.user_id) {
+      toast({ title: "Selecione a pessoa", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("tactical_goals")
+      .update({
+        metric_id: editing.metric_id,
+        user_id: editing.scope === "user" ? editing.user_id : null,
+        team_id: editing.scope === "team" ? editing.team_id : null,
+        daily_target: parseFloat(editing.daily_target),
+        period_start: editing.period_start,
+        period_end: editing.period_end,
+      } as any)
+      .eq("id", editing.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditing(null);
+    onChanged();
+    toast({ title: "Meta diária atualizada" });
+  }
+
+
   function scopeLabel(g: TacticalGoal) {
     if (g.user_id) return profiles.find((p) => p.user_id === g.user_id)?.full_name || "—";
     if (g.team_id) return `Time ${teams.find((t) => t.id === g.team_id)?.name ?? "—"}`;
