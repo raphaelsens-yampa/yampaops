@@ -106,7 +106,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       const weekly: typeof points = [];
       points.forEach((p, i) => {
         const day = new Date(`${p.dateKey}T00:00:00`).getDay();
-        if (day === 0 || i === points.length - 1) weekly.push(p);
+        if (i === 0 || day === 0 || i === points.length - 1) weekly.push(p);
       });
       return weekly.length ? weekly : points;
     }
