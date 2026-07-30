@@ -81,7 +81,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
   const withGoal = rows.filter((r) => r.target > 0);
-  const others: { id: string; label: string; unit: string; value: number }[] = rows
+  const others: { id: string; label: string; unit: TacticalMetric["unit"]; value: number }[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
     .map((r) => ({ id: r.m.id, label: r.m.label, unit: r.m.unit, value: r.realized }));
 
