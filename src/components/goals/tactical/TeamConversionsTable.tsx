@@ -28,11 +28,13 @@ export function TeamConversionsTable({
   profiles,
   teamName,
   today,
+  refreshKey = 0,
 }: {
   memberIds: string[];
   profiles: Profile[];
   teamName: string | null;
   today: Date;
+  refreshKey?: number;
 }) {
   const [days, setDays] = useState("30");
   const [query, setQuery] = useState("");
@@ -91,7 +93,7 @@ export function TeamConversionsTable({
     }
     load();
     return () => { cancelled = true; };
-  }, [days, memberIds.join(","), today.getTime()]);
+  }, [days, memberIds.join(","), today.getTime(), refreshKey]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
