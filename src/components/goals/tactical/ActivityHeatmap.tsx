@@ -1,61 +1,53 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DailyDatum, TacticalMetric, formatMetric, toBRDateKey } from "./types";
+import { DailyDatum, Profile, TacticalGoal, TacticalMetric, formatMetric, resolveDailyTarget, toBRDateKey } from "./types";
 
 interface Props {
   metrics: TacticalMetric[];
+  goals: TacticalGoal[];
   daily: DailyDatum[];
-  profiles: { user_id: string; full_name: string | null }[];
+  profiles: Profile[];
+  memberIds: string[];
+  teamId: string | null;
   today: Date;
 }
 
-const DAYS = 90;
+const BUSINESS_DAYS = 30;
 
-export function ActivityHeatmap({ metrics, daily, profiles, today }: Props) {
+export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, teamId, today }: Props) {
   const [metricId, setMetricId] = useState<string>(metrics[0]?.id ?? "");
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
 
-  const { dates, matrix, max, activeUsers } = useMemo(() => {
-    const dates: string[] = [];
+  const dates = useMemo(() => {
+    const out: string[] = [];
     const d = new Date(today); d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - (DAYS - 1));
-    for (let i = 0; i < DAYS; i++) {
-      dates.push(toBRDateKey(d));
-      d.setDate(d.getDate() + 1);
+    while (out.length < BUSINESS_DAYS) {
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) out.unshift(toBRDateKey(d));
+      d.setDate(d.getDate() - 1);
     }
-    const matrix = new Map<string, Map<string, number>>();
-    let max = 0;
-    if (metric) {
-      for (const row of daily) {
-        if (row.metric_id !== metric.id) continue;
-        if (!dates.includes(row.date)) continue;
-        if (!matrix.has(row.user_id)) matrix.set(row.user_id, new Map());
-        matrix.get(row.user_id)!.set(row.date, (matrix.get(row.user_id)!.get(row.date) ?? 0) + row.value);
-        if (row.value > max) max = row.value;
-      }
-    }
-    const activeUsers = Array.from(matrix.keys()).sort((a, b) => {
-      const na = profiles.find((p) => p.user_id === a)?.full_name || "";
-      const nb = profiles.find((p) => p.user_id === b)?.full_name || "";
-      return na.localeCompare(nb);
-    });
-    return { dates, matrix, max, activeUsers };
-  }, [metric, daily, profiles, today]);
+    return out;
+  }, [today]);
 
-  function intensity(v: number): string {
-    if (!v || max === 0) return "bg-muted";
-    const r = v / max;
-    if (r > 0.75) return "bg-primary";
-    if (r > 0.5) return "bg-primary/70";
-    if (r > 0.25) return "bg-primary/40";
-    return "bg-primary/20";
+  const users = memberIds.length ? memberIds : Array.from(new Set(daily.map((d) => d.user_id)));
+
+  function cellClass(v: number, target: number): string {
+    if (!v) return "bg-muted";
+    if (target > 0) {
+      const r = v / target;
+      if (r >= 1) return "bg-success";
+      if (r >= 0.66) return "bg-primary";
+      if (r >= 0.33) return "bg-primary/50";
+      return "bg-primary/25";
+    }
+    return "bg-primary/50";
   }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-base">Heatmap — últimos {DAYS} dias</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-3">
+        <CardTitle className="text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
         <Select value={metricId} onValueChange={setMetricId}>
           <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -63,23 +55,24 @@ export function ActivityHeatmap({ metrics, daily, profiles, today }: Props) {
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent>
-        {activeUsers.length === 0 && <p className="text-sm text-muted-foreground">Sem dados no período.</p>}
+      <CardContent className="space-y-3">
         <div className="space-y-2 overflow-x-auto">
-          {activeUsers.map((uid) => {
+          {users.map((uid) => {
             const name = profiles.find((p) => p.user_id === uid)?.full_name || "—";
-            const row = matrix.get(uid)!;
+            const target = metric ? resolveDailyTarget(goals, metric.id, uid, teamId) : 0;
             return (
               <div key={uid} className="flex items-center gap-2">
-                <span className="w-32 text-xs truncate">{name}</span>
-                <div className="flex gap-[2px]">
+                <span className="w-32 text-xs truncate shrink-0">{name}</span>
+                <div className="flex gap-1">
                   {dates.map((dk) => {
-                    const v = row.get(dk) ?? 0;
+                    const v = metric
+                      ? daily.find((x) => x.user_id === uid && x.metric_id === metric.id && x.date === dk)?.value ?? 0
+                      : 0;
                     return (
                       <div
                         key={dk}
-                        title={`${dk}: ${metric ? formatMetric(v, metric.unit) : v}`}
-                        className={`w-2.5 h-2.5 rounded-sm ${intensity(v)}`}
+                        title={`${dk}: ${metric ? formatMetric(v, metric.unit) : v}${target ? ` (meta ${formatMetric(target, metric!.unit)})` : ""}`}
+                        className={`w-3.5 h-3.5 rounded-sm ${cellClass(v, target)}`}
                       />
                     );
                   })}
@@ -87,6 +80,16 @@ export function ActivityHeatmap({ metrics, daily, profiles, today }: Props) {
               </div>
             );
           })}
+          {users.length === 0 && <p className="text-sm text-muted-foreground">Sem dados no período.</p>}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Menos</span>
+          <span className="w-3 h-3 rounded-sm bg-muted" />
+          <span className="w-3 h-3 rounded-sm bg-primary/25" />
+          <span className="w-3 h-3 rounded-sm bg-primary/50" />
+          <span className="w-3 h-3 rounded-sm bg-primary" />
+          <span className="w-3 h-3 rounded-sm bg-success" />
+          <span>Meta batida</span>
         </div>
       </CardContent>
     </Card>

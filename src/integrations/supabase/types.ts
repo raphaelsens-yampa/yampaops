@@ -3443,6 +3443,7 @@ export type Database = {
           metric_id: string
           period_end: string
           period_start: string
+          team_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -3455,6 +3456,7 @@ export type Database = {
           metric_id: string
           period_end: string
           period_start: string
+          team_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3467,6 +3469,7 @@ export type Database = {
           metric_id?: string
           period_end?: string
           period_start?: string
+          team_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3476,6 +3479,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "tactical_metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tactical_goals_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -3531,6 +3541,7 @@ export type Database = {
           label: string
           sort_order: number
           source: string
+          team_id: string | null
           unit: string
           updated_at: string
         }
@@ -3543,6 +3554,7 @@ export type Database = {
           label: string
           sort_order?: number
           source: string
+          team_id?: string | null
           unit?: string
           updated_at?: string
         }
@@ -3555,10 +3567,19 @@ export type Database = {
           label?: string
           sort_order?: number
           source?: string
+          team_id?: string | null
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tactical_metrics_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tags: {
         Row: {
