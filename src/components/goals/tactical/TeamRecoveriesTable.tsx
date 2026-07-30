@@ -4,10 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Pencil, Trash2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { parseDateBR } from "@/lib/dateBR";
 import { Profile, TacticalMetric, toBRDateKey } from "./types";
 import { RecoveryEntryDialog } from "./RecoveryEntryDialog";
+import { RecoveryEditDialog, EditableRecovery } from "./RecoveryEditDialog";
 
 interface Row {
   id: string;
@@ -20,11 +34,15 @@ interface Row {
   seller_id: string | null;
   origin: "stripe" | "manual" | "import";
   qty: number;
+  rawId?: string;
+  kind?: "recovery" | "manual_entry";
+  note?: string | null;
 }
 
 function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 }
+
 
 export function TeamRecoveriesTable({
   memberIds,
