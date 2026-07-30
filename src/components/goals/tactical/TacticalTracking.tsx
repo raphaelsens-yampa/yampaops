@@ -127,6 +127,14 @@ export function TacticalTracking() {
         today={today}
       />
 
+      <TeamConversionsTable
+        memberIds={memberIds}
+        profiles={profiles}
+        teamName={activeTeam?.name ?? null}
+        today={today}
+      />
+
+
       {isAdmin && showConfig && (
         <TacticalGoalsManager
           metrics={metrics}
