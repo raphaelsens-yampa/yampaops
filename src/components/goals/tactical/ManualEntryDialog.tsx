@@ -72,6 +72,19 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
             <p className="text-xs text-muted-foreground mt-1">Vendas e MRR do dia são calculados automaticamente pelo Stripe. Recuperações do CS somam o automático (reativações) com o que você lançar aqui.</p>
 
           </div>
+          {teamProfiles.length > 0 && (
+            <div>
+              <Label>Responsável</Label>
+              <Select value={ownerId} onValueChange={setOwnerId}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {teamProfiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div>
             <Label>{isRecuperados ? "Quantidade de clientes" : "Valor"}</Label>
