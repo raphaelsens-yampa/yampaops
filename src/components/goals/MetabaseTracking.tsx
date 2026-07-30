@@ -734,7 +734,7 @@ export function MetabaseTracking() {
                 </CardContent></Card>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card className="border-primary/40"><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
                   <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
@@ -752,8 +752,13 @@ export function MetabaseTracking() {
                   <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo para Meta</p>
+                  <p className={`text-2xl font-bold ${gapColor(periodGap)}`}>{kpiFmt(periodGap)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(periodGap)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(totalPct, false)}`}>{totalPct.toFixed(1)}%</p>
+                  <p className={`text-2xl font-bold ${pctColor(totalPct, isLessBetter)}`}>{totalPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             )}
