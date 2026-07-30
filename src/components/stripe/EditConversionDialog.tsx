@@ -59,7 +59,18 @@ function toDateInput(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
+  // Exibe sempre no fuso de São Paulo (UTC-3)
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+// Converte "YYYY-MM-DD" do input para meia-noite em São Paulo (UTC-3)
+function fromDateInputSP(v: string) {
+  return v ? new Date(`${v}T00:00:00-03:00`).toISOString() : null;
 }
 
 export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }: Props) {
@@ -136,8 +147,8 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
           mrr_net: mrrNetNum,
           plan_name: planName || null,
           product_name: productName || null,
-          converted_at: convertedAt ? new Date(convertedAt).toISOString() : null,
-          registered_at: registeredAt ? new Date(registeredAt).toISOString() : null,
+          converted_at: fromDateInputSP(convertedAt),
+          registered_at: fromDateInputSP(registeredAt),
           conversion_type: conversionType,
           previous_mrr: isFinite(prevMrrNum) ? prevMrrNum : 0,
           assigned_seller_id: assignedSeller === "__none__" ? null : assignedSeller,
