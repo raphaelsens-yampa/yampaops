@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,8 +26,17 @@ interface Props {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
+function defaultMetricId(metrics: TacticalMetric[], teamName: string | null) {
+  const name = (teamName ?? "").toLowerCase();
+  const preferredKey = name.includes("sales") || name.includes("vendas") ? "vendas_dia" : "clientes_recuperados";
+  return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
+}
+
 export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today }: Props) {
-  const [metricId, setMetricId] = useState<string>(metrics[0]?.id ?? "");
+  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName));
+  useEffect(() => {
+    setMetricId(defaultMetricId(metrics, teamName));
+  }, [teamId, teamName, metrics]);
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
 
   const { rows, teamToday, teamTarget, weekRealized, weekTarget } = useMemo(() => {
