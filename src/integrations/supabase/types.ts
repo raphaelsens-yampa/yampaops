@@ -3584,6 +3584,54 @@ export type Database = {
           },
         ]
       }
+      tactical_recoveries: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_email: string | null
+          customer_name: string | null
+          id: string
+          mrr: number
+          note: string | null
+          plan_name: string | null
+          price: number
+          recovered_at: string
+          seller_id: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          id?: string
+          mrr?: number
+          note?: string | null
+          plan_name?: string | null
+          price?: number
+          recovered_at?: string
+          seller_id?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          id?: string
+          mrr?: number
+          note?: string | null
+          plan_name?: string | null
+          price?: number
+          recovered_at?: string
+          seller_id?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string

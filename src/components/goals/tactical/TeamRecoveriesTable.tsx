@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseDateBR } from "@/lib/dateBR";
 import { Profile, TacticalMetric, toBRDateKey } from "./types";
+import { RecoveryEntryDialog } from "./RecoveryEntryDialog";
 
 interface Row {
   id: string;
@@ -17,7 +18,7 @@ interface Row {
   price: number;
   mrr: number;
   seller_id: string | null;
-  origin: "stripe" | "manual";
+  origin: "stripe" | "manual" | "import";
   qty: number;
 }
 
@@ -44,6 +45,7 @@ export function TeamRecoveriesTable({
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [localRefresh, setLocalRefresh] = useState(0);
 
   const recoveryMetricIds = useMemo(
     () =>
@@ -63,7 +65,7 @@ export function TeamRecoveriesTable({
       const to = new Date(today);
       to.setHours(23, 59, 59, 999);
 
-      const [convRes, manualRes] = await Promise.all([
+      const [convRes, manualRes, recRes] = await Promise.all([
         supabase
           .from("stripe_conversions")
           .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, assigned_seller_id")
@@ -80,6 +82,12 @@ export function TeamRecoveriesTable({
               .lte("entry_date", toBRDateKey(to))
               .order("entry_date", { ascending: false })
           : Promise.resolve({ data: [] as any[] }),
+        supabase
+          .from("tactical_recoveries")
+          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source")
+          .gte("recovered_at", toBRDateKey(from))
+          .lte("recovered_at", toBRDateKey(to))
+          .order("recovered_at", { ascending: false }),
       ]);
 
       if (cancelled) return;
@@ -116,6 +124,22 @@ export function TeamRecoveriesTable({
         });
       }
 
+      for (const r of (recRes as any).data || []) {
+        if (memberIds.length && r.seller_id && !memberIds.includes(r.seller_id)) continue;
+        list.push({
+          id: `r-${r.id}`,
+          email: r.customer_email,
+          name: r.customer_name,
+          plan: r.plan_name,
+          date: r.recovered_at,
+          price: Number(r.price || 0),
+          mrr: Number(r.mrr || 0),
+          seller_id: r.seller_id,
+          origin: r.source === "import" ? "import" : "manual",
+          qty: 1,
+        });
+      }
+
       const emails = Array.from(new Set(list.map((r) => r.email).filter(Boolean))) as string[];
       if (emails.length) {
         const { data: contacts } = await supabase
@@ -137,7 +161,7 @@ export function TeamRecoveriesTable({
     }
     load();
     return () => { cancelled = true; };
-  }, [days, memberIds.join(","), recoveryMetricIds.join(","), today.getTime(), refreshKey]);
+  }, [days, memberIds.join(","), recoveryMetricIds.join(","), today.getTime(), refreshKey, localRefresh]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -181,6 +205,12 @@ export function TeamRecoveriesTable({
             </SelectContent>
           </Select>
           <Badge variant="secondary">{totalQty} recuperados</Badge>
+          <RecoveryEntryDialog
+            profiles={profiles}
+            memberIds={memberIds}
+            today={today}
+            onSaved={() => setLocalRefresh((k) => k + 1)}
+          />
         </div>
       </CardHeader>
       <CardContent>
@@ -209,9 +239,9 @@ export function TeamRecoveriesTable({
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">
                       {r.name || "—"}
-                      {r.origin === "manual" && (
+                      {r.origin !== "stripe" && (
                         <Badge variant="outline" className="ml-2">
-                          Manual · {r.qty}
+                          {r.origin === "import" ? "Importado" : "Manual"}
                         </Badge>
                       )}
                     </TableCell>
