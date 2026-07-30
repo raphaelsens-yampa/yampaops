@@ -32,11 +32,13 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRecuperados = selectedMetric?.key === "clientes_recuperados";
 
+  const teamProfiles = profiles.filter((p) => !memberIds.length || memberIds.includes(p.user_id));
+
   async function save() {
     if (!metricId || !value || !user) return;
     const { error } = await supabase.from("tactical_manual_entries").insert({
       metric_id: metricId,
-      user_id: user.id,
+      user_id: ownerId || user.id,
       entry_date: date,
       value: parseFloat(value),
       mrr_value: isRecuperados && mrrValue ? parseFloat(mrrValue) : 0,
