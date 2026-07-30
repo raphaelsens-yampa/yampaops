@@ -8,10 +8,12 @@ import {
   Profile,
   TacticalGoal,
   TacticalMetric,
+  Team,
   formatMetric,
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
+import type { TeamMember } from "./useTacticalData";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -22,22 +24,30 @@ interface Props {
   teamId: string | null;
   teamName: string | null;
   today: Date;
+  groupByTeam?: boolean;
+  teams?: Team[];
+  members?: TeamMember[];
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-function defaultMetricId(metrics: TacticalMetric[], teamName: string | null) {
+function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, groupByTeam?: boolean) {
   const name = (teamName ?? "").toLowerCase();
-  const preferredKey = name.includes("sales") || name.includes("vendas") ? "vendas_dia" : "clientes_recuperados";
+  const preferredKey = groupByTeam
+    ? "vendas_dia"
+    : name.includes("sales") || name.includes("vendas")
+      ? "vendas_dia"
+      : "clientes_recuperados";
   return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
 }
 
-export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today }: Props) {
-  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName));
+export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [] }: Props) {
+  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
   useEffect(() => {
-    setMetricId(defaultMetricId(metrics, teamName));
-  }, [teamId, teamName, metrics]);
+    setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
+  }, [teamId, teamName, metrics, groupByTeam]);
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
+
 
   const { rows, teamToday, teamTarget, weekRealized, weekTarget } = useMemo(() => {
     const todayKey = toBRDateKey(today);
@@ -50,8 +60,11 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
       d.setDate(d.getDate() + 1);
     }
 
-    const rows = memberIds.map((uid) => {
-      const target = metric ? resolveDailyTarget(goals, metric.id, uid, teamId) : 0;
+    const teamOf = new Map(members.map((m) => [m.user_id, m.team_id]));
+
+    const userRows = memberIds.map((uid) => {
+      const scopeTeam = groupByTeam ? teamOf.get(uid) ?? null : teamId;
+      const target = metric ? resolveDailyTarget(goals, metric.id, uid, scopeTeam) : 0;
       const value = metric
         ? daily.find((x) => x.user_id === uid && x.metric_id === metric.id && x.date === todayKey)?.value ?? 0
         : 0;
@@ -62,6 +75,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
         : 0;
       return {
         uid,
+        teamId: scopeTeam,
         name: profiles.find((p) => p.user_id === uid)?.full_name || "—",
         value,
         target,
@@ -69,7 +83,26 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
         pct: target > 0 ? Math.min((value / target) * 100, 100) : value > 0 ? 100 : 0,
       };
     });
-    rows.sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+
+    let rows = userRows;
+    if (groupByTeam) {
+      const agg = new Map<string, { uid: string; name: string; value: number; target: number; week: number; pct: number }>();
+      for (const r of userRows) {
+        const key = r.teamId ?? "sem-time";
+        const label = teams.find((t) => t.id === r.teamId)?.name ?? "Sem time";
+        const prev = agg.get(key) ?? { uid: key, name: `Time ${label}`, value: 0, target: 0, week: 0, pct: 0 };
+        prev.value += r.value;
+        prev.target += r.target;
+        prev.week += r.week;
+        agg.set(key, prev);
+      }
+      rows = Array.from(agg.values()).map((r) => ({
+        ...r,
+        teamId: null as string | null,
+        pct: r.target > 0 ? Math.min((r.value / r.target) * 100, 100) : r.value > 0 ? 100 : 0,
+      }));
+    }
+    rows = [...rows].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 
     const teamToday = rows.reduce((s, r) => s + r.value, 0);
     const teamTarget = rows.reduce((s, r) => s + r.target, 0);
@@ -79,7 +112,8 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
       return dt.getDay() !== 0 && dt.getDay() !== 6;
     }).length;
     return { rows, teamToday, teamTarget, weekRealized, weekTarget: teamTarget * businessDaysSoFar };
-  }, [metric, goals, daily, profiles, memberIds, teamId, today]);
+  }, [metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members]);
+
 
   const unit = metric?.unit ?? "count";
 
@@ -88,7 +122,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
       <CardHeader className="pb-3 space-y-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Trophy className="h-4 w-4 text-warning" />
-          Placar {teamName ? `do time ${teamName}` : "da equipe"} · hoje
+          Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje
         </CardTitle>
         <Select value={metricId} onValueChange={setMetricId}>
           <SelectTrigger><SelectValue placeholder="Métrica" /></SelectTrigger>

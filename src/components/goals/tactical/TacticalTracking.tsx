@@ -12,7 +12,10 @@ import { TeamConversionsTable } from "./TeamConversionsTable";
 import { TeamRecoveriesTable } from "./TeamRecoveriesTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
+import { TacticalOverview } from "./TacticalOverview";
 import { metricsForTeam } from "./types";
+
+const ALL_TEAMS = "__all__";
 
 export function TacticalTracking() {
   const { user, role } = useAuth();
@@ -26,6 +29,8 @@ export function TacticalTracking() {
 
   const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
 
+  const isOverview = teamId === ALL_TEAMS;
+
   const myTeamId = useMemo(
     () => members.find((m) => m.user_id === user?.id)?.team_id ?? null,
     [members, user],
@@ -37,20 +42,28 @@ export function TacticalTracking() {
     else if (isAdmin && teams.length) setTeamId(teams[0].id);
   }, [myTeamId, teams, isAdmin, teamId]);
 
-  const activeTeam = teams.find((t) => t.id === teamId) ?? null;
+  const activeTeam = isOverview ? null : teams.find((t) => t.id === teamId) ?? null;
   const memberIds = useMemo(
-    () => members.filter((m) => m.team_id === teamId).map((m) => m.user_id),
-    [members, teamId],
+    () =>
+      isOverview
+        ? Array.from(new Set(members.map((m) => m.user_id)))
+        : members.filter((m) => m.team_id === teamId).map((m) => m.user_id),
+    [members, teamId, isOverview],
   );
-  const teamMetrics = useMemo(() => metricsForTeam(metrics, teamId || null), [metrics, teamId]);
+  const teamMetrics = useMemo(
+    () => metricsForTeam(metrics, isOverview ? null : teamId || null),
+    [metrics, teamId, isOverview],
+  );
 
   useEffect(() => {
     if (!user) return;
     if (!isAdmin) { setFocusUser(user.id); return; }
+    if (isOverview) return;
     if (!focusUser || (memberIds.length && !memberIds.includes(focusUser))) {
       setFocusUser(memberIds.includes(user.id) ? user.id : memberIds[0] ?? user.id);
     }
-  }, [user, isAdmin, memberIds, focusUser]);
+  }, [user, isAdmin, memberIds, focusUser, isOverview]);
+
 
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
@@ -65,19 +78,22 @@ export function TacticalTracking() {
               <Select value={teamId} onValueChange={setTeamId}>
                 <SelectTrigger className="w-44"><SelectValue placeholder="Time" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={ALL_TEAMS}>Visão Geral</SelectItem>
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>Time {t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={focusUser} onValueChange={setFocusUser}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
-                <SelectContent>
-                  {memberIds.map((uid) => (
-                    <SelectItem key={uid} value={uid}>
-                      {profiles.find((p) => p.user_id === uid)?.full_name || "—"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!isOverview && (
+                <Select value={focusUser} onValueChange={setFocusUser}>
+                  <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                  <SelectContent>
+                    {memberIds.map((uid) => (
+                      <SelectItem key={uid} value={uid}>
+                        {profiles.find((p) => p.user_id === uid)?.full_name || "—"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
@@ -91,16 +107,28 @@ export function TacticalTracking() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <div className="space-y-4">
-          <MissionToday
-            userId={focusUser}
-            userName={focusName}
-            teamId={teamId || null}
-            teamName={activeTeam?.name ?? null}
-            metrics={teamMetrics}
-            goals={goals}
-            daily={daily}
-            today={today}
-          />
+          {isOverview ? (
+            <TacticalOverview
+              metrics={teamMetrics}
+              goals={goals}
+              daily={daily}
+              memberIds={memberIds}
+              members={members}
+              teams={teams}
+              today={today}
+            />
+          ) : (
+            <MissionToday
+              userId={focusUser}
+              userName={focusName}
+              teamId={teamId || null}
+              teamName={activeTeam?.name ?? null}
+              metrics={teamMetrics}
+              goals={goals}
+              daily={daily}
+              today={today}
+            />
+          )}
           {!isAdmin && (
             <ManualEntryDialog metrics={teamMetrics} onSaved={() => setReloadKey((k) => k + 1)} />
           )}
@@ -112,10 +140,14 @@ export function TacticalTracking() {
           daily={daily}
           profiles={profiles}
           memberIds={memberIds}
-          teamId={teamId || null}
+          teamId={isOverview ? null : teamId || null}
           teamName={activeTeam?.name ?? null}
           today={today}
+          groupByTeam={isOverview}
+          teams={teams}
+          members={members}
         />
+
       </div>
 
       <ActivityHeatmap
@@ -124,14 +156,14 @@ export function TacticalTracking() {
         daily={daily}
         profiles={profiles}
         memberIds={memberIds}
-        teamId={teamId || null}
+        teamId={isOverview ? null : teamId || null}
         today={today}
       />
 
       <TeamConversionsTable
         memberIds={memberIds}
         profiles={profiles}
-        teamName={activeTeam?.name ?? null}
+        teamName={isOverview ? "Visão Geral" : activeTeam?.name ?? null}
         today={today}
       />
 
@@ -139,7 +171,8 @@ export function TacticalTracking() {
         memberIds={memberIds}
         profiles={profiles}
         metrics={teamMetrics}
-        teamName={activeTeam?.name ?? null}
+        teamName={isOverview ? "Visão Geral" : activeTeam?.name ?? null}
+
         today={today}
         refreshKey={reloadKey}
       />
