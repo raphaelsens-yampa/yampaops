@@ -697,7 +697,7 @@ export function MetabaseTracking() {
               </div>
             </div>
             {kpiView === "month" ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-primary/40"><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Mês ({monthLabel})</p>
                   <p className="text-2xl font-bold">{kpiFmt(monthTarget)}</p>
@@ -707,8 +707,13 @@ export function MetabaseTracking() {
                   <p className="text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo para Meta</p>
+                  <p className={`text-2xl font-bold ${gapColor(monthGap)}`}>{kpiFmt(monthGap)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(monthPct, false)}`}>{monthPct.toFixed(1)}%</p>
+                  <p className={`text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             ) : (
