@@ -40,7 +40,11 @@ type Granularity = "day" | "week";
 
 export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today }: Props) {
   const visible = useMemo(() => metrics.filter((m) => m.key !== "call_realizada"), [metrics]);
-  const [metricId, setMetricId] = useState<string>("");
+  const defaultMetricId = useMemo(
+    () => visible.find((m) => m.key === "vendas_dia")?.id ?? visible[0]?.id ?? "",
+    [visible],
+  );
+  const [metricId, setMetricId] = useState<string>(defaultMetricId);
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [preset, setPreset] = useState<string>("30");
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
