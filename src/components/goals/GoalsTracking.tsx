@@ -222,8 +222,10 @@ export function GoalsTracking() {
     const reactMap = new Map<string, number>();
     stripeConversions.forEach((sc: any) => {
       if (!sc.converted_at) return;
+      if (!(convMrr(sc) > 0)) return;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
+
       const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (!cid) return;
       mrrMap.set(cid, (mrrMap.get(cid) || 0) + convMrr(sc));
