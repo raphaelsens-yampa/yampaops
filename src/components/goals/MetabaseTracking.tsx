@@ -675,7 +675,7 @@ export function MetabaseTracking() {
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
         const monthLabel = MONTHS[currentMonthIdx];
         const periodGap = totalPeriodTarget - totalRealized;
-        const isLessBetter = !!selectedCat && isBetterBelow(selectedCat);
+        const isLessBetter = !!selectedCat && isBetterBelow(selectedCat.goal_direction);
         const gapColor = (gap: number) => {
           if (gap === 0) return "text-muted-foreground";
           if (isLessBetter) {
