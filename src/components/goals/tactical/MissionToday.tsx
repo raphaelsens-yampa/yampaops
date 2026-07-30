@@ -9,6 +9,7 @@ import {
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
 
 interface Props {
   userId: string;
