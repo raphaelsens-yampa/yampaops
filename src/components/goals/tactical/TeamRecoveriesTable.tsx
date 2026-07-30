@@ -64,6 +64,9 @@ export function TeamRecoveriesTable({
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [localRefresh, setLocalRefresh] = useState(0);
+  const [editing, setEditing] = useState<EditableRecovery | null>(null);
+  const [deleting, setDeleting] = useState<EditableRecovery | null>(null);
+
 
   const recoveryMetricIds = useMemo(
     () =>
