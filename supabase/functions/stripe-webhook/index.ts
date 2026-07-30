@@ -620,7 +620,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ─── Resolução do vendedor (Chatwoot / campanhas / conversão anterior) ───
+  // ─── Resolução do vendedor: ÚNICA fonte = Mapa de Preços (commission_price_map) ───
   let assignedSellerId: string | null = null;
   let attributionSource: string | null = null;
   try {
