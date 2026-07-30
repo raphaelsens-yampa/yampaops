@@ -377,6 +377,7 @@ export default function GoalsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
       </div>
     </Layout>
