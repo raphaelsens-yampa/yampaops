@@ -1,18 +1,27 @@
+export type TacticalSource =
+  | "activity_type"
+  | "stripe_mrr"
+  | "stripe_deals"
+  | "stripe_reactivation"
+  | "manual";
+
 export interface TacticalMetric {
   id: string;
   key: string;
   label: string;
-  source: "activity_type" | "stripe_mrr" | "stripe_deals" | "manual";
+  source: TacticalSource;
   activity_type: string | null;
   unit: "count" | "currency";
   is_active: boolean;
   sort_order: number;
+  team_id: string | null;
 }
 
 export interface TacticalGoal {
   id: string;
   metric_id: string;
   user_id: string | null;
+  team_id: string | null;
   daily_target: number;
   period_start: string;
   period_end: string;
@@ -23,6 +32,16 @@ export interface DailyDatum {
   metric_id: string;
   date: string; // YYYY-MM-DD (BR)
   value: number;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+}
+
+export interface Profile {
+  user_id: string;
+  full_name: string | null;
 }
 
 export function formatMetric(value: number, unit: "count" | "currency"): string {
@@ -52,4 +71,36 @@ export function businessDaysBetween(start: Date, end: Date): number {
     d.setDate(d.getDate() + 1);
   }
   return n;
+}
+
+/** Precedência de meta diária: pessoa → time → equipe toda. */
+export function resolveDailyTarget(
+  goals: TacticalGoal[],
+  metricId: string,
+  userId: string | null,
+  teamId: string | null,
+): number {
+  const byUser = userId ? goals.find((g) => g.metric_id === metricId && g.user_id === userId) : undefined;
+  if (byUser) return Number(byUser.daily_target) || 0;
+  const byTeam = teamId
+    ? goals.find((g) => g.metric_id === metricId && !g.user_id && g.team_id === teamId)
+    : undefined;
+  if (byTeam) return Number(byTeam.daily_target) || 0;
+  const global = goals.find((g) => g.metric_id === metricId && !g.user_id && !g.team_id);
+  return global ? Number(global.daily_target) || 0 : 0;
+}
+
+/** Métricas visíveis para um time (métrica sem time vale para todos). */
+export function metricsForTeam(metrics: TacticalMetric[], teamId: string | null): TacticalMetric[] {
+  if (!teamId) return metrics;
+  return metrics.filter((m) => !m.team_id || m.team_id === teamId);
+}
+
+export function motivationalCopy(pct: number, missing: number, unit: "count" | "currency"): string {
+  if (pct >= 150) return "Você está voando hoje 🚀";
+  if (pct >= 100) return "Meta batida! Cada ponto a mais é bônus.";
+  if (pct >= 75) return `Reta final — falta pouco: ${formatMetric(missing, unit)}.`;
+  if (pct >= 40) return "No ritmo certo, mantenha o passo.";
+  if (pct > 0) return "Começou bem. Bora acelerar!";
+  return "O dia começa agora. Primeiro passo?";
 }
