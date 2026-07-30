@@ -52,7 +52,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
 
   const rows = useMemo(() => {
     const teamOf = new Map(members.map((m) => [m.user_id, m.team_id]));
-    return metrics.map((m) => {
+    return metrics.filter((m) => m.key !== "call_realizada").map((m) => {
       let target = 0;
       let realized = 0;
       for (const uid of memberIds) {
@@ -64,11 +64,20 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     });
   }, [metrics, goals, daily, memberIds, members, todayKey]);
 
-  const stripeKeys = ["mrr_dia", "vendas_dia"];
+  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
   const withGoal = rows.filter((r) => r.target > 0);
-  const others = rows.filter(
-    (r) => (r.target <= 0 || stripeKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0),
-  );
+  const others: { id: string; label: string; unit: TacticalMetric["unit"]; value: number }[] = rows
+    .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
+    .map((r) => ({ id: r.m.id, label: r.m.label, unit: r.m.unit, value: r.realized }));
+
+  if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
+    const recIds = metrics.filter((m) => m.key === "clientes_recuperados").map((m) => m.id);
+    const recValue = daily
+      .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && recIds.includes(x.metric_id))
+      .reduce((s, x) => s + (x.value ?? 0), 0);
+    others.push({ id: "recuperados-card", label: "Clientes recuperados", unit: "count", value: recValue });
+  }
+
   const othersGridClass =
     others.length === 1
       ? "grid-cols-1"
@@ -78,6 +87,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
           ? "grid-cols-2 sm:grid-cols-3"
           : "grid-cols-2 md:grid-cols-4";
   const done = withGoal.filter((r) => r.missing === 0).length;
+
 
 
   return (
@@ -148,14 +158,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
 
       {others.length > 0 && (
         <div className={`grid gap-3 ${othersGridClass}`}>
-          {others.map(({ m, realized }) => (
-            <Card key={m.id}>
+          {others.map((o) => (
+            <Card key={o.id}>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground truncate">{m.label}</p>
-                <p className="text-lg font-heading font-bold">{formatMetric(realized, m.unit)}</p>
+                <p className="text-xs text-muted-foreground truncate">{o.label}</p>
+                <p className="text-lg font-heading font-bold">{formatMetric(o.value, o.unit)}</p>
               </CardContent>
             </Card>
           ))}
+
         </div>
       )}
     </div>
