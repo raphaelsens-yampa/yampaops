@@ -3496,6 +3496,7 @@ export type Database = {
           entry_date: string
           id: string
           metric_id: string
+          mrr_value: number
           note: string | null
           updated_at: string
           user_id: string
@@ -3506,6 +3507,7 @@ export type Database = {
           entry_date?: string
           id?: string
           metric_id: string
+          mrr_value?: number
           note?: string | null
           updated_at?: string
           user_id: string
@@ -3516,6 +3518,7 @@ export type Database = {
           entry_date?: string
           id?: string
           metric_id?: string
+          mrr_value?: number
           note?: string | null
           updated_at?: string
           user_id?: string
