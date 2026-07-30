@@ -228,6 +228,8 @@ export default function GoalsPage() {
     </div>
   );
 
+  const isManager = role === "admin" || role === "tatico";
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -239,7 +241,7 @@ export default function GoalsPage() {
           <TabsList>
             <TabsTrigger value="metabase">Acompanhamento Metas</TabsTrigger>
             <TabsTrigger value="tactical">Metas Táticas</TabsTrigger>
-            <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
+            {isManager && <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
           </TabsList>
@@ -264,6 +266,7 @@ export default function GoalsPage() {
             </TabsContent>
           )}
 
+          {isManager && (
           <TabsContent value="setup" className="space-y-6">
             <div className="flex items-center justify-end gap-2">
               <Select value={filterScope} onValueChange={setFilterScope}>
@@ -374,6 +377,7 @@ export default function GoalsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
       </div>
     </Layout>
