@@ -39,6 +39,7 @@ export function TeamConversionsTable({
   refreshKey?: number;
 }) {
   const [days, setDays] = useState("30");
+  const [open, setOpen] = useState(true);
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
