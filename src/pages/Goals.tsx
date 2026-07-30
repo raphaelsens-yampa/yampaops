@@ -228,6 +228,8 @@ export default function GoalsPage() {
     </div>
   );
 
+  const isManager = role === "admin" || role === "tatico";
+
   return (
     <Layout>
       <div className="space-y-6">
