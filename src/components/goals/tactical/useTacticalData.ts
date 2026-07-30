@@ -5,6 +5,11 @@ import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } 
 
 export interface TeamMember { team_id: string; user_id: string; }
 
+// Métricas virtuais (não existem em tactical_metrics)
+export const VIRTUAL_MRR_SALES = "virtual_mrr_vendas";
+export const VIRTUAL_MRR_RECOVERY = "virtual_mrr_recuperados";
+
+
 export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
   const [metrics, setMetrics] = useState<TacticalMetric[]>([]);
   const [goals, setGoals] = useState<TacticalGoal[]>([]);
