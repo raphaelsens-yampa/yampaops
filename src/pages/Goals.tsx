@@ -239,7 +239,7 @@ export default function GoalsPage() {
           <TabsList>
             <TabsTrigger value="metabase">Acompanhamento Metas</TabsTrigger>
             <TabsTrigger value="tactical">Metas Táticas</TabsTrigger>
-            <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>
+            {isManager && <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
             {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
           </TabsList>
