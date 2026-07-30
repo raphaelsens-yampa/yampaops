@@ -102,21 +102,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
         </div>
       </div>
 
-      {stripeRows.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          {stripeRows.map(({ m, realized, target }) => (
-            <Card key={`stripe-${m.id}`} className="border-primary/30 bg-primary/5">
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">{m.label}</p>
-                <p className="text-2xl font-heading font-bold">{formatMetric(realized, m.unit)}</p>
-                {target > 0 && (
-                  <p className="text-xs text-muted-foreground">meta diária {formatMetric(target, m.unit)}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+
 
       <div className="grid gap-3 sm:grid-cols-2">
         {withGoal.map(({ m, target, realized, pct, missing, streak }) => {
