@@ -75,9 +75,12 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
     return { m, target, realized, pct, missing, streak };
   });
 
+  const stripeKeys = ["mrr_dia", "vendas_dia"];
+  const stripeRows = rows.filter((r) => stripeKeys.includes(r.m.key));
   const withGoal = rows.filter((r) => r.target > 0);
-  const others = rows.filter((r) => r.target <= 0);
+  const others = rows.filter((r) => r.target <= 0 && !stripeKeys.includes(r.m.key));
   const done = withGoal.filter((r) => r.missing === 0).length;
+
 
   return (
     <div className="space-y-4">
