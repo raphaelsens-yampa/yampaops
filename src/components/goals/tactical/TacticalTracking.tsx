@@ -12,7 +12,10 @@ import { TeamConversionsTable } from "./TeamConversionsTable";
 import { TeamRecoveriesTable } from "./TeamRecoveriesTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
+import { TacticalOverview } from "./TacticalOverview";
 import { metricsForTeam } from "./types";
+
+const ALL_TEAMS = "__all__";
 
 export function TacticalTracking() {
   const { user, role } = useAuth();
@@ -26,6 +29,8 @@ export function TacticalTracking() {
 
   const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
 
+  const isOverview = teamId === ALL_TEAMS;
+
   const myTeamId = useMemo(
     () => members.find((m) => m.user_id === user?.id)?.team_id ?? null,
     [members, user],
@@ -37,20 +42,28 @@ export function TacticalTracking() {
     else if (isAdmin && teams.length) setTeamId(teams[0].id);
   }, [myTeamId, teams, isAdmin, teamId]);
 
-  const activeTeam = teams.find((t) => t.id === teamId) ?? null;
+  const activeTeam = isOverview ? null : teams.find((t) => t.id === teamId) ?? null;
   const memberIds = useMemo(
-    () => members.filter((m) => m.team_id === teamId).map((m) => m.user_id),
-    [members, teamId],
+    () =>
+      isOverview
+        ? Array.from(new Set(members.map((m) => m.user_id)))
+        : members.filter((m) => m.team_id === teamId).map((m) => m.user_id),
+    [members, teamId, isOverview],
   );
-  const teamMetrics = useMemo(() => metricsForTeam(metrics, teamId || null), [metrics, teamId]);
+  const teamMetrics = useMemo(
+    () => metricsForTeam(metrics, isOverview ? null : teamId || null),
+    [metrics, teamId, isOverview],
+  );
 
   useEffect(() => {
     if (!user) return;
     if (!isAdmin) { setFocusUser(user.id); return; }
+    if (isOverview) return;
     if (!focusUser || (memberIds.length && !memberIds.includes(focusUser))) {
       setFocusUser(memberIds.includes(user.id) ? user.id : memberIds[0] ?? user.id);
     }
-  }, [user, isAdmin, memberIds, focusUser]);
+  }, [user, isAdmin, memberIds, focusUser, isOverview]);
+
 
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
