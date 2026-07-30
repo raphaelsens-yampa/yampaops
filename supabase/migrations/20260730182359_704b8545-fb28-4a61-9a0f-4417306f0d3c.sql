@@ -1,0 +1,1 @@
+ALTER TABLE public.tactical_manual_entries ADD COLUMN mrr_value numeric NOT NULL DEFAULT 0;

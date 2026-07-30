@@ -31,7 +31,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         supabase.from("team_members").select("team_id, user_id"),
         supabase.from("activities").select("user_id, type, created_at").gte("created_at", fromISO.toISOString()).lte("created_at", toISO.toISOString()),
         supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
-        supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
+        supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
       ]);
 
       if (cancelled) return;
@@ -83,9 +83,14 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       const lockedIds = new Set(
         metricsData.filter((m) => m.source === "stripe_mrr" || m.source === "stripe_deals").map((m) => m.id)
       );
+      const mrrMetricId = mrrMetric?.id;
       for (const m of manualRes.data || []) {
         if (lockedIds.has((m as any).metric_id)) continue;
         bump((m as any).user_id, (m as any).metric_id, (m as any).entry_date, Number((m as any).value || 0));
+        // MRR recuperado manualmente no CS soma ao MRR do dia
+        if (mrrMetricId && Number((m as any).mrr_value || 0) > 0) {
+          bump((m as any).user_id, mrrMetricId, (m as any).entry_date, Number((m as any).mrr_value || 0));
+        }
       }
 
       setDaily(Array.from(aggMap.values()));

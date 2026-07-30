@@ -22,7 +22,11 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
   const [metricId, setMetricId] = useState<string>("");
   const [date, setDate] = useState<string>(toBRDateKey(new Date()));
   const [value, setValue] = useState<string>("");
+  const [mrrValue, setMrrValue] = useState<string>("");
   const [note, setNote] = useState<string>("");
+
+  const selectedMetric = metrics.find((m) => m.id === metricId);
+  const isRecuperados = selectedMetric?.key === "clientes_recuperados";
 
   async function save() {
     if (!metricId || !value || !user) return;
@@ -31,12 +35,13 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
       user_id: user.id,
       entry_date: date,
       value: parseFloat(value),
+      mrr_value: isRecuperados && mrrValue ? parseFloat(mrrValue) : 0,
       note: note || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Registro lançado" });
     setOpen(false);
-    setMetricId(""); setValue(""); setNote("");
+    setMetricId(""); setValue(""); setMrrValue(""); setNote("");
     onSaved();
   }
 
@@ -62,7 +67,16 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
 
           </div>
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><Label>Valor</Label><Input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} /></div>
+          <div>
+            <Label>{isRecuperados ? "Quantidade de clientes" : "Valor"}</Label>
+            <Input type="number" step={isRecuperados ? "1" : "0.01"} value={value} onChange={(e) => setValue(e.target.value)} />
+          </div>
+          {isRecuperados && (
+            <div>
+              <Label>MRR recuperado</Label>
+              <Input type="number" step="0.01" value={mrrValue} onChange={(e) => setMrrValue(e.target.value)} />
+            </div>
+          )}
           <div><Label>Observação (opcional)</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
           <Button onClick={save} className="w-full">Salvar</Button>
         </div>
