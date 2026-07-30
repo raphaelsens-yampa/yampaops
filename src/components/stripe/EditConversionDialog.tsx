@@ -67,6 +67,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
   const [resolving, setResolving] = useState(false);
   const [area, setArea] = useState("");
   const [mrr, setMrr] = useState("");
+  const [mrrNet, setMrrNet] = useState("");
   const [planName, setPlanName] = useState("");
   const [productName, setProductName] = useState("");
   const [convertedAt, setConvertedAt] = useState("");
@@ -75,6 +76,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
   const [previousMrr, setPreviousMrr] = useState("");
   const [assignedSeller, setAssignedSeller] = useState<string>("__none__");
   const [note, setNote] = useState("");
+
 
   const { data: sellers = [] } = useQuery({
     queryKey: ["profiles-for-edit-conversion"],
@@ -93,6 +95,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
     if (!conversion) return;
     setArea(conversion.area || "Sales");
     setMrr(conversion.mrr != null ? String(conversion.mrr) : "");
+    setMrrNet(conversion.mrr_net != null ? String(conversion.mrr_net) : "");
     setPlanName(conversion.plan_name || "");
     setProductName(conversion.product_name || "");
     setConvertedAt(toDateInput(conversion.converted_at));
@@ -102,6 +105,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
     setAssignedSeller(conversion.assigned_seller_id || "__none__");
     setNote("");
   }, [conversion?.conversion_id]);
+
 
   if (!conversion) return null;
 
@@ -116,6 +120,11 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
       toast.error("MRR deve ser maior que zero");
       return;
     }
+    const mrrNetNum = mrrNet.trim() !== "" ? Number(String(mrrNet).replace(",", ".")) : null;
+    if (mrrNet.trim() !== "" && (!(mrrNetNum === null || mrrNetNum >= 0))) {
+      toast.error("MRR líquido deve ser maior ou igual a zero");
+      return;
+    }
     const prevMrrNum = Number(String(previousMrr).replace(",", "."));
     setSaving(true);
     try {
@@ -124,6 +133,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
           conversion_id: conversion.conversion_id,
           area,
           mrr: mrrNum,
+          mrr_net: mrrNetNum,
           plan_name: planName || null,
           product_name: productName || null,
           converted_at: convertedAt ? new Date(convertedAt).toISOString() : null,
@@ -146,6 +156,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
       setSaving(false);
     }
   }
+
 
   async function handleAutoResolve() {
     if (!conversion) return;
@@ -207,7 +218,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="space-y-1">
               <Label>MRR novo (R$)</Label>
               <Input type="number" step="0.01" value={mrr} onChange={(e) => setMrr(e.target.value)} />
@@ -217,10 +228,15 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
               <Input type="number" step="0.01" value={previousMrr} onChange={(e) => setPreviousMrr(e.target.value)} />
             </div>
             <div className="space-y-1">
+              <Label>MRR líquido (R$)</Label>
+              <Input type="number" step="0.01" value={mrrNet} onChange={(e) => setMrrNet(e.target.value)} placeholder={conversion.mrr_net != null ? String(conversion.mrr_net) : "—"} />
+            </div>
+            <div className="space-y-1">
               <Label>Δ MRR (calculado)</Label>
               <Input value={deltaMrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} readOnly tabIndex={-1} />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Plano</Label>
