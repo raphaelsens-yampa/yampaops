@@ -9,6 +9,7 @@ import {
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
 
 interface Props {
   userId: string;
@@ -92,6 +93,19 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
       .reduce((s, x) => s + (x.value ?? 0), 0);
     others.push({ id: "recuperados-card", label: "Clientes recuperados", unit: "count", value: recValue });
   }
+
+  // MRR separado por origem (vendas x recuperações)
+  const sumVirtual = (vid: string) =>
+    daily
+      .filter((x) => x.user_id === userId && x.date === todayKey && x.metric_id === vid)
+      .reduce((s, x) => s + (x.value ?? 0), 0);
+  const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
+  const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
+  if (mrrSales > 0 || mrrRecovery > 0) {
+    others.push({ id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency", value: mrrSales });
+    others.push({ id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency", value: mrrRecovery });
+  }
+
 
   const othersGridClass =
     others.length === 1

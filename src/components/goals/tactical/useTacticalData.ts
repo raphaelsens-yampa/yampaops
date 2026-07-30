@@ -5,6 +5,11 @@ import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } 
 
 export interface TeamMember { team_id: string; user_id: string; }
 
+// Métricas virtuais (não existem em tactical_metrics)
+export const VIRTUAL_MRR_SALES = "virtual_mrr_vendas";
+export const VIRTUAL_MRR_RECOVERY = "virtual_mrr_recuperados";
+
+
 export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
   const [metrics, setMetrics] = useState<TacticalMetric[]>([]);
   const [goals, setGoals] = useState<TacticalGoal[]>([]);
@@ -74,6 +79,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         const d = parseDateBR((c as any).converted_at);
         const key = toBRDateKey(d);
         if (mrrMetric) bump(seller, mrrMetric.id, key, value);
+        bump(seller, VIRTUAL_MRR_SALES, key, value);
         if (dealsMetric) bump(seller, dealsMetric.id, key, 1);
         if (reactMetric && (c as any).is_reactivation) bump(seller, reactMetric.id, key, 1);
       }
@@ -89,8 +95,10 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         if (lockedIds.has((m as any).metric_id)) continue;
         bump((m as any).user_id, (m as any).metric_id, (m as any).entry_date, Number((m as any).value || 0));
         // MRR recuperado manualmente no CS soma ao MRR do dia
-        if (mrrMetricId && Number((m as any).mrr_value || 0) > 0) {
-          bump((m as any).user_id, mrrMetricId, (m as any).entry_date, Number((m as any).mrr_value || 0));
+        if (Number((m as any).mrr_value || 0) > 0) {
+          const v = Number((m as any).mrr_value || 0);
+          if (mrrMetricId) bump((m as any).user_id, mrrMetricId, (m as any).entry_date, v);
+          bump((m as any).user_id, VIRTUAL_MRR_RECOVERY, (m as any).entry_date, v);
         }
       }
 
@@ -101,8 +109,12 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         if (!seller || !dateKey) continue;
         if (reactMetric) bump(seller, reactMetric.id, dateKey, 1);
         const mrr = Number((r as any).mrr || 0);
-        if (mrrMetricId && mrr > 0) bump(seller, mrrMetricId, dateKey, mrr);
+        if (mrr > 0) {
+          if (mrrMetricId) bump(seller, mrrMetricId, dateKey, mrr);
+          bump(seller, VIRTUAL_MRR_RECOVERY, dateKey, mrr);
+        }
       }
+
 
       setDaily(Array.from(aggMap.values()));
       setLoading(false);
