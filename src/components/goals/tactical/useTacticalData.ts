@@ -23,7 +23,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr),
         supabase.from("profiles").select("user_id, full_name"),
@@ -32,6 +32,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         supabase.from("activities").select("user_id, type, created_at").gte("created_at", fromISO.toISOString()).lte("created_at", toISO.toISOString()),
         supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
         supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
+        supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
       ]);
 
       if (cancelled) return;
@@ -91,6 +92,16 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         if (mrrMetricId && Number((m as any).mrr_value || 0) > 0) {
           bump((m as any).user_id, mrrMetricId, (m as any).entry_date, Number((m as any).mrr_value || 0));
         }
+      }
+
+      // Recuperados lançados/importados na tabela de recuperações também contam
+      for (const r of recovRes.data || []) {
+        const seller = (r as any).seller_id;
+        const dateKey = String((r as any).recovered_at || "").slice(0, 10);
+        if (!seller || !dateKey) continue;
+        if (reactMetric) bump(seller, reactMetric.id, dateKey, 1);
+        const mrr = Number((r as any).mrr || 0);
+        if (mrrMetricId && mrr > 0) bump(seller, mrrMetricId, dateKey, mrr);
       }
 
       setDaily(Array.from(aggMap.values()));

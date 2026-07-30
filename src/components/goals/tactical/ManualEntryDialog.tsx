@@ -8,17 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TacticalMetric, toBRDateKey } from "./types";
+import { TacticalMetric, Profile, toBRDateKey } from "./types";
 
 interface Props {
   metrics: TacticalMetric[];
+  profiles?: Profile[];
+  memberIds?: string[];
+  defaultUserId?: string;
   onSaved: () => void;
 }
 
-export function ManualEntryDialog({ metrics, onSaved }: Props) {
+export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defaultUserId, onSaved }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [ownerId, setOwnerId] = useState<string>(defaultUserId || "");
   const [metricId, setMetricId] = useState<string>("");
   const [date, setDate] = useState<string>(toBRDateKey(new Date()));
   const [value, setValue] = useState<string>("");
@@ -28,11 +32,13 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRecuperados = selectedMetric?.key === "clientes_recuperados";
 
+  const teamProfiles = profiles.filter((p) => !memberIds.length || memberIds.includes(p.user_id));
+
   async function save() {
     if (!metricId || !value || !user) return;
     const { error } = await supabase.from("tactical_manual_entries").insert({
       metric_id: metricId,
-      user_id: user.id,
+      user_id: ownerId || user.id,
       entry_date: date,
       value: parseFloat(value),
       mrr_value: isRecuperados && mrrValue ? parseFloat(mrrValue) : 0,
@@ -66,6 +72,19 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
             <p className="text-xs text-muted-foreground mt-1">Vendas e MRR do dia são calculados automaticamente pelo Stripe. Recuperações do CS somam o automático (reativações) com o que você lançar aqui.</p>
 
           </div>
+          {teamProfiles.length > 0 && (
+            <div>
+              <Label>Responsável</Label>
+              <Select value={ownerId} onValueChange={setOwnerId}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {teamProfiles.map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div>
             <Label>{isRecuperados ? "Quantidade de clientes" : "Valor"}</Label>
