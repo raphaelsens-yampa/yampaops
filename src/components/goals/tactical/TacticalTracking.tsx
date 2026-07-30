@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings2 } from "lucide-react";
+import { Settings2, RefreshCw } from "lucide-react";
 import { useTacticalData } from "./useTacticalData";
 import { MissionToday } from "./MissionToday";
 import { TeamScoreboard } from "./TeamScoreboard";
