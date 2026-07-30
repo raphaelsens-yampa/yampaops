@@ -3,7 +3,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings2, RefreshCw } from "lucide-react";
+import { Settings2, RefreshCw, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { useTacticalData } from "./useTacticalData";
 import { MissionToday } from "./MissionToday";
 import { TeamScoreboard } from "./TeamScoreboard";
@@ -13,6 +18,7 @@ import { TeamRecoveriesTable } from "./TeamRecoveriesTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { TacticalOverview } from "./TacticalOverview";
+import { TacticalProgressChart } from "./TacticalProgressChart";
 import { metricsForTeam } from "./types";
 
 const ALL_TEAMS = "__all__";
@@ -20,8 +26,10 @@ const ALL_TEAMS = "__all__";
 export function TacticalTracking() {
   const { user, role } = useAuth();
   const isAdmin = role === "admin" || role === "tatico";
-  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
-  const rangeStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - 59); return d; }, [today]);
+  const realToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const [refDate, setRefDate] = useState<Date>(realToday);
+  const today = useMemo(() => { const d = new Date(refDate); d.setHours(0, 0, 0, 0); return d; }, [refDate]);
+  const rangeStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - 89); return d; }, [today]);
   const [reloadKey, setReloadKey] = useState(0);
   const [showConfig, setShowConfig] = useState(false);
   const [teamId, setTeamId] = useState<string>("");
@@ -97,6 +105,28 @@ export function TacticalTracking() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal")}>
+                    <CalendarIcon className="h-4 w-4 mr-1" />
+                    {format(today, "dd/MM/yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={today}
+                    onSelect={(d) => d && setRefDate(d)}
+                    disabled={(d) => d > realToday}
+                    locale={ptBR}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {today.getTime() !== realToday.getTime() && (
+                <Button variant="ghost" size="sm" onClick={() => setRefDate(realToday)}>Hoje</Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
                 <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
               </Button>
@@ -155,6 +185,15 @@ export function TacticalTracking() {
         />
 
       </div>
+
+      <TacticalProgressChart
+        metrics={teamMetrics}
+        goals={goals}
+        daily={daily}
+        memberIds={memberIds}
+        teamId={isOverview ? null : teamId || null}
+        today={today}
+      />
 
       <ActivityHeatmap
         metrics={teamMetrics}
