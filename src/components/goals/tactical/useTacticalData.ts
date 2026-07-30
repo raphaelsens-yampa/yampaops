@@ -94,6 +94,16 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         }
       }
 
+      // Recuperados lançados/importados na tabela de recuperações também contam
+      for (const r of recovRes.data || []) {
+        const seller = (r as any).seller_id;
+        const dateKey = String((r as any).recovered_at || "").slice(0, 10);
+        if (!seller || !dateKey) continue;
+        if (reactMetric) bump(seller, reactMetric.id, dateKey, 1);
+        const mrr = Number((r as any).mrr || 0);
+        if (mrrMetricId && mrr > 0) bump(seller, mrrMetricId, dateKey, mrr);
+      }
+
       setDaily(Array.from(aggMap.values()));
       setLoading(false);
     }
