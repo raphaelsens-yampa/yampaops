@@ -58,7 +58,8 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
                   .map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">Vendas e MRR são calculados automaticamente pela integração Stripe.</p>
+            <p className="text-xs text-muted-foreground mt-1">Vendas e MRR do dia são calculados automaticamente pelo Stripe. Recuperações do CS somam o automático (reativações) com o que você lançar aqui.</p>
+
           </div>
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label>Valor</Label><Input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} /></div>
