@@ -266,6 +266,7 @@ export default function GoalsPage() {
             </TabsContent>
           )}
 
+          {isManager && (
           <TabsContent value="setup" className="space-y-6">
             <div className="flex items-center justify-end gap-2">
               <Select value={filterScope} onValueChange={setFilterScope}>
