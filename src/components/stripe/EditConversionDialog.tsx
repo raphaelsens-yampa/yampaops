@@ -120,6 +120,11 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
       toast.error("MRR deve ser maior que zero");
       return;
     }
+    const mrrNetNum = mrrNet.trim() !== "" ? Number(String(mrrNet).replace(",", ".")) : null;
+    if (mrrNet.trim() !== "" && (!(mrrNetNum === null || mrrNetNum >= 0))) {
+      toast.error("MRR líquido deve ser maior ou igual a zero");
+      return;
+    }
     const prevMrrNum = Number(String(previousMrr).replace(",", "."));
     setSaving(true);
     try {
@@ -128,6 +133,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
           conversion_id: conversion.conversion_id,
           area,
           mrr: mrrNum,
+          mrr_net: mrrNetNum,
           plan_name: planName || null,
           product_name: productName || null,
           converted_at: convertedAt ? new Date(convertedAt).toISOString() : null,
@@ -150,6 +156,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
       setSaving(false);
     }
   }
+
 
   async function handleAutoResolve() {
     if (!conversion) return;
