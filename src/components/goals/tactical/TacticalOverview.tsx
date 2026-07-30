@@ -12,6 +12,7 @@ import {
   toBRDateKey,
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
 
 interface Props {
   metrics: TacticalMetric[];
