@@ -66,20 +66,31 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
-  const rows = metrics.map((m) => {
-    const target = resolveDailyTarget(goals, m.id, userId, teamId);
-    const realized = daily.find((x) => x.user_id === userId && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
-    const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
-    const missing = Math.max(target - realized, 0);
-    const streak = computeStreak(userId, m.id, target, daily, today);
-    return { m, target, realized, pct, missing, streak };
-  });
+  const rows = metrics
+    .filter((m) => m.key !== "call_realizada")
+    .map((m) => {
+      const target = resolveDailyTarget(goals, m.id, userId, teamId);
+      const realized = daily.find((x) => x.user_id === userId && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
+      const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
+      const missing = Math.max(target - realized, 0);
+      const streak = computeStreak(userId, m.id, target, daily, today);
+      return { m, target, realized, pct, missing, streak };
+    });
 
-  const stripeKeys = ["mrr_dia", "vendas_dia"];
+  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
   const withGoal = rows.filter((r) => r.target > 0);
-  const others = rows.filter(
-    (r) => (r.target <= 0 || stripeKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0),
-  );
+  const others: { id: string; label: string; unit: string; value: number }[] = rows
+    .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
+    .map((r) => ({ id: r.m.id, label: r.m.label, unit: r.m.unit, value: r.realized }));
+
+  if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
+    const recMetricIds = (allMetrics ?? metrics).filter((m) => m.key === "clientes_recuperados").map((m) => m.id);
+    const recValue = daily
+      .filter((x) => x.user_id === userId && x.date === todayKey && recMetricIds.includes(x.metric_id))
+      .reduce((s, x) => s + (x.value ?? 0), 0);
+    others.push({ id: "recuperados-card", label: "Clientes recuperados", unit: "count", value: recValue });
+  }
+
   const othersGridClass =
     others.length === 1
       ? "grid-cols-1"
@@ -89,6 +100,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
           ? "grid-cols-2 sm:grid-cols-3"
           : "grid-cols-2 md:grid-cols-4";
   const done = withGoal.filter((r) => r.missing === 0).length;
+
 
 
 
