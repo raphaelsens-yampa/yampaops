@@ -71,12 +71,6 @@ export function TacticalTracking() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
-          <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
-        </Button>
-      </div>
-
       {isAdmin && (
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
@@ -102,6 +96,9 @@ export function TacticalTracking() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
+                <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
+              </Button>
               <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
               <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
                 <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
