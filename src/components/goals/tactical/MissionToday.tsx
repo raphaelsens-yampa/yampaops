@@ -172,7 +172,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
       )}
 
       {others.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className={`grid gap-3 ${othersGridClass}`}>
           {others.map(({ m, realized }) => (
             <Card key={m.id}>
               <CardContent className="p-3">
