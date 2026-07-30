@@ -128,6 +128,8 @@ export function TacticalTracking() {
               teamId={teamId || null}
               teamName={activeTeam?.name ?? null}
               metrics={teamMetrics}
+              allMetrics={metrics}
+
               goals={goals}
               daily={daily}
               today={today}
