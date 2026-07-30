@@ -7,13 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, RotateCcw } from "lucide-react";
+import { GripVertical, RotateCcw, ChevronDown } from "lucide-react";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
@@ -523,140 +524,149 @@ export function MetabaseTracking() {
 
   return (
     <div className="space-y-6">
-      {/* Filtros */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div>
-              <Label className="text-xs">Período</Label>
-              <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="day">Dia</SelectItem>
-                  <SelectItem value="week">Semana</SelectItem>
-                  <SelectItem value="month">Mês</SelectItem>
-                  <SelectItem value="year">Ano inteiro</SelectItem>
-                  <SelectItem value="custom">Personalizado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Comparar até</Label>
-              <Select value={compareMode} onValueChange={(v) => setCompareMode(v as CompareMode)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="to_date">Até hoje (parcial)</SelectItem>
-                  <SelectItem value="full">Período completo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Ano</Label>
-              <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {yearOptions.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Escopo</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="company">Empresa</SelectItem>
-                  <SelectItem value="team">Equipe</SelectItem>
-                  <SelectItem value="user">Vendedor</SelectItem>
-                  <SelectItem value="campaign">Campanha</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {(["sales", "cs", "campaign", "financial"] as const).map((a) => {
-                    const items = categories.filter((c) => c.area === a);
-                    if (!items.length) return null;
-                    return (
-                      <div key={a}>
-                        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[a]}</div>
-                        {items.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </div>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Equipe</Label>
-              <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Vendedor</Label>
-              <Select value={userId} onValueChange={setUserId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Campanha</Label>
-              <Select value={campaignId} onValueChange={setCampaignId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {campaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {period === "custom" && (
-              <>
-
+      {/* Filtros colapsáveis */}
+      <Collapsible defaultOpen>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors group">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Filtros</CardTitle>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div>
-                  <Label className="text-xs">De</Label>
-                  <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                  <Label className="text-xs">Período</Label>
+                  <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">Dia</SelectItem>
+                      <SelectItem value="week">Semana</SelectItem>
+                      <SelectItem value="month">Mês</SelectItem>
+                      <SelectItem value="year">Ano inteiro</SelectItem>
+                      <SelectItem value="custom">Personalizado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Até</Label>
-                  <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                  <Label className="text-xs">Comparar até</Label>
+                  <Select value={compareMode} onValueChange={(v) => setCompareMode(v as CompareMode)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="to_date">Até hoje (parcial)</SelectItem>
+                      <SelectItem value="full">Período completo</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </>
-            )}
-          </div>
+                <div>
+                  <Label className="text-xs">Ano</Label>
+                  <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {yearOptions.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Escopo</Label>
+                  <Select value={scope} onValueChange={setScope}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="company">Empresa</SelectItem>
+                      <SelectItem value="team">Equipe</SelectItem>
+                      <SelectItem value="user">Vendedor</SelectItem>
+                      <SelectItem value="campaign">Campanha</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Categoria</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {(["sales", "cs", "campaign", "financial"] as const).map((a) => {
+                        const items = categories.filter((c) => c.area === a);
+                        if (!items.length) return null;
+                        return (
+                          <div key={a}>
+                            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{AREA_LABELS[a]}</div>
+                            {items.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </div>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Equipe</Label>
+                  <Select value={teamId} onValueChange={setTeamId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Vendedor</Label>
+                  <Select value={userId} onValueChange={setUserId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Campanha</Label>
+                  <Select value={campaignId} onValueChange={setCampaignId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {campaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Selos de contexto */}
-          <div className="flex flex-wrap items-center gap-2 mt-4 text-xs">
-            <Badge variant="outline">Janela: {fmtDate(effectiveWindow.from)} → {fmtDate(effectiveWindow.to)}</Badge>
-            <Badge variant="outline">
-              Base Metabase: {maxCapture ? `até ${new Date(maxCapture).toLocaleDateString("pt-BR")}` : "sem capturas"}
-            </Badge>
-            {compareMode === "to_date" && (
-              <Badge variant="secondary">Meta rateada até a captura mais recente</Badge>
-            )}
-            {missingMonthsInWindow.length > 0 && (
-              <Badge variant="outline" className="border-amber-400 text-amber-600">
-                Sem dados no Metabase para: {missingMonthsInWindow.join(", ")}
-              </Badge>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                {period === "custom" && (
+                  <>
+
+                    <div>
+                      <Label className="text-xs">De</Label>
+                      <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Até</Label>
+                      <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Selos de contexto */}
+              <div className="flex flex-wrap items-center gap-2 mt-4 text-xs">
+                <Badge variant="outline">Janela: {fmtDate(effectiveWindow.from)} → {fmtDate(effectiveWindow.to)}</Badge>
+                <Badge variant="outline">
+                  Base Metabase: {maxCapture ? `até ${new Date(maxCapture).toLocaleDateString("pt-BR")}` : "sem capturas"}
+                </Badge>
+                {compareMode === "to_date" && (
+                  <Badge variant="secondary">Meta rateada até a captura mais recente</Badge>
+                )}
+                {missingMonthsInWindow.length > 0 && (
+                  <Badge variant="outline" className="border-amber-400 text-amber-600">
+                    Sem dados no Metabase para: {missingMonthsInWindow.join(", ")}
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* KPI resumo */}
       {(() => {
