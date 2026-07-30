@@ -8,6 +8,7 @@ import { useTacticalData } from "./useTacticalData";
 import { MissionToday } from "./MissionToday";
 import { TeamScoreboard } from "./TeamScoreboard";
 import { ActivityHeatmap } from "./ActivityHeatmap";
+import { TeamConversionsTable } from "./TeamConversionsTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { metricsForTeam } from "./types";
