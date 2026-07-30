@@ -67,6 +67,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
   const [resolving, setResolving] = useState(false);
   const [area, setArea] = useState("");
   const [mrr, setMrr] = useState("");
+  const [mrrNet, setMrrNet] = useState("");
   const [planName, setPlanName] = useState("");
   const [productName, setProductName] = useState("");
   const [convertedAt, setConvertedAt] = useState("");
@@ -75,6 +76,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
   const [previousMrr, setPreviousMrr] = useState("");
   const [assignedSeller, setAssignedSeller] = useState<string>("__none__");
   const [note, setNote] = useState("");
+
 
   const { data: sellers = [] } = useQuery({
     queryKey: ["profiles-for-edit-conversion"],
