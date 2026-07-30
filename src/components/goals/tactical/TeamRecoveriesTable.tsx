@@ -202,6 +202,35 @@ export function TeamRecoveriesTable({
   const totalMrr = filtered.reduce((s, r) => s + r.mrr, 0);
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
 
+  function toEditable(r: Row): EditableRecovery {
+    return {
+      kind: r.kind === "manual_entry" ? "manual_entry" : "recovery",
+      rawId: r.rawId as string,
+      customer_name: r.kind === "manual_entry" ? "" : r.name || "",
+      customer_email: r.email || "",
+      plan_name: r.plan || "",
+      seller_id: r.seller_id || "",
+      date: String(r.date).slice(0, 10),
+      price: r.price ? String(r.price) : "",
+      mrr: r.mrr ? String(r.mrr) : "",
+      qty: String(r.qty ?? ""),
+      note: r.note || "",
+    };
+  }
+
+  async function handleDelete() {
+    if (!deleting?.rawId) return;
+    const table = deleting.kind === "manual_entry" ? "tactical_manual_entries" : "tactical_recoveries";
+    const { error } = await supabase.from(table as any).delete().eq("id", deleting.rawId);
+    setDeleting(null);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Registro excluído" });
+    setLocalRefresh((k) => k + 1);
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
@@ -257,6 +286,7 @@ export function TeamRecoveriesTable({
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
                   <TableHead className="text-right">MRR</TableHead>
+                  <TableHead className="text-right w-[90px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -278,17 +308,67 @@ export function TeamRecoveriesTable({
                     <TableCell>{parseDateBR(r.date).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-right">{r.price > 0 ? fmtBRL(r.price) : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{r.mrr > 0 ? fmtBRL(r.mrr) : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      {r.rawId ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label="Editar registro"
+                            onClick={() => setEditing(toEditable(r))}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            aria-label="Excluir registro"
+                            onClick={() => setDeleting(toEditable(r))}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Stripe</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
                   <TableCell colSpan={6}>Total</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
           </div>
         )}
       </CardContent>
+
+      <RecoveryEditDialog
+        entry={editing}
+        profiles={profiles}
+        onClose={() => setEditing(null)}
+        onSaved={() => setLocalRefresh((k) => k + 1)}
+      />
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir registro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o lançamento de cliente recuperado e recalcula os painéis. Não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
+
 }
