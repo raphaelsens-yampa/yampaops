@@ -95,6 +95,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
     if (!conversion) return;
     setArea(conversion.area || "Sales");
     setMrr(conversion.mrr != null ? String(conversion.mrr) : "");
+    setMrrNet(conversion.mrr_net != null ? String(conversion.mrr_net) : "");
     setPlanName(conversion.plan_name || "");
     setProductName(conversion.product_name || "");
     setConvertedAt(toDateInput(conversion.converted_at));
@@ -104,6 +105,7 @@ export function EditConversionDialog({ open, onOpenChange, conversion, onSaved }
     setAssignedSeller(conversion.assigned_seller_id || "__none__");
     setNote("");
   }, [conversion?.conversion_id]);
+
 
   if (!conversion) return null;
 
