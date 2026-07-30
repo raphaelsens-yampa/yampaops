@@ -8,10 +8,12 @@ import {
   Profile,
   TacticalGoal,
   TacticalMetric,
+  Team,
   formatMetric,
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
+import type { TeamMember } from "./useTacticalData";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -22,22 +24,30 @@ interface Props {
   teamId: string | null;
   teamName: string | null;
   today: Date;
+  groupByTeam?: boolean;
+  teams?: Team[];
+  members?: TeamMember[];
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-function defaultMetricId(metrics: TacticalMetric[], teamName: string | null) {
+function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, groupByTeam?: boolean) {
   const name = (teamName ?? "").toLowerCase();
-  const preferredKey = name.includes("sales") || name.includes("vendas") ? "vendas_dia" : "clientes_recuperados";
+  const preferredKey = groupByTeam
+    ? "vendas_dia"
+    : name.includes("sales") || name.includes("vendas")
+      ? "vendas_dia"
+      : "clientes_recuperados";
   return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
 }
 
-export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today }: Props) {
-  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName));
+export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [] }: Props) {
+  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
   useEffect(() => {
-    setMetricId(defaultMetricId(metrics, teamName));
-  }, [teamId, teamName, metrics]);
+    setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
+  }, [teamId, teamName, metrics, groupByTeam]);
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
+
 
   const { rows, teamToday, teamTarget, weekRealized, weekTarget } = useMemo(() => {
     const todayKey = toBRDateKey(today);
