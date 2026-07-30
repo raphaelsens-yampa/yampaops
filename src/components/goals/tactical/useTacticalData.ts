@@ -67,12 +67,16 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       for (const c of convRes.data || []) {
         const seller = (c as any).assigned_seller_id;
         if (!seller || !(c as any).converted_at) continue;
+        // Só considera conversão com valor > R$ 0 (líquido quando existir)
+        const value = Number((c as any).mrr_net ?? (c as any).mrr ?? 0);
+        if (!(value > 0)) continue;
         const d = parseDateBR((c as any).converted_at);
         const key = toBRDateKey(d);
-        if (mrrMetric) bump(seller, mrrMetric.id, key, Number((c as any).mrr_net ?? (c as any).mrr ?? 0));
+        if (mrrMetric) bump(seller, mrrMetric.id, key, value);
         if (dealsMetric) bump(seller, dealsMetric.id, key, 1);
         if (reactMetric && (c as any).is_reactivation) bump(seller, reactMetric.id, key, 1);
       }
+
 
       // MRR e Vendas do dia vêm 100% do Stripe — lançamento manual não se aplica.
       // Recuperações do CS somam automático (reativação) + manual.

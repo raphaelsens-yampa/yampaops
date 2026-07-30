@@ -147,8 +147,11 @@ export function GoalsTracking() {
     const openScope = sellerFilter === "all" && teamFilter === "all" && isAdmin;
     return stripeConversions.filter((sc: any) => {
       if (!sc.converted_at) return false;
+      // Só conta conversão com valor > R$ 0
+      if (!(convMrr(sc) > 0)) return false;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return false;
+
       if (openScope) return true;
       const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       return !!cid && sellerIds.has(cid);
@@ -219,8 +222,10 @@ export function GoalsTracking() {
     const reactMap = new Map<string, number>();
     stripeConversions.forEach((sc: any) => {
       if (!sc.converted_at) return;
+      if (!(convMrr(sc) > 0)) return;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
+
       const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (!cid) return;
       mrrMap.set(cid, (mrrMap.get(cid) || 0) + convMrr(sc));
@@ -255,8 +260,10 @@ export function GoalsTracking() {
     const map = new Map<string, number>();
     stripeConversions.forEach((sc: any) => {
       if (!sc.converted_at) return;
+      if (!(convMrr(sc) > 0)) return;
       const d = new Date(sc.converted_at);
       if (d < start || d > end) return;
+
       const cid = getConversionSellerId(sc, oppById, priceMapByPriceId);
       if (cid) return;
       const a = sc.area || "desconhecida";
