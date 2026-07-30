@@ -143,7 +143,10 @@ export default function StripeConversions() {
         .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id")
         .gte("converted_at", `${period.start}T00:00:00`)
         .lte("converted_at", `${period.end}T23:59:59`)
+        // Só conversões com valor > R$ 0 (líquido quando disponível)
+        .or("mrr_net.gt.0,and(mrr_net.is.null,mrr.gt.0)")
         .order("converted_at", { ascending: false });
+
       if (safraEnabled) {
         q = q.gte("registered_at", `${safra.start}T00:00:00`).lte("registered_at", `${safra.end}T23:59:59`);
       }
