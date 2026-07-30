@@ -104,23 +104,24 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, goal
 
 
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
         {withGoal.map(({ m, target, realized, pct, missing, streak }) => {
           const hit = missing === 0;
+          const single = withGoal.length === 1;
 
           return (
             <Card
               key={m.id}
               className={`relative overflow-hidden border ${hit ? "border-success/40 bg-success/5" : ""}`}
             >
-              <CardContent className="p-5 flex items-center gap-4">
+              <CardContent className={`p-5 flex items-center gap-4 ${single ? "justify-center" : ""}`}>
                 <div className="relative">
                   <ProgressRing pct={pct} done={hit} />
                   <span className="absolute inset-0 flex items-center justify-center text-sm font-heading font-bold">
                     {Math.round(pct)}%
                   </span>
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold truncate">{m.label}</p>
                     {streak > 1 && (
