@@ -158,14 +158,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
 
       {others.length > 0 && (
         <div className={`grid gap-3 ${othersGridClass}`}>
-          {others.map(({ m, realized }) => (
-            <Card key={m.id}>
+          {others.map((o) => (
+            <Card key={o.id}>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground truncate">{m.label}</p>
-                <p className="text-lg font-heading font-bold">{formatMetric(realized, m.unit)}</p>
+                <p className="text-xs text-muted-foreground truncate">{o.label}</p>
+                <p className="text-lg font-heading font-bold">{formatMetric(o.value, o.unit)}</p>
               </CardContent>
             </Card>
           ))}
+
         </div>
       )}
     </div>
