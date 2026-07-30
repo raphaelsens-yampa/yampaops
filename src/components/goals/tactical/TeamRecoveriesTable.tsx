@@ -139,6 +139,9 @@ export function TeamRecoveriesTable({
           seller_id: m.user_id,
           origin: "manual",
           qty: Number(m.value || 0),
+          rawId: m.id,
+          kind: "manual_entry",
+          note: m.note,
         });
       }
 
@@ -155,7 +158,11 @@ export function TeamRecoveriesTable({
           seller_id: r.seller_id,
           origin: r.source === "import" ? "import" : "manual",
           qty: 1,
+          rawId: r.id,
+          kind: "recovery",
+          note: r.note,
         });
+
       }
 
       const emails = Array.from(new Set(list.map((r) => r.email).filter(Boolean))) as string[];
