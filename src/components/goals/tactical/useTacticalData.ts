@@ -25,7 +25,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
 
       const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr),
+        supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("id, name").order("name"),
         supabase.from("team_members").select("team_id, user_id"),

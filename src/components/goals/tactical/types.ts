@@ -25,6 +25,7 @@ export interface TacticalGoal {
   daily_target: number;
   period_start: string;
   period_end: string;
+  created_at?: string | null;
 }
 
 export interface DailyDatum {
@@ -80,13 +81,22 @@ export function resolveDailyTarget(
   userId: string | null,
   teamId: string | null,
 ): number {
-  const byUser = userId ? goals.find((g) => g.metric_id === metricId && g.user_id === userId) : undefined;
+  // Se houver mais de uma meta para o mesmo escopo (ex.: cadastro refeito),
+  // vale sempre a mais recente.
+  const latest = (list: TacticalGoal[]) =>
+    list.length
+      ? list.reduce((a, b) => (String(b.created_at ?? "") > String(a.created_at ?? "") ? b : a))
+      : undefined;
+
+  const byUser = userId
+    ? latest(goals.filter((g) => g.metric_id === metricId && g.user_id === userId))
+    : undefined;
   if (byUser) return Number(byUser.daily_target) || 0;
   const byTeam = teamId
-    ? goals.find((g) => g.metric_id === metricId && !g.user_id && g.team_id === teamId)
+    ? latest(goals.filter((g) => g.metric_id === metricId && !g.user_id && g.team_id === teamId))
     : undefined;
   if (byTeam) return Number(byTeam.daily_target) || 0;
-  const global = goals.find((g) => g.metric_id === metricId && !g.user_id && !g.team_id);
+  const global = latest(goals.filter((g) => g.metric_id === metricId && !g.user_id && !g.team_id));
   return global ? Number(global.daily_target) || 0 : 0;
 }
 
