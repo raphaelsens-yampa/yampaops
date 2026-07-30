@@ -67,7 +67,16 @@ export function ManualEntryDialog({ metrics, onSaved }: Props) {
 
           </div>
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><Label>Valor</Label><Input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} /></div>
+          <div>
+            <Label>{isRecuperados ? "Quantidade de clientes" : "Valor"}</Label>
+            <Input type="number" step={isRecuperados ? "1" : "0.01"} value={value} onChange={(e) => setValue(e.target.value)} />
+          </div>
+          {isRecuperados && (
+            <div>
+              <Label>MRR recuperado</Label>
+              <Input type="number" step="0.01" value={mrrValue} onChange={(e) => setMrrValue(e.target.value)} />
+            </div>
+          )}
           <div><Label>Observação (opcional)</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
           <Button onClick={save} className="w-full">Salvar</Button>
         </div>
