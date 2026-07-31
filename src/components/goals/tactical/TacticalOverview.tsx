@@ -172,21 +172,21 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Visão geral</p>
-          <h2 className="text-2xl font-heading font-bold">
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground">Visão geral</p>
+          <h2 className="text-lg sm:text-2xl font-heading font-bold leading-tight">
             Todos os times
-            <span className="text-muted-foreground font-normal text-base">
+            <span className="text-muted-foreground font-normal text-sm sm:text-base">
               {" "}
               · {teams.length} times · {memberIds.length} pessoas
             </span>
           </h2>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground capitalize">{dateLabel}</p>
+        <div className="text-left sm:text-right">
+          <p className="text-[11px] sm:text-xs text-muted-foreground capitalize">{dateLabel}</p>
           {withGoal.length > 0 && (
-            <p className="text-sm font-medium">
+            <p className="text-xs sm:text-sm font-medium">
               {done} de {withGoal.length} metas do dia
             </p>
           )}
@@ -200,15 +200,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
           const behind = revisedView && pacing.adjusted > target + 0.05;
           return (
             <Card key={m.id} className={`relative overflow-hidden border ${hit ? "border-success/40 bg-success/5" : ""}`}>
-              <CardContent className={`p-5 flex items-center gap-4 ${single ? "justify-center" : ""}`}>
+              <CardContent className={`p-4 sm:p-5 flex items-center gap-3 sm:gap-4 ${single ? "sm:justify-center" : ""}`}>
                 <div className="relative">
                   <ProgressRing pct={pct} done={hit} />
-                  <span className="absolute inset-0 flex items-center justify-center text-sm font-heading font-bold">
+                  <span className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-heading font-bold">
                     {Math.round(pct)}%
                   </span>
                 </div>
                 <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold truncate">{m.label}</p>
                     {behind && (
                       <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px]">
@@ -217,15 +217,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                     )}
                   </div>
                   {hit ? (
-                    <p className="text-2xl font-heading font-bold text-success flex items-center gap-1">
+                    <p className="text-xl sm:text-2xl font-heading font-bold text-success flex items-center gap-1">
                       <Check className="h-5 w-5" /> Meta batida
                     </p>
                   ) : (
-                    <p className="text-3xl font-heading font-bold leading-none">
+                    <p className="text-2xl sm:text-3xl font-heading font-bold leading-none">
                       Faltam {formatMetric(missing, m.unit)}
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground">
                     {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta diária consolidada
                   </p>
                   {behind && (
@@ -236,7 +236,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                     </p>
                   )}
 
-                  <p className="text-xs text-muted-foreground italic">{motivationalCopy(pct, missing, m.unit)}</p>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground italic">{motivationalCopy(pct, missing, m.unit)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -253,20 +253,19 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       )}
 
       {others.length > 0 && (
-        <div className={`grid gap-3 ${othersGridClass}`}>
+        <div className={`grid gap-2 sm:gap-3 ${othersGridClass}`}>
           {others.map((o) => (
             <Card key={o.id}>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground truncate">{o.label}</p>
-                <p className="text-lg font-heading font-bold">{formatMetric(o.value, o.unit)}</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight line-clamp-2">{o.label}</p>
+                <p className="text-base sm:text-lg font-heading font-bold mt-0.5">{formatMetric(o.value, o.unit)}</p>
                 {o.note && <p className="text-[10px] text-muted-foreground truncate">{o.note}</p>}
-
               </CardContent>
             </Card>
           ))}
-
         </div>
       )}
     </div>
   );
 }
+

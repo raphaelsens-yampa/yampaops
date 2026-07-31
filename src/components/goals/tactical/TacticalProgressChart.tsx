@@ -141,16 +141,17 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
 
   return (
     <Card>
-      <CardHeader className="pb-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-base">Evolução acumulada — meta x realizado</CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
+      <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
+          <CardTitle className="text-sm sm:text-base">Evolução acumulada — meta x realizado</CardTitle>
+          <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
             <Select value={metric?.id ?? ""} onValueChange={setMetricId}>
-              <SelectTrigger className="w-52"><SelectValue placeholder="Métrica" /></SelectTrigger>
+              <SelectTrigger className="col-span-2 h-10 md:h-9 md:w-52"><SelectValue placeholder="Métrica" /></SelectTrigger>
               <SelectContent>
                 {visible.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
+
             <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
