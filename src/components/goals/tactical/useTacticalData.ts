@@ -54,6 +54,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       const mrrMetric = metricsData.find((m) => m.source === "stripe_mrr");
       const dealsMetric = metricsData.find((m) => m.source === "stripe_deals");
       const reactMetric = metricsData.find((m) => m.source === "stripe_reactivation");
+      const retainedMetric = metricsData.find((m) => m.key === "clientes_retidos");
 
       const aggMap = new Map<string, DailyDatum>();
       const bump = (user_id: string, metric_id: string, dateKey: string, v: number) => {
