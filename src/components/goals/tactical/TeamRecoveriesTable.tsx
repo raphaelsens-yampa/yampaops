@@ -105,7 +105,7 @@ export function TeamRecoveriesTable({
         recoveryMetricIds.length
           ? supabase
               .from("tactical_manual_entries")
-              .select("id, user_id, entry_date, value, mrr_value, note, metric_id")
+              .select("id, user_id, entry_date, value, mrr_value, note, metric_id, entry_kind")
               .in("metric_id", recoveryMetricIds)
               .gte("entry_date", toBRDateKey(from))
               .lte("entry_date", toBRDateKey(to))
@@ -113,7 +113,7 @@ export function TeamRecoveriesTable({
           : Promise.resolve({ data: [] as any[] }),
         supabase
           .from("tactical_recoveries")
-          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source")
+          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source, entry_kind")
           .gte("recovered_at", toBRDateKey(from))
           .lte("recovered_at", toBRDateKey(to))
           .order("recovered_at", { ascending: false }),
@@ -134,6 +134,7 @@ export function TeamRecoveriesTable({
           seller_id: c.assigned_seller_id,
           origin: "stripe" as const,
           qty: 1,
+          entryKind: "recovered" as const,
         }))
         .filter((r) => r.mrr > 0);
 
@@ -150,6 +151,7 @@ export function TeamRecoveriesTable({
           seller_id: m.user_id,
           origin: "manual",
           qty: Number(m.value || 0),
+          entryKind: m.entry_kind === "retained" ? "retained" : "recovered",
           rawId: m.id,
           kind: "manual_entry",
           note: m.note,
@@ -169,6 +171,7 @@ export function TeamRecoveriesTable({
           seller_id: r.seller_id,
           origin: r.source === "import" ? "import" : "manual",
           qty: 1,
+          entryKind: r.entry_kind === "retained" ? "retained" : "recovered",
           rawId: r.id,
           kind: "recovery",
           note: r.note,
