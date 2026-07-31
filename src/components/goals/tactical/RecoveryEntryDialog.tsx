@@ -28,6 +28,7 @@ type NewRow = {
   price: string;
   mrr: string;
   note: string;
+  entry_kind: "recovered" | "retained";
 };
 
 const emptyRow = (today: Date): NewRow => ({
@@ -39,7 +40,16 @@ const emptyRow = (today: Date): NewRow => ({
   price: "",
   mrr: "",
   note: "",
+  entry_kind: "recovered",
 });
+
+function parseKind(v: unknown): "recovered" | "retained" {
+  const s = String(v ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return s.includes("retid") || s.includes("retain") || s.includes("retencao") ? "retained" : "recovered";
+}
 
 function toNumber(v: unknown): number {
   if (typeof v === "number") return v;
