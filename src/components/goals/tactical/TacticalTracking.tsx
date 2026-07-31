@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Settings2, RefreshCw, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -34,6 +36,7 @@ export function TacticalTracking() {
   const [showConfig, setShowConfig] = useState(false);
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
+  const [revisedView, setRevisedView] = useState(false);
 
   const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
 
@@ -127,6 +130,12 @@ export function TacticalTracking() {
               {today.getTime() !== realToday.getTime() && (
                 <Button variant="ghost" size="sm" onClick={() => setRefDate(realToday)}>Hoje</Button>
               )}
+              <div className="flex items-center gap-2 rounded-md border px-2.5 py-1.5">
+                <Switch id="revised-view" checked={revisedView} onCheckedChange={setRevisedView} />
+                <Label htmlFor="revised-view" className="text-xs cursor-pointer whitespace-nowrap">
+                  Visão revisada
+                </Label>
+              </div>
               <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
                 <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
               </Button>
@@ -150,6 +159,7 @@ export function TacticalTracking() {
               members={members}
               teams={teams}
               today={today}
+              revisedView={revisedView}
             />
           ) : (
             <MissionToday
@@ -163,6 +173,7 @@ export function TacticalTracking() {
               goals={goals}
               daily={daily}
               today={today}
+              revisedView={revisedView}
             />
           )}
           {!isAdmin && (
@@ -193,6 +204,7 @@ export function TacticalTracking() {
         memberIds={memberIds}
         teamId={isOverview ? null : teamId || null}
         today={today}
+        revisedView={revisedView}
       />
 
       <ActivityHeatmap
