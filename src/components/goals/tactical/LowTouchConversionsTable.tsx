@@ -68,27 +68,27 @@ export function LowTouchConversionsTable({
   return (
     <Card>
       <Collapsible open={open} onOpenChange={setOpen}>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+        <CardHeader className="px-4 md:px-6 flex flex-col items-stretch gap-3 space-y-0 md:flex-row md:items-center md:justify-between md:flex-wrap">
           <CollapsibleTrigger asChild>
-            <button type="button" className="flex items-center gap-2 text-left">
-              <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
-              <div>
-                <CardTitle className="text-base">Clientes convertidos · Low-touch</CardTitle>
+            <button type="button" className="flex items-start gap-2 text-left">
+              <ChevronDown className={`h-4 w-4 mt-1 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+              <div className="min-w-0">
+                <CardTitle className="text-sm sm:text-base">Clientes convertidos · Low-touch</CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   Vendas com valor acima de R$ 0 atribuídas a áreas Low-touch no Mapa de Preços.
                 </p>
               </div>
             </button>
           </CollapsibleTrigger>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
             <Input
               placeholder="Buscar cliente, e-mail, plano ou área..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-8 w-60"
+              className="col-span-2 h-10 md:h-8 md:w-60"
             />
             <Select value={days} onValueChange={setDays}>
-              <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 md:h-8 md:w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">Hoje</SelectItem>
                 <SelectItem value="7">Últimos 7 dias</SelectItem>
@@ -96,17 +96,42 @@ export function LowTouchConversionsTable({
                 <SelectItem value="60">Últimos 60 dias</SelectItem>
               </SelectContent>
             </Select>
-            <Badge variant="secondary">{filtered.length} vendas</Badge>
+            <Badge variant="secondary" className="justify-center">{filtered.length} vendas</Badge>
           </div>
         </CardHeader>
         <CollapsibleContent>
-          <CardContent>
+          <CardContent className="px-3 sm:px-4 md:px-6">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
                 Nenhuma conversão Low-touch no período.
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-2">
+                {filtered.map((r) => {
+                  const nm = names.get((r.email || "").toLowerCase());
+                  return (
+                    <div key={r.id} className="rounded-lg border p-3 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium truncate">{nm || r.email || "—"}</p>
+                        <p className="text-sm font-semibold shrink-0">{fmtBRL(r.mrr)}</p>
+                      </div>
+                      {nm && r.email && <p className="text-[11px] text-muted-foreground truncate">{r.email}</p>}
+                      <p className="text-[11px] text-muted-foreground">
+                        {r.plan || "—"} · {parseDateBR(r.converted_at).toLocaleDateString("pt-BR")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {r.area}{r.price > 0 ? ` · ${fmtBRL(r.price)}` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm font-semibold">
+                  <span>Total MRR</span>
+                  <span>{fmtBRL(totalMrr)}</span>
+                </div>
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -140,7 +165,9 @@ export function LowTouchConversionsTable({
                   </TableBody>
                 </Table>
               </div>
+              </>
             )}
+
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
