@@ -151,15 +151,38 @@ export function TacticalTracking() {
               <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
                 <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
               </Button>
-              <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
-              <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
-                <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
-              </Button>
+              {!isLowTouch && (
+                <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
+              )}
+              {!isLowTouch && (
+                <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
+                  <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
+      {isLowTouch ? (
+        <>
+          <LowTouchAreasConfig
+            areas={lowTouch.areas}
+            allLabels={lowTouch.allLabels}
+            canEdit={isAdmin}
+            onChanged={() => setLowTouchKey((k) => k + 1)}
+          />
+          {lowTouch.loading ? (
+            <p className="text-muted-foreground">Carregando...</p>
+          ) : (
+            <>
+              <LowTouchView sales={lowTouch.sales} today={today} />
+              <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
+            </>
+          )}
+        </>
+      ) : (
+        <>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <div className="space-y-4">
           {isOverview ? (
@@ -246,8 +269,11 @@ export function TacticalTracking() {
         today={today}
         refreshKey={reloadKey}
       />
+        </>
+      )}
 
-      {isAdmin && showConfig && (
+      {isAdmin && showConfig && !isLowTouch && (
+
         <TacticalGoalsManager
           metrics={metrics}
           profiles={profiles}
