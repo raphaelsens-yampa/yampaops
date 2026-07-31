@@ -35,6 +35,7 @@ interface Row {
   seller_id: string | null;
   origin: "stripe" | "manual" | "import";
   qty: number;
+  entryKind: "recovered" | "retained";
   rawId?: string;
   kind?: "recovery" | "manual_entry";
   note?: string | null;
