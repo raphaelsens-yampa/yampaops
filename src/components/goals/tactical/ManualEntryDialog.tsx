@@ -90,13 +90,28 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
             </div>
           )}
           <div><Label>Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          {isRecuperados && (
+            <div>
+              <Label>Tipo</Label>
+              <Select value={kind} onValueChange={(v) => setEntryKind(v as "recovered" | "retained")} disabled={isRetidos}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recovered">Cliente recuperado</SelectItem>
+                  <SelectItem value="retained">Cliente retido</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Recuperado: cliente que havia cancelado e voltou. Retido: cliente que pediu cancelamento e foi mantido.
+              </p>
+            </div>
+          )}
           <div>
             <Label>{isRecuperados ? "Quantidade de clientes" : "Valor"}</Label>
             <Input type="number" step={isRecuperados ? "1" : "0.01"} value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
           {isRecuperados && (
             <div>
-              <Label>MRR recuperado</Label>
+              <Label>{kind === "retained" ? "MRR retido" : "MRR recuperado"}</Label>
               <Input type="number" step="0.01" value={mrrValue} onChange={(e) => setMrrValue(e.target.value)} />
             </div>
           )}
