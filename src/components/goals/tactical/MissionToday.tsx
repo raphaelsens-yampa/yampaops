@@ -1,15 +1,19 @@
 import { Flame, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   DailyDatum,
   TacticalGoal,
   TacticalMetric,
   formatMetric,
+  monthPacing,
   motivationalCopy,
+  realizedMonthBeforeToday,
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
+
 
 interface Props {
   userId: string;
@@ -77,8 +81,11 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const missing = Math.max(target - realized, 0);
       const streak = computeStreak(userId, m.id, target, daily, today);
-      return { m, target, realized, pct, missing, streak };
+      const monthBefore = realizedMonthBeforeToday(daily, m.id, [userId], today);
+      const pacing = monthPacing(today, target, monthBefore);
+      return { m, target, realized, pct, missing, streak, pacing };
     });
+
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
   const withGoal = rows.filter((r) => r.target > 0);
@@ -155,9 +162,10 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
 
 
       <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-        {withGoal.map(({ m, target, realized, pct, missing, streak }) => {
+        {withGoal.map(({ m, target, realized, pct, missing, streak, pacing }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
+          const behind = pacing.adjusted > target + 0.05;
 
           return (
             <Card
@@ -179,6 +187,11 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
                         <Flame className="h-3 w-3" /> {streak}
                       </span>
                     )}
+                    {behind && (
+                      <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px]">
+                        Meta ajustada {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia
+                      </Badge>
+                    )}
                   </div>
                   {hit ? (
                     <p className="text-2xl font-heading font-bold text-success flex items-center gap-1">
@@ -192,6 +205,14 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
                   <p className="text-xs text-muted-foreground">
                     {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta diária
                   </p>
+                  {behind && (
+                    <p className="text-[11px] text-amber-600">
+                      Para fechar o mês em {formatMetric(pacing.monthTarget, m.unit)}: ritmo de{" "}
+                      {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia nos{" "}
+                      {pacing.remainingBusinessDays} dias úteis restantes.
+                    </p>
+                  )}
+
                   <p className="text-xs text-muted-foreground italic">
                     {motivationalCopy(pct, missing, m.unit)}
                   </p>

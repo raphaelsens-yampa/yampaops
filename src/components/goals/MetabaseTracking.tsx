@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
+import { computeRevisedTargets } from "@/lib/revisedGoals";
+
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -89,6 +91,19 @@ export function MetabaseTracking() {
   const [compareMode, setCompareMode] = useState<CompareMode>("to_date");
   const [chartType, setChartType] = useState<"bar" | "line">("bar");
   const [kpiView, setKpiView] = useState<"month" | "period">("month");
+  const GOAL_MODE_KEY = "metabase_goal_mode_v1";
+  const [goalMode, setGoalMode] = useState<"original" | "revised">(() => {
+    try {
+      return localStorage.getItem(GOAL_MODE_KEY) === "revised" ? "revised" : "original";
+    } catch {
+      return "original";
+    }
+  });
+  const changeGoalMode = (m: "original" | "revised") => {
+    setGoalMode(m);
+    try { localStorage.setItem(GOAL_MODE_KEY, m); } catch {}
+  };
+
 
 
   const [scope, setScope] = useState<string>("all");
@@ -408,6 +423,38 @@ export function MetabaseTracking() {
     return map;
   }, [goals, monthList, year]);
 
+  // ===== Meta Revisada — déficit dos meses encerrados diluído no restante do trimestre =====
+  const closedBeforeIdx = year < now.getFullYear() ? 12 : year > now.getFullYear() ? 0 : now.getMonth();
+  const lowerIsBetterFor = useMemo(() => {
+    const dir = new Map(categories.map((c) => [c.id, isBetterBelow(c.goal_direction)]));
+    return (id: string) => dir.get(id) ?? false;
+  }, [categories]);
+
+  const revised = useMemo(
+    () =>
+      computeRevisedTargets({
+        targetByCatMonth,
+        realizedByCatMonth,
+        categoryIds: categoriesForTable.map((c) => c.id),
+        currentMonthIdx: closedBeforeIdx,
+        lowerIsBetter: lowerIsBetterFor,
+      }),
+    [targetByCatMonth, realizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor],
+  );
+
+  const tableRevised = useMemo(
+    () =>
+      computeRevisedTargets({
+        targetByCatMonth: tableTargetByCatMonth,
+        realizedByCatMonth: tableRealizedByCatMonth,
+        categoryIds: categories.map((c) => c.id),
+        currentMonthIdx: closedBeforeIdx,
+        lowerIsBetter: lowerIsBetterFor,
+      }),
+    [tableTargetByCatMonth, tableRealizedByCatMonth, categories, closedBeforeIdx, lowerIsBetterFor],
+  );
+
+
   const persistTableOrder = (ids: string[]) => {
     setTableOrder(ids);
     try { localStorage.setItem(TABLE_ORDER_KEY, JSON.stringify(ids)); } catch {}
@@ -466,14 +513,24 @@ export function MetabaseTracking() {
     return monthList.map((_, idx) => {
       let realized = 0;
       let target = 0;
+      let revisedTarget = 0;
       categoriesForTable.forEach((c) => {
         realized += realizedByCatMonth.get(`${c.id}|${idx}`) || 0;
-        target += targetByCatMonth.get(`${c.id}|${idx}`) || 0;
+        const t = targetByCatMonth.get(`${c.id}|${idx}`) || 0;
+        target += t;
+        revisedTarget += revised.revisedByCatMonth.get(`${c.id}|${idx}`) ?? t;
       });
-      return { month: MONTHS[idx], Meta: Math.round(target), Realizado: Math.round(realized), inWin: monthInWindow(idx) };
+      return {
+        month: MONTHS[idx],
+        Meta: Math.round(target),
+        MetaRevisada: Math.round(revisedTarget),
+        Realizado: Math.round(realized),
+        inWin: monthInWindow(idx),
+      };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, compareWindow]);
+  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, revised, compareWindow]);
+
 
   // Meses cobertos pelo Metabase no ano selecionado
   const coveredMonths = useMemo(() => {
@@ -679,13 +736,22 @@ export function MetabaseTracking() {
         };
         const currentMonthIdx = year === now.getFullYear() ? now.getMonth() : 11;
         const monthRow = chartData[currentMonthIdx];
-        const monthTarget = monthRow?.Meta || 0;
+        const revisedOn = goalMode === "revised";
+        const monthOriginalTarget = monthRow?.Meta || 0;
+        const monthTarget = revisedOn ? (monthRow?.MetaRevisada ?? monthOriginalTarget) : monthOriginalTarget;
         const monthRealized = monthRow?.Realizado || 0;
         const monthGap = monthTarget - monthRealized;
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
         const monthLabel = MONTHS[currentMonthIdx];
-        const periodGap = totalPeriodTarget - totalRealized;
+        const revisedDeltaInWindow = chartData.reduce(
+          (s, r) => s + (r.inWin ? (r.MetaRevisada || 0) - (r.Meta || 0) : 0),
+          0,
+        );
+        const periodTargetEff = revisedOn ? totalPeriodTarget + revisedDeltaInWindow : totalPeriodTarget;
+        const periodGap = periodTargetEff - totalRealized;
+        const periodPct = periodTargetEff > 0 ? (totalRealized / periodTargetEff) * 100 : 0;
         const isLessBetter = !!selectedCat && isBetterBelow(selectedCat.goal_direction);
+
         const gapColor = (gap: number) => {
           if (gap === 0) return "text-muted-foreground";
           if (isLessBetter) {
@@ -702,8 +768,27 @@ export function MetabaseTracking() {
         };
         return (
           <>
-            <div className="flex items-center justify-end gap-2">
-              <span className="text-xs text-muted-foreground">Visão:</span>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="text-xs text-muted-foreground">Meta:</span>
+              <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
+                <Button
+                  size="sm"
+                  variant={goalMode === "original" ? "default" : "ghost"}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => changeGoalMode("original")}
+                >
+                  Original
+                </Button>
+                <Button
+                  size="sm"
+                  variant={goalMode === "revised" ? "default" : "ghost"}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => changeGoalMode("revised")}
+                >
+                  Revisada
+                </Button>
+              </div>
+              <span className="text-xs text-muted-foreground ml-2">Visão:</span>
               <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
                 <Button
                   size="sm"
@@ -723,11 +808,26 @@ export function MetabaseTracking() {
                 </Button>
               </div>
             </div>
+            {revisedOn && (
+              <p className="text-xs text-amber-600">
+                Meta revisada: o déficit dos meses já encerrados é redistribuído nos meses restantes do mesmo trimestre.
+                Superávit não abate metas futuras.
+              </p>
+            )}
             {kpiView === "month" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-primary/40"><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Mês ({monthLabel})</p>
-                  <p className="text-2xl font-bold">{kpiFmt(monthTarget)}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Meta do Mês ({monthLabel})
+                  </p>
+                  <p className={`text-2xl font-bold ${revisedOn && Math.abs(monthTarget - monthOriginalTarget) > 0.5 ? "text-amber-600" : ""}`}>
+                    {kpiFmt(monthTarget)}
+                  </p>
+                  {revisedOn && Math.abs(monthTarget - monthOriginalTarget) > 0.5 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      original {kpiFmt(monthOriginalTarget)} · revisada pelo trimestre
+                    </p>
+                  )}
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado do Mês</p>
@@ -747,9 +847,13 @@ export function MetabaseTracking() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card className="border-primary/40"><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
-                  <p className="text-2xl font-bold">{kpiFmt(totalPeriodTarget)}</p>
+                  <p className={`text-2xl font-bold ${revisedOn && Math.abs(periodTargetEff - totalPeriodTarget) > 0.5 ? "text-amber-600" : ""}`}>
+                    {kpiFmt(periodTargetEff)}
+                  </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {filteredGoals.length} meta(s) somada(s)
+                    {revisedOn && Math.abs(periodTargetEff - totalPeriodTarget) > 0.5
+                      ? `original ${kpiFmt(totalPeriodTarget)}`
+                      : `${filteredGoals.length} meta(s) somada(s)`}
                   </p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
@@ -768,16 +872,20 @@ export function MetabaseTracking() {
                 </CardContent></Card>
                 <Card><CardContent className="p-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(totalPct, isLessBetter)}`}>{totalPct.toFixed(1)}%</p>
+                  <p className={`text-2xl font-bold ${pctColor(periodPct, isLessBetter)}`}>{periodPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             )}
+
 
             {/* Gráfico */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Realizado vs Meta — {year}</CardTitle>
+                  <CardTitle className="text-base">
+                    Realizado vs Meta — {year}
+                    {revisedOn && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-600 text-[10px]">+ Meta revisada</Badge>}
+                  </CardTitle>
                   <Select value={chartType} onValueChange={(v) => setChartType(v as "bar" | "line")}>
                     <SelectTrigger className="w-[140px] h-8 text-xs">
                       <SelectValue placeholder="Tipo de gráfico" />
@@ -802,6 +910,10 @@ export function MetabaseTracking() {
 
                         <Bar dataKey="Meta" fill="hsl(var(--muted-foreground))" />
                         <Bar dataKey="Realizado" fill="hsl(var(--primary))" />
+                        {revisedOn && (
+                          <Bar dataKey="MetaRevisada" name="Meta revisada" fill="hsl(38 92% 50%)" />
+
+                        )}
                       </BarChart>
                     ) : (
                       <LineChart data={chartData}>
@@ -811,10 +923,14 @@ export function MetabaseTracking() {
                         <Tooltip formatter={(v: number) => kpiFmt(v)} />
                         <Legend />
 
-                        <Line type="monotone" dataKey="Meta" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="Meta" name="Meta original" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray={revisedOn ? "5 4" : undefined} dot={{ r: 3 }} />
+                        {revisedOn && (
+                          <Line type="monotone" dataKey="MetaRevisada" name="Meta revisada" stroke="hsl(38 92% 50%)" strokeWidth={2.5} dot={{ r: 3 }} />
+                        )}
                         <Line type="monotone" dataKey="Realizado" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
                       </LineChart>
                     )}
+
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -827,13 +943,20 @@ export function MetabaseTracking() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">Metas por categoria × mês</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Arraste as linhas para reorganizar. A ordem é salva localmente.</p>
+            <CardTitle className="text-base">
+              Metas por categoria × mês
+              {goalMode === "revised" && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-600 text-[10px]">Meta revisada</Badge>}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Arraste as linhas para reorganizar. A ordem é salva localmente.
+              {goalMode === "revised" && " Metas em âmbar herdaram o déficit dos meses anteriores do trimestre."}
+            </p>
           </div>
           <Button variant="ghost" size="sm" onClick={resetTableOrder} className="gap-1">
             <RotateCcw className="h-3.5 w-3.5" /> Restaurar ordem padrão
           </Button>
         </CardHeader>
+
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
@@ -870,6 +993,9 @@ export function MetabaseTracking() {
                       monthList={monthList}
                       targetMap={tableTargetByCatMonth}
                       realizedMap={tableRealizedByCatMonth}
+                      revisedMap={tableRevised.revisedByCatMonth}
+                      showRevised={goalMode === "revised"}
+
                       fmt={fmtByCategory}
                       pctColor={pctColor}
                     />
@@ -918,11 +1044,13 @@ interface SortableCategoryRowProps {
   monthList: Date[];
   targetMap: Map<string, number>;
   realizedMap: Map<string, number>;
+  revisedMap?: Map<string, number>;
+  showRevised?: boolean;
   fmt: (c: GoalCategory | undefined, v: number) => string;
   pctColor: (pct: number, lte: boolean) => string;
 }
 
-function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, fmt, pctColor }: SortableCategoryRowProps) {
+function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, revisedMap, showRevised, fmt, pctColor }: SortableCategoryRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -945,13 +1073,23 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, f
         </div>
       </TableCell>
       {monthList.map((_, idx) => {
-        const t = targetMap.get(`${c.id}|${idx}`) || 0;
+        const original = targetMap.get(`${c.id}|${idx}`) || 0;
+        const rev = revisedMap?.get(`${c.id}|${idx}`) ?? original;
+        const hasRev = !!showRevised && original > 0 && Math.abs(rev - original) > 0.5;
+        const t = showRevised && original > 0 ? rev : original;
         const r = realizedMap.get(`${c.id}|${idx}`) || 0;
         const pct = t > 0 ? (r / t) * 100 : 0;
         ytdT += t; ytdR += r;
         return (
           <Fragment key={`cell-month-${idx}`}>
-            <TableCell className="text-right text-xs border-l">{t > 0 ? fmt(c, t) : "—"}</TableCell>
+            <TableCell className="text-right text-xs border-l">
+              {t > 0 ? (
+                <span className={hasRev ? "text-amber-600 font-medium" : undefined}>{fmt(c, t)}</span>
+              ) : "—"}
+              {hasRev && (
+                <span className="block text-[9px] text-muted-foreground line-through">{fmt(c, original)}</span>
+              )}
+            </TableCell>
             <TableCell className="text-right text-xs">{r > 0 ? fmt(c, r) : "—"}</TableCell>
             <TableCell className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
               {t > 0 ? `${pct.toFixed(0)}%` : "—"}
@@ -967,3 +1105,4 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, f
     </TableRow>
   );
 }
+
