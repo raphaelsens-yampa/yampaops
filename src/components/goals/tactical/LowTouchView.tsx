@@ -145,18 +145,18 @@ export function LowTouchView({ sales, today }: Props) {
           </Select>
         </CardHeader>
 
-        <CardContent>
-          <div className="h-72">
+        <CardContent className="px-2 sm:px-4 md:px-6">
+          <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={40} allowDecimals={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis yAxisId="left" tick={{ fontSize: 10 }} width={32} allowDecimals={false} />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  tick={{ fontSize: 11 }}
-                  width={70}
+                  tick={{ fontSize: 10 }}
+                  width={56}
                   tickFormatter={(v) => fmtBRL(Number(v))}
                 />
                 <Tooltip
@@ -165,7 +165,7 @@ export function LowTouchView({ sales, today }: Props) {
                   }
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar yAxisId="left" dataKey="vendas" name="Vendas do dia" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                 <Bar yAxisId="right" dataKey="mrr" name="MRR do dia" fill="hsl(38 92% 50%)" radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -175,17 +175,19 @@ export function LowTouchView({ sales, today }: Props) {
       </Card>
 
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
-          <CardTitle className="text-base">Ranking por área</CardTitle>
+        <CardHeader className="pb-3 px-4 md:px-6 flex flex-row items-center justify-between gap-3">
+          <CardTitle className="text-sm sm:text-base">Ranking por área</CardTitle>
           <Badge variant="secondary">{totalCount} vendas</Badge>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-4 md:px-6">
           {ranking.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
               Nenhuma venda Low-touch no período.
             </p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
+
               <TableHeader>
                 <TableRow>
                   <TableHead>Área</TableHead>
