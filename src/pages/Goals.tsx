@@ -339,13 +339,18 @@ export default function GoalsPage() {
             </div>
 
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {Object.entries(SCOPE_LABELS).map(([key, label]) => {
                 const count = goals.filter((g) => g.scope === key).length;
+                const active = filterScope === key;
                 return (
-                  <Card key={key} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilterScope(key)}>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-bold">{count}</p>
+                  <Card
+                    key={key}
+                    className={`cursor-pointer transition-colors active:scale-[0.99] ${active ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
+                    onClick={() => setFilterScope(active ? "all" : key)}
+                  >
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <p className="text-xl sm:text-2xl font-bold">{count}</p>
                       <p className="text-xs text-muted-foreground">{label}</p>
                     </CardContent>
                   </Card>
@@ -353,8 +358,66 @@ export default function GoalsPage() {
               })}
             </div>
 
-            <Card>
-              <CardContent className="p-0">
+            {/* Lista mobile */}
+            <div className="space-y-3 md:hidden">
+              {filteredGoals.map((g) => {
+                const prof = profiles.find((p) => p.user_id === g.user_id);
+                const team = teams.find((t) => t.id === g.team_id);
+                const camp = campaigns.find((c) => c.id === g.campaign_id);
+                let details = "Toda empresa";
+                if (g.scope === "user") details = prof?.full_name || "—";
+                else if (g.scope === "team") details = team?.name || "—";
+                else if (g.scope === "campaign") details = camp?.name || g.campaign || "—";
+                const cat = categories.find((c) => c.id === g.category_id);
+                return (
+                  <Card key={g.id}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || "Empresa"}</Badge>
+                            {cat && <span className="text-xs text-muted-foreground truncate">{cat.name}</span>}
+                          </div>
+                          <p className="text-sm font-medium mt-1 truncate">{details}</p>
+                          <p className="text-xs text-muted-foreground">{g.period_start} → {g.period_end}</p>
+                        </div>
+                        {role === "admin" && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Editar meta" onClick={() => openEditDialog(g)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Excluir meta" onClick={() => deleteGoal(g.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">MRR</p>
+                          <p className="text-sm font-semibold">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Deals</p>
+                          <p className="text-sm font-semibold">{g.target_deals || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">ARPA</p>
+                          <p className="text-sm font-semibold">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {filteredGoals.length === 0 && (
+                <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Nenhuma meta</CardContent></Card>
+              )}
+            </div>
+
+            <Card className="hidden md:block">
+              <CardContent className="p-0 overflow-x-auto">
+
                 <Table>
                   <TableHeader>
                     <TableRow>
