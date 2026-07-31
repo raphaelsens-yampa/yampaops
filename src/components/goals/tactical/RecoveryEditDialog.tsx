@@ -102,11 +102,11 @@ export function RecoveryEditDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Editar recuperação</DialogTitle>
+          <DialogTitle>Editar registro</DialogTitle>
           <DialogDescription>
             {isManualEntry
               ? "Lançamento manual do painel tático (quantidade e MRR)."
-              : "Registro detalhado de cliente recuperado."}
+              : "Registro detalhado de cliente recuperado ou retido."}
           </DialogDescription>
         </DialogHeader>
 
@@ -132,6 +132,19 @@ export function RecoveryEditDialog({
             </>
           )}
           <div className="space-y-1">
+            <Label>Tipo</Label>
+            <Select
+              value={form.entry_kind}
+              onValueChange={(v) => setForm({ ...form, entry_kind: v as "recovered" | "retained" })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recovered">Cliente recuperado</SelectItem>
+                <SelectItem value="retained">Cliente retido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label>Responsável</Label>
             <Select value={form.seller_id} onValueChange={(v) => setForm({ ...form, seller_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -153,9 +166,10 @@ export function RecoveryEditDialog({
             </div>
           )}
           <div className="space-y-1">
-            <Label>MRR recuperado (R$)</Label>
+            <Label>{form.entry_kind === "retained" ? "MRR retido (R$)" : "MRR recuperado (R$)"}</Label>
             <Input inputMode="decimal" value={form.mrr} onChange={(e) => setForm({ ...form, mrr: e.target.value })} />
           </div>
+        </div>
         </div>
         <div className="space-y-1">
           <Label>Observação</Label>
