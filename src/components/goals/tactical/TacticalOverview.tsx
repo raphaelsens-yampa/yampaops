@@ -15,7 +15,7 @@ import {
   toBRDateKey,
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
-import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
 
 
