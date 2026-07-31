@@ -194,6 +194,14 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
           <p className="text-xs text-muted-foreground">
             Acumulado no período — meta {formatMetric(last.meta, unit)} · realizado{" "}
             <span className="font-medium text-foreground">{formatMetric(last.realizado, unit)}</span>
+            {showRevised && (
+              <>
+                {" · "}
+                <span className="text-amber-600">
+                  meta revisada {formatMetric(last.metaRevisada, unit)}
+                </span>
+              </>
+            )}
           </p>
         )}
       </CardHeader>
@@ -219,6 +227,16 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
                 strokeWidth={2}
                 dot={false}
               />
+              {showRevised && (
+                <Line
+                  type="monotone"
+                  dataKey="metaRevisada"
+                  name="Meta revisada"
+                  stroke="hsl(38 92% 50%)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="realizado"
@@ -227,6 +245,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
                 strokeWidth={2.5}
                 dot={false}
               />
+
             </LineChart>
           </ResponsiveContainer>
         </div>
