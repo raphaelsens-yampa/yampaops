@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,18 +47,25 @@ export function LowTouchView({ sales, today }: Props) {
     return sales.filter((s) => s.dateKey >= a && s.dateKey <= b);
   }, [sales, from, to]);
 
+  const monthToDate = useMemo(() => {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startKey = toBRDateKey(start);
+    const window = sales.filter((s) => s.dateKey >= startKey && s.dateKey <= todayKey);
+    return { count: window.length, mrr: window.reduce((s, r) => s + r.mrr, 0) };
+  }, [sales, today, todayKey]);
+
   const chartData = useMemo(() => {
     const points: { label: string; vendas: number; mrr: number }[] = [];
-    let accCount = 0;
-    let accMrr = 0;
     const d = new Date(from); d.setHours(0, 0, 0, 0);
     const end = new Date(to); end.setHours(0, 0, 0, 0);
     while (d <= end) {
       const key = toBRDateKey(d);
       const day = periodSales.filter((s) => s.dateKey === key);
-      accCount += day.length;
-      accMrr += day.reduce((s, r) => s + r.mrr, 0);
-      points.push({ label: format(d, "dd/MM", { locale: ptBR }), vendas: accCount, mrr: accMrr });
+      points.push({
+        label: format(d, "dd/MM", { locale: ptBR }),
+        vendas: day.length,
+        mrr: day.reduce((s, r) => s + r.mrr, 0),
+      });
       d.setDate(d.getDate() + 1);
     }
     return points;
@@ -80,7 +87,7 @@ export function LowTouchView({ sales, today }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendas Low-touch do dia</p>
@@ -99,14 +106,32 @@ export function LowTouchView({ sales, today }: Props) {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendas acum. Low-touch (mês)</p>
+            <p className="text-3xl font-semibold mt-1">{monthToDate.count}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {format(today, "MMMM 'de' yyyy", { locale: ptBR })} até hoje
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">MRR acum. Low-touch (mês)</p>
+            <p className="text-3xl font-semibold mt-1">{fmtBRL(monthToDate.mrr)}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {format(today, "MMMM 'de' yyyy", { locale: ptBR })} até hoje
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader className="pb-3 flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Evolução acumulada — Low-touch</CardTitle>
+            <CardTitle className="text-base">Conversão diária — Low-touch</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Sem meta diária cadastrada — apenas realizado acumulado no período.
+              Vendas e MRR realizados por dia no período selecionado.
             </p>
           </div>
           <Select value={preset} onValueChange={setPreset}>
@@ -122,10 +147,10 @@ export function LowTouchView({ sales, today }: Props) {
         <CardContent>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={40} />
+                <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={40} allowDecimals={false} />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
@@ -135,20 +160,14 @@ export function LowTouchView({ sales, today }: Props) {
                 />
                 <Tooltip
                   formatter={(v: any, name: any) =>
-                    name === "MRR acumulado" ? [fmtBRL(Number(v)), name] : [Number(v).toLocaleString("pt-BR"), name]
+                    name === "MRR do dia" ? [fmtBRL(Number(v)), name] : [Number(v).toLocaleString("pt-BR"), name]
                   }
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line
-                  yAxisId="left" type="monotone" dataKey="vendas" name="Vendas acumuladas"
-                  stroke="hsl(var(--primary))" strokeWidth={2.5} dot={false}
-                />
-                <Line
-                  yAxisId="right" type="monotone" dataKey="mrr" name="MRR acumulado"
-                  stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false}
-                />
-              </LineChart>
+                <Bar yAxisId="left" dataKey="vendas" name="Vendas do dia" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                <Bar yAxisId="right" dataKey="mrr" name="MRR do dia" fill="hsl(38 92% 50%)" radius={[3, 3, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
