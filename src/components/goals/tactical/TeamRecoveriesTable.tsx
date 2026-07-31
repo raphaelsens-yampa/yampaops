@@ -204,17 +204,21 @@ export function TeamRecoveriesTable({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
+    let list = rows;
+    if (kindFilter !== "all") list = list.filter((r) => r.entryKind === kindFilter);
+    if (!q) return list;
+    return list.filter(
       (r) =>
         (r.email || "").toLowerCase().includes(q) ||
         (r.name || "").toLowerCase().includes(q) ||
         (r.plan || "").toLowerCase().includes(q),
     );
-  }, [rows, query]);
+  }, [rows, query, kindFilter]);
 
   const totalMrr = filtered.reduce((s, r) => s + r.mrr, 0);
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
+  const recoveredQty = filtered.filter((r) => r.entryKind === "recovered").reduce((s, r) => s + r.qty, 0);
+  const retainedQty = filtered.filter((r) => r.entryKind === "retained").reduce((s, r) => s + r.qty, 0);
 
   function toEditable(r: Row): EditableRecovery {
     return {
@@ -229,6 +233,7 @@ export function TeamRecoveriesTable({
       mrr: r.mrr ? String(r.mrr) : "",
       qty: String(r.qty ?? ""),
       note: r.note || "",
+      entry_kind: r.entryKind,
     };
   }
 
