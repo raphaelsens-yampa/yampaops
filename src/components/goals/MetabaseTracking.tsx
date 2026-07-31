@@ -804,7 +804,7 @@ export function MetabaseTracking() {
                   Revisada
                 </Button>
               </div>
-              <span className="text-xs text-muted-foreground ml-2">Visão:</span>
+              <span className="text-xs text-muted-foreground sm:ml-2">Visão:</span>
               <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
                 <Button
                   size="sm"
