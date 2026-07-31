@@ -121,4 +121,19 @@
   .safe-top { padding-top: env(safe-area-inset-top); }
   /* Responsive table wrapper helper */
   .table-scroll { @apply -mx-3 sm:mx-0 overflow-x-auto; }
+
+  /* Scroll horizontal sem barra visível (tabs/filtros no mobile) */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* Faixa de scroll horizontal com snap suave para cards/filtros */
+  .snap-row {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .snap-row > * { scroll-snap-align: start; }
 }
+
