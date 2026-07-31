@@ -93,27 +93,47 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         metricsData.filter((m) => m.source === "stripe_mrr" || m.source === "stripe_deals").map((m) => m.id)
       );
       const mrrMetricId = mrrMetric?.id;
+      const recoveryMetricIds = new Set(
+        metricsData
+          .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
+          .map((m) => m.id)
+      );
       for (const m of manualRes.data || []) {
-        if (lockedIds.has((m as any).metric_id)) continue;
-        bump((m as any).user_id, (m as any).metric_id, (m as any).entry_date, Number((m as any).value || 0));
-        // MRR recuperado manualmente no CS soma ao MRR do dia
+        const metricId = (m as any).metric_id;
+        if (lockedIds.has(metricId)) continue;
+        const retained = (m as any).entry_kind === "retained";
+        // Lançamentos de retenção contam na métrica "Clientes retidos"
+        const targetMetricId =
+          retained && retainedMetric && recoveryMetricIds.has(metricId) ? retainedMetric.id : metricId;
+        bump((m as any).user_id, targetMetricId, (m as any).entry_date, Number((m as any).value || 0));
+        // MRR recuperado/retido manualmente no CS soma ao MRR do dia
         if (Number((m as any).mrr_value || 0) > 0) {
           const v = Number((m as any).mrr_value || 0);
           if (mrrMetricId) bump((m as any).user_id, mrrMetricId, (m as any).entry_date, v);
-          bump((m as any).user_id, VIRTUAL_MRR_RECOVERY, (m as any).entry_date, v);
+          bump(
+            (m as any).user_id,
+            retained ? VIRTUAL_MRR_RETENTION : VIRTUAL_MRR_RECOVERY,
+            (m as any).entry_date,
+            v,
+          );
         }
       }
 
-      // Recuperados lançados/importados na tabela de recuperações também contam
+      // Recuperados/retidos lançados ou importados na tabela de recuperações também contam
       for (const r of recovRes.data || []) {
         const seller = (r as any).seller_id;
         const dateKey = String((r as any).recovered_at || "").slice(0, 10);
         if (!seller || !dateKey) continue;
-        if (reactMetric) bump(seller, reactMetric.id, dateKey, 1);
+        const retained = (r as any).entry_kind === "retained";
+        if (retained) {
+          if (retainedMetric) bump(seller, retainedMetric.id, dateKey, 1);
+        } else if (reactMetric) {
+          bump(seller, reactMetric.id, dateKey, 1);
+        }
         const mrr = Number((r as any).mrr || 0);
         if (mrr > 0) {
           if (mrrMetricId) bump(seller, mrrMetricId, dateKey, mrr);
-          bump(seller, VIRTUAL_MRR_RECOVERY, dateKey, mrr);
+          bump(seller, retained ? VIRTUAL_MRR_RETENTION : VIRTUAL_MRR_RECOVERY, dateKey, mrr);
         }
       }
 
