@@ -195,6 +195,8 @@ export function TacticalTracking() {
               teams={teams}
               today={today}
               revisedView={revisedView}
+              lowTouchSales={lowTouch.sales}
+
             />
           ) : (
             <MissionToday
@@ -228,7 +230,9 @@ export function TacticalTracking() {
           groupByTeam={isOverview}
           teams={teams}
           members={members}
+          lowTouchSales={isOverview ? lowTouch.sales : []}
         />
+
 
       </div>
 

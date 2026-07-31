@@ -16,6 +16,7 @@ import {
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
+import type { LowTouchSale } from "./useLowTouchData";
 
 
 interface Props {
@@ -27,7 +28,9 @@ interface Props {
   teams: Team[];
   today: Date;
   revisedView?: boolean;
+  lowTouchSales?: LowTouchSale[];
 }
+
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   const r = 34;
@@ -52,7 +55,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   );
 }
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [] }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -76,9 +79,25 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
   const withGoal = rows.filter((r) => r.target > 0);
-  const others: { id: string; label: string; unit: TacticalMetric["unit"]; value: number }[] = rows
+
+  // Vendas/MRR Low-touch de hoje (áreas sem ação de Sales/CS)
+  const ltToday = lowTouchSales.filter((s) => s.dateKey === todayKey);
+  const ltCount = ltToday.length;
+  const ltMrr = ltToday.reduce((s, x) => s + (x.mrr ?? 0), 0);
+
+  type OtherCard = { id: string; label: string; unit: TacticalMetric["unit"]; value: number; note?: string };
+  const others: OtherCard[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
-    .map((r) => ({ id: r.m.id, label: r.m.label, unit: r.m.unit, value: r.realized }));
+    .map((r) => {
+      const extra = r.m.key === "vendas_dia" ? ltCount : r.m.key === "mrr_dia" ? ltMrr : 0;
+      return {
+        id: r.m.id,
+        label: r.m.label,
+        unit: r.m.unit,
+        value: r.realized + extra,
+        note: extra > 0 ? `inclui low-touch: ${formatMetric(extra, r.m.unit)}` : undefined,
+      };
+    });
 
   if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
     const recIds = metrics.filter((m) => m.key === "clientes_recuperados").map((m) => m.id);
@@ -95,17 +114,23 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       .reduce((s, x) => s + (x.value ?? 0), 0);
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
-  if (mrrSales > 0 || mrrRecovery > 0) {
+  if (mrrSales > 0 || mrrRecovery > 0 || ltMrr > 0) {
     const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
-    const salesCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency" as const, value: mrrSales };
+    const salesCard: OtherCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency", value: mrrSales };
     if (idxVendas >= 0) others.splice(idxVendas + 1, 0, salesCard);
     else others.push(salesCard);
 
     const idxRec = others.findIndex((o) => o.label.toLowerCase().includes("recuperad") && o.unit !== "currency");
-    const recCard = { id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency" as const, value: mrrRecovery };
+    const recCard: OtherCard = { id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency", value: mrrRecovery };
     if (idxRec >= 0) others.splice(idxRec + 1, 0, recCard);
     else others.push(recCard);
   }
+
+  if (ltCount > 0 || ltMrr > 0) {
+    others.push({ id: "lowtouch-vendas-card", label: "Vendas Low-touch", unit: "count", value: ltCount });
+    others.push({ id: "lowtouch-mrr-card", label: "MRR Low-touch", unit: "currency", value: ltMrr });
+  }
+
 
   const othersGridClass =
     others.length === 1
@@ -212,6 +237,8 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
               <CardContent className="p-3">
                 <p className="text-xs text-muted-foreground truncate">{o.label}</p>
                 <p className="text-lg font-heading font-bold">{formatMetric(o.value, o.unit)}</p>
+                {o.note && <p className="text-[10px] text-muted-foreground truncate">{o.note}</p>}
+
               </CardContent>
             </Card>
           ))}
