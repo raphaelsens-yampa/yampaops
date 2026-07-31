@@ -14,6 +14,7 @@ import {
   toBRDateKey,
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
+import type { LowTouchSale } from "./useLowTouchData";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -27,7 +28,9 @@ interface Props {
   groupByTeam?: boolean;
   teams?: Team[];
   members?: TeamMember[];
+  lowTouchSales?: LowTouchSale[];
 }
+
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
