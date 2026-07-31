@@ -153,14 +153,14 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
             </Select>
 
             <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
-              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 md:h-9 md:w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="day">Por dia</SelectItem>
                 <SelectItem value="week">Por semana</SelectItem>
               </SelectContent>
             </Select>
             <Select value={preset} onValueChange={setPreset}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="7">Últimos 7 dias</SelectItem>
                 <SelectItem value="15">Últimos 15 dias</SelectItem>
@@ -172,14 +172,14 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
             {preset === "custom" && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn(!customFrom && "text-muted-foreground")}>
+                  <Button variant="outline" size="sm" className={cn("col-span-2 h-10 md:h-9", !customFrom && "text-muted-foreground")}>
                     <CalendarIcon className="h-4 w-4 mr-1" />
                     {customFrom
                       ? `${format(customFrom, "dd/MM/yy")} – ${customTo ? format(customTo, "dd/MM/yy") : "..."}`
                       : "Escolher período"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="range"
                     selected={{ from: customFrom, to: customTo }}
@@ -207,13 +207,14 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
           </p>
         )}
       </CardHeader>
-      <CardContent>
-        <div className="h-72">
+      <CardContent className="px-2 sm:px-4 md:px-6">
+        <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => formatMetric(Number(v), unit)} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={24} />
+              <YAxis tick={{ fontSize: 10 }} width={56} tickFormatter={(v) => formatMetric(Number(v), unit)} />
+
               <Tooltip
                 formatter={(v: any, name: any) => [formatMetric(Number(v), unit), name]}
                 labelClassName="text-xs"
