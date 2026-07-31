@@ -16,6 +16,7 @@ import {
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
+import type { LowTouchSale } from "./useLowTouchData";
 
 
 interface Props {
@@ -27,7 +28,9 @@ interface Props {
   teams: Team[];
   today: Date;
   revisedView?: boolean;
+  lowTouchSales?: LowTouchSale[];
 }
+
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   const r = 34;
