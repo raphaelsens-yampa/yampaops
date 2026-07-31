@@ -87,7 +87,7 @@ export function LowTouchView({ sales, today }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendas Low-touch do dia</p>
@@ -106,14 +106,32 @@ export function LowTouchView({ sales, today }: Props) {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendas acum. Low-touch (mês)</p>
+            <p className="text-3xl font-semibold mt-1">{monthToDate.count}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {format(today, "MMMM 'de' yyyy", { locale: ptBR })} até hoje
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">MRR acum. Low-touch (mês)</p>
+            <p className="text-3xl font-semibold mt-1">{fmtBRL(monthToDate.mrr)}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {format(today, "MMMM 'de' yyyy", { locale: ptBR })} até hoje
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader className="pb-3 flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Evolução acumulada — Low-touch</CardTitle>
+            <CardTitle className="text-base">Conversão diária — Low-touch</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Sem meta diária cadastrada — apenas realizado acumulado no período.
+              Vendas e MRR realizados por dia no período selecionado.
             </p>
           </div>
           <Select value={preset} onValueChange={setPreset}>
@@ -129,10 +147,10 @@ export function LowTouchView({ sales, today }: Props) {
         <CardContent>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={40} />
+                <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={40} allowDecimals={false} />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
@@ -142,20 +160,14 @@ export function LowTouchView({ sales, today }: Props) {
                 />
                 <Tooltip
                   formatter={(v: any, name: any) =>
-                    name === "MRR acumulado" ? [fmtBRL(Number(v)), name] : [Number(v).toLocaleString("pt-BR"), name]
+                    name === "MRR do dia" ? [fmtBRL(Number(v)), name] : [Number(v).toLocaleString("pt-BR"), name]
                   }
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line
-                  yAxisId="left" type="monotone" dataKey="vendas" name="Vendas acumuladas"
-                  stroke="hsl(var(--primary))" strokeWidth={2.5} dot={false}
-                />
-                <Line
-                  yAxisId="right" type="monotone" dataKey="mrr" name="MRR acumulado"
-                  stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false}
-                />
-              </LineChart>
+                <Bar yAxisId="left" dataKey="vendas" name="Vendas do dia" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                <Bar yAxisId="right" dataKey="mrr" name="MRR do dia" fill="hsl(38 92% 50%)" radius={[3, 3, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
