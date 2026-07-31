@@ -107,6 +107,20 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
     }
     rows = [...rows].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 
+    // Linha Low-touch: vendas/MRR de áreas sem ação de Sales/CS
+    if (groupByTeam && (metric?.key === "vendas_dia" || metric?.key === "mrr_dia")) {
+      const isMrr = metric.key === "mrr_dia";
+      const ltValue = lowTouchSales
+        .filter((s) => s.dateKey === todayKey)
+        .reduce((s, x) => s + (isMrr ? x.mrr : 1), 0);
+      const ltWeek = lowTouchSales
+        .filter((s) => weekKeys.includes(s.dateKey))
+        .reduce((s, x) => s + (isMrr ? x.mrr : 1), 0);
+      if (ltValue > 0 || ltWeek > 0) {
+        rows = [...rows, { uid: "low-touch", teamId: null as string | null, name: "Low-touch", value: ltValue, target: 0, week: ltWeek, pct: ltValue > 0 ? 100 : 0 }];
+      }
+    }
+
     const teamToday = rows.reduce((s, r) => s + r.value, 0);
     const teamTarget = rows.reduce((s, r) => s + r.target, 0);
     const weekRealized = rows.reduce((s, r) => s + r.week, 0);
@@ -115,7 +129,8 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
       return dt.getDay() !== 0 && dt.getDay() !== 6;
     }).length;
     return { rows, teamToday, teamTarget, weekRealized, weekTarget: teamTarget * businessDaysSoFar };
-  }, [metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members]);
+  }, [metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members, lowTouchSales]);
+
 
 
   const unit = metric?.unit ?? "count";
