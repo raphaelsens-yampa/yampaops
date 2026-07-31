@@ -309,7 +309,7 @@ export function TeamRecoveriesTable({
           <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
-            Nenhuma recuperação no período para este time.
+            Nenhum registro no período para este time.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -319,6 +319,7 @@ export function TeamRecoveriesTable({
                   <TableHead>Cliente</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Plano</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
@@ -339,6 +340,11 @@ export function TeamRecoveriesTable({
                     </TableCell>
                     <TableCell className="text-muted-foreground">{r.email || "—"}</TableCell>
                     <TableCell>{r.plan || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={r.entryKind === "retained" ? "default" : "secondary"}>
+                        {r.entryKind === "retained" ? "Retido" : "Recuperado"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {profiles.find((p) => p.user_id === r.seller_id)?.full_name || "—"}
                     </TableCell>
