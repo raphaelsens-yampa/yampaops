@@ -37,7 +37,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   const c = 2 * Math.PI * r;
   const filled = Math.min(pct, 100) / 100;
   return (
-    <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90 shrink-0">
+    <svg viewBox="0 0 80 80" className="h-16 w-16 sm:h-20 sm:w-20 -rotate-90 shrink-0">
       <circle cx="40" cy="40" r={r} fill="none" strokeWidth="8" className="stroke-muted" />
       <circle
         cx="40"
@@ -54,6 +54,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
     </svg>
   );
 }
+
 
 export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [] }: Props) {
   const todayKey = toBRDateKey(today);
