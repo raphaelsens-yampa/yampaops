@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,18 +47,25 @@ export function LowTouchView({ sales, today }: Props) {
     return sales.filter((s) => s.dateKey >= a && s.dateKey <= b);
   }, [sales, from, to]);
 
+  const monthToDate = useMemo(() => {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startKey = toBRDateKey(start);
+    const window = sales.filter((s) => s.dateKey >= startKey && s.dateKey <= todayKey);
+    return { count: window.length, mrr: window.reduce((s, r) => s + r.mrr, 0) };
+  }, [sales, today, todayKey]);
+
   const chartData = useMemo(() => {
     const points: { label: string; vendas: number; mrr: number }[] = [];
-    let accCount = 0;
-    let accMrr = 0;
     const d = new Date(from); d.setHours(0, 0, 0, 0);
     const end = new Date(to); end.setHours(0, 0, 0, 0);
     while (d <= end) {
       const key = toBRDateKey(d);
       const day = periodSales.filter((s) => s.dateKey === key);
-      accCount += day.length;
-      accMrr += day.reduce((s, r) => s + r.mrr, 0);
-      points.push({ label: format(d, "dd/MM", { locale: ptBR }), vendas: accCount, mrr: accMrr });
+      points.push({
+        label: format(d, "dd/MM", { locale: ptBR }),
+        vendas: day.length,
+        mrr: day.reduce((s, r) => s + r.mrr, 0),
+      });
       d.setDate(d.getDate() + 1);
     }
     return points;
