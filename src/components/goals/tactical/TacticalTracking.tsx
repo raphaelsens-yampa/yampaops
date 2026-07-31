@@ -21,9 +21,14 @@ import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
+import { LowTouchView } from "./LowTouchView";
+import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
+import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
+import { useLowTouchData } from "./useLowTouchData";
 import { metricsForTeam } from "./types";
 
 const ALL_TEAMS = "__all__";
+const LOW_TOUCH = "__lowtouch__";
 
 export function TacticalTracking() {
   const { user, role } = useAuth();
@@ -38,9 +43,14 @@ export function TacticalTracking() {
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
 
-  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
 
+  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
+  const [lowTouchKey, setLowTouchKey] = useState(0);
+  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
+
+  const isLowTouch = teamId === LOW_TOUCH;
   const isOverview = teamId === ALL_TEAMS;
+
 
   const myTeamId = useMemo(
     () => members.find((m) => m.user_id === user?.id)?.team_id ?? null,
@@ -91,10 +101,12 @@ export function TacticalTracking() {
                 <SelectTrigger className="w-44"><SelectValue placeholder="Time" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_TEAMS}>Visão Geral</SelectItem>
+                  <SelectItem value={LOW_TOUCH}>Low-touch</SelectItem>
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>Time {t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {!isOverview && (
+              {!isOverview && !isLowTouch && (
+
                 <Select value={focusUser} onValueChange={setFocusUser}>
                   <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
                   <SelectContent>
@@ -139,15 +151,38 @@ export function TacticalTracking() {
               <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
                 <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
               </Button>
-              <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
-              <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
-                <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
-              </Button>
+              {!isLowTouch && (
+                <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
+              )}
+              {!isLowTouch && (
+                <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
+                  <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
+      {isLowTouch ? (
+        <>
+          <LowTouchAreasConfig
+            areas={lowTouch.areas}
+            allLabels={lowTouch.allLabels}
+            canEdit={isAdmin}
+            onChanged={() => setLowTouchKey((k) => k + 1)}
+          />
+          {lowTouch.loading ? (
+            <p className="text-muted-foreground">Carregando...</p>
+          ) : (
+            <>
+              <LowTouchView sales={lowTouch.sales} today={today} />
+              <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
+            </>
+          )}
+        </>
+      ) : (
+        <>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <div className="space-y-4">
           {isOverview ? (
@@ -234,8 +269,11 @@ export function TacticalTracking() {
         today={today}
         refreshKey={reloadKey}
       />
+        </>
+      )}
 
-      {isAdmin && showConfig && (
+      {isAdmin && showConfig && !isLowTouch && (
+
         <TacticalGoalsManager
           metrics={metrics}
           profiles={profiles}

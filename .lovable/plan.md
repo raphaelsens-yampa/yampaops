@@ -1,40 +1,32 @@
 ## Objetivo
 
-Criar o conceito de **Meta Revisada**: quando um mês fecha (ou está projetado) abaixo da meta, o déficit é redistribuído nos meses restantes **do mesmo trimestre**, sem apagar a meta original. Superávit não abate metas futuras.
+Criar uma visão "Low-touch" na aba **Metas Táticas** que mostre as vendas sem atuação de Sales/CS, classificadas pelas áreas (rótulo de Vendedor/Área do Mapa de Preços) que você escolher.
 
-## Regra de cálculo
+## O que existe hoje (verificado)
 
-Para cada categoria e cada trimestre:
+- O seletor de time em Metas Táticas tem "Visão Geral" + os times **Sales**, **CS**, **Suporte**.
+- As conversões do Stripe recebem vendedor **exclusivamente** pelo Mapa de Preços. Nos últimos 60 dias, 40 conversões com valor > R$ 0 estão **sem vendedor pessoa**, e vêm de rótulos de área como **Produto, Marketing, Parceria, CX, 4blue** (além de rótulos que são pessoas, ex. Eduarda Nunes).
 
-```text
-deficit(mes)  = max(0, meta(mes) - realizado(mes))        // meses já encerrados
-meses_restantes = meses do trimestre ainda não encerrados
-meta_revisada(m) = meta(m) + (soma dos deficits) / n_meses_restantes
-```
+## Como vai funcionar
 
-- Mês corrente conta como "restante" (recebe parte do déficit dos meses anteriores do tri).
-- Último mês do trimestre: se ainda houver déficit e não houver mês seguinte no tri, o déficit fica exposto como "não recuperável no trimestre" (badge), não vaza para o tri seguinte.
-- Categorias "menor é melhor" (churn / MRR Decrease): déficit = `max(0, realizado - meta)` e a meta revisada dos meses seguintes é **reduzida** pelo excesso, mantendo a mesma matemática invertida.
-- Superávit sempre ignorado (só déficit rebalanceia).
+1. **Nova opção no seletor de time: "Low-touch"** (ao lado de Visão Geral e dos times), disponível para Admin/Tático.
+2. **Classificação configurável**: a venda é Low-touch quando o rótulo de Vendedor/Área do Mapa de Preços do `price_id` da conversão está na lista de áreas marcadas como Low-touch.
+3. **Configuração das áreas**: dentro da visão Low-touch, um painel "Áreas Low-touch" lista todos os rótulos existentes no Mapa de Preços com checkboxes. A seleção fica salva no banco (não só no navegador), então vale para todos os usuários. Sugestão inicial pré-marcada: Produto, Marketing, Parceria, CX, 4blue — você ajusta à vontade.
 
-## Acompanhamento Metas (`MetabaseTracking.tsx`)
+## Conteúdo da visão Low-touch
 
-- Novo hook/util `src/lib/revisedGoals.ts` com `computeRevisedTargets(targetByCatMonth, realizedByCatMonth, categories, refMonth)` retornando `revisedByCatMonth` + `deficitByCatQuarter`.
-- KPIs: toggle **Original / Revisada** (Segmented control ao lado do toggle Mês vigente/Acumulado). Em modo Revisada, "Meta do Período" e "Saldo para Meta" usam a meta revisada, com badge `Revisada` e tooltip explicando de onde veio o acréscimo (ex.: "+R$ 3.000 diluídos de Julho").
-- Gráfico: mantém `Meta` (linha/barra tracejada, cor muted) + `Realizado`, e adiciona série **`Meta revisada`** (linha sólida na cor primária). No modo barras, a meta revisada entra como linha sobreposta para não poluir.
-- Tabela mensal por categoria: em cada célula, valor da meta com o delta revisado em texto pequeno abaixo (`+3.000` em amber quando há acréscimo herdado). Coluna/rodapé de trimestre mostrando déficit acumulado do tri.
-
-## Metas Táticas
-
-- `useTacticalData` passa a expor o consolidado mensal necessário (meta mensal derivada da meta diária × dias úteis do mês, e realizado do mês) para o time/pessoa em foco.
-- Nova util `adjustedDailyTarget = max(0, (meta_mes_revisada - realizado_mes) / dias_úteis_restantes)`.
-- `MissionToday`: card principal e cards secundários passam a exibir **Meta do dia** (original) e, quando diferente, **Meta ajustada** logo abaixo, com badge `Ritmo necessário` e cor amber quando maior que a original. A barra de progresso continua na meta original; um marcador (tick) indica a meta ajustada.
-- `TacticalProgressChart`: adiciona série **`Meta revisada`** (acumulada com o ritmo ajustado a partir de hoje), junto das existentes `Meta` e `Realizado`, controlada por um switch "Mostrar meta revisada" (ligado por padrão).
-- `TeamScoreboard`: coluna de meta mostra `realizado / meta` e, em tooltip, a meta ajustada do dia.
+- **Cards do dia**: Vendas do dia (quantidade) e MRR Vendas do dia, somente Low-touch, respeitando a data de referência do calendário da tela. Sem meta diária (não há meta cadastrada), então os cards mostram apenas realizado do dia + comparativo com a média dos últimos 30 dias.
+- **Gráfico acumulado**: linha de vendas e MRR acumulados no período filtrado (mesmos filtros de granularidade do gráfico atual), sem linha de meta.
+- **Ranking por área**: tabela com Área, nº de vendas, MRR e % do total Low-touch no período.
+- **Tabela de clientes convertidos**: nome, e-mail, plano, área, data da conversão, preço e MRR — com busca, seletor de período (hoje/7/30/60 dias) e colapso, igual à tabela atual.
+- Seções que dependem de meta diária/pessoas (Missão do Dia, Placar do Time, Consistência, Clientes recuperados) ficam ocultas nessa visão.
 
 ## Detalhes técnicos
 
-- Sem mudança de schema: tudo derivado de `metabase_monthly_agg`, `goals`/`goal_categories`, `tactical_goals` e `daily` já carregados.
-- Cálculo puro e testável em `src/lib/revisedGoals.ts` (+ teste unitário em `src/test/` cobrindo déficit no tri, categoria inversa e último mês do tri).
-- Cores via tokens semânticos existentes (`--primary`, `--muted-foreground`, warning/amber do design system); nenhuma cor hardcoded.
-- Estado do toggle Original/Revisada persistido em `localStorage` para não reconfigurar a cada visita.
+- Migração: nova tabela `tactical_lowtouch_areas` (label text único, is_active) com GRANTs e RLS — leitura para `authenticated`, escrita apenas para admin/tático (`has_role`). Seed com os rótulos de área não-pessoa hoje existentes.
+- `useTacticalData.ts`: passa a trazer `stripe_price_id` nas conversões e um mapa `price_id → seller_label` de `commission_price_map`, além da lista de áreas Low-touch; agrega métricas virtuais `lowtouch_vendas` e `lowtouch_mrr` por dia.
+- Novo componente `src/components/goals/tactical/LowTouchView.tsx` (cards + ranking por área) e `LowTouchAreasConfig.tsx` (checkboxes das áreas).
+- `TacticalConversionsTable`/`TeamConversionsTable` ganha modo `lowTouch` que filtra por área em vez de `memberIds` e exibe a coluna Área.
+- `TacticalProgressChart` recebe modo sem meta para plotar apenas o acumulado realizado.
+- `TacticalTracking.tsx`: nova entrada `__lowtouch__` no seletor e renderização condicional da nova visão.
+- Nenhuma alteração na regra de atribuição de vendedor nem nos dados de conversão existentes — a visão é apenas de leitura/classificação.
