@@ -75,8 +75,14 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       0,
     );
 
-    const points: { label: string; dateKey: string; meta: number; realizado: number }[] = [];
+    // Meta revisada: ritmo necessário no restante do mês para fechar a meta mensal
+    const monthBefore = realizedMonthBeforeToday(daily, metric.id, users, today);
+    const pacing = monthPacing(today, dailyTargetTotal, monthBefore);
+    const todayKey = toBRDateKey(today);
+
+    const points: { label: string; dateKey: string; meta: number; metaRevisada: number; realizado: number }[] = [];
     let accMeta = 0;
+    let accRevised = 0;
     let accReal = 0;
 
     const d = new Date(from);
@@ -88,7 +94,10 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       const dow = d.getDay();
       const key = toBRDateKey(d);
       const isBusiness = dow !== 0 && dow !== 6;
-      if (isBusiness) accMeta += dailyTargetTotal;
+      if (isBusiness) {
+        accMeta += dailyTargetTotal;
+        accRevised += key >= todayKey ? pacing.adjusted : dailyTargetTotal;
+      }
       accReal += daily
         .filter((x) => x.metric_id === metric.id && x.date === key && users.includes(x.user_id))
         .reduce((s, x) => s + (x.value ?? 0), 0);
@@ -97,6 +106,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
         label: format(d, "dd/MM", { locale: ptBR }),
         dateKey: key,
         meta: accMeta,
+        metaRevisada: accRevised,
         realizado: accReal,
       });
       d.setDate(d.getDate() + 1);
@@ -114,7 +124,13 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
     }
 
     return points;
-  }, [metric, memberIds, goals, teamId, daily, from, to, granularity]);
+  }, [metric, memberIds, goals, teamId, daily, from, to, granularity, today]);
+
+  const showRevised = useMemo(
+    () => data.some((p) => Math.abs(p.metaRevisada - p.meta) > 0.5),
+    [data],
+  );
+
 
   const last = data[data.length - 1];
   const unit = metric?.unit ?? "count";
