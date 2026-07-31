@@ -783,9 +783,10 @@ export function MetabaseTracking() {
         };
         return (
           <>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
               <span className="text-xs text-muted-foreground">Meta:</span>
               <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
+
                 <Button
                   size="sm"
                   variant={goalMode === "original" ? "default" : "ghost"}
