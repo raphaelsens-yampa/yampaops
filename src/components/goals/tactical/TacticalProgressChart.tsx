@@ -37,11 +37,12 @@ interface Props {
   memberIds: string[];
   teamId: string | null;
   today: Date;
+  revisedView?: boolean;
 }
 
 type Granularity = "day" | "week";
 
-export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today }: Props) {
+export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today, revisedView = false }: Props) {
   const visible = useMemo(() => metrics.filter((m) => m.key !== "call_realizada"), [metrics]);
   const defaultMetricId = useMemo(
     () => visible.find((m) => m.key === "vendas_dia")?.id ?? visible[0]?.id ?? "",
@@ -130,8 +131,8 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
   }, [metric, memberIds, goals, teamId, daily, from, to, granularity, today]);
 
   const showRevised = useMemo(
-    () => data.some((p) => Math.abs(p.metaRevisada - p.meta) > 0.5),
-    [data],
+    () => revisedView && data.some((p) => Math.abs(p.metaRevisada - p.meta) > 0.5),
+    [data, revisedView],
   );
 
 
