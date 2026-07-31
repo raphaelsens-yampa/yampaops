@@ -3490,6 +3490,30 @@ export type Database = {
           },
         ]
       }
+      tactical_lowtouch_areas: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tactical_manual_entries: {
         Row: {
           created_at: string
