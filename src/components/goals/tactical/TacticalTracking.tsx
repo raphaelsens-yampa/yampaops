@@ -92,13 +92,14 @@ export function TacticalTracking() {
   const focusName = profiles.find((p) => p.user_id === focusUser)?.full_name || "Você";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
       {isAdmin && (
-        <Card>
-          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+        <Card className="md:static sticky top-[2.75rem] z-20">
+          <CardContent className="p-3 md:p-4 space-y-3 md:space-y-0 md:flex md:flex-wrap md:items-center md:justify-between md:gap-3">
+            {/* Linha 1: contexto */}
+            <div className="flex items-center gap-2 md:flex-wrap">
               <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger className="w-44"><SelectValue placeholder="Time" /></SelectTrigger>
+                <SelectTrigger className="flex-1 h-10 md:h-9 md:w-44 md:flex-none"><SelectValue placeholder="Time" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_TEAMS}>Visão Geral</SelectItem>
                   <SelectItem value={LOW_TOUCH}>Low-touch</SelectItem>
@@ -106,9 +107,8 @@ export function TacticalTracking() {
                 </SelectContent>
               </Select>
               {!isOverview && !isLowTouch && (
-
                 <Select value={focusUser} onValueChange={setFocusUser}>
-                  <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+                  <SelectTrigger className="flex-1 h-10 md:h-9 md:w-56 md:flex-none"><SelectValue placeholder="Colaborador" /></SelectTrigger>
                   <SelectContent>
                     {memberIds.map((uid) => (
                       <SelectItem key={uid} value={uid}>
@@ -119,15 +119,17 @@ export function TacticalTracking() {
                 </Select>
               )}
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Linha 2: data + visão + ações */}
+            <div className="flex flex-wrap items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal")}>
-                    <CalendarIcon className="h-4 w-4 mr-1" />
+                  <Button variant="outline" size="sm" className={cn("h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal")}>
+                    <CalendarIcon className="h-4 w-4 mr-1 shrink-0" />
                     {format(today, "dd/MM/yyyy")}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={today}
@@ -140,29 +142,46 @@ export function TacticalTracking() {
                 </PopoverContent>
               </Popover>
               {today.getTime() !== realToday.getTime() && (
-                <Button variant="ghost" size="sm" onClick={() => setRefDate(realToday)}>Hoje</Button>
+                <Button variant="ghost" size="sm" className="h-10 md:h-9" onClick={() => setRefDate(realToday)}>Hoje</Button>
               )}
-              <div className="flex items-center gap-2 rounded-md border px-2.5 py-1.5">
+              <div className="flex items-center gap-2 rounded-md border px-2.5 h-10 md:h-9 flex-1 md:flex-none justify-center">
                 <Switch id="revised-view" checked={revisedView} onCheckedChange={setRevisedView} />
                 <Label htmlFor="revised-view" className="text-xs cursor-pointer whitespace-nowrap">
-                  Visão revisada
+                  Revisada
                 </Label>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
-                <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 md:h-9 w-10 md:w-auto p-0 md:px-3 shrink-0"
+                aria-label="Atualizar dados"
+                onClick={() => setReloadKey((k) => k + 1)}
+              >
+                <RefreshCw className="h-4 w-4 md:mr-1" />
+                <span className="hidden md:inline">Atualizar dados</span>
               </Button>
               {!isLowTouch && (
-                <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
+                <div className="flex-1 md:flex-none [&_button]:w-full [&_button]:h-10 md:[&_button]:h-9">
+                  <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
+                </div>
               )}
               {!isLowTouch && (
-                <Button variant="ghost" size="sm" onClick={() => setShowConfig((v) => !v)}>
-                  <Settings2 className="h-4 w-4 mr-1" /> Configurar metas diárias
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-10 md:h-9 w-10 md:w-auto p-0 md:px-3 shrink-0"
+                  aria-label="Configurar metas diárias"
+                  onClick={() => setShowConfig((v) => !v)}
+                >
+                  <Settings2 className="h-4 w-4 md:mr-1" />
+                  <span className="hidden md:inline">Configurar metas diárias</span>
                 </Button>
               )}
             </div>
           </CardContent>
         </Card>
       )}
+
 
       {isLowTouch ? (
         <>
