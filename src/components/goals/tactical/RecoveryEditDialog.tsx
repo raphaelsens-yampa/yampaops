@@ -65,6 +65,7 @@ export function RecoveryEditDialog({
           value: toNumber(form.qty),
           mrr_value: toNumber(form.mrr),
           note: form.note || null,
+          entry_kind: form.entry_kind,
           user_id: form.seller_id || undefined,
         })
         .eq("id", form.rawId);
@@ -81,6 +82,7 @@ export function RecoveryEditDialog({
           price: toNumber(form.price),
           mrr: toNumber(form.mrr),
           note: form.note || null,
+          entry_kind: form.entry_kind,
         })
         .eq("id", form.rawId);
       error = res.error;
