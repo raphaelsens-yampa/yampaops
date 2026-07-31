@@ -21,6 +21,7 @@ export interface EditableRecovery {
   mrr: string;
   qty: string;
   note: string;
+  entry_kind: "recovered" | "retained";
 }
 
 function toNumber(v: unknown): number {
