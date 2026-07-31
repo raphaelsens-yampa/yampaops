@@ -21,9 +21,14 @@ import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
+import { LowTouchView } from "./LowTouchView";
+import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
+import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
+import { useLowTouchData } from "./useLowTouchData";
 import { metricsForTeam } from "./types";
 
 const ALL_TEAMS = "__all__";
+const LOW_TOUCH = "__lowtouch__";
 
 export function TacticalTracking() {
   const { user, role } = useAuth();
@@ -37,6 +42,7 @@ export function TacticalTracking() {
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
+
 
   const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
 
