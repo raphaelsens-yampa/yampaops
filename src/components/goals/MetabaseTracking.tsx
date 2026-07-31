@@ -44,9 +44,24 @@ interface Goal {
   period_start: string;
   period_end: string;
   target_mrr: number;
+  target_deals?: number | null;
+  target_tpv?: number | null;
 }
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+/**
+ * Valor da meta independente do tipo de métrica da categoria.
+ * Categorias de quantidade/razão são cadastradas em target_deals (ou target_tpv),
+ * então usamos o primeiro campo preenchido.
+ */
+function goalTargetValue(g: Goal): number {
+  const mrr = Number(g.target_mrr || 0);
+  if (mrr) return mrr;
+  const deals = Number(g.target_deals || 0);
+  if (deals) return deals;
+  return Number(g.target_tpv || 0);
+}
 
 function daysBetween(a: Date, b: Date) {
   return (b.getTime() - a.getTime()) / 86400000 + 1;
@@ -354,7 +369,7 @@ export function MetabaseTracking() {
         const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
         if (frac <= 0) return;
         const key = `${g.category_id || "none"}|${idx}`;
-        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
+        map.set(key, (map.get(key) || 0) + goalTargetValue(g) * frac);
       });
     });
     return map;
@@ -417,7 +432,7 @@ export function MetabaseTracking() {
         const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
         if (frac <= 0) return;
         const key = `${g.category_id || "none"}|${idx}`;
-        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
+        map.set(key, (map.get(key) || 0) + goalTargetValue(g) * frac);
       });
     });
     return map;
@@ -483,7 +498,7 @@ export function MetabaseTracking() {
       const gs = parseDateBRStart(g.period_start);
       const ge = parseDateBREnd(g.period_end);
       if (overlapDays(gs, ge, windowRange.from, windowRange.to) > 0) {
-        sum += Number(g.target_mrr || 0);
+        sum += goalTargetValue(g);
       }
     });
     return sum;
@@ -498,7 +513,7 @@ export function MetabaseTracking() {
       const gDays = Math.max(1, daysBetween(gs, ge));
       const ov = overlapDays(gs, ge, compareWindow.from, compareWindow.to);
       if (ov <= 0) return;
-      sum += Number(g.target_mrr || 0) * (ov / gDays);
+      sum += goalTargetValue(g) * (ov / gDays);
     });
     return sum;
   }, [filteredGoals, compareWindow]);
