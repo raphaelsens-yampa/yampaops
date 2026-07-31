@@ -28,9 +28,12 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const [value, setValue] = useState<string>("");
   const [mrrValue, setMrrValue] = useState<string>("");
   const [note, setNote] = useState<string>("");
+  const [entryKind, setEntryKind] = useState<"recovered" | "retained">("recovered");
 
   const selectedMetric = metrics.find((m) => m.id === metricId);
-  const isRecuperados = selectedMetric?.key === "clientes_recuperados";
+  const isRetidos = selectedMetric?.key === "clientes_retidos";
+  const isRecuperados = selectedMetric?.key === "clientes_recuperados" || isRetidos;
+  const kind: "recovered" | "retained" = isRetidos ? "retained" : entryKind;
 
   const teamProfiles = profiles.filter((p) => !memberIds.length || memberIds.includes(p.user_id));
 
@@ -42,12 +45,13 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
       entry_date: date,
       value: parseFloat(value),
       mrr_value: isRecuperados && mrrValue ? parseFloat(mrrValue) : 0,
+      entry_kind: isRecuperados ? kind : "recovered",
       note: note || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Registro lançado" });
     setOpen(false);
-    setMetricId(""); setValue(""); setMrrValue(""); setNote("");
+    setMetricId(""); setValue(""); setMrrValue(""); setNote(""); setEntryKind("recovered");
     onSaved();
   }
 
