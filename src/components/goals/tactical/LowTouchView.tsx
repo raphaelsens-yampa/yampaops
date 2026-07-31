@@ -215,6 +215,8 @@ export function LowTouchView({ sales, today }: Props) {
                 </TableRow>
               </TableBody>
             </Table>
+            </div>
+
           )}
         </CardContent>
       </Card>
