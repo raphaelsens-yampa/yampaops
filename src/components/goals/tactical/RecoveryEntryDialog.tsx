@@ -237,6 +237,19 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                 </Select>
               </div>
               <div className="space-y-1">
+                <Label>Tipo</Label>
+                <Select
+                  value={row.entry_kind}
+                  onValueChange={(v) => setRow({ ...row, entry_kind: v as "recovered" | "retained" })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recovered">Cliente recuperado</SelectItem>
+                    <SelectItem value="retained">Cliente retido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <Label>Data</Label>
                 <Input type="date" value={row.recovered_at} onChange={(e) => setRow({ ...row, recovered_at: e.target.value })} />
               </div>
@@ -245,7 +258,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                 <Input inputMode="decimal" value={row.price} onChange={(e) => setRow({ ...row, price: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>MRR recuperado (R$)</Label>
+                <Label>{row.entry_kind === "retained" ? "MRR retido (R$)" : "MRR recuperado (R$)"}</Label>
                 <Input inputMode="decimal" value={row.mrr} onChange={(e) => setRow({ ...row, mrr: e.target.value })} />
               </div>
             </div>
