@@ -830,12 +830,12 @@ export function MetabaseTracking() {
               </p>
             )}
             {kpiView === "month" ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-primary/40"><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                <Card className="border-primary/40"><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     Meta do Mês ({monthLabel})
                   </p>
-                  <p className={`text-2xl font-bold ${revisedOn && Math.abs(monthTarget - monthOriginalTarget) > 0.5 ? "text-amber-600" : ""}`}>
+                  <p className={`text-xl sm:text-2xl font-bold ${revisedOn && Math.abs(monthTarget - monthOriginalTarget) > 0.5 ? "text-amber-600" : ""}`}>
                     {kpiFmt(monthTarget)}
                   </p>
                   {revisedOn && Math.abs(monthTarget - monthOriginalTarget) > 0.5 && (
@@ -844,25 +844,25 @@ export function MetabaseTracking() {
                     </p>
                   )}
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado do Mês</p>
-                  <p className="text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Realizado do Mês</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo para Meta</p>
-                  <p className={`text-2xl font-bold ${gapColor(monthGap)}`}>{kpiFmt(monthGap)}</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Saldo para Meta</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{kpiFmt(monthGap)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card className="border-primary/40"><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta do Período</p>
-                  <p className={`text-2xl font-bold ${revisedOn && Math.abs(periodTargetEff - totalPeriodTarget) > 0.5 ? "text-amber-600" : ""}`}>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
+                <Card className="border-primary/40"><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Meta do Período</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${revisedOn && Math.abs(periodTargetEff - totalPeriodTarget) > 0.5 ? "text-amber-600" : ""}`}>
                     {kpiFmt(periodTargetEff)}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
@@ -871,23 +871,23 @@ export function MetabaseTracking() {
                       : `${filteredGoals.length} meta(s) somada(s)`}
                   </p>
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Meta Rateada (YtD)</p>
-                  <p className="text-2xl font-bold text-muted-foreground">{kpiFmt(totalTarget)}</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Meta Rateada (YtD)</p>
+                  <p className="text-xl sm:text-2xl font-bold text-muted-foreground">{kpiFmt(totalTarget)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">referência p/ gráfico mensal</p>
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Realizado (Metabase)</p>
-                  <p className="text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Realizado (Metabase)</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo para Meta</p>
-                  <p className={`text-2xl font-bold ${gapColor(periodGap)}`}>{kpiFmt(periodGap)}</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Saldo para Meta</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(periodGap)}`}>{kpiFmt(periodGap)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(periodGap)}</p>
                 </CardContent></Card>
-                <Card><CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">% Atingido (vs Meta)</p>
-                  <p className={`text-2xl font-bold ${pctColor(periodPct, isLessBetter)}`}>{periodPct.toFixed(1)}%</p>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${pctColor(periodPct, isLessBetter)}`}>{periodPct.toFixed(1)}%</p>
                 </CardContent></Card>
               </div>
             )}
@@ -895,14 +895,14 @@ export function MetabaseTracking() {
 
             {/* Gráfico */}
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">
+              <CardHeader className="px-4 md:px-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="text-sm sm:text-base">
                     Realizado vs Meta — {year}
                     {revisedOn && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-600 text-[10px]">+ Meta revisada</Badge>}
                   </CardTitle>
                   <Select value={chartType} onValueChange={(v) => setChartType(v as "bar" | "line")}>
-                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                    <SelectTrigger className="h-9 w-full text-xs sm:h-8 sm:w-[140px]">
                       <SelectValue placeholder="Tipo de gráfico" />
                     </SelectTrigger>
                     <SelectContent>
@@ -912,8 +912,8 @@ export function MetabaseTracking() {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div style={{ width: "100%", height: 320 }}>
+              <CardContent className="px-2 sm:px-4 md:px-6">
+                <div className="h-64 sm:h-80 w-full">
                   <ResponsiveContainer>
                     {chartType === "bar" ? (
                       <BarChart data={chartData}>
@@ -956,7 +956,7 @@ export function MetabaseTracking() {
 
       {/* Tabela pivot — sempre mostra todas as categorias, independente dos filtros acima */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="px-4 md:px-6 flex flex-col items-stretch gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-base">
               Metas por categoria × mês
