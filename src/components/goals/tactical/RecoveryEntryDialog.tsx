@@ -147,6 +147,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
           price: toNumber(pick(r, ["preco", "preço", "price", "valor"])),
           mrr: toNumber(pick(r, ["mrr", "mrr recuperado", "mrr_net"])),
           note: String(pick(r, ["observacao", "obs", "note"]) ?? "") || null,
+          entry_kind: parseKind(pick(r, ["tipo", "entry_kind", "kind", "classificacao"])),
           source: "import",
         };
       })
@@ -154,7 +155,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
     if (!parsed.length) {
       toast({
         title: "Nenhuma linha válida",
-        description: "Use colunas: Cliente, E-mail, Plano, Responsável, Data, Preço, MRR.",
+        description: "Use colunas: Cliente, E-mail, Plano, Responsável, Tipo, Data, Preço, MRR.",
         variant: "destructive",
       });
       return;
@@ -174,7 +175,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       toast({ title: "Erro na importação", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: `${payload.length} recuperações importadas` });
+    toast({ title: `${payload.length} registros importados` });
     setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
     setOpen(false);
@@ -183,7 +184,8 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
 
   function downloadTemplate() {
     const ws = XLSX.utils.json_to_sheet([
-      { Cliente: "Empresa Exemplo", "E-mail": "cliente@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
+      { Cliente: "Empresa Exemplo", "E-mail": "cliente@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Recuperado", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
+      { Cliente: "Outra Empresa", "E-mail": "outro@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Retido", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Recuperados");
