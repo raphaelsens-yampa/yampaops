@@ -170,7 +170,6 @@ export function RecoveryEditDialog({
             <Input inputMode="decimal" value={form.mrr} onChange={(e) => setForm({ ...form, mrr: e.target.value })} />
           </div>
         </div>
-        </div>
         <div className="space-y-1">
           <Label>Observação</Label>
           <Textarea rows={2} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
