@@ -44,7 +44,7 @@ function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, gro
   return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
 }
 
-export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [] }: Props) {
+export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [], lowTouchSales = [] }: Props) {
   const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
   useEffect(() => {
     setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
