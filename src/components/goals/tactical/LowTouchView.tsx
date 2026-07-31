@@ -87,39 +87,39 @@ export function LowTouchView({ sales, today }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendas Low-touch do dia</p>
-            <p className="text-3xl font-semibold mt-1">{todayCount}</p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Média dos últimos 30 dias: {avg30.count.toFixed(1)}/dia
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Vendas Low-touch do dia</p>
+            <p className="text-2xl sm:text-3xl font-semibold mt-1">{todayCount}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-2">
+              Média 30d: {avg30.count.toFixed(1)}/dia
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">MRR Low-touch do dia</p>
-            <p className="text-3xl font-semibold mt-1">{fmtBRL(todayMrr)}</p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Média dos últimos 30 dias: {fmtBRL(avg30.mrr)}/dia
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">MRR Low-touch do dia</p>
+            <p className="text-2xl sm:text-3xl font-semibold mt-1">{fmtBRL(todayMrr)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-2">
+              Média 30d: {fmtBRL(avg30.mrr)}/dia
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendas acum. Low-touch (mês)</p>
-            <p className="text-3xl font-semibold mt-1">{monthToDate.count}</p>
-            <p className="text-xs text-muted-foreground mt-2">
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Vendas acum. Low-touch (mês)</p>
+            <p className="text-2xl sm:text-3xl font-semibold mt-1">{monthToDate.count}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-2">
               {format(today, "MMMM 'de' yyyy", { locale: ptBR })} até hoje
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">MRR acum. Low-touch (mês)</p>
-            <p className="text-3xl font-semibold mt-1">{fmtBRL(monthToDate.mrr)}</p>
-            <p className="text-xs text-muted-foreground mt-2">
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">MRR acum. Low-touch (mês)</p>
+            <p className="text-2xl sm:text-3xl font-semibold mt-1">{fmtBRL(monthToDate.mrr)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-2">
               {format(today, "MMMM 'de' yyyy", { locale: ptBR })} até hoje
             </p>
           </CardContent>
@@ -127,15 +127,15 @@ export function LowTouchView({ sales, today }: Props) {
       </div>
 
       <Card>
-        <CardHeader className="pb-3 flex flex-row flex-wrap items-center justify-between gap-3">
+        <CardHeader className="pb-3 px-4 md:px-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
           <div>
-            <CardTitle className="text-base">Conversão diária — Low-touch</CardTitle>
+            <CardTitle className="text-sm sm:text-base">Conversão diária — Low-touch</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Vendas e MRR realizados por dia no período selecionado.
             </p>
           </div>
           <Select value={preset} onValueChange={setPreset}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="7">Últimos 7 dias</SelectItem>
               <SelectItem value="15">Últimos 15 dias</SelectItem>
@@ -144,6 +144,7 @@ export function LowTouchView({ sales, today }: Props) {
             </SelectContent>
           </Select>
         </CardHeader>
+
         <CardContent>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
