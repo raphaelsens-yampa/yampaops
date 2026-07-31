@@ -273,7 +273,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
 
           <TabsContent value="import" className="space-y-3 pt-3">
             <p className="text-sm text-muted-foreground">
-              Colunas aceitas: Cliente, E-mail, Plano, Responsável, Data, Preço, MRR, Observação.
+              Colunas aceitas: Cliente, E-mail, Plano, Responsável, Tipo (Recuperado/Retido), Data, Preço, MRR, Observação.
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -295,6 +295,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                       <th className="text-left p-2">Cliente</th>
                       <th className="text-left p-2">E-mail</th>
                       <th className="text-left p-2">Plano</th>
+                      <th className="text-left p-2">Tipo</th>
                       <th className="text-left p-2">Data</th>
                       <th className="text-right p-2">Preço</th>
                       <th className="text-right p-2">MRR</th>
@@ -306,6 +307,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                         <td className="p-2">{r.customer_name || "—"}</td>
                         <td className="p-2">{r.customer_email || "—"}</td>
                         <td className="p-2">{r.plan_name || "—"}</td>
+                        <td className="p-2">{r.entry_kind === "retained" ? "Retido" : "Recuperado"}</td>
                         <td className="p-2">{r.recovered_at}</td>
                         <td className="p-2 text-right">{r.price}</td>
                         <td className="p-2 text-right">{r.mrr}</td>
