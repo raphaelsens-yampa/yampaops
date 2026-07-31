@@ -26,6 +26,7 @@ interface Props {
   goals: TacticalGoal[];
   daily: DailyDatum[];
   today: Date;
+  revisedView?: boolean;
 }
 
 function computeStreak(userId: string, metricId: string, target: number, daily: DailyDatum[], today: Date): number {
@@ -69,7 +70,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   );
 }
 
-export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today }: Props) {
+export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, revisedView = false }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -165,7 +166,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
         {withGoal.map(({ m, target, realized, pct, missing, streak, pacing }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
-          const behind = pacing.adjusted > target + 0.05;
+          const behind = revisedView && pacing.adjusted > target + 0.05;
 
           return (
             <Card

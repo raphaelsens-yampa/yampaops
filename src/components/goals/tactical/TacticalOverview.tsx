@@ -26,6 +26,7 @@ interface Props {
   members: TeamMember[];
   teams: Team[];
   today: Date;
+  revisedView?: boolean;
 }
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
@@ -51,7 +52,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   );
 }
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -149,7 +150,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
         {withGoal.map(({ m, target, realized, pct, missing, pacing }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
-          const behind = pacing.adjusted > target + 0.05;
+          const behind = revisedView && pacing.adjusted > target + 0.05;
           return (
             <Card key={m.id} className={`relative overflow-hidden border ${hit ? "border-success/40 bg-success/5" : ""}`}>
               <CardContent className={`p-5 flex items-center gap-4 ${single ? "justify-center" : ""}`}>
