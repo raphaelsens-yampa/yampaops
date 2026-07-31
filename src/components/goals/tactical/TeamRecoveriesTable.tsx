@@ -260,10 +260,10 @@ export function TeamRecoveriesTable({
               <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
               <div>
                 <CardTitle className="text-base">
-                  Clientes recuperados{teamName ? ` · Time ${teamName}` : ""}
+                  Clientes recuperados e retidos{teamName ? ` · Time ${teamName}` : ""}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Reativações identificadas no Stripe somadas aos lançamentos manuais do time.
+                  Reativações identificadas no Stripe somadas aos lançamentos manuais do time (recuperados e retidos).
                 </p>
               </div>
             </button>
@@ -275,6 +275,14 @@ export function TeamRecoveriesTable({
               onChange={(e) => setQuery(e.target.value)}
               className="h-8 w-56"
             />
+            <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+              <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="recovered">Recuperados</SelectItem>
+                <SelectItem value="retained">Retidos</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={days} onValueChange={setDays}>
               <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -284,7 +292,8 @@ export function TeamRecoveriesTable({
                 <SelectItem value="60">Últimos 60 dias</SelectItem>
               </SelectContent>
             </Select>
-            <Badge variant="secondary">{totalQty} recuperados</Badge>
+            <Badge variant="secondary">{recoveredQty} recuperados</Badge>
+            <Badge variant="outline">{retainedQty} retidos</Badge>
             <RecoveryEntryDialog
               profiles={profiles}
               memberIds={memberIds}
