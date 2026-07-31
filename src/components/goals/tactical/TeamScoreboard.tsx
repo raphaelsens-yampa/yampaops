@@ -137,19 +137,20 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-3 space-y-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-warning" />
-          Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje
+      <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-warning shrink-0" />
+          <span className="min-w-0">Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje</span>
         </CardTitle>
         <Select value={metricId} onValueChange={setMetricId}>
-          <SelectTrigger><SelectValue placeholder="Métrica" /></SelectTrigger>
+          <SelectTrigger className="h-10 md:h-9"><SelectValue placeholder="Métrica" /></SelectTrigger>
           <SelectContent>
             {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-4 md:px-6">
+
         <div className="space-y-3">
           {rows.map((r, i) => (
             <div key={r.uid} className="space-y-1">
