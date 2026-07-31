@@ -234,19 +234,38 @@ export default function GoalsPage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold">Metas</h1>
+      <div className="space-y-5 md:space-y-6">
+        <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 pt-1 pb-2 md:pb-0 bg-background/85 backdrop-blur-md md:bg-transparent md:backdrop-blur-none md:static border-b border-border/60 md:border-0">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="metabase" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
-          <TabsList>
-            <TabsTrigger value="metabase">Acompanhamento Metas</TabsTrigger>
-            <TabsTrigger value="tactical">Metas Táticas</TabsTrigger>
-            {isManager && <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>}
-            {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
-            {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
-          </TabsList>
+        <Tabs defaultValue="metabase" className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
+          <div className="-mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 overflow-x-auto no-scrollbar">
+            <TabsList className="w-max min-w-full justify-start gap-1">
+              <TabsTrigger value="metabase" className="whitespace-nowrap">
+                <span className="md:hidden">Metas</span>
+                <span className="hidden md:inline">Acompanhamento Metas</span>
+              </TabsTrigger>
+              <TabsTrigger value="tactical" className="whitespace-nowrap">
+                <span className="md:hidden">Táticas</span>
+                <span className="hidden md:inline">Metas Táticas</span>
+              </TabsTrigger>
+              {isManager && (
+                <TabsTrigger value="setup" className="whitespace-nowrap">
+                  <span className="md:hidden">Cadastro</span>
+                  <span className="hidden md:inline">Cadastro de Metas</span>
+                </TabsTrigger>
+              )}
+              {role === "admin" && <TabsTrigger value="categories" className="whitespace-nowrap">Categorias</TabsTrigger>}
+              {role === "admin" && (
+                <TabsTrigger value="finance" className="whitespace-nowrap">
+                  <span className="md:hidden">Financeiro</span>
+                  <span className="hidden md:inline">Configurações Financeiras</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
+
 
           <TabsContent value="metabase" className="space-y-6">
             <MetabaseTracking />
