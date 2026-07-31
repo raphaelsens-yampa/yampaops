@@ -146,9 +146,10 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       </div>
 
       <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-        {withGoal.map(({ m, target, realized, pct, missing }) => {
+        {withGoal.map(({ m, target, realized, pct, missing, pacing }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
+          const behind = pacing.adjusted > target + 0.05;
           return (
             <Card key={m.id} className={`relative overflow-hidden border ${hit ? "border-success/40 bg-success/5" : ""}`}>
               <CardContent className={`p-5 flex items-center gap-4 ${single ? "justify-center" : ""}`}>
@@ -159,7 +160,14 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                   </span>
                 </div>
                 <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-semibold truncate">{m.label}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold truncate">{m.label}</p>
+                    {behind && (
+                      <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px]">
+                        Meta ajustada {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia
+                      </Badge>
+                    )}
+                  </div>
                   {hit ? (
                     <p className="text-2xl font-heading font-bold text-success flex items-center gap-1">
                       <Check className="h-5 w-5" /> Meta batida
@@ -172,6 +180,14 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                   <p className="text-xs text-muted-foreground">
                     {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta diária consolidada
                   </p>
+                  {behind && (
+                    <p className="text-[11px] text-amber-600">
+                      Para fechar o mês em {formatMetric(pacing.monthTarget, m.unit)}: ritmo de{" "}
+                      {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia nos{" "}
+                      {pacing.remainingBusinessDays} dias úteis restantes.
+                    </p>
+                  )}
+
                   <p className="text-xs text-muted-foreground italic">{motivationalCopy(pct, missing, m.unit)}</p>
                 </div>
               </CardContent>
