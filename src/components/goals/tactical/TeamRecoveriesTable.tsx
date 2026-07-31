@@ -74,7 +74,12 @@ export function TeamRecoveriesTable({
   const recoveryMetricIds = useMemo(
     () =>
       metrics
-        .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
+        .filter(
+          (m) =>
+            m.key === "clientes_recuperados" ||
+            m.key === "clientes_retidos" ||
+            m.source === "stripe_reactivation",
+        )
         .map((m) => m.id),
     [metrics],
   );
