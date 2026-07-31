@@ -113,6 +113,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       price: toNumber(row.price),
       mrr: toNumber(row.mrr),
       note: row.note || null,
+      entry_kind: row.entry_kind,
       source: "manual",
       created_by: auth.user?.id as string,
     });
@@ -121,7 +122,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Recuperação registrada" });
+    toast({ title: row.entry_kind === "retained" ? "Retenção registrada" : "Recuperação registrada" });
     setRow(emptyRow(today));
     setOpen(false);
     onSaved?.();
