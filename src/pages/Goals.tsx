@@ -18,6 +18,8 @@ import { CategoryManager } from "@/components/goals/CategoryManager";
 import { FinanceSettings } from "@/components/goals/FinanceSettings";
 import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
 import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
+import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
+
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 
 type GoalScope = "company" | "team" | "user" | "campaign";
