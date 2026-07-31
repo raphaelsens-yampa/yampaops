@@ -35,6 +35,7 @@ interface Row {
   seller_id: string | null;
   origin: "stripe" | "manual" | "import";
   qty: number;
+  entryKind: "recovered" | "retained";
   rawId?: string;
   kind?: "recovery" | "manual_entry";
   note?: string | null;
@@ -66,6 +67,7 @@ export function TeamRecoveriesTable({
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [localRefresh, setLocalRefresh] = useState(0);
+  const [kindFilter, setKindFilter] = useState<"all" | "recovered" | "retained">("all");
   const [editing, setEditing] = useState<EditableRecovery | null>(null);
   const [deleting, setDeleting] = useState<EditableRecovery | null>(null);
 
@@ -73,7 +75,12 @@ export function TeamRecoveriesTable({
   const recoveryMetricIds = useMemo(
     () =>
       metrics
-        .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
+        .filter(
+          (m) =>
+            m.key === "clientes_recuperados" ||
+            m.key === "clientes_retidos" ||
+            m.source === "stripe_reactivation",
+        )
         .map((m) => m.id),
     [metrics],
   );
@@ -99,7 +106,7 @@ export function TeamRecoveriesTable({
         recoveryMetricIds.length
           ? supabase
               .from("tactical_manual_entries")
-              .select("id, user_id, entry_date, value, mrr_value, note, metric_id")
+              .select("id, user_id, entry_date, value, mrr_value, note, metric_id, entry_kind")
               .in("metric_id", recoveryMetricIds)
               .gte("entry_date", toBRDateKey(from))
               .lte("entry_date", toBRDateKey(to))
@@ -107,7 +114,7 @@ export function TeamRecoveriesTable({
           : Promise.resolve({ data: [] as any[] }),
         supabase
           .from("tactical_recoveries")
-          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source")
+          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source, entry_kind")
           .gte("recovered_at", toBRDateKey(from))
           .lte("recovered_at", toBRDateKey(to))
           .order("recovered_at", { ascending: false }),
@@ -128,6 +135,7 @@ export function TeamRecoveriesTable({
           seller_id: c.assigned_seller_id,
           origin: "stripe" as const,
           qty: 1,
+          entryKind: "recovered" as const,
         }))
         .filter((r) => r.mrr > 0);
 
@@ -144,6 +152,7 @@ export function TeamRecoveriesTable({
           seller_id: m.user_id,
           origin: "manual",
           qty: Number(m.value || 0),
+          entryKind: m.entry_kind === "retained" ? "retained" : "recovered",
           rawId: m.id,
           kind: "manual_entry",
           note: m.note,
@@ -163,6 +172,7 @@ export function TeamRecoveriesTable({
           seller_id: r.seller_id,
           origin: r.source === "import" ? "import" : "manual",
           qty: 1,
+          entryKind: r.entry_kind === "retained" ? "retained" : "recovered",
           rawId: r.id,
           kind: "recovery",
           note: r.note,
@@ -195,17 +205,21 @@ export function TeamRecoveriesTable({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
+    let list = rows;
+    if (kindFilter !== "all") list = list.filter((r) => r.entryKind === kindFilter);
+    if (!q) return list;
+    return list.filter(
       (r) =>
         (r.email || "").toLowerCase().includes(q) ||
         (r.name || "").toLowerCase().includes(q) ||
         (r.plan || "").toLowerCase().includes(q),
     );
-  }, [rows, query]);
+  }, [rows, query, kindFilter]);
 
   const totalMrr = filtered.reduce((s, r) => s + r.mrr, 0);
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
+  const recoveredQty = filtered.filter((r) => r.entryKind === "recovered").reduce((s, r) => s + r.qty, 0);
+  const retainedQty = filtered.filter((r) => r.entryKind === "retained").reduce((s, r) => s + r.qty, 0);
 
   function toEditable(r: Row): EditableRecovery {
     return {
@@ -220,6 +234,7 @@ export function TeamRecoveriesTable({
       mrr: r.mrr ? String(r.mrr) : "",
       qty: String(r.qty ?? ""),
       note: r.note || "",
+      entry_kind: r.entryKind,
     };
   }
 
@@ -245,10 +260,10 @@ export function TeamRecoveriesTable({
               <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
               <div>
                 <CardTitle className="text-base">
-                  Clientes recuperados{teamName ? ` · Time ${teamName}` : ""}
+                  Clientes recuperados e retidos{teamName ? ` · Time ${teamName}` : ""}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Reativações identificadas no Stripe somadas aos lançamentos manuais do time.
+                  Reativações identificadas no Stripe somadas aos lançamentos manuais do time (recuperados e retidos).
                 </p>
               </div>
             </button>
@@ -260,6 +275,14 @@ export function TeamRecoveriesTable({
               onChange={(e) => setQuery(e.target.value)}
               className="h-8 w-56"
             />
+            <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+              <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="recovered">Recuperados</SelectItem>
+                <SelectItem value="retained">Retidos</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={days} onValueChange={setDays}>
               <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -269,7 +292,8 @@ export function TeamRecoveriesTable({
                 <SelectItem value="60">Últimos 60 dias</SelectItem>
               </SelectContent>
             </Select>
-            <Badge variant="secondary">{totalQty} recuperados</Badge>
+            <Badge variant="secondary">{recoveredQty} recuperados</Badge>
+            <Badge variant="outline">{retainedQty} retidos</Badge>
             <RecoveryEntryDialog
               profiles={profiles}
               memberIds={memberIds}
@@ -285,7 +309,7 @@ export function TeamRecoveriesTable({
           <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
-            Nenhuma recuperação no período para este time.
+            Nenhum registro no período para este time.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -295,6 +319,7 @@ export function TeamRecoveriesTable({
                   <TableHead>Cliente</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Plano</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
@@ -315,6 +340,11 @@ export function TeamRecoveriesTable({
                     </TableCell>
                     <TableCell className="text-muted-foreground">{r.email || "—"}</TableCell>
                     <TableCell>{r.plan || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={r.entryKind === "retained" ? "default" : "secondary"}>
+                        {r.entryKind === "retained" ? "Retido" : "Recuperado"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {profiles.find((p) => p.user_id === r.seller_id)?.full_name || "—"}
                     </TableCell>
@@ -350,7 +380,7 @@ export function TeamRecoveriesTable({
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
-                  <TableCell colSpan={6}>Total</TableCell>
+                  <TableCell colSpan={7}>Total ({totalQty})</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
                   <TableCell />
                 </TableRow>

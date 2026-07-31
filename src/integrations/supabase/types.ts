@@ -3518,6 +3518,7 @@ export type Database = {
         Row: {
           created_at: string
           entry_date: string
+          entry_kind: string
           id: string
           metric_id: string
           mrr_value: number
@@ -3529,6 +3530,7 @@ export type Database = {
         Insert: {
           created_at?: string
           entry_date?: string
+          entry_kind?: string
           id?: string
           metric_id: string
           mrr_value?: number
@@ -3540,6 +3542,7 @@ export type Database = {
         Update: {
           created_at?: string
           entry_date?: string
+          entry_kind?: string
           id?: string
           metric_id?: string
           mrr_value?: number
@@ -3614,6 +3617,7 @@ export type Database = {
           created_by: string
           customer_email: string | null
           customer_name: string | null
+          entry_kind: string
           id: string
           mrr: number
           note: string | null
@@ -3629,6 +3633,7 @@ export type Database = {
           created_by?: string
           customer_email?: string | null
           customer_name?: string | null
+          entry_kind?: string
           id?: string
           mrr?: number
           note?: string | null
@@ -3644,6 +3649,7 @@ export type Database = {
           created_by?: string
           customer_email?: string | null
           customer_name?: string | null
+          entry_kind?: string
           id?: string
           mrr?: number
           note?: string | null

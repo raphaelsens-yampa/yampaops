@@ -12,7 +12,7 @@ import {
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
-import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
 
 
 interface Props {
@@ -88,28 +88,39 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     });
 
 
-  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
+  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos"];
   const withGoal = rows.filter((r) => r.target > 0);
   const others: { id: string; label: string; unit: TacticalMetric["unit"]; value: number }[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
     .map((r) => ({ id: r.m.id, label: r.m.label, unit: r.m.unit, value: r.realized }));
 
-  if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
-    const recMetricIds = (allMetrics ?? metrics).filter((m) => m.key === "clientes_recuperados").map((m) => m.id);
-    const recValue = daily
-      .filter((x) => x.user_id === userId && x.date === todayKey && recMetricIds.includes(x.metric_id))
+  const sumMetricByKey = (key: string) => {
+    const ids = (allMetrics ?? metrics).filter((m) => m.key === key).map((m) => m.id);
+    return daily
+      .filter((x) => x.user_id === userId && x.date === todayKey && ids.includes(x.metric_id))
       .reduce((s, x) => s + (x.value ?? 0), 0);
-    others.push({ id: "recuperados-card", label: "Clientes recuperados", unit: "count", value: recValue });
+  };
+
+  if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
+    others.push({
+      id: "recuperados-card",
+      label: "Clientes recuperados",
+      unit: "count",
+      value: sumMetricByKey("clientes_recuperados"),
+    });
   }
 
-  // MRR separado por origem (vendas x recuperações)
+  // MRR separado por origem (vendas x recuperações x retenções)
   const sumVirtual = (vid: string) =>
     daily
       .filter((x) => x.user_id === userId && x.date === todayKey && x.metric_id === vid)
       .reduce((s, x) => s + (x.value ?? 0), 0);
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
-  if (mrrSales > 0 || mrrRecovery > 0) {
+  const mrrRetention = sumVirtual(VIRTUAL_MRR_RETENTION);
+  const retainedQty = sumMetricByKey("clientes_retidos");
+
+  if (mrrSales > 0 || mrrRecovery > 0 || mrrRetention > 0) {
     const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
     const salesCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency" as const, value: mrrSales };
     if (idxVendas >= 0) others.splice(idxVendas + 1, 0, salesCard);
@@ -119,6 +130,16 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     const recCard = { id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency" as const, value: mrrRecovery };
     if (idxRec >= 0) others.splice(idxRec + 1, 0, recCard);
     else others.push(recCard);
+  }
+
+  if (retainedQty > 0 || mrrRetention > 0) {
+    if (!others.some((o) => o.label.toLowerCase().includes("retid"))) {
+      others.push({ id: "retidos-card", label: "Clientes retidos", unit: "count", value: retainedQty });
+    }
+    const idxRet = others.findIndex((o) => o.label.toLowerCase().includes("retid") && o.unit !== "currency");
+    const retCard = { id: "mrr-retidos-card", label: "MRR Clientes Retidos", unit: "currency" as const, value: mrrRetention };
+    if (idxRet >= 0) others.splice(idxRet + 1, 0, retCard);
+    else others.push(retCard);
   }
 
   const othersGridClass =

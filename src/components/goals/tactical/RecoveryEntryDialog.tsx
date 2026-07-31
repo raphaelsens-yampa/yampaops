@@ -28,6 +28,7 @@ type NewRow = {
   price: string;
   mrr: string;
   note: string;
+  entry_kind: "recovered" | "retained";
 };
 
 const emptyRow = (today: Date): NewRow => ({
@@ -39,7 +40,16 @@ const emptyRow = (today: Date): NewRow => ({
   price: "",
   mrr: "",
   note: "",
+  entry_kind: "recovered",
 });
+
+function parseKind(v: unknown): "recovered" | "retained" {
+  const s = String(v ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return s.includes("retid") || s.includes("retain") || s.includes("retencao") ? "retained" : "recovered";
+}
 
 function toNumber(v: unknown): number {
   if (typeof v === "number") return v;
@@ -103,6 +113,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       price: toNumber(row.price),
       mrr: toNumber(row.mrr),
       note: row.note || null,
+      entry_kind: row.entry_kind,
       source: "manual",
       created_by: auth.user?.id as string,
     });
@@ -111,7 +122,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Recuperação registrada" });
+    toast({ title: row.entry_kind === "retained" ? "Retenção registrada" : "Recuperação registrada" });
     setRow(emptyRow(today));
     setOpen(false);
     onSaved?.();
@@ -136,6 +147,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
           price: toNumber(pick(r, ["preco", "preço", "price", "valor"])),
           mrr: toNumber(pick(r, ["mrr", "mrr recuperado", "mrr_net"])),
           note: String(pick(r, ["observacao", "obs", "note"]) ?? "") || null,
+          entry_kind: parseKind(pick(r, ["tipo", "entry_kind", "kind", "classificacao"])),
           source: "import",
         };
       })
@@ -143,7 +155,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
     if (!parsed.length) {
       toast({
         title: "Nenhuma linha válida",
-        description: "Use colunas: Cliente, E-mail, Plano, Responsável, Data, Preço, MRR.",
+        description: "Use colunas: Cliente, E-mail, Plano, Responsável, Tipo, Data, Preço, MRR.",
         variant: "destructive",
       });
       return;
@@ -163,7 +175,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       toast({ title: "Erro na importação", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: `${payload.length} recuperações importadas` });
+    toast({ title: `${payload.length} registros importados` });
     setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
     setOpen(false);
@@ -172,7 +184,8 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
 
   function downloadTemplate() {
     const ws = XLSX.utils.json_to_sheet([
-      { Cliente: "Empresa Exemplo", "E-mail": "cliente@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
+      { Cliente: "Empresa Exemplo", "E-mail": "cliente@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Recuperado", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
+      { Cliente: "Outra Empresa", "E-mail": "outro@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Retido", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Recuperados");
@@ -183,12 +196,12 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="h-8">
-          <Plus className="h-4 w-4 mr-1" /> Adicionar recuperados
+          <Plus className="h-4 w-4 mr-1" /> Adicionar recuperados/retidos
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Clientes recuperados</DialogTitle>
+          <DialogTitle>Clientes recuperados e retidos</DialogTitle>
           <DialogDescription>Registre manualmente ou importe uma planilha (xlsx/csv).</DialogDescription>
         </DialogHeader>
 
@@ -224,6 +237,19 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                 </Select>
               </div>
               <div className="space-y-1">
+                <Label>Tipo</Label>
+                <Select
+                  value={row.entry_kind}
+                  onValueChange={(v) => setRow({ ...row, entry_kind: v as "recovered" | "retained" })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recovered">Cliente recuperado</SelectItem>
+                    <SelectItem value="retained">Cliente retido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <Label>Data</Label>
                 <Input type="date" value={row.recovered_at} onChange={(e) => setRow({ ...row, recovered_at: e.target.value })} />
               </div>
@@ -232,7 +258,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                 <Input inputMode="decimal" value={row.price} onChange={(e) => setRow({ ...row, price: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>MRR recuperado (R$)</Label>
+                <Label>{row.entry_kind === "retained" ? "MRR retido (R$)" : "MRR recuperado (R$)"}</Label>
                 <Input inputMode="decimal" value={row.mrr} onChange={(e) => setRow({ ...row, mrr: e.target.value })} />
               </div>
             </div>
@@ -247,7 +273,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
 
           <TabsContent value="import" className="space-y-3 pt-3">
             <p className="text-sm text-muted-foreground">
-              Colunas aceitas: Cliente, E-mail, Plano, Responsável, Data, Preço, MRR, Observação.
+              Colunas aceitas: Cliente, E-mail, Plano, Responsável, Tipo (Recuperado/Retido), Data, Preço, MRR, Observação.
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -269,6 +295,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                       <th className="text-left p-2">Cliente</th>
                       <th className="text-left p-2">E-mail</th>
                       <th className="text-left p-2">Plano</th>
+                      <th className="text-left p-2">Tipo</th>
                       <th className="text-left p-2">Data</th>
                       <th className="text-right p-2">Preço</th>
                       <th className="text-right p-2">MRR</th>
@@ -280,6 +307,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                         <td className="p-2">{r.customer_name || "—"}</td>
                         <td className="p-2">{r.customer_email || "—"}</td>
                         <td className="p-2">{r.plan_name || "—"}</td>
+                        <td className="p-2">{r.entry_kind === "retained" ? "Retido" : "Recuperado"}</td>
                         <td className="p-2">{r.recovered_at}</td>
                         <td className="p-2 text-right">{r.price}</td>
                         <td className="p-2 text-right">{r.mrr}</td>
