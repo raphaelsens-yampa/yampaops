@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import {
   DailyDatum,
@@ -7,12 +8,15 @@ import {
   TacticalMetric,
   Team,
   formatMetric,
+  monthPacing,
   motivationalCopy,
+  realizedMonthBeforeToday,
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY } from "./useTacticalData";
+
 
 interface Props {
   metrics: TacticalMetric[];
@@ -61,9 +65,13 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
         realized += daily.find((x) => x.user_id === uid && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
       }
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
-      return { m, target, realized, pct, missing: Math.max(target - realized, 0) };
+      const monthBefore = realizedMonthBeforeToday(daily, m.id, memberIds, today);
+      const pacing = monthPacing(today, target, monthBefore);
+      return { m, target, realized, pct, missing: Math.max(target - realized, 0), pacing };
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metrics, goals, daily, memberIds, members, todayKey]);
+
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
   const withGoal = rows.filter((r) => r.target > 0);

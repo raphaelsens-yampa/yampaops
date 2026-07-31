@@ -1,4 +1,7 @@
+import { adjustedDailyTarget } from "@/lib/revisedGoals";
+
 export type TacticalSource =
+
   | "activity_type"
   | "stripe_mrr"
   | "stripe_deals"
@@ -74,7 +77,51 @@ export function businessDaysBetween(start: Date, end: Date): number {
   return n;
 }
 
+/**
+ * Ritmo diário necessário para fechar o mês na meta (Meta Revisada tática).
+ * `realizedBeforeToday` = realizado do mês até o dia anterior.
+ */
+export function monthPacing(today: Date, dailyTarget: number, realizedBeforeToday: number) {
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const businessDaysInMonth = businessDaysBetween(start, end);
+  const remainingBusinessDays = businessDaysBetween(today, end);
+  const adjusted = adjustedDailyTarget({
+    dailyTarget,
+    realizedBeforeToday,
+    businessDaysInMonth,
+    remainingBusinessDays,
+  });
+  return {
+    monthTarget: dailyTarget * businessDaysInMonth,
+    businessDaysInMonth,
+    remainingBusinessDays,
+    adjusted,
+  };
+}
+
+/** Realizado do mês corrente até o dia anterior (exclui hoje). */
+export function realizedMonthBeforeToday(
+  daily: DailyDatum[],
+  metricId: string,
+  userIds: string[],
+  today: Date,
+): number {
+  const monthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const todayKey = toBRDateKey(today);
+  return daily
+    .filter(
+      (x) =>
+        x.metric_id === metricId &&
+        userIds.includes(x.user_id) &&
+        x.date.startsWith(monthPrefix) &&
+        x.date < todayKey,
+    )
+    .reduce((s, x) => s + (x.value ?? 0), 0);
+}
+
 /** Precedência de meta diária: pessoa → time → equipe toda. */
+
 export function resolveDailyTarget(
   goals: TacticalGoal[],
   metricId: string,
