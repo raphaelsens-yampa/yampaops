@@ -196,12 +196,12 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="h-8">
-          <Plus className="h-4 w-4 mr-1" /> Adicionar recuperados
+          <Plus className="h-4 w-4 mr-1" /> Adicionar recuperados/retidos
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Clientes recuperados</DialogTitle>
+          <DialogTitle>Clientes recuperados e retidos</DialogTitle>
           <DialogDescription>Registre manualmente ou importe uma planilha (xlsx/csv).</DialogDescription>
         </DialogHeader>
 
