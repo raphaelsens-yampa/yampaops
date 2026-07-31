@@ -44,9 +44,24 @@ interface Goal {
   period_start: string;
   period_end: string;
   target_mrr: number;
+  target_deals?: number | null;
+  target_tpv?: number | null;
 }
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+/**
+ * Valor da meta independente do tipo de métrica da categoria.
+ * Categorias de quantidade/razão são cadastradas em target_deals (ou target_tpv),
+ * então usamos o primeiro campo preenchido.
+ */
+function goalTargetValue(g: GoalRow): number {
+  const mrr = Number(g.target_mrr || 0);
+  if (mrr) return mrr;
+  const deals = Number(g.target_deals || 0);
+  if (deals) return deals;
+  return Number(g.target_tpv || 0);
+}
 
 function daysBetween(a: Date, b: Date) {
   return (b.getTime() - a.getTime()) / 86400000 + 1;
