@@ -237,6 +237,8 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
               <CardContent className="p-3">
                 <p className="text-xs text-muted-foreground truncate">{o.label}</p>
                 <p className="text-lg font-heading font-bold">{formatMetric(o.value, o.unit)}</p>
+                {o.note && <p className="text-[10px] text-muted-foreground truncate">{o.note}</p>}
+
               </CardContent>
             </Card>
           ))}
