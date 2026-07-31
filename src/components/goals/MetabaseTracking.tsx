@@ -958,21 +958,23 @@ export function MetabaseTracking() {
       <Card>
         <CardHeader className="px-4 md:px-6 flex flex-col items-stretch gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base">
+            <CardTitle className="text-sm sm:text-base">
               Metas por categoria × mês
               {goalMode === "revised" && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-600 text-[10px]">Meta revisada</Badge>}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Arraste as linhas para reorganizar. A ordem é salva localmente.
               {goalMode === "revised" && " Metas em âmbar herdaram o déficit dos meses anteriores do trimestre."}
+              <span className="md:hidden"> Deslize a tabela na horizontal para ver todos os meses.</span>
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={resetTableOrder} className="gap-1">
+          <Button variant="ghost" size="sm" onClick={resetTableOrder} className="gap-1 h-9 justify-start sm:justify-center">
             <RotateCcw className="h-3.5 w-3.5" /> Restaurar ordem padrão
           </Button>
         </CardHeader>
 
         <CardContent className="p-0 overflow-x-auto">
+
           <Table>
             <TableHeader>
               <TableRow>
