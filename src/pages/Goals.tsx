@@ -289,16 +289,16 @@ export default function GoalsPage() {
 
           {isManager && (
           <TabsContent value="setup" className="space-y-6">
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
               <Select value={filterScope} onValueChange={setFilterScope}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-36 h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os escopos</SelectItem>
                   {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-56 h-10"><SelectValue placeholder="Categoria" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
                   <SelectItem value="none">Sem categoria</SelectItem>
@@ -314,26 +314,30 @@ export default function GoalsPage() {
                   })}
                 </SelectContent>
               </Select>
-              {role === "admin" && (
-                <GoalsImportDialog
-                  categories={categories}
-                  profiles={profiles}
-                  teams={teams}
-                  campaigns={campaigns}
-                  onImported={loadData}
-                />
-              )}
-              {role === "admin" && (
-
-                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
-                  <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
-                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                    <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
-                    {formContent}
-                  </DialogContent>
-                </Dialog>
-              )}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                {role === "admin" && (
+                  <GoalsImportDialog
+                    categories={categories}
+                    profiles={profiles}
+                    teams={teams}
+                    campaigns={campaigns}
+                    onImported={loadData}
+                  />
+                )}
+                {role === "admin" && (
+                  <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full max-h-[85vh] overflow-y-auto">
+                      <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
+                      {formContent}
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {Object.entries(SCOPE_LABELS).map(([key, label]) => {
