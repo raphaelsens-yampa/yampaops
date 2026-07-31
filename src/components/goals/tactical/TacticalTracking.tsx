@@ -101,10 +101,12 @@ export function TacticalTracking() {
                 <SelectTrigger className="w-44"><SelectValue placeholder="Time" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_TEAMS}>Visão Geral</SelectItem>
+                  <SelectItem value={LOW_TOUCH}>Low-touch</SelectItem>
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>Time {t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {!isOverview && (
+              {!isOverview && !isLowTouch && (
+
                 <Select value={focusUser} onValueChange={setFocusUser}>
                   <SelectTrigger className="w-56"><SelectValue placeholder="Colaborador" /></SelectTrigger>
                   <SelectContent>
