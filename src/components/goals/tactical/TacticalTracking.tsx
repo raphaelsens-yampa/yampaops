@@ -195,6 +195,8 @@ export function TacticalTracking() {
               teams={teams}
               today={today}
               revisedView={revisedView}
+              lowTouchSales={lowTouch.sales}
+
             />
           ) : (
             <MissionToday
