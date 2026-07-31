@@ -45,8 +45,12 @@ export function TacticalTracking() {
 
 
   const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
+  const [lowTouchKey, setLowTouchKey] = useState(0);
+  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
+  const isLowTouch = teamId === LOW_TOUCH;
   const isOverview = teamId === ALL_TEAMS;
+
 
   const myTeamId = useMemo(
     () => members.find((m) => m.user_id === user?.id)?.team_id ?? null,
