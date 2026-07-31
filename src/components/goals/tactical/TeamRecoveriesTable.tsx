@@ -437,6 +437,8 @@ export function TeamRecoveriesTable({
               </TableBody>
             </Table>
           </div>
+          </>
+
         )}
       </CardContent>
         </CollapsibleContent>
