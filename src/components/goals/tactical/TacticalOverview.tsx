@@ -77,7 +77,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   }, [metrics, goals, daily, memberIds, members, todayKey]);
 
 
-  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados"];
+  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos"];
   const withGoal = rows.filter((r) => r.target > 0);
 
   // Vendas/MRR Low-touch de hoje (áreas sem ação de Sales/CS)
@@ -99,22 +99,33 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       };
     });
 
-  if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
-    const recIds = metrics.filter((m) => m.key === "clientes_recuperados").map((m) => m.id);
-    const recValue = daily
-      .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && recIds.includes(x.metric_id))
+  const sumMetricByKey = (key: string) => {
+    const ids = metrics.filter((m) => m.key === key).map((m) => m.id);
+    return daily
+      .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && ids.includes(x.metric_id))
       .reduce((s, x) => s + (x.value ?? 0), 0);
-    others.push({ id: "recuperados-card", label: "Clientes recuperados", unit: "count", value: recValue });
+  };
+
+  if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
+    others.push({
+      id: "recuperados-card",
+      label: "Clientes recuperados",
+      unit: "count",
+      value: sumMetricByKey("clientes_recuperados"),
+    });
   }
 
-  // MRR separado por origem (vendas x recuperações)
+  // MRR separado por origem (vendas x recuperações x retenções)
   const sumVirtual = (vid: string) =>
     daily
       .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && x.metric_id === vid)
       .reduce((s, x) => s + (x.value ?? 0), 0);
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
-  if (mrrSales > 0 || mrrRecovery > 0 || ltMrr > 0) {
+  const mrrRetention = sumVirtual(VIRTUAL_MRR_RETENTION);
+  const retainedQty = sumMetricByKey("clientes_retidos");
+
+  if (mrrSales > 0 || mrrRecovery > 0 || ltMrr > 0 || mrrRetention > 0) {
     const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
     const salesCard: OtherCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency", value: mrrSales };
     if (idxVendas >= 0) others.splice(idxVendas + 1, 0, salesCard);
@@ -124,6 +135,16 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     const recCard: OtherCard = { id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency", value: mrrRecovery };
     if (idxRec >= 0) others.splice(idxRec + 1, 0, recCard);
     else others.push(recCard);
+  }
+
+  if (retainedQty > 0 || mrrRetention > 0) {
+    if (!others.some((o) => o.label.toLowerCase().includes("retid"))) {
+      others.push({ id: "retidos-card", label: "Clientes retidos", unit: "count", value: retainedQty });
+    }
+    const idxRet = others.findIndex((o) => o.label.toLowerCase().includes("retid") && o.unit !== "currency");
+    const retCard: OtherCard = { id: "mrr-retidos-card", label: "MRR Clientes Retidos", unit: "currency", value: mrrRetention };
+    if (idxRet >= 0) others.splice(idxRet + 1, 0, retCard);
+    else others.push(retCard);
   }
 
   if (ltCount > 0 || ltMrr > 0) {
