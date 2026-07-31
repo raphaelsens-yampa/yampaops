@@ -55,7 +55,7 @@ const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "
  * Categorias de quantidade/razão são cadastradas em target_deals (ou target_tpv),
  * então usamos o primeiro campo preenchido.
  */
-function goalTargetValue(g: GoalRow): number {
+function goalTargetValue(g: Goal): number {
   const mrr = Number(g.target_mrr || 0);
   if (mrr) return mrr;
   const deals = Number(g.target_deals || 0);
@@ -369,7 +369,7 @@ export function MetabaseTracking() {
         const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
         if (frac <= 0) return;
         const key = `${g.category_id || "none"}|${idx}`;
-        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
+        map.set(key, (map.get(key) || 0) + goalTargetValue(g) * frac);
       });
     });
     return map;
@@ -432,7 +432,7 @@ export function MetabaseTracking() {
         const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
         if (frac <= 0) return;
         const key = `${g.category_id || "none"}|${idx}`;
-        map.set(key, (map.get(key) || 0) + (g.target_mrr || 0) * frac);
+        map.set(key, (map.get(key) || 0) + goalTargetValue(g) * frac);
       });
     });
     return map;
@@ -498,7 +498,7 @@ export function MetabaseTracking() {
       const gs = parseDateBRStart(g.period_start);
       const ge = parseDateBREnd(g.period_end);
       if (overlapDays(gs, ge, windowRange.from, windowRange.to) > 0) {
-        sum += Number(g.target_mrr || 0);
+        sum += goalTargetValue(g);
       }
     });
     return sum;
@@ -513,7 +513,7 @@ export function MetabaseTracking() {
       const gDays = Math.max(1, daysBetween(gs, ge));
       const ov = overlapDays(gs, ge, compareWindow.from, compareWindow.to);
       if (ov <= 0) return;
-      sum += Number(g.target_mrr || 0) * (ov / gDays);
+      sum += goalTargetValue(g) * (ov / gDays);
     });
     return sum;
   }, [filteredGoals, compareWindow]);
