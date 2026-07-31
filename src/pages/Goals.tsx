@@ -234,19 +234,38 @@ export default function GoalsPage() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold">Metas</h1>
+      <div className="space-y-5 md:space-y-6">
+        <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 pt-1 pb-2 md:pb-0 bg-background/85 backdrop-blur-md md:bg-transparent md:backdrop-blur-none md:static border-b border-border/60 md:border-0">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="metabase" className="space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
-          <TabsList>
-            <TabsTrigger value="metabase">Acompanhamento Metas</TabsTrigger>
-            <TabsTrigger value="tactical">Metas Táticas</TabsTrigger>
-            {isManager && <TabsTrigger value="setup">Cadastro de Metas</TabsTrigger>}
-            {role === "admin" && <TabsTrigger value="categories">Categorias</TabsTrigger>}
-            {role === "admin" && <TabsTrigger value="finance">Configurações Financeiras</TabsTrigger>}
-          </TabsList>
+        <Tabs defaultValue="metabase" className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
+          <div className="-mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 overflow-x-auto no-scrollbar">
+            <TabsList className="w-max min-w-full justify-start gap-1">
+              <TabsTrigger value="metabase" className="whitespace-nowrap">
+                <span className="md:hidden">Metas</span>
+                <span className="hidden md:inline">Acompanhamento Metas</span>
+              </TabsTrigger>
+              <TabsTrigger value="tactical" className="whitespace-nowrap">
+                <span className="md:hidden">Táticas</span>
+                <span className="hidden md:inline">Metas Táticas</span>
+              </TabsTrigger>
+              {isManager && (
+                <TabsTrigger value="setup" className="whitespace-nowrap">
+                  <span className="md:hidden">Cadastro</span>
+                  <span className="hidden md:inline">Cadastro de Metas</span>
+                </TabsTrigger>
+              )}
+              {role === "admin" && <TabsTrigger value="categories" className="whitespace-nowrap">Categorias</TabsTrigger>}
+              {role === "admin" && (
+                <TabsTrigger value="finance" className="whitespace-nowrap">
+                  <span className="md:hidden">Financeiro</span>
+                  <span className="hidden md:inline">Configurações Financeiras</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
+
 
           <TabsContent value="metabase" className="space-y-6">
             <MetabaseTracking />
@@ -270,16 +289,16 @@ export default function GoalsPage() {
 
           {isManager && (
           <TabsContent value="setup" className="space-y-6">
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
               <Select value={filterScope} onValueChange={setFilterScope}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-36 h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os escopos</SelectItem>
                   {Object.entries(SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-56 h-10"><SelectValue placeholder="Categoria" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
                   <SelectItem value="none">Sem categoria</SelectItem>
@@ -295,34 +314,43 @@ export default function GoalsPage() {
                   })}
                 </SelectContent>
               </Select>
-              {role === "admin" && (
-                <GoalsImportDialog
-                  categories={categories}
-                  profiles={profiles}
-                  teams={teams}
-                  campaigns={campaigns}
-                  onImported={loadData}
-                />
-              )}
-              {role === "admin" && (
-
-                <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
-                  <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button></DialogTrigger>
-                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                    <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
-                    {formContent}
-                  </DialogContent>
-                </Dialog>
-              )}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                {role === "admin" && (
+                  <GoalsImportDialog
+                    categories={categories}
+                    profiles={profiles}
+                    teams={teams}
+                    campaigns={campaigns}
+                    onImported={loadData}
+                  />
+                )}
+                {role === "admin" && (
+                  <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) loadCategories(); else resetForm(); }}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-1" /> Nova Meta</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full max-h-[85vh] overflow-y-auto">
+                      <DialogHeader><DialogTitle>{editingGoal ? "Editar Meta" : "Nova Meta"}</DialogTitle></DialogHeader>
+                      {formContent}
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {Object.entries(SCOPE_LABELS).map(([key, label]) => {
                 const count = goals.filter((g) => g.scope === key).length;
+                const active = filterScope === key;
                 return (
-                  <Card key={key} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilterScope(key)}>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-bold">{count}</p>
+                  <Card
+                    key={key}
+                    className={`cursor-pointer transition-colors active:scale-[0.99] ${active ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
+                    onClick={() => setFilterScope(active ? "all" : key)}
+                  >
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <p className="text-xl sm:text-2xl font-bold">{count}</p>
                       <p className="text-xs text-muted-foreground">{label}</p>
                     </CardContent>
                   </Card>
@@ -330,8 +358,66 @@ export default function GoalsPage() {
               })}
             </div>
 
-            <Card>
-              <CardContent className="p-0">
+            {/* Lista mobile */}
+            <div className="space-y-3 md:hidden">
+              {filteredGoals.map((g) => {
+                const prof = profiles.find((p) => p.user_id === g.user_id);
+                const team = teams.find((t) => t.id === g.team_id);
+                const camp = campaigns.find((c) => c.id === g.campaign_id);
+                let details = "Toda empresa";
+                if (g.scope === "user") details = prof?.full_name || "—";
+                else if (g.scope === "team") details = team?.name || "—";
+                else if (g.scope === "campaign") details = camp?.name || g.campaign || "—";
+                const cat = categories.find((c) => c.id === g.category_id);
+                return (
+                  <Card key={g.id}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || "Empresa"}</Badge>
+                            {cat && <span className="text-xs text-muted-foreground truncate">{cat.name}</span>}
+                          </div>
+                          <p className="text-sm font-medium mt-1 truncate">{details}</p>
+                          <p className="text-xs text-muted-foreground">{g.period_start} → {g.period_end}</p>
+                        </div>
+                        {role === "admin" && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Editar meta" onClick={() => openEditDialog(g)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Excluir meta" onClick={() => deleteGoal(g.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">MRR</p>
+                          <p className="text-sm font-semibold">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Deals</p>
+                          <p className="text-sm font-semibold">{g.target_deals || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">ARPA</p>
+                          <p className="text-sm font-semibold">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {filteredGoals.length === 0 && (
+                <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Nenhuma meta</CardContent></Card>
+              )}
+            </div>
+
+            <Card className="hidden md:block">
+              <CardContent className="p-0 overflow-x-auto">
+
                 <Table>
                   <TableHeader>
                     <TableRow>

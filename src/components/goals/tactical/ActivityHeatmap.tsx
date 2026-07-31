@@ -46,24 +46,25 @@ export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, te
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-3">
-        <CardTitle className="text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
+      <CardHeader className="flex flex-col items-stretch gap-3 space-y-0 pb-3 px-4 md:px-6 md:flex-row md:items-center md:justify-between">
+        <CardTitle className="text-sm sm:text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
         <Select value={metricId} onValueChange={setMetricId}>
-          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 md:h-9 md:w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
             {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-2 overflow-x-auto">
+      <CardContent className="space-y-3 px-4 md:px-6">
+        <div className="space-y-2 overflow-x-auto no-scrollbar">
           {users.map((uid) => {
             const name = profiles.find((p) => p.user_id === uid)?.full_name || "—";
             const target = metric ? resolveDailyTarget(goals, metric.id, uid, teamId) : 0;
             return (
               <div key={uid} className="flex items-center gap-2">
-                <span className="w-32 text-xs truncate shrink-0">{name}</span>
+                <span className="w-20 sm:w-32 text-[11px] sm:text-xs truncate shrink-0">{name}</span>
                 <div className="flex gap-1">
+
                   {dates.map((dk) => {
                     const v = metric
                       ? daily.find((x) => x.user_id === uid && x.metric_id === metric.id && x.date === dk)?.value ?? 0
