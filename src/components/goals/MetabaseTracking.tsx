@@ -103,6 +103,10 @@ export function MetabaseTracking() {
   const [customFrom, setCustomFrom] = useState(new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10));
   const [year, setYear] = useState(now.getFullYear());
+  // Data de referência (permite olhar dias/semanas/meses anteriores)
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const [refDate, setRefDate] = useState<string>(todayKey);
+  const refDay = useMemo(() => parseDateBRStart(refDate) , [refDate]);
   const [compareMode, setCompareMode] = useState<CompareMode>("to_date");
   const [chartType, setChartType] = useState<"bar" | "line">("bar");
   const [kpiView, setKpiView] = useState<"month" | "period">("month");
