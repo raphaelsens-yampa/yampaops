@@ -257,17 +257,18 @@ export function MetabaseTracking() {
 
   const monthList = useMemo(() => Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)), [year]);
 
-  // Janela efetiva do filtro Período
+  // Janela efetiva do filtro Período (ancorada na Data de referência)
   const windowRange = useMemo(() => {
-    const today = new Date(); today.setHours(23, 59, 59, 999);
+    const ref = isNaN(refDay.getTime()) ? new Date() : new Date(refDay);
+    const refEnd = new Date(ref); refEnd.setHours(23, 59, 59, 999);
     if (period === "day") {
-      const s = new Date(); s.setHours(0, 0, 0, 0);
-      return { from: s, to: today };
+      const s = new Date(ref); s.setHours(0, 0, 0, 0);
+      return { from: s, to: refEnd };
     }
-    if (period === "week") return { from: startOfWeek(new Date()), to: endOfWeek(new Date()) };
+    if (period === "week") return { from: startOfWeek(ref), to: endOfWeek(ref) };
     if (period === "month") {
-      const s = new Date(now.getFullYear(), now.getMonth(), 1);
-      const e = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      const s = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const e = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
       return { from: s, to: e };
     }
     if (period === "custom") {
@@ -277,20 +278,21 @@ export function MetabaseTracking() {
     }
     // year
     return { from: new Date(year, 0, 1), to: new Date(year, 11, 31, 23, 59, 59, 999) };
-  }, [period, customFrom, customTo, year]);
+  }, [period, customFrom, customTo, year, refDay]);
 
-  // Cap superior "Comparar até hoje": limita meta ao min(windowRange.to, hoje, últimoMêsCapturado+fim)
+  // Cap superior "Comparar até": limita meta ao min(windowRange.to, data de referência, últimoMêsCapturado+fim)
   const effectiveWindow = useMemo(() => {
     if (compareMode === "full") return windowRange;
-    const today = new Date(); today.setHours(23, 59, 59, 999);
-    let cap = today < windowRange.to ? today : windowRange.to;
+    const ref = isNaN(refDay.getTime()) ? new Date() : new Date(refDay);
+    ref.setHours(23, 59, 59, 999);
+    let cap = ref < windowRange.to ? ref : windowRange.to;
     if (maxCapture) {
       const [y, m] = maxCapture.split("-").map(Number);
       const capMonthEnd = new Date(y, m, 0, 23, 59, 59, 999); // last day of that month
       if (capMonthEnd < cap) cap = capMonthEnd;
     }
     return { from: windowRange.from, to: cap < windowRange.from ? windowRange.from : cap };
-  }, [windowRange, compareMode, maxCapture]);
+  }, [windowRange, compareMode, maxCapture, refDay]);
 
   // Span das metas filtradas (união do menor start ao maior end)
   const goalsSpan = useMemo(() => {
