@@ -445,7 +445,9 @@ export function MetabaseTracking() {
   }, [goals, monthList, year]);
 
   // ===== Meta Revisada — déficit dos meses encerrados diluído no restante do trimestre =====
-  const closedBeforeIdx = year < now.getFullYear() ? 12 : year > now.getFullYear() ? 0 : now.getMonth();
+  const refYear = isNaN(refDay.getTime()) ? now.getFullYear() : refDay.getFullYear();
+  const refMonth = isNaN(refDay.getTime()) ? now.getMonth() : refDay.getMonth();
+  const closedBeforeIdx = year < refYear ? 12 : year > refYear ? 0 : refMonth;
   const lowerIsBetterFor = useMemo(() => {
     const dir = new Map(categories.map((c) => [c.id, isBetterBelow(c.goal_direction)]));
     return (id: string) => dir.get(id) ?? false;
