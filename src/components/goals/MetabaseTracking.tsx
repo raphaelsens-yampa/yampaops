@@ -772,7 +772,8 @@ export function MetabaseTracking() {
           if (selectedCat?.metric_type === "ratio") return `${v.toFixed(0)}%`;
           return `R$ ${(v / 1000).toFixed(0)}k`;
         };
-        const currentMonthIdx = year === now.getFullYear() ? now.getMonth() : 11;
+        const refBase = isNaN(refDay.getTime()) ? now : refDay;
+        const currentMonthIdx = year === refBase.getFullYear() ? refBase.getMonth() : 11;
         const monthRow = chartData[currentMonthIdx];
         const revisedOn = goalMode === "revised";
         const monthOriginalTarget = monthRow?.Meta || 0;
