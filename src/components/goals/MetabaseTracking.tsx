@@ -486,7 +486,7 @@ export function MetabaseTracking() {
       if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
     });
     return map;
-  }, [agg, year, componentToVirtuals]);
+  }, [scopedAgg, year, componentToVirtuals]);
 
   const tableTargetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
