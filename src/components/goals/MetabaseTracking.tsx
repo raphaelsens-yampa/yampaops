@@ -178,7 +178,8 @@ export function MetabaseTracking() {
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("sales_campaigns").select("id, name").order("name"),
       ]);
-      setCategories((cRes.data as GoalCategory[]) || []);
+      // As categorias do 2.0 nunca entram na lista: são tratadas só pelo recorte de Produto
+      setCategories((((cRes.data as GoalCategory[]) || []).filter((c) => !YAMPA20_CATEGORY_IDS.has(c.id))));
       setTeams(tRes.data || []);
       setProfiles(pRes.data || []);
       setCampaigns(campRes.data || []);
