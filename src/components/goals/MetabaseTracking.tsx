@@ -1187,11 +1187,13 @@ interface SortableCategoryRowProps {
   realizedMap: Map<string, number>;
   revisedMap?: Map<string, number>;
   showRevised?: boolean;
+  /** Métrica não existe no recorte selecionado (ex.: yampa 2.0) → tudo "—" */
+  unavailable?: boolean;
   fmt: (c: GoalCategory | undefined, v: number) => string;
   pctColor: (pct: number, lte: boolean) => string;
 }
 
-function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, revisedMap, showRevised, fmt, pctColor }: SortableCategoryRowProps) {
+function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, revisedMap, showRevised, unavailable, fmt, pctColor }: SortableCategoryRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -1203,7 +1205,7 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
   const lte = isBetterBelow(c.goal_direction);
   let ytdT = 0, ytdR = 0;
   return (
-    <TableRow ref={setNodeRef} style={style}>
+    <TableRow ref={setNodeRef} style={style} className={unavailable ? "opacity-60" : undefined}>
       <TableCell className="sticky left-0 bg-background z-10 w-8 p-1 cursor-grab active:cursor-grabbing text-muted-foreground" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </TableCell>
@@ -1211,9 +1213,19 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
         <div className="flex items-center gap-2">
           <span>{c.name}</span>
           <Badge variant="outline" className="text-[9px]">{AREA_LABELS[c.area]}</Badge>
+          {unavailable && <Badge variant="secondary" className="text-[9px]">n/d neste recorte</Badge>}
         </div>
       </TableCell>
       {monthList.map((_, idx) => {
+        if (unavailable) {
+          return (
+            <Fragment key={`cell-month-${idx}`}>
+              <TableCell className="text-right text-xs border-l text-muted-foreground">—</TableCell>
+              <TableCell className="text-right text-xs text-muted-foreground">—</TableCell>
+              <TableCell className="text-right text-xs text-muted-foreground">—</TableCell>
+            </Fragment>
+          );
+        }
         const original = targetMap.get(`${c.id}|${idx}`) || 0;
         const rev = revisedMap?.get(`${c.id}|${idx}`) ?? original;
         const hasRev = !!showRevised && original > 0 && Math.abs(rev - original) > 0.5;
@@ -1238,10 +1250,12 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
           </Fragment>
         );
       })}
-      <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(c, ytdT)}</TableCell>
-      <TableCell className="text-right text-xs bg-muted/30">{fmt(c, ytdR)}</TableCell>
-      <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
-        {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
+      <TableCell className="text-right text-xs border-l bg-muted/30 text-muted-foreground">
+        {unavailable ? "—" : fmt(c, ytdT)}
+      </TableCell>
+      <TableCell className="text-right text-xs bg-muted/30">{unavailable ? "—" : fmt(c, ytdR)}</TableCell>
+      <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${!unavailable && ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
+        {unavailable || ytdT <= 0 ? "—" : `${((ytdR / ytdT) * 100).toFixed(0)}%`}
       </TableCell>
     </TableRow>
   );
