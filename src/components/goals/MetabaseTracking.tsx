@@ -846,11 +846,13 @@ export function MetabaseTracking() {
                 <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <div>
-                  <Label className="text-xs">Período</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-start">
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Período</Label>
+                  </div>
                   <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="day">Dia</SelectItem>
                       <SelectItem value="week">Semana</SelectItem>
@@ -861,7 +863,7 @@ export function MetabaseTracking() {
                   </Select>
                 </div>
                 {period !== "custom" && (
-                <div>
+                <div className="flex flex-col gap-1">
                   <div className="h-4 flex items-end justify-between gap-2">
                     <Label className="text-xs">Data de referência</Label>
                     {refDate !== todayKey && (
@@ -874,32 +876,38 @@ export function MetabaseTracking() {
                       </button>
                     )}
                   </div>
-                  <Input type="date" value={refDate} max={todayKey} onChange={(e) => setRefDate(e.target.value || todayKey)} />
+                  <Input type="date" className="h-10" value={refDate} max={todayKey} onChange={(e) => setRefDate(e.target.value || todayKey)} />
                 </div>
                 )}
-                <div>
-                  <Label className="text-xs">Comparar até</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Comparar até</Label>
+                  </div>
                   <Select value={compareMode} onValueChange={(v) => setCompareMode(v as CompareMode)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="to_date">Até hoje (parcial)</SelectItem>
                       <SelectItem value="full">Período completo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Ano</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Ano</Label>
+                  </div>
                   <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {yearOptions.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Escopo</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Escopo</Label>
+                  </div>
                   <Select value={scope} onValueChange={setScope}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="company">Empresa</SelectItem>
@@ -909,10 +917,12 @@ export function MetabaseTracking() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Categoria</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Categoria</Label>
+                  </div>
                   <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas</SelectItem>
                       {(["sales", "cs", "campaign", "financial"] as const).map((a) => {
@@ -928,30 +938,36 @@ export function MetabaseTracking() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Equipe</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Equipe</Label>
+                  </div>
                   <Select value={teamId} onValueChange={setTeamId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas</SelectItem>
                       {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Vendedor</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Vendedor</Label>
+                  </div>
                   <Select value={userId} onValueChange={setUserId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
                       {profiles.map((p) => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs">Campanha</Label>
+                <div className="flex flex-col gap-1">
+                  <div className="h-4 flex items-end">
+                    <Label className="text-xs">Campanha</Label>
+                  </div>
                   <Select value={campaignId} onValueChange={setCampaignId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas</SelectItem>
                       {campaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -962,17 +978,22 @@ export function MetabaseTracking() {
                 {period === "custom" && (
                   <>
 
-                    <div>
-                      <Label className="text-xs">De</Label>
-                      <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                    <div className="flex flex-col gap-1">
+                      <div className="h-4 flex items-end">
+                        <Label className="text-xs">De</Label>
+                      </div>
+                      <Input type="date" className="h-10" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
                     </div>
-                    <div>
-                      <Label className="text-xs">Até</Label>
-                      <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                    <div className="flex flex-col gap-1">
+                      <div className="h-4 flex items-end">
+                        <Label className="text-xs">Até</Label>
+                      </div>
+                      <Input type="date" className="h-10" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
                     </div>
                   </>
                 )}
               </div>
+
 
               {/* Selos de contexto */}
               <div className="flex flex-wrap items-center gap-2 mt-4 text-xs">
