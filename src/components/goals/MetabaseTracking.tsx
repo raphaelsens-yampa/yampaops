@@ -994,6 +994,44 @@ export function MetabaseTracking() {
         </Card>
       </Collapsible>
 
+      {/* Modo histórico — avisos sobre a origem do realizado */}
+      {historicalMode && !hasSnapshotForRef && (
+        <Card className="border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="p-4 text-sm space-y-2">
+            <p className="font-medium text-amber-700 dark:text-amber-400">
+              Sem snapshot para {fmtDateKey(refDate)}.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              O realizado não é exibido para evitar mostrar o valor de outro dia como se fosse desta data.
+              Datas disponíveis: {snapDates.length ? snapDates.map(fmtDateKey).join(", ") : "nenhuma"}.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {nearestPreviousSnapshot && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setRefDate(nearestPreviousSnapshot)}>
+                  Usar {fmtDateKey(nearestPreviousSnapshot)} (mais próxima anterior)
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setRefDate(todayKey)}>
+                Voltar para hoje
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {historicalMode && hasSnapshotForRef && snapshotMeta.reconstructedKeys.length > 0 && (
+        <p
+          className="flex items-start gap-1.5 text-xs text-amber-600"
+          title={`Reconstruído de registro textual (não lido da fonte): ${snapshotMeta.reconstructedKeys.join(", ")}`}
+        >
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            {snapshotMeta.reconstructedKeys.length} métrica(s) deste snapshot foram reconstruídas de registro textual,
+            não lidas diretamente da fonte: {snapshotMeta.reconstructedKeys.join(", ")}.
+          </span>
+        </p>
+      )}
+
+
       {/* KPI resumo */}
       {(() => {
         const selectedCat = categoryId !== "all" ? categories.find((c) => c.id === categoryId) : undefined;
