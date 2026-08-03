@@ -1201,8 +1201,8 @@ export function MetabaseTracking() {
                   <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Saldo para Meta</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{kpiFmt(monthGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(monthGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{gapValue(monthGap)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
