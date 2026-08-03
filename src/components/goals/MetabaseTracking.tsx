@@ -342,23 +342,40 @@ export function MetabaseTracking() {
    */
   const scopedAgg = useMemo(() => {
     if (productScope === "yampafin") {
-      return agg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id));
+      return sourceAgg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id));
     }
     if (productScope === "yampa20") {
-      return agg
+      return sourceAgg
         .filter((r) => r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id))
         .map((r) => ({ ...r, category_id: YAMPA20_TO_BASE[r.category_id!] }));
     }
-    return agg.map((r) =>
+    return sourceAgg.map((r) =>
       r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)
         ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
         : r,
     );
-  }, [agg, productScope]);
+  }, [sourceAgg, productScope]);
+
+  /**
+   * Categorias do 2.0 realmente presentes na fonte ativa. No histórico,
+   * `stripe_mrr_yampa20`/`stripe_ativos_yampa20` só existem de 31/07 em diante;
+   * antes disso o recorte 2.0 mostra "—", nunca zero.
+   */
+  const yampa20PresentBaseIds = useMemo(() => {
+    const s = new Set<string>();
+    sourceAgg.forEach((r) => {
+      if (r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)) s.add(YAMPA20_TO_BASE[r.category_id]);
+    });
+    return s;
+  }, [sourceAgg]);
 
   /** No recorte 2.0 a métrica simplesmente não existe → renderiza "—", nunca 0 */
-  const isUnavailableCategory = (id: string) =>
-    productScope === "yampa20" && !YAMPA20_AVAILABLE_BASE_IDS.has(id);
+  const isUnavailableCategory = (id: string) => {
+    if (productScope !== "yampa20") return false;
+    if (!YAMPA20_AVAILABLE_BASE_IDS.has(id)) return true;
+    return !yampa20PresentBaseIds.has(id);
+  };
+
 
 
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
