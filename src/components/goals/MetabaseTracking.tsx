@@ -191,6 +191,11 @@ export function MetabaseTracking() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Histórico append-only por dia
+  const [snapDates, setSnapDates] = useState<string[]>([]);
+  const [snapRows, setSnapRows] = useState<SnapRow[]>([]);
+  const [snapLoading, setSnapLoading] = useState(false);
+
 
   useEffect(() => {
     (async () => {
