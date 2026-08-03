@@ -1135,6 +1135,7 @@ export function MetabaseTracking() {
                       realizedMap={tableRealizedByCatMonth}
                       revisedMap={tableRevised.revisedByCatMonth}
                       showRevised={goalMode === "revised"}
+                      unavailable={isUnavailableCategory(c.id)}
 
                       fmt={fmtByCategory}
                       pctColor={pctColor}
