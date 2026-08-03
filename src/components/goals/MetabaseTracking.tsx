@@ -17,7 +17,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContai
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, RotateCcw, ChevronDown } from "lucide-react";
+import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
