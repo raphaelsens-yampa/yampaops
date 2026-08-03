@@ -212,6 +212,34 @@ export function MetabaseTracking() {
     }
   }, [categories]);
 
+  /**
+   * Recorte por produto aplicado na LEITURA (nada muda no banco):
+   * - yampafin: descarta as linhas da conta 2.0 (comportamento original)
+   * - all: remapeia as linhas do 2.0 para a categoria equivalente → soma em cima do yampaFin
+   * - yampa20: mantém SOMENTE as linhas do 2.0, já remapeadas
+   * MRR e Ativos Pagantes são estoque — a soma aqui é entre contas no MESMO mês, nunca entre meses.
+   */
+  const scopedAgg = useMemo(() => {
+    if (productScope === "yampafin") {
+      return agg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id));
+    }
+    if (productScope === "yampa20") {
+      return agg
+        .filter((r) => r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id))
+        .map((r) => ({ ...r, category_id: YAMPA20_TO_BASE[r.category_id!] }));
+    }
+    return agg.map((r) =>
+      r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)
+        ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
+        : r,
+    );
+  }, [agg, productScope]);
+
+  /** No recorte 2.0 a métrica simplesmente não existe → renderiza "—", nunca 0 */
+  const isUnavailableCategory = (id: string) =>
+    productScope === "yampa20" && !YAMPA20_AVAILABLE_BASE_IDS.has(id);
+
+
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
     if (scope !== "all" && r.scope !== scope) return false;
     if (categoryId !== "all" && r.category_id !== categoryId) return false;
