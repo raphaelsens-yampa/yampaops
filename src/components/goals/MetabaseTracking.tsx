@@ -33,6 +33,8 @@ const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
 const YAMPA20_ACTIVE_CAT = "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2";
 const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
 const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
+/** Net MRR (fluxo) — recebe a variação mensal do MRR do 2.0 no recorte "Todos" */
+const NET_MRR_CAT = "259883ec-7be5-44cd-927f-947b12918da7";
 /** category_id do 2.0 → category_id equivalente no yampaFin */
 const YAMPA20_TO_BASE: Record<string, string> = {
   [YAMPA20_MRR_CAT]: BASE_MRR_CAT,
