@@ -476,7 +476,7 @@ export function MetabaseTracking() {
       const key = `${catId}|${mIdx}`;
       map.set(key, (map.get(key) || 0) + val);
     };
-    agg.forEach((r) => {
+    scopedAgg.forEach((r) => {
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
       const v = Number(r.realized_amount || 0);
