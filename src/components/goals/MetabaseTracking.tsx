@@ -1080,10 +1080,14 @@ export function MetabaseTracking() {
             <CardTitle className="text-sm sm:text-base">
               Metas por categoria × mês
               {goalMode === "revised" && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-600 text-[10px]">Meta revisada</Badge>}
+              {productScope !== "yampafin" && (
+                <Badge variant="outline" className="ml-2 text-[10px]">{PRODUCT_LABELS[productScope]}</Badge>
+              )}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Arraste as linhas para reorganizar. A ordem é salva localmente.
               {goalMode === "revised" && " Metas em âmbar herdaram o déficit dos meses anteriores do trimestre."}
+              {productScope !== "yampafin" && ` ${YAMPA20_SCOPE_NOTE}`}
               <span className="md:hidden"> Deslize a tabela na horizontal para ver todos os meses.</span>
             </p>
           </div>
