@@ -228,6 +228,100 @@ export function MetabaseTracking() {
     })();
   }, []);
 
+  /**
+   * ===== Modo histórico =====
+   * Com a Data de referência em HOJE, nada muda: o realizado vem de
+   * `metabase_monthly_agg`. Numa data PASSADA, o realizado passa a vir do
+   * histórico append-only `metas_snapshot_diario` (as-of daquele dia).
+   */
+  const historicalMode = refDate !== todayKey && !!refDate;
+
+  // Datas com snapshot disponível (lista curta, carrega uma vez)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("metas_snapshot_diario")
+        .select("data")
+        .order("data", { ascending: true });
+      const uniq = Array.from(new Set(((data as any[]) || []).map((r) => r.data as string)));
+      setSnapDates(uniq);
+    })();
+  }, []);
+
+  const hasSnapshotForRef = snapDates.includes(refDate);
+  /** Snapshot disponível mais próximo ANTERIOR à data escolhida */
+  const nearestPreviousSnapshot = useMemo(() => {
+    const prev = snapDates.filter((d) => d < refDate);
+    return prev.length ? prev[prev.length - 1] : null;
+  }, [snapDates, refDate]);
+
+  // Carrega o histórico até a data escolhida (as-of por mês)
+  useEffect(() => {
+    if (!historicalMode || !hasSnapshotForRef) {
+      setSnapRows([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSnapLoading(true);
+      const { data } = await supabase
+        .from("metas_snapshot_diario")
+        .select("data, year_month, metric_key, scope, category_id, area, realized_amount, deals_count, tipo_snapshot, origem_leitura")
+        .lte("data", refDate)
+        .order("data", { ascending: true });
+      if (cancelled) return;
+      setSnapRows((data as SnapRow[]) || []);
+      setSnapLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [historicalMode, hasSnapshotForRef, refDate]);
+
+  /** Metadados do snapshot exibido (parcial? reconstruído?) */
+  const snapshotMeta = useMemo(() => {
+    const rows = snapRows.filter((r) => r.data === refDate);
+    const reconstructed = rows.filter((r) => r.origem_leitura === "reconstruido_de_avisos").map((r) => r.metric_key);
+    return {
+      count: rows.length,
+      tipo: rows[0]?.tipo_snapshot || null,
+      isPartial: rows.length > 0 && rows.length < EXPECTED_SNAPSHOT_METRICS,
+      reconstructedKeys: reconstructed,
+    };
+  }, [snapRows, refDate]);
+
+  /**
+   * Snapshot → formato AggRow, resolvido as-of: para cada (mês, métrica) usa a
+   * linha do último snapshot com `data` <= data de referência. Meses encerrados
+   * ficam no fechamento; o mês da data escolhida fica no valor daquele dia.
+   * Métricas ausentes simplesmente não geram linha → a UI mostra "—", nunca 0.
+   */
+  const snapshotAsAgg = useMemo<AggRow[]>(() => {
+    const latest = new Map<string, SnapRow>();
+    snapRows.forEach((r) => {
+      const key = `${r.year_month}|${r.metric_key}|${r.scope}`;
+      const prev = latest.get(key);
+      if (!prev || prev.data < r.data) latest.set(key, r);
+    });
+    return Array.from(latest.values()).map((r) => ({
+      year_month: r.year_month,
+      metric_key: r.metric_key,
+      scope: r.scope,
+      team_id: null,
+      user_id: null,
+      campaign_id: null,
+      category_id: r.category_id,
+      area: r.area,
+      realized_amount: Number(r.realized_amount || 0),
+      deals_count: Number(r.deals_count || 0),
+    }));
+  }, [snapRows]);
+
+  /** Fonte de realizado efetiva */
+  const sourceAgg = useMemo<AggRow[]>(() => {
+    if (!historicalMode) return agg;
+    return hasSnapshotForRef ? snapshotAsAgg : [];
+  }, [historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
+
+
   // Ao carregar as categorias, pré-seleciona "Total de MRR" como padrão
   useEffect(() => {
     if (categoryDefaultSet.current) return;
