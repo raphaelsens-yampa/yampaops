@@ -1127,6 +1127,11 @@ export function MetabaseTracking() {
           }
           return gap > 0 ? "Faltam" : "Acima da meta";
         };
+        const gapTitle = (gap: number) => {
+          const isExcess = isLessBetter ? gap > 0 : gap < 0;
+          return isExcess ? "EXCEDENTE DA META" : "Saldo para Meta";
+        };
+        const gapValue = (gap: number) => kpiFmt(Math.abs(gap));
         return (
           <>
             <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
@@ -1196,8 +1201,8 @@ export function MetabaseTracking() {
                   <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Saldo para Meta</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{kpiFmt(monthGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(monthGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{gapValue(monthGap)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
@@ -1228,8 +1233,8 @@ export function MetabaseTracking() {
                   <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Saldo para Meta</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(periodGap)}`}>{kpiFmt(periodGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(periodGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(periodGap)}`}>{gapValue(periodGap)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(periodGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
