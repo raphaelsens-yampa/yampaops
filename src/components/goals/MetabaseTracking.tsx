@@ -1013,6 +1013,20 @@ export function MetabaseTracking() {
       </Collapsible>
 
       {/* Modo histórico — avisos sobre a origem do realizado */}
+      {historicalMode && hasSnapshotForRef && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+            <History className="h-3 w-3" /> Snapshot de {fmtDateKey(refDate)}
+          </Badge>
+          <span className="text-muted-foreground">
+            Realizado do histórico diário{snapshotMeta.tipo ? ` (${snapshotMeta.tipo})` : ""} — metas inalteradas.
+          </span>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setRefDate(todayKey)}>
+            Voltar para hoje
+          </Button>
+        </div>
+      )}
+
       {historicalMode && !hasSnapshotForRef && (
         <Card className="border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20">
           <CardContent className="p-4 text-sm space-y-2">
