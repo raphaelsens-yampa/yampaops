@@ -621,12 +621,12 @@ export function MetabaseTracking() {
   // Meses cobertos pelo Metabase no ano selecionado
   const coveredMonths = useMemo(() => {
     const s = new Set<number>();
-    agg.forEach((r) => {
+    scopedAgg.forEach((r) => {
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() === year) s.add(d.getMonth());
     });
     return s;
-  }, [agg, year]);
+  }, [scopedAgg, year]);
 
   const missingMonthsInWindow = useMemo(() => {
     const missing: string[] = [];
