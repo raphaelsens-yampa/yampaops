@@ -988,6 +988,24 @@ export function MetabaseTracking() {
                     Sem dados no Metabase para: {missingMonthsInWindow.join(", ")}
                   </Badge>
                 )}
+                {historicalMode && hasSnapshotForRef && (
+                  <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+                    <History className="h-3 w-3" />
+                    Snapshot de {fmtDateKey(refDate)}
+                  </Badge>
+                )}
+                {historicalMode && hasSnapshotForRef && snapshotMeta.isPartial && (
+                  <Badge variant="outline" className="border-amber-400 text-amber-600">
+                    Snapshot parcial — {snapshotMeta.count}/{EXPECTED_SNAPSHOT_METRICS} métricas (ausentes exibem "—")
+                  </Badge>
+                )}
+                {historicalMode && !hasSnapshotForRef && (
+                  <Badge variant="outline" className="border-rose-400 text-rose-600">
+                    Sem snapshot para {fmtDateKey(refDate)}
+                  </Badge>
+                )}
+                {snapLoading && <Badge variant="secondary">Carregando snapshot…</Badge>}
+
               </div>
             </CardContent>
           </CollapsibleContent>
