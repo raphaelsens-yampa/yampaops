@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
@@ -20,6 +21,33 @@ import { GripVertical, RotateCcw, ChevronDown } from "lucide-react";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
+type ProductScope = "yampafin" | "yampa20" | "all";
+
+/**
+ * Conta Stripe "yampa 2.0" — operação separada, com apenas duas métricas:
+ * MRR e Ativos Pagantes. As categorias abaixo NUNCA são renderizadas como
+ * linha própria: são consumidas apenas pelo recorte de Produto, remapeadas
+ * para as categorias equivalentes do yampaFin.
+ */
+const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
+const YAMPA20_ACTIVE_CAT = "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2";
+const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
+const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
+/** category_id do 2.0 → category_id equivalente no yampaFin */
+const YAMPA20_TO_BASE: Record<string, string> = {
+  [YAMPA20_MRR_CAT]: BASE_MRR_CAT,
+  [YAMPA20_ACTIVE_CAT]: BASE_ACTIVE_CAT,
+};
+const YAMPA20_CATEGORY_IDS = new Set([YAMPA20_MRR_CAT, YAMPA20_ACTIVE_CAT]);
+/** Categorias que existem no recorte "yampa 2.0" (as demais não existem: exibem "—") */
+const YAMPA20_AVAILABLE_BASE_IDS = new Set([BASE_MRR_CAT, BASE_ACTIVE_CAT]);
+const PRODUCT_LABELS: Record<ProductScope, string> = {
+  yampafin: "yampaFin",
+  yampa20: "yampa 2.0",
+  all: "Todos",
+};
+const YAMPA20_SCOPE_NOTE =
+  "A conta yampa 2.0 possui apenas MRR e Ativos Pagantes. As demais métricas refletem somente yampaFin.";
 
 interface AggRow {
   year_month: string;
@@ -125,6 +153,7 @@ export function MetabaseTracking() {
 
 
 
+  const [productScope, setProductScope] = useState<ProductScope>("yampafin");
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [teamId, setTeamId] = useState<string>("all");
@@ -149,7 +178,8 @@ export function MetabaseTracking() {
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("sales_campaigns").select("id, name").order("name"),
       ]);
-      setCategories((cRes.data as GoalCategory[]) || []);
+      // As categorias do 2.0 nunca entram na lista: são tratadas só pelo recorte de Produto
+      setCategories((((cRes.data as GoalCategory[]) || []).filter((c) => !YAMPA20_CATEGORY_IDS.has(c.id))));
       setTeams(tRes.data || []);
       setProfiles(pRes.data || []);
       setCampaigns(campRes.data || []);
@@ -181,6 +211,34 @@ export function MetabaseTracking() {
       categoryDefaultSet.current = true;
     }
   }, [categories]);
+
+  /**
+   * Recorte por produto aplicado na LEITURA (nada muda no banco):
+   * - yampafin: descarta as linhas da conta 2.0 (comportamento original)
+   * - all: remapeia as linhas do 2.0 para a categoria equivalente → soma em cima do yampaFin
+   * - yampa20: mantém SOMENTE as linhas do 2.0, já remapeadas
+   * MRR e Ativos Pagantes são estoque — a soma aqui é entre contas no MESMO mês, nunca entre meses.
+   */
+  const scopedAgg = useMemo(() => {
+    if (productScope === "yampafin") {
+      return agg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id));
+    }
+    if (productScope === "yampa20") {
+      return agg
+        .filter((r) => r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id))
+        .map((r) => ({ ...r, category_id: YAMPA20_TO_BASE[r.category_id!] }));
+    }
+    return agg.map((r) =>
+      r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)
+        ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
+        : r,
+    );
+  }, [agg, productScope]);
+
+  /** No recorte 2.0 a métrica simplesmente não existe → renderiza "—", nunca 0 */
+  const isUnavailableCategory = (id: string) =>
+    productScope === "yampa20" && !YAMPA20_AVAILABLE_BASE_IDS.has(id);
+
 
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
     if (scope !== "all" && r.scope !== scope) return false;
@@ -327,21 +385,26 @@ export function MetabaseTracking() {
   // (o bucket da virtual já é a soma dos componentes via componentToVirtuals).
   const isVirtual = (id: string) => virtualComponents.has(id);
   const categoriesForTable = useMemo(() => {
-    // Seleção explícita por filtro — mostra apenas aquela categoria
-    if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
-    // Filtros restringiram para um conjunto de metas
-    if (allowedCategoryIds) {
-      // Se alguma meta é virtual, mostra apenas as virtuais das metas (não seus componentes)
-      const goalCatIds = new Set(filteredGoals.map((g) => g.category_id).filter(Boolean) as string[]);
-      if (Array.from(goalCatIds).some((id) => isVirtual(id))) {
-        return categories.filter((c) => goalCatIds.has(c.id));
+    const base = (() => {
+      // Seleção explícita por filtro — mostra apenas aquela categoria
+      if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
+      // Filtros restringiram para um conjunto de metas
+      if (allowedCategoryIds) {
+        // Se alguma meta é virtual, mostra apenas as virtuais das metas (não seus componentes)
+        const goalCatIds = new Set(filteredGoals.map((g) => g.category_id).filter(Boolean) as string[]);
+        if (Array.from(goalCatIds).some((id) => isVirtual(id))) {
+          return categories.filter((c) => goalCatIds.has(c.id));
+        }
+        return categories.filter((c) => allowedCategoryIds.has(c.id) && !isVirtual(c.id));
       }
-      return categories.filter((c) => allowedCategoryIds.has(c.id) && !isVirtual(c.id));
-    }
-    // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
-    return categories.filter((c) => !isVirtual(c.id));
+      // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
+      return categories.filter((c) => !isVirtual(c.id));
+    })();
+    // No recorte 2.0, KPIs e gráfico só podem falar de MRR e Ativos Pagantes
+    if (productScope === "yampa20") return base.filter((c) => YAMPA20_AVAILABLE_BASE_IDS.has(c.id));
+    return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories, categoryId, allowedCategoryIds, filteredGoals, virtualComponents]);
+  }, [categories, categoryId, allowedCategoryIds, filteredGoals, virtualComponents, productScope]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
@@ -351,7 +414,7 @@ export function MetabaseTracking() {
       const key = `${catId}|${monthIdx}`;
       map.set(key, (map.get(key) || 0) + val);
     };
-    agg.filter(scopedAggFilter).forEach((r) => {
+    scopedAgg.filter(scopedAggFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
@@ -364,7 +427,7 @@ export function MetabaseTracking() {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agg, scope, categoryId, teamId, userId, campaignId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
+  }, [scopedAgg, scope, categoryId, teamId, userId, campaignId, year, compareWindow, allowedCategoryIds, componentToVirtuals]);
 
   // Target per (category, month) — meta cheia por mês (para tabela e gráfico mensal)
   const targetByCatMonth = useMemo(() => {
@@ -418,7 +481,7 @@ export function MetabaseTracking() {
       const key = `${catId}|${mIdx}`;
       map.set(key, (map.get(key) || 0) + val);
     };
-    agg.forEach((r) => {
+    scopedAgg.forEach((r) => {
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
       const v = Number(r.realized_amount || 0);
@@ -428,7 +491,7 @@ export function MetabaseTracking() {
       if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
     });
     return map;
-  }, [agg, year, componentToVirtuals]);
+  }, [scopedAgg, year, componentToVirtuals]);
 
   const tableTargetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
@@ -558,12 +621,12 @@ export function MetabaseTracking() {
   // Meses cobertos pelo Metabase no ano selecionado
   const coveredMonths = useMemo(() => {
     const s = new Set<number>();
-    agg.forEach((r) => {
+    scopedAgg.forEach((r) => {
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() === year) s.add(d.getMonth());
     });
     return s;
-  }, [agg, year]);
+  }, [scopedAgg, year]);
 
   const missingMonthsInWindow = useMemo(() => {
     const missing: string[] = [];
@@ -617,6 +680,35 @@ export function MetabaseTracking() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent>
+              {/* Recorte por produto (conta Stripe) */}
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
+                <div className="w-full sm:w-[220px]">
+                  <Label className="text-xs">Produto</Label>
+                  <Select value={productScope} onValueChange={(v) => setProductScope(v as ProductScope)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(["yampafin", "yampa20", "all"] as ProductScope[]).map((p) => (
+                        <SelectItem key={p} value={p}>{PRODUCT_LABELS[p]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {productScope !== "yampa20" && (
+                  <div className="flex items-center gap-2 pb-1">
+                    <Switch
+                      id="include-yampa20"
+                      checked={productScope === "all"}
+                      disabled={productScope === "all"}
+                      onCheckedChange={(v) => { if (v) setProductScope("all"); }}
+                    />
+                    <Label htmlFor="include-yampa20" className="text-xs cursor-pointer">Incluir 2.0</Label>
+                  </div>
+                )}
+              </div>
+              {productScope !== "yampafin" && (
+                <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div>
                   <Label className="text-xs">Período</Label>
@@ -988,10 +1080,14 @@ export function MetabaseTracking() {
             <CardTitle className="text-sm sm:text-base">
               Metas por categoria × mês
               {goalMode === "revised" && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-600 text-[10px]">Meta revisada</Badge>}
+              {productScope !== "yampafin" && (
+                <Badge variant="outline" className="ml-2 text-[10px]">{PRODUCT_LABELS[productScope]}</Badge>
+              )}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Arraste as linhas para reorganizar. A ordem é salva localmente.
               {goalMode === "revised" && " Metas em âmbar herdaram o déficit dos meses anteriores do trimestre."}
+              {productScope !== "yampafin" && ` ${YAMPA20_SCOPE_NOTE}`}
               <span className="md:hidden"> Deslize a tabela na horizontal para ver todos os meses.</span>
             </p>
           </div>
@@ -1039,6 +1135,7 @@ export function MetabaseTracking() {
                       realizedMap={tableRealizedByCatMonth}
                       revisedMap={tableRevised.revisedByCatMonth}
                       showRevised={goalMode === "revised"}
+                      unavailable={isUnavailableCategory(c.id)}
 
                       fmt={fmtByCategory}
                       pctColor={pctColor}
@@ -1090,11 +1187,13 @@ interface SortableCategoryRowProps {
   realizedMap: Map<string, number>;
   revisedMap?: Map<string, number>;
   showRevised?: boolean;
+  /** Métrica não existe no recorte selecionado (ex.: yampa 2.0) → tudo "—" */
+  unavailable?: boolean;
   fmt: (c: GoalCategory | undefined, v: number) => string;
   pctColor: (pct: number, lte: boolean) => string;
 }
 
-function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, revisedMap, showRevised, fmt, pctColor }: SortableCategoryRowProps) {
+function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, revisedMap, showRevised, unavailable, fmt, pctColor }: SortableCategoryRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: c.id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -1106,7 +1205,7 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
   const lte = isBetterBelow(c.goal_direction);
   let ytdT = 0, ytdR = 0;
   return (
-    <TableRow ref={setNodeRef} style={style}>
+    <TableRow ref={setNodeRef} style={style} className={unavailable ? "opacity-60" : undefined}>
       <TableCell className="sticky left-0 bg-background z-10 w-8 p-1 cursor-grab active:cursor-grabbing text-muted-foreground" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4" />
       </TableCell>
@@ -1114,9 +1213,19 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
         <div className="flex items-center gap-2">
           <span>{c.name}</span>
           <Badge variant="outline" className="text-[9px]">{AREA_LABELS[c.area]}</Badge>
+          {unavailable && <Badge variant="secondary" className="text-[9px]">n/d neste recorte</Badge>}
         </div>
       </TableCell>
       {monthList.map((_, idx) => {
+        if (unavailable) {
+          return (
+            <Fragment key={`cell-month-${idx}`}>
+              <TableCell className="text-right text-xs border-l text-muted-foreground">—</TableCell>
+              <TableCell className="text-right text-xs text-muted-foreground">—</TableCell>
+              <TableCell className="text-right text-xs text-muted-foreground">—</TableCell>
+            </Fragment>
+          );
+        }
         const original = targetMap.get(`${c.id}|${idx}`) || 0;
         const rev = revisedMap?.get(`${c.id}|${idx}`) ?? original;
         const hasRev = !!showRevised && original > 0 && Math.abs(rev - original) > 0.5;
@@ -1141,10 +1250,12 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
           </Fragment>
         );
       })}
-      <TableCell className="text-right text-xs border-l bg-muted/30">{fmt(c, ytdT)}</TableCell>
-      <TableCell className="text-right text-xs bg-muted/30">{fmt(c, ytdR)}</TableCell>
-      <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
-        {ytdT > 0 ? `${((ytdR / ytdT) * 100).toFixed(0)}%` : "—"}
+      <TableCell className="text-right text-xs border-l bg-muted/30">
+        {unavailable ? <span className="text-muted-foreground">—</span> : fmt(c, ytdT)}
+      </TableCell>
+      <TableCell className="text-right text-xs bg-muted/30">{unavailable ? "—" : fmt(c, ytdR)}</TableCell>
+      <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${!unavailable && ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
+        {unavailable || ytdT <= 0 ? "—" : `${((ytdR / ytdT) * 100).toFixed(0)}%`}
       </TableCell>
     </TableRow>
   );
