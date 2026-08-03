@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
@@ -20,6 +21,33 @@ import { GripVertical, RotateCcw, ChevronDown } from "lucide-react";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
+type ProductScope = "yampafin" | "yampa20" | "all";
+
+/**
+ * Conta Stripe "yampa 2.0" — operação separada, com apenas duas métricas:
+ * MRR e Ativos Pagantes. As categorias abaixo NUNCA são renderizadas como
+ * linha própria: são consumidas apenas pelo recorte de Produto, remapeadas
+ * para as categorias equivalentes do yampaFin.
+ */
+const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
+const YAMPA20_ACTIVE_CAT = "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2";
+const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
+const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
+/** category_id do 2.0 → category_id equivalente no yampaFin */
+const YAMPA20_TO_BASE: Record<string, string> = {
+  [YAMPA20_MRR_CAT]: BASE_MRR_CAT,
+  [YAMPA20_ACTIVE_CAT]: BASE_ACTIVE_CAT,
+};
+const YAMPA20_CATEGORY_IDS = new Set([YAMPA20_MRR_CAT, YAMPA20_ACTIVE_CAT]);
+/** Categorias que existem no recorte "yampa 2.0" (as demais não existem: exibem "—") */
+const YAMPA20_AVAILABLE_BASE_IDS = new Set([BASE_MRR_CAT, BASE_ACTIVE_CAT]);
+const PRODUCT_LABELS: Record<ProductScope, string> = {
+  yampafin: "yampaFin",
+  yampa20: "yampa 2.0",
+  all: "Todos",
+};
+const YAMPA20_SCOPE_NOTE =
+  "A conta yampa 2.0 possui apenas MRR e Ativos Pagantes. As demais métricas refletem somente yampaFin.";
 
 interface AggRow {
   year_month: string;
