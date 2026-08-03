@@ -62,6 +62,28 @@ interface AggRow {
   deals_count: number;
 }
 
+/** Linha do histórico append-only (`metas_snapshot_diario`) */
+interface SnapRow {
+  data: string;
+  year_month: string;
+  metric_key: string;
+  scope: string;
+  category_id: string | null;
+  area: string | null;
+  realized_amount: number | null;
+  deals_count: number | null;
+  tipo_snapshot: string | null;
+  origem_leitura: string | null;
+}
+
+const EXPECTED_SNAPSHOT_METRICS = 12;
+
+function fmtDateKey(key: string) {
+  const [y, m, d] = key.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+
 interface Goal {
   id: string;
   scope: string;
