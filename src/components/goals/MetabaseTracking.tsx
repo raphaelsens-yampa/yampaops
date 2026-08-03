@@ -409,7 +409,7 @@ export function MetabaseTracking() {
       const key = `${catId}|${monthIdx}`;
       map.set(key, (map.get(key) || 0) + val);
     };
-    agg.filter(scopedAggFilter).forEach((r) => {
+    scopedAgg.filter(scopedAggFilter).forEach((r) => {
       if (!inWindow(r.year_month)) return;
       const d = parseDateBR(r.year_month);
       if (d.getFullYear() !== year) return;
