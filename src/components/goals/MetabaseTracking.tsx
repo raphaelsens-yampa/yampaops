@@ -33,6 +33,8 @@ const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
 const YAMPA20_ACTIVE_CAT = "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2";
 const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
 const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
+/** Net MRR (fluxo) — recebe a variação mensal do MRR do 2.0 no recorte "Todos" */
+const NET_MRR_CAT = "259883ec-7be5-44cd-927f-947b12918da7";
 /** category_id do 2.0 → category_id equivalente no yampaFin */
 const YAMPA20_TO_BASE: Record<string, string> = {
   [YAMPA20_MRR_CAT]: BASE_MRR_CAT,
@@ -339,6 +341,8 @@ export function MetabaseTracking() {
    * - all: remapeia as linhas do 2.0 para a categoria equivalente → soma em cima do yampaFin
    * - yampa20: mantém SOMENTE as linhas do 2.0, já remapeadas
    * MRR e Ativos Pagantes são estoque — a soma aqui é entre contas no MESMO mês, nunca entre meses.
+   * No modo "all" o MRR do 2.0 também impacta o Net MRR: como o Net MRR é fluxo,
+   * o que entra é a VARIAÇÃO mês a mês do estoque de MRR do 2.0.
    */
   const scopedAgg = useMemo(() => {
     if (productScope === "yampafin") {
@@ -349,12 +353,31 @@ export function MetabaseTracking() {
         .filter((r) => r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id))
         .map((r) => ({ ...r, category_id: YAMPA20_TO_BASE[r.category_id!] }));
     }
-    return sourceAgg.map((r) =>
+    const remapped = sourceAgg.map((r) =>
       r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)
         ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
         : r,
     );
+    // Delta mensal do estoque de MRR do 2.0 → linhas sintéticas de Net MRR
+    const mrr20 = new Map<string, number>();
+    const sample = new Map<string, AggRow>();
+    sourceAgg.forEach((r) => {
+      if (r.category_id !== YAMPA20_MRR_CAT) return;
+      mrr20.set(r.year_month, (mrr20.get(r.year_month) || 0) + Number(r.realized_amount || 0));
+      if (!sample.has(r.year_month)) sample.set(r.year_month, r);
+    });
+    const months = Array.from(mrr20.keys()).sort();
+    const netRows: AggRow[] = [];
+    months.forEach((ym, i) => {
+      if (i === 0) return; // sem mês anterior não há variação apurável
+      const delta = (mrr20.get(ym) || 0) - (mrr20.get(months[i - 1]) || 0);
+      if (!delta) return;
+      const base = sample.get(ym)!;
+      netRows.push({ ...base, category_id: NET_MRR_CAT, metric_key: "net_mrr_yampa20", realized_amount: delta });
+    });
+    return [...remapped, ...netRows];
   }, [sourceAgg, productScope]);
+
 
   /**
    * Categorias do 2.0 realmente presentes na fonte ativa. No histórico,
