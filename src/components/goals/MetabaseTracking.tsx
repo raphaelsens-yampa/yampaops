@@ -385,21 +385,26 @@ export function MetabaseTracking() {
   // (o bucket da virtual já é a soma dos componentes via componentToVirtuals).
   const isVirtual = (id: string) => virtualComponents.has(id);
   const categoriesForTable = useMemo(() => {
-    // Seleção explícita por filtro — mostra apenas aquela categoria
-    if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
-    // Filtros restringiram para um conjunto de metas
-    if (allowedCategoryIds) {
-      // Se alguma meta é virtual, mostra apenas as virtuais das metas (não seus componentes)
-      const goalCatIds = new Set(filteredGoals.map((g) => g.category_id).filter(Boolean) as string[]);
-      if (Array.from(goalCatIds).some((id) => isVirtual(id))) {
-        return categories.filter((c) => goalCatIds.has(c.id));
+    const base = (() => {
+      // Seleção explícita por filtro — mostra apenas aquela categoria
+      if (categoryId !== "all") return categories.filter((c) => c.id === categoryId);
+      // Filtros restringiram para um conjunto de metas
+      if (allowedCategoryIds) {
+        // Se alguma meta é virtual, mostra apenas as virtuais das metas (não seus componentes)
+        const goalCatIds = new Set(filteredGoals.map((g) => g.category_id).filter(Boolean) as string[]);
+        if (Array.from(goalCatIds).some((id) => isVirtual(id))) {
+          return categories.filter((c) => goalCatIds.has(c.id));
+        }
+        return categories.filter((c) => allowedCategoryIds.has(c.id) && !isVirtual(c.id));
       }
-      return categories.filter((c) => allowedCategoryIds.has(c.id) && !isVirtual(c.id));
-    }
-    // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
-    return categories.filter((c) => !isVirtual(c.id));
+      // Sem filtro: exibe todas as folhas (exclui virtuais para não duplicar somas)
+      return categories.filter((c) => !isVirtual(c.id));
+    })();
+    // No recorte 2.0, KPIs e gráfico só podem falar de MRR e Ativos Pagantes
+    if (productScope === "yampa20") return base.filter((c) => YAMPA20_AVAILABLE_BASE_IDS.has(c.id));
+    return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories, categoryId, allowedCategoryIds, filteredGoals, virtualComponents]);
+  }, [categories, categoryId, allowedCategoryIds, filteredGoals, virtualComponents, productScope]);
 
   // Realized per (category, month) — recortado pela janela de comparação (interseção filtro × meta)
   // e restrito às categorias das metas filtradas (evita somar new_mrr + total_mrr + churn etc.).
