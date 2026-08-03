@@ -862,7 +862,7 @@ export function MetabaseTracking() {
                 </div>
                 {period !== "custom" && (
                 <div>
-                  <div className="h-4 flex items-end justify-between gap-2 mb-1.5">
+                  <div className="h-4 flex items-end justify-between gap-2">
                     <Label className="text-xs">Data de referência</Label>
                     {refDate !== todayKey && (
                       <button
