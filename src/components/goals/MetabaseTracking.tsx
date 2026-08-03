@@ -698,8 +698,7 @@ export function MetabaseTracking() {
                     <Switch
                       id="include-yampa20"
                       checked={productScope === "all"}
-                      disabled={productScope === "all"}
-                      onCheckedChange={(v) => { if (v) setProductScope("all"); }}
+                      onCheckedChange={(v) => setProductScope(v ? "all" : "yampafin")}
                     />
                     <Label htmlFor="include-yampa20" className="text-xs cursor-pointer">Incluir 2.0</Label>
                   </div>
