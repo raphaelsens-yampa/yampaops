@@ -861,21 +861,21 @@ export function MetabaseTracking() {
                   </Select>
                 </div>
                 {period !== "custom" && (
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <Label className="text-xs">Data de referência</Label>
-                      {refDate !== todayKey && (
-                        <button
-                          type="button"
-                          className="text-[10px] text-primary hover:underline"
-                          onClick={() => setRefDate(todayKey)}
-                        >
-                          Hoje
-                        </button>
-                      )}
-                    </div>
-                    <Input type="date" value={refDate} max={todayKey} onChange={(e) => setRefDate(e.target.value || todayKey)} />
+                <div>
+                  <div className="h-4 flex items-end justify-between gap-2">
+                    <Label className="text-xs">Data de referência</Label>
+                    {refDate !== todayKey && (
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline"
+                        onClick={() => setRefDate(todayKey)}
+                      >
+                        Hoje
+                      </button>
+                    )}
                   </div>
+                  <Input type="date" value={refDate} max={todayKey} onChange={(e) => setRefDate(e.target.value || todayKey)} />
+                </div>
                 )}
                 <div>
                   <Label className="text-xs">Comparar até</Label>
