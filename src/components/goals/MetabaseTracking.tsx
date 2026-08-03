@@ -1250,8 +1250,8 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
           </Fragment>
         );
       })}
-      <TableCell className="text-right text-xs border-l bg-muted/30 text-muted-foreground">
-        {unavailable ? "—" : fmt(c, ytdT)}
+      <TableCell className="text-right text-xs border-l bg-muted/30">
+        {unavailable ? <span className="text-muted-foreground">—</span> : fmt(c, ytdT)}
       </TableCell>
       <TableCell className="text-right text-xs bg-muted/30">{unavailable ? "—" : fmt(c, ytdR)}</TableCell>
       <TableCell className={`text-right text-xs font-semibold bg-muted/30 ${!unavailable && ytdT > 0 ? pctColor((ytdR / ytdT) * 100, lte) : "text-muted-foreground"}`}>
