@@ -680,6 +680,35 @@ export function MetabaseTracking() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent>
+              {/* Recorte por produto (conta Stripe) */}
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
+                <div className="w-full sm:w-[220px]">
+                  <Label className="text-xs">Produto</Label>
+                  <Select value={productScope} onValueChange={(v) => setProductScope(v as ProductScope)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(["yampafin", "yampa20", "all"] as ProductScope[]).map((p) => (
+                        <SelectItem key={p} value={p}>{PRODUCT_LABELS[p]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {productScope !== "yampa20" && (
+                  <div className="flex items-center gap-2 pb-1">
+                    <Switch
+                      id="include-yampa20"
+                      checked={productScope === "all"}
+                      disabled={productScope === "all"}
+                      onCheckedChange={(v) => { if (v) setProductScope("all"); }}
+                    />
+                    <Label htmlFor="include-yampa20" className="text-xs cursor-pointer">Incluir 2.0</Label>
+                  </div>
+                )}
+              </div>
+              {productScope !== "yampafin" && (
+                <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div>
                   <Label className="text-xs">Período</Label>
