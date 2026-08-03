@@ -17,7 +17,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContai
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, RotateCcw, ChevronDown } from "lucide-react";
+import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
@@ -61,6 +61,28 @@ interface AggRow {
   realized_amount: number;
   deals_count: number;
 }
+
+/** Linha do histórico append-only (`metas_snapshot_diario`) */
+interface SnapRow {
+  data: string;
+  year_month: string;
+  metric_key: string;
+  scope: string;
+  category_id: string | null;
+  area: string | null;
+  realized_amount: number | null;
+  deals_count: number | null;
+  tipo_snapshot: string | null;
+  origem_leitura: string | null;
+}
+
+const EXPECTED_SNAPSHOT_METRICS = 12;
+
+function fmtDateKey(key: string) {
+  const [y, m, d] = key.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 
 interface Goal {
   id: string;
@@ -169,6 +191,11 @@ export function MetabaseTracking() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Histórico append-only por dia
+  const [snapDates, setSnapDates] = useState<string[]>([]);
+  const [snapRows, setSnapRows] = useState<SnapRow[]>([]);
+  const [snapLoading, setSnapLoading] = useState(false);
+
 
   useEffect(() => {
     (async () => {
@@ -201,6 +228,100 @@ export function MetabaseTracking() {
     })();
   }, []);
 
+  /**
+   * ===== Modo histórico =====
+   * Com a Data de referência em HOJE, nada muda: o realizado vem de
+   * `metabase_monthly_agg`. Numa data PASSADA, o realizado passa a vir do
+   * histórico append-only `metas_snapshot_diario` (as-of daquele dia).
+   */
+  const historicalMode = refDate !== todayKey && !!refDate;
+
+  // Datas com snapshot disponível (lista curta, carrega uma vez)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("metas_snapshot_diario")
+        .select("data")
+        .order("data", { ascending: true });
+      const uniq = Array.from(new Set(((data as any[]) || []).map((r) => r.data as string)));
+      setSnapDates(uniq);
+    })();
+  }, []);
+
+  const hasSnapshotForRef = snapDates.includes(refDate);
+  /** Snapshot disponível mais próximo ANTERIOR à data escolhida */
+  const nearestPreviousSnapshot = useMemo(() => {
+    const prev = snapDates.filter((d) => d < refDate);
+    return prev.length ? prev[prev.length - 1] : null;
+  }, [snapDates, refDate]);
+
+  // Carrega o histórico até a data escolhida (as-of por mês)
+  useEffect(() => {
+    if (!historicalMode || !hasSnapshotForRef) {
+      setSnapRows([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSnapLoading(true);
+      const { data } = await supabase
+        .from("metas_snapshot_diario")
+        .select("data, year_month, metric_key, scope, category_id, area, realized_amount, deals_count, tipo_snapshot, origem_leitura")
+        .lte("data", refDate)
+        .order("data", { ascending: true });
+      if (cancelled) return;
+      setSnapRows((data as SnapRow[]) || []);
+      setSnapLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [historicalMode, hasSnapshotForRef, refDate]);
+
+  /** Metadados do snapshot exibido (parcial? reconstruído?) */
+  const snapshotMeta = useMemo(() => {
+    const rows = snapRows.filter((r) => r.data === refDate);
+    const reconstructed = rows.filter((r) => r.origem_leitura === "reconstruido_de_avisos").map((r) => r.metric_key);
+    return {
+      count: rows.length,
+      tipo: rows[0]?.tipo_snapshot || null,
+      isPartial: rows.length > 0 && rows.length < EXPECTED_SNAPSHOT_METRICS,
+      reconstructedKeys: reconstructed,
+    };
+  }, [snapRows, refDate]);
+
+  /**
+   * Snapshot → formato AggRow, resolvido as-of: para cada (mês, métrica) usa a
+   * linha do último snapshot com `data` <= data de referência. Meses encerrados
+   * ficam no fechamento; o mês da data escolhida fica no valor daquele dia.
+   * Métricas ausentes simplesmente não geram linha → a UI mostra "—", nunca 0.
+   */
+  const snapshotAsAgg = useMemo<AggRow[]>(() => {
+    const latest = new Map<string, SnapRow>();
+    snapRows.forEach((r) => {
+      const key = `${r.year_month}|${r.metric_key}|${r.scope}`;
+      const prev = latest.get(key);
+      if (!prev || prev.data < r.data) latest.set(key, r);
+    });
+    return Array.from(latest.values()).map((r) => ({
+      year_month: r.year_month,
+      metric_key: r.metric_key,
+      scope: r.scope,
+      team_id: null,
+      user_id: null,
+      campaign_id: null,
+      category_id: r.category_id,
+      area: r.area,
+      realized_amount: Number(r.realized_amount || 0),
+      deals_count: Number(r.deals_count || 0),
+    }));
+  }, [snapRows]);
+
+  /** Fonte de realizado efetiva */
+  const sourceAgg = useMemo<AggRow[]>(() => {
+    if (!historicalMode) return agg;
+    return hasSnapshotForRef ? snapshotAsAgg : [];
+  }, [historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
+
+
   // Ao carregar as categorias, pré-seleciona "Total de MRR" como padrão
   useEffect(() => {
     if (categoryDefaultSet.current) return;
@@ -221,23 +342,40 @@ export function MetabaseTracking() {
    */
   const scopedAgg = useMemo(() => {
     if (productScope === "yampafin") {
-      return agg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id));
+      return sourceAgg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id));
     }
     if (productScope === "yampa20") {
-      return agg
+      return sourceAgg
         .filter((r) => r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id))
         .map((r) => ({ ...r, category_id: YAMPA20_TO_BASE[r.category_id!] }));
     }
-    return agg.map((r) =>
+    return sourceAgg.map((r) =>
       r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)
         ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
         : r,
     );
-  }, [agg, productScope]);
+  }, [sourceAgg, productScope]);
+
+  /**
+   * Categorias do 2.0 realmente presentes na fonte ativa. No histórico,
+   * `stripe_mrr_yampa20`/`stripe_ativos_yampa20` só existem de 31/07 em diante;
+   * antes disso o recorte 2.0 mostra "—", nunca zero.
+   */
+  const yampa20PresentBaseIds = useMemo(() => {
+    const s = new Set<string>();
+    sourceAgg.forEach((r) => {
+      if (r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)) s.add(YAMPA20_TO_BASE[r.category_id]);
+    });
+    return s;
+  }, [sourceAgg]);
 
   /** No recorte 2.0 a métrica simplesmente não existe → renderiza "—", nunca 0 */
-  const isUnavailableCategory = (id: string) =>
-    productScope === "yampa20" && !YAMPA20_AVAILABLE_BASE_IDS.has(id);
+  const isUnavailableCategory = (id: string) => {
+    if (productScope !== "yampa20") return false;
+    if (!YAMPA20_AVAILABLE_BASE_IDS.has(id)) return true;
+    return !yampa20PresentBaseIds.has(id);
+  };
+
 
 
   const scopedFilter = (r: { scope: string; team_id: string | null; user_id: string | null; campaign_id: string | null; category_id: string | null }) => {
@@ -850,11 +988,81 @@ export function MetabaseTracking() {
                     Sem dados no Metabase para: {missingMonthsInWindow.join(", ")}
                   </Badge>
                 )}
+                {historicalMode && hasSnapshotForRef && (
+                  <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+                    <History className="h-3 w-3" />
+                    Snapshot de {fmtDateKey(refDate)}
+                  </Badge>
+                )}
+                {historicalMode && hasSnapshotForRef && snapshotMeta.isPartial && (
+                  <Badge variant="outline" className="border-amber-400 text-amber-600">
+                    Snapshot parcial — {snapshotMeta.count}/{EXPECTED_SNAPSHOT_METRICS} métricas (ausentes exibem "—")
+                  </Badge>
+                )}
+                {historicalMode && !hasSnapshotForRef && (
+                  <Badge variant="outline" className="border-rose-400 text-rose-600">
+                    Sem snapshot para {fmtDateKey(refDate)}
+                  </Badge>
+                )}
+                {snapLoading && <Badge variant="secondary">Carregando snapshot…</Badge>}
+
               </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* Modo histórico — avisos sobre a origem do realizado */}
+      {historicalMode && hasSnapshotForRef && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white">
+            <History className="h-3 w-3" /> Snapshot de {fmtDateKey(refDate)}
+          </Badge>
+          <span className="text-muted-foreground">
+            Realizado do histórico diário{snapshotMeta.tipo ? ` (${snapshotMeta.tipo})` : ""} — metas inalteradas.
+          </span>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setRefDate(todayKey)}>
+            Voltar para hoje
+          </Button>
+        </div>
+      )}
+
+      {historicalMode && !hasSnapshotForRef && (
+        <Card className="border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="p-4 text-sm space-y-2">
+            <p className="font-medium text-amber-700 dark:text-amber-400">
+              Sem snapshot para {fmtDateKey(refDate)}.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              O realizado não é exibido para evitar mostrar o valor de outro dia como se fosse desta data.
+              Datas disponíveis: {snapDates.length ? snapDates.map(fmtDateKey).join(", ") : "nenhuma"}.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {nearestPreviousSnapshot && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setRefDate(nearestPreviousSnapshot)}>
+                  Usar {fmtDateKey(nearestPreviousSnapshot)} (mais próxima anterior)
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setRefDate(todayKey)}>
+                Voltar para hoje
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {historicalMode && hasSnapshotForRef && snapshotMeta.reconstructedKeys.length > 0 && (
+        <p
+          className="flex items-start gap-1.5 text-xs text-amber-600"
+          title={`Reconstruído de registro textual (não lido da fonte): ${snapshotMeta.reconstructedKeys.join(", ")}`}
+        >
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            {snapshotMeta.reconstructedKeys.length} métrica(s) deste snapshot foram reconstruídas de registro textual,
+            não lidas diretamente da fonte: {snapshotMeta.reconstructedKeys.join(", ")}.
+          </span>
+        </p>
+      )}
+
 
       {/* KPI resumo */}
       {(() => {

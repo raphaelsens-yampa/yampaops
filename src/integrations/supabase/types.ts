@@ -2258,6 +2258,60 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_snapshot_diario: {
+        Row: {
+          area: string | null
+          category_id: string | null
+          coletado_em: string
+          data: string
+          data_execucao: string | null
+          deals_count: number | null
+          fonte: string | null
+          id: string
+          mes_ref: string
+          metric_key: string
+          origem_leitura: string
+          realized_amount: number | null
+          scope: string
+          tipo_snapshot: string
+          year_month: string
+        }
+        Insert: {
+          area?: string | null
+          category_id?: string | null
+          coletado_em?: string
+          data: string
+          data_execucao?: string | null
+          deals_count?: number | null
+          fonte?: string | null
+          id?: string
+          mes_ref: string
+          metric_key: string
+          origem_leitura?: string
+          realized_amount?: number | null
+          scope?: string
+          tipo_snapshot?: string
+          year_month: string
+        }
+        Update: {
+          area?: string | null
+          category_id?: string | null
+          coletado_em?: string
+          data?: string
+          data_execucao?: string | null
+          deals_count?: number | null
+          fonte?: string | null
+          id?: string
+          mes_ref?: string
+          metric_key?: string
+          origem_leitura?: string
+          realized_amount?: number | null
+          scope?: string
+          tipo_snapshot?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           ac_id: string | null
