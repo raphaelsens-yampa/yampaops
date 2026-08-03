@@ -1127,6 +1127,11 @@ export function MetabaseTracking() {
           }
           return gap > 0 ? "Faltam" : "Acima da meta";
         };
+        const gapTitle = (gap: number) => {
+          const isExcess = isLessBetter ? gap > 0 : gap < 0;
+          return isExcess ? "EXCEDENTE DA META" : "Saldo para Meta";
+        };
+        const gapValue = (gap: number) => kpiFmt(Math.abs(gap));
         return (
           <>
             <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
