@@ -180,23 +180,27 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
             </Select>
 
             <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
-              <SelectTrigger className="h-10 md:h-9 md:w-32"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="day">Por dia</SelectItem>
                 <SelectItem value="week">Por semana</SelectItem>
+                <SelectItem value="monthWeeks">Semanas do mês</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={preset} onValueChange={setPreset}>
-              <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="15">Últimos 15 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="60">Últimos 60 dias</SelectItem>
-                <SelectItem value="custom">Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
-            {preset === "custom" && (
+            {granularity !== "monthWeeks" && (
+              <Select value={preset} onValueChange={setPreset}>
+                <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="15">Últimos 15 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="60">Últimos 60 dias</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {granularity !== "monthWeeks" && preset === "custom" && (
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className={cn("col-span-2 h-10 md:h-9", !customFrom && "text-muted-foreground")}>
