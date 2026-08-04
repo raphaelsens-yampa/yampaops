@@ -21,6 +21,8 @@ import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
+import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
+
 import { LowTouchView } from "./LowTouchView";
 import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
 import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
@@ -196,7 +198,9 @@ export function TacticalTracking() {
           ) : (
             <>
               <LowTouchView sales={lowTouch.sales} today={today} />
+              <WeeklyGoalsPanel today={today} lowTouchSales={lowTouch.sales} />
               <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
+
             </>
           )}
         </>
@@ -255,7 +259,17 @@ export function TacticalTracking() {
 
       </div>
 
+      <WeeklyGoalsPanel
+        metrics={teamMetrics}
+        goals={goals}
+        daily={daily}
+        memberIds={memberIds}
+        teamId={isOverview ? null : teamId || null}
+        today={today}
+      />
+
       <TacticalProgressChart
+
         metrics={teamMetrics}
         goals={goals}
         daily={daily}
