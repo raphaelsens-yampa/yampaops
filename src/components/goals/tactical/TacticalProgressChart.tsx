@@ -27,6 +27,8 @@ import {
   realizedMonthBeforeToday,
   resolveDailyTarget,
   toBRDateKey,
+  weeksOfMonth,
+
 } from "./types";
 
 
@@ -40,7 +42,7 @@ interface Props {
   revisedView?: boolean;
 }
 
-type Granularity = "day" | "week";
+type Granularity = "day" | "week" | "monthWeeks";
 
 export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today, revisedView = false }: Props) {
   const visible = useMemo(() => metrics.filter((m) => m.key !== "call_realizada"), [metrics]);
@@ -62,6 +64,12 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
   const { from, to } = useMemo(() => {
     const end = new Date(today);
     end.setHours(0, 0, 0, 0);
+    if (granularity === "monthWeeks") {
+      return {
+        from: new Date(end.getFullYear(), end.getMonth(), 1),
+        to: new Date(end.getFullYear(), end.getMonth() + 1, 0),
+      };
+    }
     if (preset === "custom" && customFrom) {
       const t = customTo ?? end;
       return { from: customFrom, to: t };
@@ -69,7 +77,8 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
     const start = new Date(end);
     start.setDate(start.getDate() - (Number(preset) - 1));
     return { from: start, to: end };
-  }, [preset, customFrom, customTo, today]);
+  }, [preset, customFrom, customTo, today, granularity]);
+
 
   const data = useMemo(() => {
     if (!metric) return [];
@@ -116,6 +125,23 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       d.setDate(d.getDate() + 1);
     }
 
+    if (granularity === "monthWeeks") {
+      const byKey = new Map(points.map((p) => [p.dateKey, p]));
+      return weeksOfMonth(today).map((w) => {
+        const endKey = toBRDateKey(w.end);
+        const cutKey = endKey <= todayKey ? endKey : todayKey;
+        const p = byKey.get(endKey);
+        const cut = byKey.get(cutKey);
+        return {
+          label: `${w.label} (${w.rangeLabel})`,
+          dateKey: endKey,
+          meta: p?.meta ?? 0,
+          metaRevisada: p?.metaRevisada ?? 0,
+          realizado: toBRDateKey(w.start) > todayKey ? (null as any) : cut?.realizado ?? 0,
+        };
+      });
+    }
+
     if (granularity === "week") {
       const weekly: typeof points = [];
       points.forEach((p, i) => {
@@ -127,6 +153,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       return weekly.length ? weekly : points;
     }
 
+
     return points;
   }, [metric, memberIds, goals, teamId, daily, from, to, granularity, today]);
 
@@ -136,7 +163,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
   );
 
 
-  const last = data[data.length - 1];
+  const last = [...data].reverse().find((p) => p.realizado !== null) ?? data[data.length - 1];
   const unit = metric?.unit ?? "count";
 
   return (
@@ -153,23 +180,27 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
             </Select>
 
             <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
-              <SelectTrigger className="h-10 md:h-9 md:w-32"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="day">Por dia</SelectItem>
                 <SelectItem value="week">Por semana</SelectItem>
+                <SelectItem value="monthWeeks">Semanas do mês</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={preset} onValueChange={setPreset}>
-              <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="15">Últimos 15 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="60">Últimos 60 dias</SelectItem>
-                <SelectItem value="custom">Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
-            {preset === "custom" && (
+            {granularity !== "monthWeeks" && (
+              <Select value={preset} onValueChange={setPreset}>
+                <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="15">Últimos 15 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="60">Últimos 60 dias</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {granularity !== "monthWeeks" && preset === "custom" && (
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className={cn("col-span-2 h-10 md:h-9", !customFrom && "text-muted-foreground")}>
