@@ -161,3 +161,66 @@ export function motivationalCopy(pct: number, missing: number, unit: "count" | "
   if (pct > 0) return "Começou bem. Bora acelerar!";
   return "O dia começa agora. Primeiro passo?";
 }
+
+export interface MonthWeek {
+  index: number;
+  start: Date;
+  end: Date;
+  businessDays: number;
+  label: string;
+  rangeLabel: string;
+}
+
+/**
+ * Semanas (segunda a domingo) do mês da data de referência, truncadas nos
+ * limites do mês — nunca somam dias de outro mês.
+ */
+export function weeksOfMonth(ref: Date): MonthWeek[] {
+  const monthStart = new Date(ref.getFullYear(), ref.getMonth(), 1);
+  const monthEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+  const weeks: MonthWeek[] = [];
+  const cursor = new Date(monthStart);
+  let index = 1;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  while (cursor <= monthEnd) {
+    const start = new Date(cursor);
+    // domingo encerra a semana
+    const end = new Date(start);
+    const daysToSunday = (7 - start.getDay()) % 7; // 0 = já é domingo
+    end.setDate(end.getDate() + daysToSunday);
+    if (end > monthEnd) end.setTime(monthEnd.getTime());
+    weeks.push({
+      index,
+      start,
+      end,
+      businessDays: businessDaysBetween(start, end),
+      label: `S${index}`,
+      rangeLabel: `${pad(start.getDate())}–${pad(end.getDate())}/${pad(monthStart.getMonth() + 1)}`,
+    });
+    cursor.setTime(end.getTime());
+    cursor.setDate(cursor.getDate() + 1);
+    index++;
+  }
+  return weeks;
+}
+
+/** Soma do realizado (daily) num intervalo de datas, para os usuários dados. */
+export function realizedBetween(
+  daily: DailyDatum[],
+  metricId: string,
+  userIds: string[],
+  start: Date,
+  end: Date,
+): number {
+  const from = toBRDateKey(start);
+  const to = toBRDateKey(end);
+  return daily
+    .filter(
+      (x) =>
+        x.metric_id === metricId &&
+        (!userIds.length || userIds.includes(x.user_id)) &&
+        x.date >= from &&
+        x.date <= to,
+    )
+    .reduce((s, x) => s + (x.value ?? 0), 0);
+}
