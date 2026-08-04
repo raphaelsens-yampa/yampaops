@@ -163,7 +163,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
   );
 
 
-  const last = data[data.length - 1];
+  const last = [...data].reverse().find((p) => p.realizado !== null) ?? data[data.length - 1];
   const unit = metric?.unit ?? "count";
 
   return (
