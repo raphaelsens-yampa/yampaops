@@ -40,7 +40,7 @@ interface Props {
   revisedView?: boolean;
 }
 
-type Granularity = "day" | "week";
+type Granularity = "day" | "week" | "monthWeeks";
 
 export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today, revisedView = false }: Props) {
   const visible = useMemo(() => metrics.filter((m) => m.key !== "call_realizada"), [metrics]);
@@ -62,6 +62,12 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
   const { from, to } = useMemo(() => {
     const end = new Date(today);
     end.setHours(0, 0, 0, 0);
+    if (granularity === "monthWeeks") {
+      return {
+        from: new Date(end.getFullYear(), end.getMonth(), 1),
+        to: new Date(end.getFullYear(), end.getMonth() + 1, 0),
+      };
+    }
     if (preset === "custom" && customFrom) {
       const t = customTo ?? end;
       return { from: customFrom, to: t };
@@ -69,7 +75,8 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
     const start = new Date(end);
     start.setDate(start.getDate() - (Number(preset) - 1));
     return { from: start, to: end };
-  }, [preset, customFrom, customTo, today]);
+  }, [preset, customFrom, customTo, today, granularity]);
+
 
   const data = useMemo(() => {
     if (!metric) return [];
