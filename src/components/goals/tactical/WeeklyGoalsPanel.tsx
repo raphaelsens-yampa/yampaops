@@ -36,6 +36,9 @@ interface Row {
   businessDays: number;
   target: number | null;
   realized: number | null;
+  /** Metas/realizados financeiros (R$) da semana. */
+  finTarget: number | null;
+  finRealized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
 }
@@ -77,6 +80,17 @@ export function WeeklyGoalsPanel({
       : "currency"
     : metric?.unit ?? "count";
 
+  /** Métrica financeira usada nas colunas de R$ (MRR do dia por padrão). */
+  const finMetric = useMemo(() => {
+    if (isLowTouch) return undefined;
+    return (
+      visible.find((m) => m.key === "mrr_dia") ??
+      visible.find((m) => m.unit === "currency")
+    );
+  }, [visible, isLowTouch]);
+
+  const showFin = isLowTouch ? unit !== "currency" : !!finMetric && finMetric.id !== metric?.id;
+
   const weeks = useMemo(() => weeksOfMonth(today), [today]);
   const todayKey = toBRDateKey(today);
 
@@ -88,6 +102,10 @@ export function WeeklyGoalsPanel({
       !isLowTouch && metric
         ? users.reduce((s, uid) => s + resolveDailyTarget(goals, metric.id, uid, teamId), 0)
         : 0;
+    const finDailyTargetTotal =
+      !isLowTouch && finMetric
+        ? users.reduce((s, uid) => s + resolveDailyTarget(goals, finMetric.id, uid, teamId), 0)
+        : 0;
 
     return weeks.map((w) => {
       const startKey = toBRDateKey(w.start);
@@ -96,6 +114,7 @@ export function WeeklyGoalsPanel({
       const isFuture = startKey > todayKey;
 
       let realized: number | null = null;
+      let finRealized: number | null = null;
       if (!isFuture) {
         if (isLowTouch) {
           const sales = (lowTouchSales ?? []).filter(
@@ -105,15 +124,19 @@ export function WeeklyGoalsPanel({
             selected === LT_COUNT
               ? sales.length
               : sales.reduce((s, x) => s + (x.mrr ?? 0), 0);
-        } else if (metric) {
-          realized = realizedBetween(daily, metric.id, users, w.start, w.end);
+          finRealized = sales.reduce((s, x) => s + (x.mrr ?? 0), 0);
         } else {
-          realized = 0;
+          realized = metric ? realizedBetween(daily, metric.id, users, w.start, w.end) : 0;
+          finRealized = finMetric
+            ? realizedBetween(daily, finMetric.id, users, w.start, w.end)
+            : null;
         }
       }
 
       const target =
         isLowTouch || !dailyTargetTotal ? null : dailyTargetTotal * w.businessDays;
+      const finTarget =
+        isLowTouch || !finDailyTargetTotal ? null : finDailyTargetTotal * w.businessDays;
 
       return {
         key: `${w.index}-${startKey}`,
@@ -122,18 +145,24 @@ export function WeeklyGoalsPanel({
         businessDays: w.businessDays,
         target,
         realized,
+        finTarget,
+        finRealized,
         isCurrent,
         isFuture,
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, isLowTouch, lowTouchSales, selected, todayKey]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finMetric, isLowTouch, lowTouchSales, selected, todayKey]);
 
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
     const hasTarget = rows.some((r) => r.target !== null);
     const target = hasTarget ? rows.reduce((s, r) => s + (r.target ?? 0), 0) : null;
     const realized = rows.reduce((s, r) => s + (r.realized ?? 0), 0);
-    return { businessDays, target, realized };
+    const hasFinTarget = rows.some((r) => r.finTarget !== null);
+    const finTarget = hasFinTarget ? rows.reduce((s, r) => s + (r.finTarget ?? 0), 0) : null;
+    const hasFinRealized = rows.some((r) => r.finRealized !== null);
+    const finRealized = hasFinRealized ? rows.reduce((s, r) => s + (r.finRealized ?? 0), 0) : null;
+    return { businessDays, target, realized, finTarget, finRealized };
   }, [rows]);
 
   const pctOf = (r: { target: number | null; realized: number | null }) =>
@@ -142,11 +171,15 @@ export function WeeklyGoalsPanel({
   const gapOf = (r: { target: number | null; realized: number | null }) =>
     r.target !== null && r.realized !== null ? r.realized - r.target : null;
 
-  const gapText = (gap: number | null) => {
+  const gapText = (gap: number | null, u: "count" | "currency" = unit) => {
     if (gap === null) return "—";
-    const abs = formatMetric(Math.abs(gap), unit);
+    const abs = formatMetric(Math.abs(gap), u);
     return gap >= 0 ? `+${abs}` : `-${abs}`;
   };
+
+  const fmtCur = (v: number | null) => (v === null ? "—" : formatMetric(v, "currency"));
+  const finGap = (r: { finTarget: number | null; finRealized: number | null }) =>
+    r.finTarget !== null && r.finRealized !== null ? r.finRealized - r.finTarget : null;
 
   const monthLabel = format(today, "MMMM 'de' yyyy", { locale: ptBR });
 
@@ -183,6 +216,7 @@ export function WeeklyGoalsPanel({
           {rows.map((r) => {
             const pct = pctOf(r);
             const gap = gapOf(r);
+            const fg = finGap(r);
             return (
               <div
                 key={r.key}
@@ -217,6 +251,26 @@ export function WeeklyGoalsPanel({
                     {gap === null ? "—" : gap >= 0 ? `excedente ${formatMetric(gap, unit)}` : `falta ${formatMetric(Math.abs(gap), unit)}`}
                   </span>
                 </div>
+                {showFin && (
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      R$: <span className="font-medium text-foreground">{fmtCur(r.finRealized)}</span>
+                      {" "}/ {fmtCur(r.finTarget)}
+                    </span>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        fg === null ? "text-muted-foreground" : fg >= 0 ? "text-emerald-600" : "text-destructive",
+                      )}
+                    >
+                      {fg === null
+                        ? "—"
+                        : fg >= 0
+                          ? `excedente ${formatMetric(fg, "currency")}`
+                          : `falta ${formatMetric(Math.abs(fg), "currency")}`}
+                    </span>
+                  </div>
+                )}
                 {pct !== null && <Progress value={Math.min(pct, 100)} className="h-1.5" />}
               </div>
             );
@@ -235,12 +289,20 @@ export function WeeklyGoalsPanel({
                 <th className="text-right font-medium py-2">Realizado</th>
                 <th className="text-right font-medium py-2">%</th>
                 <th className="text-right font-medium py-2">Saldo</th>
+                {showFin && (
+                  <>
+                    <th className="text-right font-medium py-2 pl-4">Meta R$</th>
+                    <th className="text-right font-medium py-2">Realizado R$</th>
+                    <th className="text-right font-medium py-2">Saldo R$</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
                 const pct = pctOf(r);
                 const gap = gapOf(r);
+                const fg = finGap(r);
                 return (
                   <tr
                     key={r.key}
@@ -269,6 +331,20 @@ export function WeeklyGoalsPanel({
                     >
                       {gapText(gap)}
                     </td>
+                    {showFin && (
+                      <>
+                        <td className="py-2 text-right pl-4">{fmtCur(r.finTarget)}</td>
+                        <td className="py-2 text-right">{fmtCur(r.finRealized)}</td>
+                        <td
+                          className={cn(
+                            "py-2 text-right",
+                            fg === null ? "text-muted-foreground" : fg >= 0 ? "text-emerald-600" : "text-destructive",
+                          )}
+                        >
+                          {gapText(fg, "currency")}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 );
               })}
@@ -297,6 +373,26 @@ export function WeeklyGoalsPanel({
                 >
                   {totals.target === null ? "—" : gapText(totals.realized - totals.target)}
                 </td>
+                {showFin && (
+                  <>
+                    <td className="py-2 text-right pl-4">{fmtCur(totals.finTarget)}</td>
+                    <td className="py-2 text-right">{fmtCur(totals.finRealized)}</td>
+                    <td
+                      className={cn(
+                        "py-2 text-right",
+                        totals.finTarget === null || totals.finRealized === null
+                          ? "text-muted-foreground"
+                          : totals.finRealized - totals.finTarget >= 0
+                            ? "text-emerald-600"
+                            : "text-destructive",
+                      )}
+                    >
+                      {totals.finTarget === null || totals.finRealized === null
+                        ? "—"
+                        : gapText(totals.finRealized - totals.finTarget, "currency")}
+                    </td>
+                  </>
+                )}
               </tr>
             </tbody>
           </table>
