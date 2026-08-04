@@ -123,6 +123,23 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       d.setDate(d.getDate() + 1);
     }
 
+    if (granularity === "monthWeeks") {
+      const byKey = new Map(points.map((p) => [p.dateKey, p]));
+      return weeksOfMonth(today).map((w) => {
+        const endKey = toBRDateKey(w.end);
+        const cutKey = endKey <= todayKey ? endKey : todayKey;
+        const p = byKey.get(endKey);
+        const cut = byKey.get(cutKey);
+        return {
+          label: `${w.label} (${w.rangeLabel})`,
+          dateKey: endKey,
+          meta: p?.meta ?? 0,
+          metaRevisada: p?.metaRevisada ?? 0,
+          realizado: toBRDateKey(w.start) > todayKey ? (null as any) : cut?.realizado ?? 0,
+        };
+      });
+    }
+
     if (granularity === "week") {
       const weekly: typeof points = [];
       points.forEach((p, i) => {
@@ -133,6 +150,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       });
       return weekly.length ? weekly : points;
     }
+
 
     return points;
   }, [metric, memberIds, goals, teamId, daily, from, to, granularity, today]);
