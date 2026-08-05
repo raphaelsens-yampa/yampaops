@@ -175,7 +175,7 @@ export function WeeklyGoalsPanel({
         isFuture,
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, finMetric, isLowTouch, lowTouchSales, selected, todayKey]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finMetric, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics]);
 
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
