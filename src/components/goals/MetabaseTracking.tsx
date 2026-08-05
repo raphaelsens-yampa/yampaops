@@ -677,28 +677,79 @@ export function MetabaseTracking() {
     return (id: string) => dir.get(id) ?? false;
   }, [categories]);
 
+  /**
+   * O déficit da Meta Revisada é apurado SEMPRE na mesma base das metas cadastradas
+   * (yampaFin). Se o "Incluir 2.0" entrasse no cálculo, o realizado extra do 2.0
+   * apagaria o déficit de meses encerrados e a meta revisada desapareceria —
+   * os dois filtros passam a conviver: 2.0 soma no Realizado, a revisão permanece.
+   */
+  const revisedBaseAgg = useMemo(
+    () =>
+      productScope === "all"
+        ? sourceAgg.filter((r) => !r.category_id || !YAMPA20_CATEGORY_IDS.has(r.category_id))
+        : scopedAgg,
+    [sourceAgg, scopedAgg, productScope],
+  );
+
+  const buildRealizedMap = (
+    rows: AggRow[],
+    opts: { applyFilters: boolean },
+  ) => {
+    const map = new Map<string, number>();
+    const addTo = (catId: string, mIdx: number, val: number) => {
+      const key = `${catId}|${mIdx}`;
+      map.set(key, (map.get(key) || 0) + val);
+    };
+    rows.forEach((r) => {
+      if (opts.applyFilters) {
+        if (!scopedAggFilter(r)) return;
+        if (!inWindow(r.year_month)) return;
+      }
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      const v = Number(r.realized_amount || 0);
+      const catId = r.category_id || "none";
+      addTo(catId, d.getMonth(), v);
+      const virtuals = componentToVirtuals.get(catId);
+      if (virtuals) virtuals.forEach((vId) => addTo(vId, d.getMonth(), v));
+    });
+    return map;
+  };
+
+  const revisedRealizedByCatMonth = useMemo(
+    () => buildRealizedMap(revisedBaseAgg, { applyFilters: true }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [revisedBaseAgg, scope, categoryId, teamId, userId, campaignId, year, compareWindow, allowedCategoryIds, componentToVirtuals],
+  );
+
+  const revisedTableRealizedByCatMonth = useMemo(
+    () => buildRealizedMap(revisedBaseAgg, { applyFilters: false }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [revisedBaseAgg, year, componentToVirtuals],
+  );
+
   const revised = useMemo(
     () =>
       computeRevisedTargets({
         targetByCatMonth,
-        realizedByCatMonth,
+        realizedByCatMonth: revisedRealizedByCatMonth,
         categoryIds: categoriesForTable.map((c) => c.id),
         currentMonthIdx: closedBeforeIdx,
         lowerIsBetter: lowerIsBetterFor,
       }),
-    [targetByCatMonth, realizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor],
+    [targetByCatMonth, revisedRealizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor],
   );
 
   const tableRevised = useMemo(
     () =>
       computeRevisedTargets({
         targetByCatMonth: tableTargetByCatMonth,
-        realizedByCatMonth: tableRealizedByCatMonth,
+        realizedByCatMonth: revisedTableRealizedByCatMonth,
         categoryIds: categories.map((c) => c.id),
         currentMonthIdx: closedBeforeIdx,
         lowerIsBetter: lowerIsBetterFor,
       }),
-    [tableTargetByCatMonth, tableRealizedByCatMonth, categories, closedBeforeIdx, lowerIsBetterFor],
+    [tableTargetByCatMonth, revisedTableRealizedByCatMonth, categories, closedBeforeIdx, lowerIsBetterFor],
   );
 
 
