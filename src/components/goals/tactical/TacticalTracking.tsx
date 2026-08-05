@@ -187,8 +187,13 @@ export function TacticalTracking() {
       )}
 
 
+      {isAdmin && (
+        <UnattributedSalesAlert rangeStart={rangeStart} rangeEnd={today} refreshKey={reloadKey} />
+      )}
+
       {isLowTouch ? (
         <>
+
           <LowTouchAreasConfig
             areas={lowTouch.areas}
             allLabels={lowTouch.allLabels}
