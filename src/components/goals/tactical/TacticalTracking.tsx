@@ -295,7 +295,9 @@ export function TacticalTracking() {
         teamName={isOverview ? "Visão Geral" : activeTeam?.name ?? null}
         today={today}
         refreshKey={reloadKey}
+        includeLowTouch={isOverview}
       />
+
 
       <TeamRecoveriesTable
         memberIds={memberIds}
