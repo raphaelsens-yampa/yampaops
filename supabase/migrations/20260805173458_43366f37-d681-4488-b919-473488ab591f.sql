@@ -1,0 +1,3 @@
+DELETE FROM public.tactical_goals WHERE metric_id IN (SELECT id FROM public.tactical_metrics WHERE key NOT IN ('mrr_dia','vendas_dia','clientes_recuperados','clientes_retidos'));
+DELETE FROM public.tactical_manual_entries WHERE metric_id IN (SELECT id FROM public.tactical_metrics WHERE key NOT IN ('mrr_dia','vendas_dia','clientes_recuperados','clientes_retidos'));
+DELETE FROM public.tactical_metrics WHERE key NOT IN ('mrr_dia','vendas_dia','clientes_recuperados','clientes_retidos');
