@@ -45,6 +45,7 @@ interface Row {
 
 const LT_MRR = "__lt_mrr__";
 const LT_COUNT = "__lt_count__";
+const ALL = "__all__";
 
 export function WeeklyGoalsPanel({
   metrics = [],
@@ -63,7 +64,7 @@ export function WeeklyGoalsPanel({
   );
   const defaultMetricId = useMemo(() => {
     if (isLowTouch) return LT_MRR;
-    return visible.find((m) => m.key === "vendas_dia")?.id ?? visible[0]?.id ?? "";
+    return visible.length ? ALL : "";
   }, [visible, isLowTouch]);
   const [metricId, setMetricId] = useState<string>(defaultMetricId);
 
@@ -73,12 +74,23 @@ export function WeeklyGoalsPanel({
       : LT_MRR
     : metricId || defaultMetricId;
 
-  const metric = isLowTouch ? undefined : visible.find((m) => m.id === selected) ?? visible[0];
+  const isAll = !isLowTouch && selected === ALL;
+
+  const metric = isLowTouch || isAll ? undefined : visible.find((m) => m.id === selected) ?? visible[0];
+
+  /** Métricas somadas no modo Visão Geral (todas as de contagem). */
+  const allCountMetrics = useMemo(
+    () => (isAll ? visible.filter((m) => m.unit === "count") : []),
+    [isAll, visible],
+  );
+
   const unit: "count" | "currency" = isLowTouch
     ? selected === LT_COUNT
       ? "count"
       : "currency"
-    : metric?.unit ?? "count";
+    : isAll
+      ? "count"
+      : metric?.unit ?? "count";
 
   /** Métrica financeira usada nas colunas de R$ (MRR do dia por padrão). */
   const finMetric = useMemo(() => {
@@ -98,14 +110,18 @@ export function WeeklyGoalsPanel({
     const users = memberIds.length
       ? memberIds
       : Array.from(new Set(daily.map((d) => d.user_id)));
-    const dailyTargetTotal =
-      !isLowTouch && metric
-        ? users.reduce((s, uid) => s + resolveDailyTarget(goals, metric.id, uid, teamId), 0)
-        : 0;
+    const dailyTargetFor = (mid: string) =>
+      users.reduce((s, uid) => s + resolveDailyTarget(goals, mid, uid, teamId), 0);
+    const dailyTargetTotal = isLowTouch
+      ? 0
+      : isAll
+        ? allCountMetrics.reduce((s, m) => s + dailyTargetFor(m.id), 0)
+        : metric
+          ? dailyTargetFor(metric.id)
+          : 0;
     const finDailyTargetTotal =
-      !isLowTouch && finMetric
-        ? users.reduce((s, uid) => s + resolveDailyTarget(goals, finMetric.id, uid, teamId), 0)
-        : 0;
+      !isLowTouch && finMetric ? dailyTargetFor(finMetric.id) : 0;
+
 
     return weeks.map((w) => {
       const startKey = toBRDateKey(w.start);
@@ -126,11 +142,19 @@ export function WeeklyGoalsPanel({
               : sales.reduce((s, x) => s + (x.mrr ?? 0), 0);
           finRealized = sales.reduce((s, x) => s + (x.mrr ?? 0), 0);
         } else {
-          realized = metric ? realizedBetween(daily, metric.id, users, w.start, w.end) : 0;
+          realized = isAll
+            ? allCountMetrics.reduce(
+                (s, m) => s + realizedBetween(daily, m.id, users, w.start, w.end),
+                0,
+              )
+            : metric
+              ? realizedBetween(daily, metric.id, users, w.start, w.end)
+              : 0;
           finRealized = finMetric
             ? realizedBetween(daily, finMetric.id, users, w.start, w.end)
             : null;
         }
+
       }
 
       const target =
@@ -151,7 +175,7 @@ export function WeeklyGoalsPanel({
         isFuture,
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, finMetric, isLowTouch, lowTouchSales, selected, todayKey]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finMetric, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics]);
 
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
@@ -202,10 +226,14 @@ export function WeeklyGoalsPanel({
                   <SelectItem value={LT_COUNT}>Vendas Low-touch</SelectItem>
                 </>
               ) : (
-                visible.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-                ))
+                <>
+                  <SelectItem value={ALL}>Visão Geral (todas)</SelectItem>
+                  {visible.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </>
               )}
+
             </SelectContent>
           </Select>
         </div>
