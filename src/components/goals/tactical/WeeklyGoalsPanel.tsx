@@ -142,11 +142,19 @@ export function WeeklyGoalsPanel({
               : sales.reduce((s, x) => s + (x.mrr ?? 0), 0);
           finRealized = sales.reduce((s, x) => s + (x.mrr ?? 0), 0);
         } else {
-          realized = metric ? realizedBetween(daily, metric.id, users, w.start, w.end) : 0;
+          realized = isAll
+            ? allCountMetrics.reduce(
+                (s, m) => s + realizedBetween(daily, m.id, users, w.start, w.end),
+                0,
+              )
+            : metric
+              ? realizedBetween(daily, metric.id, users, w.start, w.end)
+              : 0;
           finRealized = finMetric
             ? realizedBetween(daily, finMetric.id, users, w.start, w.end)
             : null;
         }
+
       }
 
       const target =
