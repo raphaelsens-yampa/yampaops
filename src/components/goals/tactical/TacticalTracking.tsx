@@ -22,6 +22,8 @@ import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
+import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
+
 
 import { LowTouchView } from "./LowTouchView";
 import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
