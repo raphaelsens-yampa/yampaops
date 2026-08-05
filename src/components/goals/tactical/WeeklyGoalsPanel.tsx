@@ -226,10 +226,14 @@ export function WeeklyGoalsPanel({
                   <SelectItem value={LT_COUNT}>Vendas Low-touch</SelectItem>
                 </>
               ) : (
-                visible.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-                ))
+                <>
+                  <SelectItem value={ALL}>Visão Geral (todas)</SelectItem>
+                  {visible.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </>
               )}
+
             </SelectContent>
           </Select>
         </div>
