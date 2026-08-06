@@ -17,6 +17,7 @@ import {
   weeksOfMonth,
 } from "./types";
 import type { LowTouchSale } from "./useLowTouchData";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
 
 interface Props {
   metrics?: TacticalMetric[];
@@ -201,7 +202,7 @@ export function WeeklyGoalsPanel({
         isFuture,
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, finMetric, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics]);
 
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
