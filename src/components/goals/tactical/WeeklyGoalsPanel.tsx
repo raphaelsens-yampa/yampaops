@@ -176,8 +176,8 @@ export function WeeklyGoalsPanel({
             : metric
               ? realizedBetween(daily, metric.id, users, w.start, w.end)
               : 0;
-          finRealized = finMetric
-            ? realizedBetween(daily, finMetric.id, users, w.start, w.end)
+          finRealized = finRealizedMetricId
+            ? realizedBetween(daily, finRealizedMetricId, users, w.start, w.end)
             : null;
         }
 
