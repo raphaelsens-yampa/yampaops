@@ -92,16 +92,42 @@ export function WeeklyGoalsPanel({
       ? "count"
       : metric?.unit ?? "count";
 
-  /** Métrica financeira usada nas colunas de R$ (MRR do dia por padrão). */
-  const finMetric = useMemo(() => {
-    if (isLowTouch) return undefined;
-    return (
-      visible.find((m) => m.key === "mrr_dia") ??
-      visible.find((m) => m.unit === "currency")
-    );
-  }, [visible, isLowTouch]);
+  /** Métrica de MRR "total do dia" — usada quando não há recorte específico. */
+  const mrrMetric = useMemo(
+    () =>
+      isLowTouch
+        ? undefined
+        : visible.find((m) => m.key === "mrr_dia") ?? visible.find((m) => m.unit === "currency"),
+    [visible, isLowTouch],
+  );
 
-  const showFin = isLowTouch ? unit !== "currency" : !!finMetric && finMetric.id !== metric?.id;
+  /**
+   * Coluna "Realizado R$" acompanha a métrica selecionada:
+   * Vendas do dia -> MRR de vendas; Recuperados/Retidos -> MRR correspondente;
+   * Visão Geral / MRR do dia -> MRR total do dia.
+   */
+  const finRealizedMetricId = useMemo(() => {
+    if (isLowTouch) return undefined;
+    if (isAll) return mrrMetric?.id;
+    switch (metric?.key) {
+      case "vendas_dia":
+        return VIRTUAL_MRR_SALES;
+      case "clientes_recuperados":
+        return VIRTUAL_MRR_RECOVERY;
+      case "clientes_retidos":
+        return VIRTUAL_MRR_RETENTION;
+      default:
+        return mrrMetric?.id;
+    }
+  }, [isLowTouch, isAll, metric, mrrMetric]);
+
+  /** Meta R$ só existe onde há meta cadastrada (métrica real de MRR). */
+  const finGoalMetricId = useMemo(
+    () => (finRealizedMetricId && finRealizedMetricId === mrrMetric?.id ? mrrMetric?.id : undefined),
+    [finRealizedMetricId, mrrMetric],
+  );
+
+  const showFin = isLowTouch ? unit !== "currency" : !!finRealizedMetricId && unit !== "currency";
 
   const weeks = useMemo(() => weeksOfMonth(today), [today]);
   const todayKey = toBRDateKey(today);
