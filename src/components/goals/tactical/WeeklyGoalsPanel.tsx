@@ -146,7 +146,7 @@ export function WeeklyGoalsPanel({
           ? dailyTargetFor(metric.id)
           : 0;
     const finDailyTargetTotal =
-      !isLowTouch && finMetric ? dailyTargetFor(finMetric.id) : 0;
+      !isLowTouch && finGoalMetricId ? dailyTargetFor(finGoalMetricId) : 0;
 
 
     return weeks.map((w) => {
