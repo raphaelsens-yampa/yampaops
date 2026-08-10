@@ -38,7 +38,9 @@ interface Row {
   entryKind: "recovered" | "retained";
   rawId?: string;
   kind?: "recovery" | "manual_entry";
+  origemCliente?: string | null;
   note?: string | null;
+
 }
 
 function fmtBRL(v: number) {
