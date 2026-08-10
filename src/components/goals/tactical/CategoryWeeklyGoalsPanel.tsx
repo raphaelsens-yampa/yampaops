@@ -184,8 +184,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           if (!isFuture) {
             if (!isAggregate) {
               realized = leafRealized(cat, w, isCurrent, cutKey);
-            } else if (isAggregate) {
-
+            } else {
               // Agregadoras (MRR Increase / MRR Decrease) somam as componentes.
               let sum = 0;
               let any = false;
@@ -198,22 +197,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                 sum += Math.abs(v);
               }
               realized = any ? sum : null;
-            } else if (tacticalMetricId) {
-              const end = new Date(w.end);
-              if (isCurrent) end.setTime(today.getTime());
-              realized = realizedBetween(daily, tacticalMetricId, [], w.start, end);
-            } else if (isStock) {
-              realized = valueAsOf(points, cutKey, monthStartKey);
-            } else {
-              const cur = valueAsOf(points, cutKey, monthStartKey);
-              if (cur !== null) {
-                const prevKey = toBRDateKey(
-                  new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
-                );
-                const base = valueAsOf(points, prevKey, monthStartKey) ?? 0;
-                realized = cur - base;
-              }
             }
+
           }
 
           const target = monthTarget && businessDaysInMonth
