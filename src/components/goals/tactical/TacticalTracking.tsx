@@ -278,6 +278,10 @@ export function TacticalTracking() {
         today={today}
       />
 
+      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} />
+
+
+
       <TacticalProgressChart
 
         metrics={teamMetrics}
