@@ -145,10 +145,14 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           isCurrent: boolean,
           cutKey: string,
         ): number | null => {
-          if (origin !== "all") {
-            // Com recorte por origem o realizado vem da base diária por price_id
-            if (!ORIGIN_FLOW_SLUGS.has(leaf.slug)) return null;
-            return flows.sumMrr(origin, leaf.slug, toBRDateKey(w.start), cutKey);
+          // Categorias de fluxo: sempre a base diária por price_id (mesma
+          // fonte em Geral / yampa / 4blue, para os números serem coerentes)
+          if (ORIGIN_FLOW_SLUGS.has(leaf.slug)) {
+            const v = flows.sumMrr(origin, leaf.slug, toBRDateKey(w.start), cutKey);
+            if (v !== null) return v;
+            if (origin !== "all") return null;
+          } else if (origin !== "all") {
+            return null;
           }
           const leafMetricId = CATEGORY_TACTICAL_METRIC[leaf.slug];
           if (leafMetricId) {
@@ -178,11 +182,10 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
 
           let realized: number | null = null;
           if (!isFuture) {
-            if (origin !== "all" && !isAggregate) {
-              realized = ORIGIN_FLOW_SLUGS.has(cat.slug)
-                ? flows.sumMrr(origin, cat.slug, startKey, cutKey)
-                : null;
+            if (!isAggregate) {
+              realized = leafRealized(cat, w, isCurrent, cutKey);
             } else if (isAggregate) {
+
               // Agregadoras (MRR Increase / MRR Decrease) somam as componentes.
               let sum = 0;
               let any = false;
