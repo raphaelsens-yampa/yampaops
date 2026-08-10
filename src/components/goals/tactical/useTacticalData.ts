@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDateBR } from "@/lib/dateBR";
 import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } from "./types";
+import { normalizeOrigin, type OriginScope, type OriginValue } from "@/lib/originScope";
+import { computeOriginDaily } from "@/hooks/useOriginFlows";
+
+/** Vendedor virtual usado para alocar os dados de origem 4blue */
+export const FOURBLUE_USER_ID = "4b100000-0000-4000-8000-000000004b1e";
 
 export interface TeamMember { team_id: string; user_id: string; }
 
@@ -14,7 +19,12 @@ export const VIRTUAL_MRR_RECOVERED_FT = "virtual_mrr_recuperados_ft";
 
 
 
-export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
+export function useTacticalData(
+  rangeStart: Date,
+  rangeEnd: Date,
+  refreshKey: number = 0,
+  origin: OriginScope = "all",
+) {
   const [metrics, setMetrics] = useState<TacticalMetric[]>([]);
   const [goals, setGoals] = useState<TacticalGoal[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -39,10 +49,42 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         supabase.from("teams").select("id, name").order("name"),
         supabase.from("team_members").select("team_id, user_id"),
         supabase.from("activities").select("user_id, type, created_at").gte("created_at", fromISO.toISOString()).lte("created_at", toISO.toISOString()),
-        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
-        supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
-        supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
+        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation, stripe_price_id").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
+        supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind, origem_cliente").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
+        supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind, origem_cliente").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
       ]);
+
+      // Mapa price_id → origem (base diária do Metabase). Só necessário quando há recorte.
+      const priceOrigin = new Map<string, OriginValue>();
+      if (origin !== "all") {
+        const { data: origRows } = await supabase
+          .from("metas_price_daily")
+          .select("stripe_price_id, origem_cliente")
+          .not("origem_cliente", "is", null)
+          .order("data", { ascending: false })
+          .limit(5000);
+        for (const r of (origRows as any[]) || []) {
+          const o = normalizeOrigin((r as any).origem_cliente);
+          const id = String((r as any).stripe_price_id || "").trim();
+          if (o && id && id !== "—" && id !== "-" && !priceOrigin.has(id)) priceOrigin.set(id, o);
+        }
+      }
+
+      /**
+       * Origem efetiva de um registro: o que a base diária diz do price_id,
+       * o valor declarado no lançamento, ou yampa (padrão da operação própria).
+       * O vendedor virtual 4blue sempre conta como 4blue.
+       */
+      const resolveOrigin = (declared?: string | null, priceId?: string | null, sellerId?: string | null): OriginValue => {
+        const fromPrice = priceId ? priceOrigin.get(String(priceId).trim()) : null;
+        if (fromPrice) return fromPrice;
+        const dec = normalizeOrigin(declared);
+        if (dec) return dec;
+        if (sellerId === FOURBLUE_USER_ID) return "4blue";
+        return "yampa";
+      };
+      const matchesOrigin = (declared?: string | null, priceId?: string | null, sellerId?: string | null) =>
+        origin === "all" || resolveOrigin(declared, priceId, sellerId) === origin;
 
       if (cancelled) return;
 
@@ -78,6 +120,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       for (const c of convRes.data || []) {
         const seller = (c as any).assigned_seller_id;
         if (!seller || !(c as any).converted_at) continue;
+        if (!matchesOrigin(null, (c as any).stripe_price_id, seller)) continue;
         // Só considera conversão com valor > R$ 0 (líquido quando existir)
         const value = Number((c as any).mrr_net ?? (c as any).mrr ?? 0);
         if (!(value > 0)) continue;
@@ -105,6 +148,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       for (const m of manualRes.data || []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
+        if (!matchesOrigin((m as any).origem_cliente, null, (m as any).user_id)) continue;
         const retained = (m as any).entry_kind === "retained";
         // Lançamentos de retenção contam na métrica "Clientes retidos"
         const targetMetricId =
@@ -133,6 +177,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         const seller = (r as any).seller_id;
         const dateKey = String((r as any).recovered_at || "").slice(0, 10);
         if (!seller || !dateKey) continue;
+        if (!matchesOrigin((r as any).origem_cliente, null, seller)) continue;
         const retained = (r as any).entry_kind === "retained";
         if (retained) {
           if (retainedMetric) bump(seller, retainedMetric.id, dateKey, 1);
@@ -147,12 +192,53 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       }
 
 
+      /**
+       * Vendas de origem 4blue não passam pelo Stripe: entram pela base diária
+       * do Metabase (`metas_price_daily`). No recorte "yampa" elas ficam de
+       * fora; em "Geral" e "4blue" somam no vendedor virtual 4blue.
+       */
+      if (origin !== "yampa") {
+        const { data: pdRows } = await supabase
+          .from("metas_price_daily")
+          .select("data, stripe_price_id, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
+          .gte("data", fromDateStr)
+          .lte("data", toDateStr);
+        if (cancelled) return;
+        const { days, dailyMrr, dailyQtd } = computeOriginDaily((pdRows as any[]) || []);
+        const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
+        const recoveredFtMetric = metricsData.find((m) => m.key === "recuperados_ft");
+        const recoveryMetric = metricsData.find((m) => m.key === "clientes_recuperados") || reactMetric;
+        Array.from(days).sort().forEach((date) => {
+          const qtd = (slug: string) => dailyQtd.get(`4blue|${slug}|${date}`) || 0;
+          const mrr = (slug: string) => dailyMrr.get(`4blue|${slug}|${date}`) || 0;
+          const newMrr = mrr("new_mrr");
+          if (newMrr) {
+            if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
+            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
+          }
+          if (qtd("new_mrr") && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, qtd("new_mrr"));
+          const recMrr = mrr("recuperados");
+          if (recMrr) {
+            if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, recMrr);
+            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_RECOVERY, date, recMrr);
+            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_RECOVERED_FT, date, recMrr);
+          }
+          if (qtd("recuperados")) {
+            if (recoveryMetric) bump(FOURBLUE_USER_ID, recoveryMetric.id, date, qtd("recuperados"));
+            if (recoveredFtMetric) bump(FOURBLUE_USER_ID, recoveredFtMetric.id, date, qtd("recuperados"));
+          }
+          const upMrr = mrr("upsell");
+          if (upMrr) bump(FOURBLUE_USER_ID, VIRTUAL_MRR_UPSELL, date, upMrr);
+          if (qtd("upsell") && upsellMetric) bump(FOURBLUE_USER_ID, upsellMetric.id, date, qtd("upsell"));
+        });
+      }
+
       setDaily(Array.from(aggMap.values()));
       setLoading(false);
     }
     load();
     return () => { cancelled = true; };
-  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
+  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
   return { metrics, goals, profiles, teams, members, daily, loading };
 }

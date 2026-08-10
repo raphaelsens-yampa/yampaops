@@ -1920,6 +1920,7 @@ export type Database = {
           dedupe_key: string
           id: string
           metric_key: string
+          origem_cliente: string | null
           raw_payload: Json | null
           scope: string
           source: string
@@ -1941,6 +1942,7 @@ export type Database = {
           dedupe_key: string
           id?: string
           metric_key: string
+          origem_cliente?: string | null
           raw_payload?: Json | null
           scope?: string
           source?: string
@@ -1962,6 +1964,7 @@ export type Database = {
           dedupe_key?: string
           id?: string
           metric_key?: string
+          origem_cliente?: string | null
           raw_payload?: Json | null
           scope?: string
           source?: string
@@ -1990,6 +1993,7 @@ export type Database = {
           id: string
           last_synced_at: string
           metric_key: string
+          origem_cliente: string | null
           realized_amount: number
           scope: string
           team_id: string | null
@@ -2006,6 +2010,7 @@ export type Database = {
           id?: string
           last_synced_at?: string
           metric_key: string
+          origem_cliente?: string | null
           realized_amount?: number
           scope?: string
           team_id?: string | null
@@ -2022,6 +2027,7 @@ export type Database = {
           id?: string
           last_synced_at?: string
           metric_key?: string
+          origem_cliente?: string | null
           realized_amount?: number
           scope?: string
           team_id?: string | null
@@ -2270,6 +2276,7 @@ export type Database = {
           id: string
           mes_ref: string
           metric_key: string
+          origem_cliente: string | null
           origem_leitura: string
           realized_amount: number | null
           scope: string
@@ -2287,6 +2294,7 @@ export type Database = {
           id?: string
           mes_ref: string
           metric_key: string
+          origem_cliente?: string | null
           origem_leitura?: string
           realized_amount?: number | null
           scope?: string
@@ -2304,6 +2312,7 @@ export type Database = {
           id?: string
           mes_ref?: string
           metric_key?: string
+          origem_cliente?: string | null
           origem_leitura?: string
           realized_amount?: number | null
           scope?: string
@@ -3577,6 +3586,7 @@ export type Database = {
           metric_id: string
           mrr_value: number
           note: string | null
+          origem_cliente: string
           updated_at: string
           user_id: string
           value: number
@@ -3589,6 +3599,7 @@ export type Database = {
           metric_id: string
           mrr_value?: number
           note?: string | null
+          origem_cliente?: string
           updated_at?: string
           user_id: string
           value?: number
@@ -3601,6 +3612,7 @@ export type Database = {
           metric_id?: string
           mrr_value?: number
           note?: string | null
+          origem_cliente?: string
           updated_at?: string
           user_id?: string
           value?: number
@@ -3675,6 +3687,7 @@ export type Database = {
           id: string
           mrr: number
           note: string | null
+          origem_cliente: string
           plan_name: string | null
           price: number
           recovered_at: string
@@ -3691,6 +3704,7 @@ export type Database = {
           id?: string
           mrr?: number
           note?: string | null
+          origem_cliente?: string
           plan_name?: string | null
           price?: number
           recovered_at?: string
@@ -3707,6 +3721,7 @@ export type Database = {
           id?: string
           mrr?: number
           note?: string | null
+          origem_cliente?: string
           plan_name?: string | null
           price?: number
           recovered_at?: string

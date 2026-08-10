@@ -18,6 +18,8 @@ import {
   weeksOfMonth,
   type DailyDatum,
 } from "./types";
+import { useOriginFlows } from "@/hooks/useOriginFlows";
+import { ORIGIN_FLOW_SLUGS, ORIGIN_LABELS, type OriginScope } from "@/lib/originScope";
 import {
   CATEGORY_TACTICAL_METRIC,
   STOCK_CATEGORY_SLUGS,
@@ -32,6 +34,8 @@ interface Props {
   today: Date;
   daily?: DailyDatum[];
   refreshKey?: number;
+  /** Recorte por origem do cliente: as metas cadastradas são sempre yampa puras */
+  origin?: OriginScope;
 }
 
 interface WeekRow {
@@ -63,8 +67,14 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
   return found;
 }
 
-export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: Props) {
+export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
   const { categories, targets, series, loading } = useCategoryWeeklyData(today, refreshKey);
+  const monthStartKeyForOrigin = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+  const flows = useOriginFlows(
+    origin === "all" ? null : monthStartKeyForOrigin,
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-31`,
+    refreshKey,
+  );
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
@@ -116,7 +126,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
       .map((id) => available.find((c) => c.id === id))
       .filter((c): c is GoalCategory => !!c)
       .map((cat) => {
-        const monthTarget = targets.get(cat.id) ?? 0;
+        // Metas são cadastradas na base yampa: no recorte 4blue exibimos apenas realizado
+        const monthTarget = origin === "4blue" ? 0 : targets.get(cat.id) ?? 0;
         const isStock = STOCK_CATEGORY_SLUGS.has(cat.slug);
         const tacticalMetricId = CATEGORY_TACTICAL_METRIC[cat.slug];
         const points = series.get(cat.id);
@@ -130,6 +141,11 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
           isCurrent: boolean,
           cutKey: string,
         ): number | null => {
+          if (origin !== "all") {
+            // Com recorte por origem o realizado vem da base diária por price_id
+            if (!ORIGIN_FLOW_SLUGS.has(leaf.slug)) return null;
+            return flows.sumMrr(origin, leaf.slug, toBRDateKey(w.start), cutKey);
+          }
           const leafMetricId = CATEGORY_TACTICAL_METRIC[leaf.slug];
           if (leafMetricId) {
             const end = new Date(w.end);
@@ -158,7 +174,11 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
 
           let realized: number | null = null;
           if (!isFuture) {
-            if (isAggregate) {
+            if (origin !== "all" && !isAggregate) {
+              realized = ORIGIN_FLOW_SLUGS.has(cat.slug)
+                ? flows.sumMrr(origin, cat.slug, startKey, cutKey)
+                : null;
+            } else if (isAggregate) {
               // Agregadoras (MRR Increase / MRR Decrease) somam as componentes.
               let sum = 0;
               let any = false;
@@ -207,7 +227,22 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
           };
         });
 
-        const realizedTotal = isStock
+        const originUnavailable =
+          origin !== "all" &&
+          (isAggregate
+            ? !componentIds.some((id) => {
+                const leaf = catById.get(id);
+                return leaf ? ORIGIN_FLOW_SLUGS.has(leaf.slug) : false;
+              })
+            : !ORIGIN_FLOW_SLUGS.has(cat.slug));
+
+        const realizedTotal = origin !== "all"
+          ? (originUnavailable
+              ? null
+              : rows.some((r) => r.realized !== null)
+                ? rows.reduce((s, r) => s + (r.realized ?? 0), 0)
+                : null)
+          : isStock
           ? valueAsOf(points, todayKey, monthStartKey)
           : rows.some((r) => r.realized !== null)
             ? rows.reduce((s, r) => s + (r.realized ?? 0), 0)
@@ -221,10 +256,19 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
           isStock,
           rows,
           realizedTotal,
-          source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
+          originUnavailable,
+          source:
+            origin !== "all"
+              ? `origem ${ORIGIN_LABELS[origin]}`
+              : isAggregate
+                ? "soma das componentes"
+                : tacticalMetricId
+                  ? "tático"
+                  : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, origin, flows]);
 
 
   const pctOf = (target: number | null, realized: number | null, cat: GoalCategory) => {
@@ -312,7 +356,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
         {blocks.length === 0 && (
           <p className="text-sm text-muted-foreground">Selecione ao menos uma categoria.</p>
         )}
-        {blocks.map(({ cat, monthTarget, isStock, rows, realizedTotal, source }) => {
+        {blocks.map(({ cat, monthTarget, isStock, rows, realizedTotal, source, originUnavailable }) => {
           const monthPct = pctOf(monthTarget, realizedTotal, cat);
           const good = isGood(monthTarget, realizedTotal, cat);
           return (
@@ -326,6 +370,9 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
                   )}
                   {isStock && <Badge variant="secondary" className="text-[10px]">estoque</Badge>}
                   <span className="text-[10px] text-muted-foreground">fonte: {source}</span>
+                  {originUnavailable && (
+                    <Badge variant="outline" className="text-[10px]">sem quebra por origem</Badge>
+                  )}
                 </div>
                 <span className="text-xs">
                   Mês:{" "}

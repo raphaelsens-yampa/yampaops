@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDateBR } from "@/lib/dateBR";
 import { toBRDateKey } from "./types";
+import type { OriginScope } from "@/lib/originScope";
 
 export interface LowTouchSale {
   id: string;
@@ -24,7 +25,13 @@ export interface LowTouchArea {
  * Carrega as conversões classificadas como Low-touch: vendas cujo rótulo de
  * Vendedor/Área no Mapa de Preços está marcado como área Low-touch.
  */
-export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0) {
+export function useLowTouchData(
+  rangeStart: Date,
+  rangeEnd: Date,
+  refreshKey = 0,
+  /** Vendas low-touch vêm do Stripe (origem yampa): no recorte 4blue a lista fica vazia */
+  origin: OriginScope = "all",
+) {
   const [sales, setSales] = useState<LowTouchSale[]>([]);
   const [areas, setAreas] = useState<LowTouchArea[]>([]);
   const [allLabels, setAllLabels] = useState<string[]>([]);
@@ -36,6 +43,16 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
       setLoading(true);
       const from = new Date(rangeStart); from.setHours(0, 0, 0, 0);
       const to = new Date(rangeEnd); to.setHours(23, 59, 59, 999);
+
+      if (origin === "4blue") {
+        // Nenhuma venda low-touch de origem 4blue: elas não passam pelo Stripe
+        const areasOnly = await supabase.from("tactical_lowtouch_areas").select("id, label, is_active").order("label");
+        if (cancelled) return;
+        setAreas(((areasOnly.data as LowTouchArea[]) || []));
+        setSales([]);
+        setLoading(false);
+        return;
+      }
 
       const [areasRes, mapRes, convRes] = await Promise.all([
         supabase.from("tactical_lowtouch_areas").select("id, label, is_active").order("label"),
@@ -87,7 +104,7 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
     }
     load();
     return () => { cancelled = true; };
-  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
+  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
   return { sales, areas, allLabels, loading };
 }
