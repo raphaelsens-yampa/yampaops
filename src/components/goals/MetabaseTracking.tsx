@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
+import { useOriginFlows } from "@/hooks/useOriginFlows";
+import { ORIGIN_FLOW_SLUGS, ORIGIN_LABELS, ORIGIN_SCOPES, type OriginScope } from "@/lib/originScope";
 
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -178,6 +180,8 @@ export function MetabaseTracking() {
 
 
   const [productScope, setProductScope] = useState<ProductScope>("yampafin");
+  /** Recorte por origem do cliente (yampa puro vs 4blue) */
+  const [originScope, setOriginScope] = useState<OriginScope>("all");
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [teamId, setTeamId] = useState<string>("all");
@@ -317,11 +321,60 @@ export function MetabaseTracking() {
     }));
   }, [snapRows]);
 
-  /** Fonte de realizado efetiva */
-  const sourceAgg = useMemo<AggRow[]>(() => {
+  /** Fonte de realizado antes do recorte por origem */
+  const baseSourceAgg = useMemo<AggRow[]>(() => {
     if (!historicalMode) return agg;
     return hasSnapshotForRef ? snapshotAsAgg : [];
   }, [historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
+
+  /**
+   * Recorte por ORIGEM: a base diária por price_id (`metas_price_daily`) é a
+   * única fonte com `origem_cliente`, e só cobre categorias de fluxo
+   * (New MRR, Recuperados, Upsell, Downsell). Nas demais o realizado fica "—".
+   * As metas cadastradas seguem yampa puras — no recorte 4blue elas não se aplicam.
+   */
+  const originFlows = useOriginFlows(
+    originScope === "all" ? null : `${year}-01-01`,
+    `${year}-12-31`,
+    0,
+  );
+
+  const originCategoryIds = useMemo(() => {
+    const map = new Map<string, string>(); // category_id → slug
+    categories.forEach((c) => {
+      if (ORIGIN_FLOW_SLUGS.has(c.slug)) map.set(c.id, c.slug);
+    });
+    return map;
+  }, [categories]);
+
+  const sourceAgg = useMemo<AggRow[]>(() => {
+    if (originScope === "all") return baseSourceAgg;
+    const rows: AggRow[] = [];
+    const areaByCat = new Map(categories.map((c) => [c.id, c.area as string]));
+    originCategoryIds.forEach((slug, catId) => {
+      for (let m = 0; m < 12; m++) {
+        const mm = String(m + 1).padStart(2, "0");
+        const from = `${year}-${mm}-01`;
+        const to = `${year}-${mm}-31`;
+        const value = originFlows.sumMrr(originScope, slug, from, to);
+        if (value === null) continue;
+        rows.push({
+          year_month: from,
+          metric_key: `origin_${originScope}_${slug}`,
+          scope: "company",
+          team_id: null,
+          user_id: null,
+          campaign_id: null,
+          category_id: catId,
+          area: areaByCat.get(catId) ?? null,
+          realized_amount: value,
+          deals_count: originFlows.sumQtd(originScope, slug, from, to) ?? 0,
+        });
+      }
+    });
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originScope, baseSourceAgg, originFlows, originCategoryIds, categories, year]);
 
 
   // Ao carregar as categorias, pré-seleciona "Total de MRR" como padrão
@@ -394,6 +447,11 @@ export function MetabaseTracking() {
 
   /** No recorte 2.0 a métrica simplesmente não existe → renderiza "—", nunca 0 */
   const isUnavailableCategory = (id: string) => {
+    if (originScope !== "all" && !originCategoryIds.has(id)) {
+      // Categorias sem quebra por origem: só somam componentes cobertos
+      const comps = (categories.find((c) => c.id === id)?.component_category_ids || []).filter(Boolean);
+      if (!comps.some((cid) => originCategoryIds.has(cid))) return true;
+    }
     if (productScope !== "yampa20") return false;
     if (!YAMPA20_AVAILABLE_BASE_IDS.has(id)) return true;
     return !yampa20PresentBaseIds.has(id);
@@ -915,10 +973,29 @@ export function MetabaseTracking() {
                     <Label htmlFor="include-yampa20" className="text-xs cursor-pointer">Incluir 2.0</Label>
                   </div>
                 )}
+                <div className="w-full sm:w-[200px]">
+                  <Label className="text-xs">Origem</Label>
+                  <Select value={originScope} onValueChange={(v) => setOriginScope(v as OriginScope)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ORIGIN_SCOPES.map((o) => (
+                        <SelectItem key={o} value={o}>{ORIGIN_LABELS[o]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               {productScope !== "yampafin" && (
                 <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
               )}
+              {originScope !== "all" && (
+                <p className="mb-4 text-xs text-amber-600">
+                  Recorte por origem ({ORIGIN_LABELS[originScope]}): o realizado vem da base diária por price_id e
+                  cobre apenas New MRR, Recuperados, Upsell e Downsell — as demais categorias exibem "—".
+                  {originScope === "4blue" && " As metas cadastradas são yampa puras, então não se aplicam a este recorte."}
+                </p>
+              )}
+
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-start">
                 <div className="flex flex-col gap-1">
@@ -1206,6 +1283,9 @@ export function MetabaseTracking() {
           return isExcess ? "EXCEDENTE DA META" : "Saldo para Meta";
         };
         const gapValue = (gap: number) => kpiFmt(Math.abs(gap));
+        /** Categoria sem quebra por origem/produto: não exibimos realizado nem saldo */
+        const kpiNA = categoryId !== "all" && isUnavailableCategory(categoryId);
+        const naOr = (node: React.ReactNode) => (kpiNA ? <span className="text-muted-foreground">—</span> : node);
         return (
           <>
             <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
@@ -1272,16 +1352,16 @@ export function MetabaseTracking() {
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Realizado do Mês</p>
-                  <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{naOr(kpiFmt(monthRealized))}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(monthGap)}</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{gapValue(monthGap)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{kpiNA ? "Saldo para Meta" : gapTitle(monthGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : gapColor(monthGap)}`}>{naOr(gapValue(monthGap))}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{kpiNA ? "sem quebra por origem" : gapLabel(monthGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : pctColor(monthPct, isLessBetter)}`}>{naOr(`${monthPct.toFixed(1)}%`)}</p>
                 </CardContent></Card>
               </div>
             ) : (
@@ -1304,16 +1384,16 @@ export function MetabaseTracking() {
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Realizado (Metabase)</p>
-                  <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{naOr(kpiFmt(totalRealized))}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(periodGap)}</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(periodGap)}`}>{gapValue(periodGap)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(periodGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{kpiNA ? "Saldo para Meta" : gapTitle(periodGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : gapColor(periodGap)}`}>{naOr(gapValue(periodGap))}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{kpiNA ? "sem quebra por origem" : gapLabel(periodGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${pctColor(periodPct, isLessBetter)}`}>{periodPct.toFixed(1)}%</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : pctColor(periodPct, isLessBetter)}`}>{naOr(`${periodPct.toFixed(1)}%`)}</p>
                 </CardContent></Card>
               </div>
             )}

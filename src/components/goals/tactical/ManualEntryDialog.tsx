@@ -29,6 +29,7 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const [mrrValue, setMrrValue] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [entryKind, setEntryKind] = useState<"recovered" | "retained">("recovered");
+  const [originCliente, setOriginCliente] = useState<"yampa" | "4blue">("yampa");
 
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRetidos = selectedMetric?.key === "clientes_retidos";
@@ -50,12 +51,13 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
       value: parseFloat(value),
       mrr_value: hasMrrField && mrrValue ? parseFloat(mrrValue) : 0,
       entry_kind: isRecuperados ? kind : "recovered",
+      origem_cliente: originCliente,
       note: note || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Registro lançado" });
     setOpen(false);
-    setMetricId(""); setValue(""); setMrrValue(""); setNote(""); setEntryKind("recovered");
+    setMetricId(""); setValue(""); setMrrValue(""); setNote(""); setEntryKind("recovered"); setOriginCliente("yampa");
     onSaved();
   }
 
@@ -119,6 +121,19 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
               <Input type="number" step="0.01" value={mrrValue} onChange={(e) => setMrrValue(e.target.value)} />
             </div>
           )}
+          <div>
+            <Label>Origem do cliente</Label>
+            <Select value={originCliente} onValueChange={(v) => setOriginCliente(v as "yampa" | "4blue")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yampa">yampa</SelectItem>
+                <SelectItem value="4blue">4blue</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              As metas são yampa puras: lançamentos 4blue aparecem só nos recortes "Geral" e "4blue".
+            </p>
+          </div>
           <div><Label>Observação (opcional)</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
           <Button onClick={save} className="w-full">Salvar</Button>
         </div>

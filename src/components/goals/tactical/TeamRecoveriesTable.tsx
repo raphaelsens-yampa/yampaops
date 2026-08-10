@@ -106,7 +106,7 @@ export function TeamRecoveriesTable({
         recoveryMetricIds.length
           ? supabase
               .from("tactical_manual_entries")
-              .select("id, user_id, entry_date, value, mrr_value, note, metric_id, entry_kind")
+              .select("id, user_id, entry_date, value, mrr_value, note, metric_id, entry_kind, origem_cliente")
               .in("metric_id", recoveryMetricIds)
               .gte("entry_date", toBRDateKey(from))
               .lte("entry_date", toBRDateKey(to))
@@ -114,7 +114,7 @@ export function TeamRecoveriesTable({
           : Promise.resolve({ data: [] as any[] }),
         supabase
           .from("tactical_recoveries")
-          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source, entry_kind")
+          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source, entry_kind, origem_cliente")
           .gte("recovered_at", toBRDateKey(from))
           .lte("recovered_at", toBRDateKey(to))
           .order("recovered_at", { ascending: false }),
@@ -153,6 +153,7 @@ export function TeamRecoveriesTable({
           origin: "manual",
           qty: Number(m.value || 0),
           entryKind: m.entry_kind === "retained" ? "retained" : "recovered",
+          origemCliente: m.origem_cliente === "4blue" ? "4blue" : "yampa",
           rawId: m.id,
           kind: "manual_entry",
           note: m.note,
@@ -173,6 +174,7 @@ export function TeamRecoveriesTable({
           origin: r.source === "import" ? "import" : "manual",
           qty: 1,
           entryKind: r.entry_kind === "retained" ? "retained" : "recovered",
+          origemCliente: r.origem_cliente === "4blue" ? "4blue" : "yampa",
           rawId: r.id,
           kind: "recovery",
           note: r.note,
@@ -235,6 +237,7 @@ export function TeamRecoveriesTable({
       qty: String(r.qty ?? ""),
       note: r.note || "",
       entry_kind: r.entryKind,
+      origem_cliente: r.origemCliente ?? "yampa",
     };
   }
 
