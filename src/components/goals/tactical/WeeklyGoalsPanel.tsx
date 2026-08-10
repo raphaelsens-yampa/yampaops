@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
+  businessDaysBetween,
   DailyDatum,
   TacticalGoal,
   TacticalMetric,
@@ -18,6 +19,7 @@ import {
 } from "./types";
 import type { LowTouchSale } from "./useLowTouchData";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
+import { useCategoryWeeklyData } from "./useCategoryWeeklyData";
 
 interface Props {
   metrics?: TacticalMetric[];
@@ -222,8 +224,13 @@ export function WeeklyGoalsPanel({
 
       const target =
         isLowTouch || !dailyTargetTotal ? null : dailyTargetTotal * w.businessDays;
-      const finTarget =
-        isLowTouch || !finDailyTargetTotal ? null : finDailyTargetTotal * w.businessDays;
+      const finTarget = isLowTouch
+        ? null
+        : finDailyTargetTotal
+          ? finDailyTargetTotal * w.businessDays
+          : categoryMonthTarget && businessDaysInMonth
+            ? (categoryMonthTarget * w.businessDays) / businessDaysInMonth
+            : null;
 
       return {
         key: `${w.index}-${startKey}`,
@@ -238,7 +245,7 @@ export function WeeklyGoalsPanel({
         isFuture,
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
 
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
