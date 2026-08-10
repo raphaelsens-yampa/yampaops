@@ -9,6 +9,9 @@ export interface TeamMember { team_id: string; user_id: string; }
 export const VIRTUAL_MRR_SALES = "virtual_mrr_vendas";
 export const VIRTUAL_MRR_RECOVERY = "virtual_mrr_recuperados";
 export const VIRTUAL_MRR_RETENTION = "virtual_mrr_retidos";
+export const VIRTUAL_MRR_UPSELL = "virtual_mrr_upsell";
+export const VIRTUAL_MRR_RECOVERED_FT = "virtual_mrr_recuperados_ft";
+
 
 
 export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
