@@ -125,10 +125,15 @@ export function WeeklyGoalsPanel({
         return VIRTUAL_MRR_RECOVERY;
       case "clientes_retidos":
         return VIRTUAL_MRR_RETENTION;
+      case "upsell_dia":
+        return VIRTUAL_MRR_UPSELL;
+      case "recuperados_ft":
+        return VIRTUAL_MRR_RECOVERED_FT;
       default:
         return mrrMetric?.id;
     }
   }, [isLowTouch, isAll, metric, mrrMetric]);
+
 
   /** Meta R$ só existe onde há meta cadastrada (métrica real de MRR). */
   const finGoalMetricId = useMemo(
