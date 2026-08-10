@@ -18,6 +18,9 @@ export interface OriginFlows {
   priceOrigin: Map<string, OriginValue>;
   /** dias (YYYY-MM-DD) em que a base diária trouxe quebra por origem */
   days: Set<string>;
+  /** dias disponíveis por recorte */
+  daysByOrigin: Map<OriginScope, Set<string>>;
+
   /** MRR do dia por origem/categoria no intervalo (null = sem quebra no período) */
   sumMrr: (origin: OriginScope, slug: string, fromKey: string, toKey: string) => number | null;
   /** Quantidade do dia por origem/categoria no intervalo */
