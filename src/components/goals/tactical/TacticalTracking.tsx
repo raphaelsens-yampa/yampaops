@@ -207,7 +207,9 @@ export function TacticalTracking() {
             <>
               <LowTouchView sales={lowTouch.sales} today={today} />
               <WeeklyGoalsPanel today={today} lowTouchSales={lowTouch.sales} />
+              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} />
               <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
+
 
             </>
           )}
