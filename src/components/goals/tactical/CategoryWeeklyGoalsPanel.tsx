@@ -70,11 +70,15 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
 export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
   const { categories, targets, series, loading } = useCategoryWeeklyData(today, refreshKey);
   const monthStartKeyForOrigin = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+  // A base diária por price_id é a fonte mais fresca para as categorias de
+  // fluxo — usamos em TODOS os recortes (inclusive Geral) para que
+  // Geral = yampa + 4blue e não conflite com o snapshot mensal defasado.
   const flows = useOriginFlows(
-    origin === "all" ? null : monthStartKeyForOrigin,
+    monthStartKeyForOrigin,
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-31`,
     refreshKey,
   );
+
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
