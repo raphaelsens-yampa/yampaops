@@ -18,7 +18,13 @@ import {
   weeksOfMonth,
 } from "./types";
 import type { LowTouchSale } from "./useLowTouchData";
-import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
+import {
+  VIRTUAL_MRR_SALES,
+  VIRTUAL_MRR_RECOVERY,
+  VIRTUAL_MRR_RETENTION,
+  VIRTUAL_MRR_UPSELL,
+  VIRTUAL_MRR_RECOVERED_FT,
+} from "./useTacticalData";
 import { useCategoryWeeklyData } from "./useCategoryWeeklyData";
 
 interface Props {
