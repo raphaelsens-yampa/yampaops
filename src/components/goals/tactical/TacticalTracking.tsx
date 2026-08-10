@@ -23,6 +23,7 @@ import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
+import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
 
 
 import { LowTouchView } from "./LowTouchView";
