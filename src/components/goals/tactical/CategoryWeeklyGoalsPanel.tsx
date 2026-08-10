@@ -116,6 +116,34 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
         const isStock = STOCK_CATEGORY_SLUGS.has(cat.slug);
         const tacticalMetricId = CATEGORY_TACTICAL_METRIC[cat.slug];
         const points = series.get(cat.id);
+        const componentIds = (cat.component_category_ids ?? []).filter(Boolean);
+        const isAggregate = componentIds.length > 0;
+
+        /** Realizado de uma categoria "folha" (com snapshot ou métrica tática) na semana. */
+        const leafRealized = (
+          leaf: GoalCategory,
+          w: (typeof weeks)[number],
+          isCurrent: boolean,
+          cutKey: string,
+        ): number | null => {
+          const leafMetricId = CATEGORY_TACTICAL_METRIC[leaf.slug];
+          if (leafMetricId) {
+            const end = new Date(w.end);
+            if (isCurrent) end.setTime(today.getTime());
+            return realizedBetween(daily, leafMetricId, [], w.start, end);
+          }
+          const leafPoints = series.get(leaf.id);
+          if (STOCK_CATEGORY_SLUGS.has(leaf.slug)) {
+            return valueAsOf(leafPoints, cutKey, monthStartKey);
+          }
+          const cur = valueAsOf(leafPoints, cutKey, monthStartKey);
+          if (cur === null) return null;
+          const prevKey = toBRDateKey(
+            new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
+          );
+          const base = valueAsOf(leafPoints, prevKey, monthStartKey) ?? 0;
+          return cur - base;
+        };
 
         const rows: WeekRow[] = weeks.map((w) => {
           const startKey = toBRDateKey(w.start);
@@ -126,7 +154,20 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
 
           let realized: number | null = null;
           if (!isFuture) {
-            if (tacticalMetricId) {
+            if (isAggregate) {
+              // Agregadoras (MRR Increase / MRR Decrease) somam as componentes.
+              let sum = 0;
+              let any = false;
+              for (const id of componentIds) {
+                const leaf = catById.get(id);
+                if (!leaf) continue;
+                const v = leafRealized(leaf, w, isCurrent, cutKey);
+                if (v === null) continue;
+                any = true;
+                sum += Math.abs(v);
+              }
+              realized = any ? sum : null;
+            } else if (tacticalMetricId) {
               const end = new Date(w.end);
               if (isCurrent) end.setTime(today.getTime());
               realized = realizedBetween(daily, tacticalMetricId, [], w.start, end);
@@ -170,9 +211,17 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
               ? 0
               : null;
 
-        return { cat, monthTarget, isStock, rows, realizedTotal, source: tacticalMetricId ? "tático" : "snapshot" };
+        return {
+          cat,
+          monthTarget,
+          isStock,
+          rows,
+          realizedTotal,
+          source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
+        };
       });
-  }, [effectiveIds, available, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
+
 
   const pctOf = (target: number | null, realized: number | null, cat: GoalCategory) => {
     if (!target || target <= 0 || realized === null) return null;
