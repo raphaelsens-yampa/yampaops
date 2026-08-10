@@ -239,7 +239,7 @@ export function TeamRecoveriesTable({
       qty: String(r.qty ?? ""),
       note: r.note || "",
       entry_kind: r.entryKind,
-      origem_cliente: r.origemCliente ?? "yampa",
+      origem_cliente: r.origemCliente === "4blue" ? "4blue" : "yampa",
     };
   }
 
