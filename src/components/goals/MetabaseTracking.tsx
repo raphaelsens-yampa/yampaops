@@ -1283,6 +1283,9 @@ export function MetabaseTracking() {
           return isExcess ? "EXCEDENTE DA META" : "Saldo para Meta";
         };
         const gapValue = (gap: number) => kpiFmt(Math.abs(gap));
+        /** Categoria sem quebra por origem/produto: não exibimos realizado nem saldo */
+        const kpiNA = categoryId !== "all" && isUnavailableCategory(categoryId);
+        const naOr = (node: React.ReactNode) => (kpiNA ? <span className="text-muted-foreground">—</span> : node);
         return (
           <>
             <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
@@ -1349,16 +1352,16 @@ export function MetabaseTracking() {
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Realizado do Mês</p>
-                  <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(monthRealized)}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{naOr(kpiFmt(monthRealized))}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(monthGap)}</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{gapValue(monthGap)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{kpiNA ? "Saldo para Meta" : gapTitle(monthGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : gapColor(monthGap)}`}>{naOr(gapValue(monthGap))}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{kpiNA ? "sem quebra por origem" : gapLabel(monthGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : pctColor(monthPct, isLessBetter)}`}>{naOr(`${monthPct.toFixed(1)}%`)}</p>
                 </CardContent></Card>
               </div>
             ) : (
@@ -1381,16 +1384,16 @@ export function MetabaseTracking() {
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">Realizado (Metabase)</p>
-                  <p className="text-xl sm:text-2xl font-bold text-primary">{kpiFmt(totalRealized)}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{naOr(kpiFmt(totalRealized))}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(periodGap)}</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${gapColor(periodGap)}`}>{gapValue(periodGap)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(periodGap)}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{kpiNA ? "Saldo para Meta" : gapTitle(periodGap)}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : gapColor(periodGap)}`}>{naOr(gapValue(periodGap))}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{kpiNA ? "sem quebra por origem" : gapLabel(periodGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${pctColor(periodPct, isLessBetter)}`}>{periodPct.toFixed(1)}%</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${kpiNA ? "" : pctColor(periodPct, isLessBetter)}`}>{naOr(`${periodPct.toFixed(1)}%`)}</p>
                 </CardContent></Card>
               </div>
             )}
