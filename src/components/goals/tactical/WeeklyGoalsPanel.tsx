@@ -128,10 +128,46 @@ export function WeeklyGoalsPanel({
     [finRealizedMetricId, mrrMetric],
   );
 
+  /**
+   * Fallback de Meta R$: usa a meta mensal da categoria correspondente
+   * (New MRR / Recuperados / Retenção) rateada por dias úteis da semana —
+   * a mesma base do painel "Metas por categoria — quebra semanal".
+   */
+  const categorySlugForFinGoal = useMemo(() => {
+    if (isLowTouch || isAll || finGoalMetricId) return undefined;
+    switch (metric?.key) {
+      case "vendas_dia":
+        return "new_mrr";
+      case "clientes_recuperados":
+        return "recuperados";
+      case "clientes_retidos":
+        return "retencao";
+      default:
+        return undefined;
+    }
+  }, [isLowTouch, isAll, finGoalMetricId, metric]);
+
+  const { categories: goalCategories, targets: categoryTargets } = useCategoryWeeklyData(today);
+
+  const categoryMonthTarget = useMemo(() => {
+    if (!categorySlugForFinGoal) return 0;
+    const cat = goalCategories.find((c) => c.slug === categorySlugForFinGoal);
+    return cat ? categoryTargets.get(cat.id) ?? 0 : 0;
+  }, [categorySlugForFinGoal, goalCategories, categoryTargets]);
+
   const showFin = isLowTouch ? unit !== "currency" : !!finRealizedMetricId && unit !== "currency";
 
   const weeks = useMemo(() => weeksOfMonth(today), [today]);
+  const businessDaysInMonth = useMemo(
+    () =>
+      businessDaysBetween(
+        new Date(today.getFullYear(), today.getMonth(), 1),
+        new Date(today.getFullYear(), today.getMonth() + 1, 0),
+      ),
+    [today],
+  );
   const todayKey = toBRDateKey(today);
+
 
   const rows: Row[] = useMemo(() => {
     const users = memberIds.length
