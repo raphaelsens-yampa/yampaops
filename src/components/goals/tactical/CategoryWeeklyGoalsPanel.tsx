@@ -71,6 +71,10 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
     [categories, targets],
   );
 
+  const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+
+
   const [selectedIds, setSelectedIds] = useState<string[] | null>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
