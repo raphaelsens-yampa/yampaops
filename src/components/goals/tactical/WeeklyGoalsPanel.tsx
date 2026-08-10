@@ -155,6 +155,10 @@ export function WeeklyGoalsPanel({
         return "recuperados";
       case "clientes_retidos":
         return "retencao";
+      case "upsell_dia":
+        return "upsell";
+      case "recuperados_ft":
+        return "recuperados";
       default:
         return undefined;
     }
