@@ -138,17 +138,18 @@ export function useOriginFlows(fromKey: string | null, toKey: string, refreshKey
   }, [fromKey, toKey, refreshKey]);
 
   return useMemo(() => {
-    const { priceOrigin, days, availableSlugs, dailyMrr, dailyQtd } = computeOriginDaily(rows);
+    const { priceOrigin, days, daysByOrigin, availableSlugs, dailyMrr, dailyQtd } =
+      computeOriginDaily(rows);
 
     const sumFrom = (map: Map<string, number>) =>
       (origin: OriginScope, slug: string, from: string, to: string) => {
-        const dayList = Array.from(days).filter((d) => d >= from && d <= to);
+        // cada recorte tem sua própria cobertura de dias ("all" cobre também
+        // os dias anteriores ao início da quebra por origem)
+        const scopeDays = daysByOrigin.get(origin) ?? new Set<string>();
+        const dayList = Array.from(scopeDays).filter((d) => d >= from && d <= to);
         if (!dayList.length) return null;
-        const origins: OriginValue[] = origin === "all" ? ["yampa", "4blue"] : [origin];
         let total = 0;
-        for (const o of origins) {
-          for (const d of dayList) total += map.get(`${o}|${slug}|${d}`) || 0;
-        }
+        for (const d of dayList) total += map.get(`${origin}|${slug}|${d}`) || 0;
         return total;
       };
 
@@ -156,9 +157,11 @@ export function useOriginFlows(fromKey: string | null, toKey: string, refreshKey
       loading,
       priceOrigin,
       days,
+      daysByOrigin,
       availableSlugs,
       sumMrr: sumFrom(dailyMrr),
       sumQtd: sumFrom(dailyQtd),
+
       originOfPrice: (priceId?: string | null) => {
         const id = String(priceId || "").trim();
         if (!id) return null;
