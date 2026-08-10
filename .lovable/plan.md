@@ -37,6 +37,8 @@ Em `useTacticalData.ts`, tratar a base diária como fonte de realizado para **to
    - recorte `all` → série `all|...`, já consolidada no hook (não soma yampa + 4blue, para não duplicar o dia 07/08).
 3. Evitar dupla contagem com o Stripe: `upsell_dia`/`recuperados_ft` e seus MRR virtuais passam a vir exclusivamente da base diária; vendas novas (`mrr_dia`, `vendas_dia`) continuam do Stripe no recorte yampa, e da base diária apenas para 4blue, como hoje.
 4. Se houver lançamento manual para uma métrica/dia já coberto pela base diária, a base diária prevalece (o manual serve de backup para dias sem captura) — com nota na tela indicando a fonte.
+5. **Classificação manda, origem não.** Nenhuma linha entra em Upsell por ser 4blue: só entra o que o Metabase marcou com `classificacao = upsell`. A origem (`yampa` / `4Blue`) apenas decide em qual recorte a linha aparece. Linhas 4blue de `novos_pagantes`, `recuperados` ou `downsell` continuam indo para as métricas correspondentes — nunca para upsell.
+
 
 ## Detalhes técnicos
 
