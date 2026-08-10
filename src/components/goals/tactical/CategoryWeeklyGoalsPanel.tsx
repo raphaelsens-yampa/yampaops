@@ -250,13 +250,21 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           realizedTotal,
           originUnavailable,
           source:
-            origin !== "all"
-              ? `origem ${ORIGIN_LABELS[origin]}`
-              : isAggregate
-                ? "soma das componentes"
-                : tacticalMetricId
-                  ? "tático"
-                  : "snapshot",
+            (isAggregate
+              ? componentIds.some((id) => {
+                  const leaf = catById.get(id);
+                  return leaf ? ORIGIN_FLOW_SLUGS.has(leaf.slug) : false;
+                })
+              : ORIGIN_FLOW_SLUGS.has(cat.slug))
+              ? `base diária · origem ${ORIGIN_LABELS[origin]}`
+              : origin !== "all"
+                ? `origem ${ORIGIN_LABELS[origin]}`
+                : isAggregate
+                  ? "soma das componentes"
+                  : tacticalMetricId
+                    ? "tático"
+                    : "snapshot",
+
         };
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
