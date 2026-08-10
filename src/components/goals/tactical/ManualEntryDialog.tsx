@@ -113,9 +113,9 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
             <Label>{hasMrrField ? "Quantidade de clientes" : "Valor"}</Label>
             <Input type="number" step={hasMrrField ? "1" : "0.01"} value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
-          {isRecuperados && (
+          {hasMrrField && (
             <div>
-              <Label>{kind === "retained" ? "MRR retido" : "MRR recuperado"}</Label>
+              <Label>{isRecuperados ? (kind === "retained" ? "MRR retido" : "MRR recuperado") : "MRR gerado"}</Label>
               <Input type="number" step="0.01" value={mrrValue} onChange={(e) => setMrrValue(e.target.value)} />
             </div>
           )}
