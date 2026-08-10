@@ -33,6 +33,10 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRetidos = selectedMetric?.key === "clientes_retidos";
   const isRecuperados = selectedMetric?.key === "clientes_recuperados" || isRetidos;
+  const hasMrrField =
+    isRecuperados ||
+    selectedMetric?.key === "upsell_dia" ||
+    selectedMetric?.key === "recuperados_ft";
   const kind: "recovered" | "retained" = isRetidos ? "retained" : entryKind;
 
   const teamProfiles = profiles.filter((p) => !memberIds.length || memberIds.includes(p.user_id));
@@ -44,7 +48,7 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
       user_id: ownerId || user.id,
       entry_date: date,
       value: parseFloat(value),
-      mrr_value: isRecuperados && mrrValue ? parseFloat(mrrValue) : 0,
+      mrr_value: hasMrrField && mrrValue ? parseFloat(mrrValue) : 0,
       entry_kind: isRecuperados ? kind : "recovered",
       note: note || null,
     });
@@ -106,12 +110,12 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
             </div>
           )}
           <div>
-            <Label>{isRecuperados ? "Quantidade de clientes" : "Valor"}</Label>
-            <Input type="number" step={isRecuperados ? "1" : "0.01"} value={value} onChange={(e) => setValue(e.target.value)} />
+            <Label>{hasMrrField ? "Quantidade de clientes" : "Valor"}</Label>
+            <Input type="number" step={hasMrrField ? "1" : "0.01"} value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
-          {isRecuperados && (
+          {hasMrrField && (
             <div>
-              <Label>{kind === "retained" ? "MRR retido" : "MRR recuperado"}</Label>
+              <Label>{isRecuperados ? (kind === "retained" ? "MRR retido" : "MRR recuperado") : "MRR gerado"}</Label>
               <Input type="number" step="0.01" value={mrrValue} onChange={(e) => setMrrValue(e.target.value)} />
             </div>
           )}

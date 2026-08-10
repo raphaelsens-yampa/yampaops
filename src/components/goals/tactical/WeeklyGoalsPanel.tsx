@@ -18,7 +18,13 @@ import {
   weeksOfMonth,
 } from "./types";
 import type { LowTouchSale } from "./useLowTouchData";
-import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
+import {
+  VIRTUAL_MRR_SALES,
+  VIRTUAL_MRR_RECOVERY,
+  VIRTUAL_MRR_RETENTION,
+  VIRTUAL_MRR_UPSELL,
+  VIRTUAL_MRR_RECOVERED_FT,
+} from "./useTacticalData";
 import { useCategoryWeeklyData } from "./useCategoryWeeklyData";
 
 interface Props {
@@ -119,10 +125,15 @@ export function WeeklyGoalsPanel({
         return VIRTUAL_MRR_RECOVERY;
       case "clientes_retidos":
         return VIRTUAL_MRR_RETENTION;
+      case "upsell_dia":
+        return VIRTUAL_MRR_UPSELL;
+      case "recuperados_ft":
+        return VIRTUAL_MRR_RECOVERED_FT;
       default:
         return mrrMetric?.id;
     }
   }, [isLowTouch, isAll, metric, mrrMetric]);
+
 
   /** Meta R$ só existe onde há meta cadastrada (métrica real de MRR). */
   const finGoalMetricId = useMemo(
@@ -144,6 +155,10 @@ export function WeeklyGoalsPanel({
         return "recuperados";
       case "clientes_retidos":
         return "retencao";
+      case "upsell_dia":
+        return "upsell";
+      case "recuperados_ft":
+        return "recuperados";
       default:
         return undefined;
     }

@@ -9,6 +9,9 @@ export interface TeamMember { team_id: string; user_id: string; }
 export const VIRTUAL_MRR_SALES = "virtual_mrr_vendas";
 export const VIRTUAL_MRR_RECOVERY = "virtual_mrr_recuperados";
 export const VIRTUAL_MRR_RETENTION = "virtual_mrr_retidos";
+export const VIRTUAL_MRR_UPSELL = "virtual_mrr_upsell";
+export const VIRTUAL_MRR_RECOVERED_FT = "virtual_mrr_recuperados_ft";
+
 
 
 export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
@@ -98,6 +101,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
           .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
           .map((m) => m.id)
       );
+      const metricKeyById = new Map(metricsData.map((m) => [m.id, m.key]));
       for (const m of manualRes.data || []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
@@ -110,14 +114,19 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         if (Number((m as any).mrr_value || 0) > 0) {
           const v = Number((m as any).mrr_value || 0);
           if (mrrMetricId) bump((m as any).user_id, mrrMetricId, (m as any).entry_date, v);
-          bump(
-            (m as any).user_id,
-            retained ? VIRTUAL_MRR_RETENTION : VIRTUAL_MRR_RECOVERY,
-            (m as any).entry_date,
-            v,
-          );
+          const key = metricKeyById.get(metricId);
+          const virtualId =
+            key === "upsell_dia"
+              ? VIRTUAL_MRR_UPSELL
+              : key === "recuperados_ft"
+                ? VIRTUAL_MRR_RECOVERED_FT
+                : retained
+                  ? VIRTUAL_MRR_RETENTION
+                  : VIRTUAL_MRR_RECOVERY;
+          bump((m as any).user_id, virtualId, (m as any).entry_date, v);
         }
       }
+
 
       // Recuperados/retidos lançados ou importados na tabela de recuperações também contam
       for (const r of recovRes.data || []) {
