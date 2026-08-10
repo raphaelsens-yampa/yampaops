@@ -23,6 +23,7 @@ import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
+import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
 
 
 import { LowTouchView } from "./LowTouchView";
@@ -206,7 +207,9 @@ export function TacticalTracking() {
             <>
               <LowTouchView sales={lowTouch.sales} today={today} />
               <WeeklyGoalsPanel today={today} lowTouchSales={lowTouch.sales} />
+              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} />
               <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
+
 
             </>
           )}
@@ -274,6 +277,10 @@ export function TacticalTracking() {
         teamId={isOverview ? null : teamId || null}
         today={today}
       />
+
+      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} />
+
+
 
       <TacticalProgressChart
 
