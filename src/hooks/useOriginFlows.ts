@@ -18,6 +18,9 @@ export interface OriginFlows {
   priceOrigin: Map<string, OriginValue>;
   /** dias (YYYY-MM-DD) em que a base diária trouxe quebra por origem */
   days: Set<string>;
+  /** dias disponíveis por recorte */
+  daysByOrigin: Map<OriginScope, Set<string>>;
+
   /** MRR do dia por origem/categoria no intervalo (null = sem quebra no período) */
   sumMrr: (origin: OriginScope, slug: string, fromKey: string, toKey: string) => number | null;
   /** Quantidade do dia por origem/categoria no intervalo */
@@ -31,6 +34,8 @@ export interface OriginFlows {
 export interface OriginDailyMaps {
   priceOrigin: Map<string, OriginValue>;
   days: Set<string>;
+  /** dias disponíveis por recorte ("all" inclui dias sem quebra de origem) */
+  daysByOrigin: Map<OriginScope, Set<string>>;
   availableSlugs: Set<string>;
   /** `${origin}|${slug}|${date}` → MRR do dia */
   dailyMrr: Map<string, number>;
@@ -41,10 +46,20 @@ export interface OriginDailyMaps {
 /**
  * Converte as linhas MTD de `metas_price_daily` em valores DIÁRIOS por
  * origem e categoria (o valor do dia é o delta do acumulado dentro do mês).
+ *
+ * Importante: o recorte "all" (Geral) é acumulado como uma série própria que
+ * inclui também as linhas SEM `origem_cliente` (dias anteriores ao início da
+ * quebra por origem). Somar yampa + 4blue duplicaria o valor no dia em que a
+ * quebra começa, porque nesse dia o MTD por origem já traz o mês inteiro.
  */
 export function computeOriginDaily(rows: any[]): OriginDailyMaps {
   const priceOrigin = new Map<string, OriginValue>();
   const days = new Set<string>();
+  const daysByOrigin = new Map<OriginScope, Set<string>>([
+    ["all", new Set<string>()],
+    ["yampa", new Set<string>()],
+    ["4blue", new Set<string>()],
+  ]);
   const availableSlugs = new Set<string>();
   const mtdMrr = new Map<string, number>();
   const mtdQtd = new Map<string, number>();
@@ -52,22 +67,26 @@ export function computeOriginDaily(rows: any[]): OriginDailyMaps {
 
   for (const r of rows || []) {
     const origin = normalizeOrigin(r.origem_cliente);
-    if (!origin) continue;
     const slug = CLASSIF_TO_CATEGORY_SLUG[normalizeClassif(r.classificacao)];
     if (!slug) continue;
     const date = String(r.data);
     days.add(date);
     availableSlugs.add(slug);
     const priceId = String(r.stripe_price_id || "").trim();
-    if (priceId && priceId !== "\u2014" && priceId !== "-") priceOrigin.set(priceId, origin);
+    if (origin && priceId && priceId !== "\u2014" && priceId !== "-") priceOrigin.set(priceId, origin);
 
-    const series = `${origin}|${slug}`;
-    const key = `${series}|${date}`;
-    mtdMrr.set(key, (mtdMrr.get(key) || 0) + Number(r.mrr_mtd || 0));
-    mtdQtd.set(key, (mtdQtd.get(key) || 0) + Number(r.qtd_mtd || 0));
-    const set = datesBySeries.get(series) || new Set<string>();
-    set.add(date);
-    datesBySeries.set(series, set);
+    // "all" sempre acumula (com ou sem origem); as séries por origem só quando há origem
+    const scopes: OriginScope[] = origin ? ["all", origin] : ["all"];
+    for (const scope of scopes) {
+      daysByOrigin.get(scope)!.add(date);
+      const series = `${scope}|${slug}`;
+      const key = `${series}|${date}`;
+      mtdMrr.set(key, (mtdMrr.get(key) || 0) + Number(r.mrr_mtd || 0));
+      mtdQtd.set(key, (mtdQtd.get(key) || 0) + Number(r.qtd_mtd || 0));
+      const set = datesBySeries.get(series) || new Set<string>();
+      set.add(date);
+      datesBySeries.set(series, set);
+    }
   }
 
   const dailyMrr = new Map<string, number>();
@@ -84,8 +103,9 @@ export function computeOriginDaily(rows: any[]): OriginDailyMaps {
     });
   });
 
-  return { priceOrigin, days, availableSlugs, dailyMrr, dailyQtd };
+  return { priceOrigin, days, daysByOrigin, availableSlugs, dailyMrr, dailyQtd };
 }
+
 
 /**
  * Deriva o realizado diário por ORIGEM a partir de `metas_price_daily`.
@@ -121,17 +141,18 @@ export function useOriginFlows(fromKey: string | null, toKey: string, refreshKey
   }, [fromKey, toKey, refreshKey]);
 
   return useMemo(() => {
-    const { priceOrigin, days, availableSlugs, dailyMrr, dailyQtd } = computeOriginDaily(rows);
+    const { priceOrigin, days, daysByOrigin, availableSlugs, dailyMrr, dailyQtd } =
+      computeOriginDaily(rows);
 
     const sumFrom = (map: Map<string, number>) =>
       (origin: OriginScope, slug: string, from: string, to: string) => {
-        const dayList = Array.from(days).filter((d) => d >= from && d <= to);
+        // cada recorte tem sua própria cobertura de dias ("all" cobre também
+        // os dias anteriores ao início da quebra por origem)
+        const scopeDays = daysByOrigin.get(origin) ?? new Set<string>();
+        const dayList = Array.from(scopeDays).filter((d) => d >= from && d <= to);
         if (!dayList.length) return null;
-        const origins: OriginValue[] = origin === "all" ? ["yampa", "4blue"] : [origin];
         let total = 0;
-        for (const o of origins) {
-          for (const d of dayList) total += map.get(`${o}|${slug}|${d}`) || 0;
-        }
+        for (const d of dayList) total += map.get(`${origin}|${slug}|${d}`) || 0;
         return total;
       };
 
@@ -139,9 +160,11 @@ export function useOriginFlows(fromKey: string | null, toKey: string, refreshKey
       loading,
       priceOrigin,
       days,
+      daysByOrigin,
       availableSlugs,
       sumMrr: sumFrom(dailyMrr),
       sumQtd: sumFrom(dailyQtd),
+
       originOfPrice: (priceId?: string | null) => {
         const id = String(priceId || "").trim();
         if (!id) return null;

@@ -70,11 +70,15 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
 export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
   const { categories, targets, series, loading } = useCategoryWeeklyData(today, refreshKey);
   const monthStartKeyForOrigin = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+  // A base diária por price_id é a fonte mais fresca para as categorias de
+  // fluxo — usamos em TODOS os recortes (inclusive Geral) para que
+  // Geral = yampa + 4blue e não conflite com o snapshot mensal defasado.
   const flows = useOriginFlows(
-    origin === "all" ? null : monthStartKeyForOrigin,
+    monthStartKeyForOrigin,
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-31`,
     refreshKey,
   );
+
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
@@ -141,10 +145,14 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           isCurrent: boolean,
           cutKey: string,
         ): number | null => {
-          if (origin !== "all") {
-            // Com recorte por origem o realizado vem da base diária por price_id
-            if (!ORIGIN_FLOW_SLUGS.has(leaf.slug)) return null;
-            return flows.sumMrr(origin, leaf.slug, toBRDateKey(w.start), cutKey);
+          // Categorias de fluxo: sempre a base diária por price_id (mesma
+          // fonte em Geral / yampa / 4blue, para os números serem coerentes)
+          if (ORIGIN_FLOW_SLUGS.has(leaf.slug)) {
+            const v = flows.sumMrr(origin, leaf.slug, toBRDateKey(w.start), cutKey);
+            if (v !== null) return v;
+            if (origin !== "all") return null;
+          } else if (origin !== "all") {
+            return null;
           }
           const leafMetricId = CATEGORY_TACTICAL_METRIC[leaf.slug];
           if (leafMetricId) {
@@ -174,11 +182,9 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
 
           let realized: number | null = null;
           if (!isFuture) {
-            if (origin !== "all" && !isAggregate) {
-              realized = ORIGIN_FLOW_SLUGS.has(cat.slug)
-                ? flows.sumMrr(origin, cat.slug, startKey, cutKey)
-                : null;
-            } else if (isAggregate) {
+            if (!isAggregate) {
+              realized = leafRealized(cat, w, isCurrent, cutKey);
+            } else {
               // Agregadoras (MRR Increase / MRR Decrease) somam as componentes.
               let sum = 0;
               let any = false;
@@ -191,22 +197,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                 sum += Math.abs(v);
               }
               realized = any ? sum : null;
-            } else if (tacticalMetricId) {
-              const end = new Date(w.end);
-              if (isCurrent) end.setTime(today.getTime());
-              realized = realizedBetween(daily, tacticalMetricId, [], w.start, end);
-            } else if (isStock) {
-              realized = valueAsOf(points, cutKey, monthStartKey);
-            } else {
-              const cur = valueAsOf(points, cutKey, monthStartKey);
-              if (cur !== null) {
-                const prevKey = toBRDateKey(
-                  new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
-                );
-                const base = valueAsOf(points, prevKey, monthStartKey) ?? 0;
-                realized = cur - base;
-              }
             }
+
           }
 
           const target = monthTarget && businessDaysInMonth
@@ -258,13 +250,21 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           realizedTotal,
           originUnavailable,
           source:
-            origin !== "all"
-              ? `origem ${ORIGIN_LABELS[origin]}`
-              : isAggregate
-                ? "soma das componentes"
-                : tacticalMetricId
-                  ? "tático"
-                  : "snapshot",
+            (isAggregate
+              ? componentIds.some((id) => {
+                  const leaf = catById.get(id);
+                  return leaf ? ORIGIN_FLOW_SLUGS.has(leaf.slug) : false;
+                })
+              : ORIGIN_FLOW_SLUGS.has(cat.slug))
+              ? `base diária · origem ${ORIGIN_LABELS[origin]}`
+              : origin !== "all"
+                ? `origem ${ORIGIN_LABELS[origin]}`
+                : isAggregate
+                  ? "soma das componentes"
+                  : tacticalMetricId
+                    ? "tático"
+                    : "snapshot",
+
         };
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
