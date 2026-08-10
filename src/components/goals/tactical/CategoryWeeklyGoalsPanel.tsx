@@ -172,7 +172,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
 
         return { cat, monthTarget, isStock, rows, realizedTotal, source: tacticalMetricId ? "tático" : "snapshot" };
       });
-  }, [effectiveIds, available, targets, series, weeks, todayKey, daily, businessDaysInMonth, isFinite, monthStartKey, today]);
+  }, [effectiveIds, available, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
 
   const pctOf = (target: number | null, realized: number | null, cat: GoalCategory) => {
     if (!target || target <= 0 || realized === null) return null;
