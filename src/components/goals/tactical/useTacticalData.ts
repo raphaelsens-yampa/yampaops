@@ -94,9 +94,41 @@ export function useTacticalData(
       const metricsData = (metricsRes.data as unknown as TacticalMetric[]) || [];
       setMetrics(metricsData);
       setGoals((goalsRes.data as unknown as TacticalGoal[]) || []);
-      setProfiles((profilesRes.data as Profile[]) || []);
-      setTeams((teamsRes.data as Team[]) || []);
-      setMembers((membersRes.data as TeamMember[]) || []);
+      const teamsData = (teamsRes.data as Team[]) || [];
+      const salesTeamId = teamsData.find((t) => /sales|vendas/i.test(t.name))?.id ?? null;
+      const csTeamId = teamsData.find((t) => /^cs$|customer/i.test(t.name))?.id ?? null;
+
+      // Vendedores virtuais da base diária: perfis/vínculos sintéticos (não existem no banco)
+      const virtualSales = origin === "4blue" ? FOURBLUE_USER_ID : BASE_SALES_USER_ID;
+      const virtualCs = origin === "4blue" ? FOURBLUE_CS_USER_ID : BASE_CS_USER_ID;
+      const virtualProfiles: Profile[] = [
+        { user_id: FOURBLUE_USER_ID, full_name: "4blue (base diária)" } as Profile,
+        { user_id: FOURBLUE_CS_USER_ID, full_name: "4blue CS (base diária)" } as Profile,
+        { user_id: BASE_SALES_USER_ID, full_name: "Base diária (Sales)" } as Profile,
+        { user_id: BASE_CS_USER_ID, full_name: "Base diária (CS)" } as Profile,
+      ];
+      const virtualMembers: TeamMember[] = [];
+      if (salesTeamId) {
+        virtualMembers.push({ team_id: salesTeamId, user_id: FOURBLUE_USER_ID });
+        virtualMembers.push({ team_id: salesTeamId, user_id: BASE_SALES_USER_ID });
+      }
+      if (csTeamId) {
+        virtualMembers.push({ team_id: csTeamId, user_id: FOURBLUE_CS_USER_ID });
+        virtualMembers.push({ team_id: csTeamId, user_id: BASE_CS_USER_ID });
+      }
+      const dbProfiles = (profilesRes.data as Profile[]) || [];
+      setProfiles([
+        ...dbProfiles,
+        ...virtualProfiles.filter((v) => !dbProfiles.some((p) => p.user_id === v.user_id)),
+      ]);
+      setTeams(teamsData);
+      const dbMembers = (membersRes.data as TeamMember[]) || [];
+      setMembers([
+        ...dbMembers,
+        ...virtualMembers.filter(
+          (v) => !dbMembers.some((m) => m.team_id === v.team_id && m.user_id === v.user_id),
+        ),
+      ]);
 
       const activityMetrics = metricsData.filter((m) => m.source === "activity_type");
       const mrrMetric = metricsData.find((m) => m.source === "stripe_mrr");
