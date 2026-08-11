@@ -8,8 +8,7 @@ import { computeOriginDaily } from "@/hooks/useOriginFlows";
 /** Vendedores virtuais usados para alocar o realizado que vem da base diária do Metabase */
 export const FOURBLUE_USER_ID = "4b100000-0000-4000-8000-000000004b1e";
 export const FOURBLUE_CS_USER_ID = "4b100000-0000-4000-8000-00000000c500";
-export const BASE_SALES_USER_ID = "ba5e0000-0000-4000-8000-0000005a1e50";
-export const BASE_CS_USER_ID = "ba5e0000-0000-4000-8000-00000000c500";
+
 
 export interface TeamMember { team_id: string; user_id: string; }
 
@@ -99,22 +98,18 @@ export function useTacticalData(
       const csTeamId = teamsData.find((t) => /^cs$|customer/i.test(t.name))?.id ?? null;
 
       // Vendedores virtuais da base diária: perfis/vínculos sintéticos (não existem no banco)
-      const virtualSales = origin === "4blue" ? FOURBLUE_USER_ID : BASE_SALES_USER_ID;
-      const virtualCs = origin === "4blue" ? FOURBLUE_CS_USER_ID : BASE_CS_USER_ID;
+      const virtualSales = FOURBLUE_USER_ID;
+      const virtualCs = FOURBLUE_CS_USER_ID;
       const virtualProfiles: Profile[] = [
         { user_id: FOURBLUE_USER_ID, full_name: "4blue (base diária)" } as Profile,
         { user_id: FOURBLUE_CS_USER_ID, full_name: "4blue CS (base diária)" } as Profile,
-        { user_id: BASE_SALES_USER_ID, full_name: "Base diária (Sales)" } as Profile,
-        { user_id: BASE_CS_USER_ID, full_name: "Base diária (CS)" } as Profile,
       ];
       const virtualMembers: TeamMember[] = [];
       if (salesTeamId) {
         virtualMembers.push({ team_id: salesTeamId, user_id: FOURBLUE_USER_ID });
-        virtualMembers.push({ team_id: salesTeamId, user_id: BASE_SALES_USER_ID });
       }
       if (csTeamId) {
         virtualMembers.push({ team_id: csTeamId, user_id: FOURBLUE_CS_USER_ID });
-        virtualMembers.push({ team_id: csTeamId, user_id: BASE_CS_USER_ID });
       }
       const dbProfiles = (profilesRes.data as Profile[]) || [];
       setProfiles([
@@ -249,30 +244,29 @@ export function useTacticalData(
         const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
         const recoveredFtMetric = metricsData.find((m) => m.key === "recuperados_ft");
         Array.from(days).sort().forEach((date) => {
-          // séries por recorte: fluxos seguem o recorte ativo; vendas novas só 4blue
-          const qtd = (scope: string, slug: string) => dailyQtd.get(`${scope}|${slug}|${date}`) || 0;
-          const mrr = (scope: string, slug: string) => dailyMrr.get(`${scope}|${slug}|${date}`) || 0;
+          // Só o pedaço 4blue da base diária entra aqui (yampa vem do Stripe/manual)
+          if (origin === "yampa") return;
+          const qtd = (slug: string) => dailyQtd.get(`4blue|${slug}|${date}`) || 0;
+          const mrr = (slug: string) => dailyMrr.get(`4blue|${slug}|${date}`) || 0;
 
-          if (origin !== "yampa") {
-            const newMrr = mrr("4blue", "new_mrr");
-            if (newMrr) {
-              if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
-              bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
-            }
-            const newQtd = qtd("4blue", "new_mrr");
-            if (newQtd && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, newQtd);
+          const newMrr = mrr("new_mrr");
+          if (newMrr) {
+            if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
+            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
           }
+          const newQtd = qtd("new_mrr");
+          if (newQtd && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, newQtd);
 
-          // Recuperados FT (classificacao = recuperados) no recorte ativo
-          const recMrr = mrr(origin, "recuperados");
+          // Recuperados FT (classificacao = recuperados)
+          const recMrr = mrr("recuperados");
           if (recMrr) bump(virtualCs, VIRTUAL_MRR_RECOVERED_FT, date, recMrr);
-          const recQtd = qtd(origin, "recuperados");
+          const recQtd = qtd("recuperados");
           if (recQtd && recoveredFtMetric) bump(virtualCs, recoveredFtMetric.id, date, recQtd);
 
-          // Upsell (classificacao = upsell) no recorte ativo
-          const upMrr = mrr(origin, "upsell");
+          // Upsell (classificacao = upsell)
+          const upMrr = mrr("upsell");
           if (upMrr) bump(virtualSales, VIRTUAL_MRR_UPSELL, date, upMrr);
-          const upQtd = qtd(origin, "upsell");
+          const upQtd = qtd("upsell");
           if (upQtd && upsellMetric) bump(virtualSales, upsellMetric.id, date, upQtd);
         });
       }
