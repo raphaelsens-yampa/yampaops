@@ -98,22 +98,18 @@ export function useTacticalData(
       const csTeamId = teamsData.find((t) => /^cs$|customer/i.test(t.name))?.id ?? null;
 
       // Vendedores virtuais da base diária: perfis/vínculos sintéticos (não existem no banco)
-      const virtualSales = origin === "4blue" ? FOURBLUE_USER_ID : BASE_SALES_USER_ID;
-      const virtualCs = origin === "4blue" ? FOURBLUE_CS_USER_ID : BASE_CS_USER_ID;
+      const virtualSales = FOURBLUE_USER_ID;
+      const virtualCs = FOURBLUE_CS_USER_ID;
       const virtualProfiles: Profile[] = [
         { user_id: FOURBLUE_USER_ID, full_name: "4blue (base diária)" } as Profile,
         { user_id: FOURBLUE_CS_USER_ID, full_name: "4blue CS (base diária)" } as Profile,
-        { user_id: BASE_SALES_USER_ID, full_name: "Base diária (Sales)" } as Profile,
-        { user_id: BASE_CS_USER_ID, full_name: "Base diária (CS)" } as Profile,
       ];
       const virtualMembers: TeamMember[] = [];
       if (salesTeamId) {
         virtualMembers.push({ team_id: salesTeamId, user_id: FOURBLUE_USER_ID });
-        virtualMembers.push({ team_id: salesTeamId, user_id: BASE_SALES_USER_ID });
       }
       if (csTeamId) {
         virtualMembers.push({ team_id: csTeamId, user_id: FOURBLUE_CS_USER_ID });
-        virtualMembers.push({ team_id: csTeamId, user_id: BASE_CS_USER_ID });
       }
       const dbProfiles = (profilesRes.data as Profile[]) || [];
       setProfiles([
