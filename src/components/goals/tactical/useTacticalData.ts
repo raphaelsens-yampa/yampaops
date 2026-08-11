@@ -5,8 +5,11 @@ import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } 
 import { normalizeOrigin, type OriginScope, type OriginValue } from "@/lib/originScope";
 import { computeOriginDaily } from "@/hooks/useOriginFlows";
 
-/** Vendedor virtual usado para alocar os dados de origem 4blue */
+/** Vendedores virtuais usados para alocar o realizado que vem da base diária do Metabase */
 export const FOURBLUE_USER_ID = "4b100000-0000-4000-8000-000000004b1e";
+export const FOURBLUE_CS_USER_ID = "4b100000-0000-4000-8000-00000000c500";
+export const BASE_SALES_USER_ID = "ba5e0000-0000-4000-8000-0000005a1e50";
+export const BASE_CS_USER_ID = "ba5e0000-0000-4000-8000-00000000c500";
 
 export interface TeamMember { team_id: string; user_id: string; }
 
