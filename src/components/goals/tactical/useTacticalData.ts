@@ -5,8 +5,11 @@ import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } 
 import { normalizeOrigin, type OriginScope, type OriginValue } from "@/lib/originScope";
 import { computeOriginDaily } from "@/hooks/useOriginFlows";
 
-/** Vendedor virtual usado para alocar os dados de origem 4blue */
+/** Vendedores virtuais usados para alocar o realizado que vem da base diária do Metabase */
 export const FOURBLUE_USER_ID = "4b100000-0000-4000-8000-000000004b1e";
+export const FOURBLUE_CS_USER_ID = "4b100000-0000-4000-8000-00000000c500";
+export const BASE_SALES_USER_ID = "ba5e0000-0000-4000-8000-0000005a1e50";
+export const BASE_CS_USER_ID = "ba5e0000-0000-4000-8000-00000000c500";
 
 export interface TeamMember { team_id: string; user_id: string; }
 
@@ -91,9 +94,41 @@ export function useTacticalData(
       const metricsData = (metricsRes.data as unknown as TacticalMetric[]) || [];
       setMetrics(metricsData);
       setGoals((goalsRes.data as unknown as TacticalGoal[]) || []);
-      setProfiles((profilesRes.data as Profile[]) || []);
-      setTeams((teamsRes.data as Team[]) || []);
-      setMembers((membersRes.data as TeamMember[]) || []);
+      const teamsData = (teamsRes.data as Team[]) || [];
+      const salesTeamId = teamsData.find((t) => /sales|vendas/i.test(t.name))?.id ?? null;
+      const csTeamId = teamsData.find((t) => /^cs$|customer/i.test(t.name))?.id ?? null;
+
+      // Vendedores virtuais da base diária: perfis/vínculos sintéticos (não existem no banco)
+      const virtualSales = origin === "4blue" ? FOURBLUE_USER_ID : BASE_SALES_USER_ID;
+      const virtualCs = origin === "4blue" ? FOURBLUE_CS_USER_ID : BASE_CS_USER_ID;
+      const virtualProfiles: Profile[] = [
+        { user_id: FOURBLUE_USER_ID, full_name: "4blue (base diária)" } as Profile,
+        { user_id: FOURBLUE_CS_USER_ID, full_name: "4blue CS (base diária)" } as Profile,
+        { user_id: BASE_SALES_USER_ID, full_name: "Base diária (Sales)" } as Profile,
+        { user_id: BASE_CS_USER_ID, full_name: "Base diária (CS)" } as Profile,
+      ];
+      const virtualMembers: TeamMember[] = [];
+      if (salesTeamId) {
+        virtualMembers.push({ team_id: salesTeamId, user_id: FOURBLUE_USER_ID });
+        virtualMembers.push({ team_id: salesTeamId, user_id: BASE_SALES_USER_ID });
+      }
+      if (csTeamId) {
+        virtualMembers.push({ team_id: csTeamId, user_id: FOURBLUE_CS_USER_ID });
+        virtualMembers.push({ team_id: csTeamId, user_id: BASE_CS_USER_ID });
+      }
+      const dbProfiles = (profilesRes.data as Profile[]) || [];
+      setProfiles([
+        ...dbProfiles,
+        ...virtualProfiles.filter((v) => !dbProfiles.some((p) => p.user_id === v.user_id)),
+      ]);
+      setTeams(teamsData);
+      const dbMembers = (membersRes.data as TeamMember[]) || [];
+      setMembers([
+        ...dbMembers,
+        ...virtualMembers.filter(
+          (v) => !dbMembers.some((m) => m.team_id === v.team_id && m.user_id === v.user_id),
+        ),
+      ]);
 
       const activityMetrics = metricsData.filter((m) => m.source === "activity_type");
       const mrrMetric = metricsData.find((m) => m.source === "stripe_mrr");
@@ -193,11 +228,17 @@ export function useTacticalData(
 
 
       /**
-       * Vendas de origem 4blue não passam pelo Stripe: entram pela base diária
-       * do Metabase (`metas_price_daily`). No recorte "yampa" elas ficam de
-       * fora; em "Geral" e "4blue" somam no vendedor virtual 4blue.
+       * Base diária do Metabase (`metas_price_daily`) como fonte do realizado.
+       *
+       * Regra fundamental: a CLASSIFICAÇÃO define a métrica, a ORIGEM define
+       * apenas em qual recorte a linha aparece. Nada entra em Upsell por ser
+       * 4blue — só entra o que vem marcado como `classificacao = upsell`.
+       *
+       * - Upsell e Recuperados FT vêm sempre daqui (não há Stripe/manual para eles).
+       * - Vendas novas de yampa continuam vindo do Stripe; da base diária só
+       *   entram as vendas novas de origem 4blue (que não passam pelo Stripe).
        */
-      if (origin !== "yampa") {
+      {
         const { data: pdRows } = await supabase
           .from("metas_price_daily")
           .select("data, stripe_price_id, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
@@ -207,29 +248,32 @@ export function useTacticalData(
         const { days, dailyMrr, dailyQtd } = computeOriginDaily((pdRows as any[]) || []);
         const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
         const recoveredFtMetric = metricsData.find((m) => m.key === "recuperados_ft");
-        const recoveryMetric = metricsData.find((m) => m.key === "clientes_recuperados") || reactMetric;
         Array.from(days).sort().forEach((date) => {
-          const qtd = (slug: string) => dailyQtd.get(`4blue|${slug}|${date}`) || 0;
-          const mrr = (slug: string) => dailyMrr.get(`4blue|${slug}|${date}`) || 0;
-          const newMrr = mrr("new_mrr");
-          if (newMrr) {
-            if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
-            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
+          // séries por recorte: fluxos seguem o recorte ativo; vendas novas só 4blue
+          const qtd = (scope: string, slug: string) => dailyQtd.get(`${scope}|${slug}|${date}`) || 0;
+          const mrr = (scope: string, slug: string) => dailyMrr.get(`${scope}|${slug}|${date}`) || 0;
+
+          if (origin !== "yampa") {
+            const newMrr = mrr("4blue", "new_mrr");
+            if (newMrr) {
+              if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
+              bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
+            }
+            const newQtd = qtd("4blue", "new_mrr");
+            if (newQtd && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, newQtd);
           }
-          if (qtd("new_mrr") && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, qtd("new_mrr"));
-          const recMrr = mrr("recuperados");
-          if (recMrr) {
-            if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, recMrr);
-            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_RECOVERY, date, recMrr);
-            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_RECOVERED_FT, date, recMrr);
-          }
-          if (qtd("recuperados")) {
-            if (recoveryMetric) bump(FOURBLUE_USER_ID, recoveryMetric.id, date, qtd("recuperados"));
-            if (recoveredFtMetric) bump(FOURBLUE_USER_ID, recoveredFtMetric.id, date, qtd("recuperados"));
-          }
-          const upMrr = mrr("upsell");
-          if (upMrr) bump(FOURBLUE_USER_ID, VIRTUAL_MRR_UPSELL, date, upMrr);
-          if (qtd("upsell") && upsellMetric) bump(FOURBLUE_USER_ID, upsellMetric.id, date, qtd("upsell"));
+
+          // Recuperados FT (classificacao = recuperados) no recorte ativo
+          const recMrr = mrr(origin, "recuperados");
+          if (recMrr) bump(virtualCs, VIRTUAL_MRR_RECOVERED_FT, date, recMrr);
+          const recQtd = qtd(origin, "recuperados");
+          if (recQtd && recoveredFtMetric) bump(virtualCs, recoveredFtMetric.id, date, recQtd);
+
+          // Upsell (classificacao = upsell) no recorte ativo
+          const upMrr = mrr(origin, "upsell");
+          if (upMrr) bump(virtualSales, VIRTUAL_MRR_UPSELL, date, upMrr);
+          const upQtd = qtd(origin, "upsell");
+          if (upQtd && upsellMetric) bump(virtualSales, upsellMetric.id, date, upQtd);
         });
       }
 
