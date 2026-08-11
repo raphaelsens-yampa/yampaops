@@ -244,30 +244,29 @@ export function useTacticalData(
         const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
         const recoveredFtMetric = metricsData.find((m) => m.key === "recuperados_ft");
         Array.from(days).sort().forEach((date) => {
-          // séries por recorte: fluxos seguem o recorte ativo; vendas novas só 4blue
-          const qtd = (scope: string, slug: string) => dailyQtd.get(`${scope}|${slug}|${date}`) || 0;
-          const mrr = (scope: string, slug: string) => dailyMrr.get(`${scope}|${slug}|${date}`) || 0;
+          // Só o pedaço 4blue da base diária entra aqui (yampa vem do Stripe/manual)
+          if (origin === "yampa") return;
+          const qtd = (slug: string) => dailyQtd.get(`4blue|${slug}|${date}`) || 0;
+          const mrr = (slug: string) => dailyMrr.get(`4blue|${slug}|${date}`) || 0;
 
-          if (origin !== "yampa") {
-            const newMrr = mrr("4blue", "new_mrr");
-            if (newMrr) {
-              if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
-              bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
-            }
-            const newQtd = qtd("4blue", "new_mrr");
-            if (newQtd && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, newQtd);
+          const newMrr = mrr("new_mrr");
+          if (newMrr) {
+            if (mrrMetric) bump(FOURBLUE_USER_ID, mrrMetric.id, date, newMrr);
+            bump(FOURBLUE_USER_ID, VIRTUAL_MRR_SALES, date, newMrr);
           }
+          const newQtd = qtd("new_mrr");
+          if (newQtd && dealsMetric) bump(FOURBLUE_USER_ID, dealsMetric.id, date, newQtd);
 
-          // Recuperados FT (classificacao = recuperados) no recorte ativo
-          const recMrr = mrr(origin, "recuperados");
+          // Recuperados FT (classificacao = recuperados)
+          const recMrr = mrr("recuperados");
           if (recMrr) bump(virtualCs, VIRTUAL_MRR_RECOVERED_FT, date, recMrr);
-          const recQtd = qtd(origin, "recuperados");
+          const recQtd = qtd("recuperados");
           if (recQtd && recoveredFtMetric) bump(virtualCs, recoveredFtMetric.id, date, recQtd);
 
-          // Upsell (classificacao = upsell) no recorte ativo
-          const upMrr = mrr(origin, "upsell");
+          // Upsell (classificacao = upsell)
+          const upMrr = mrr("upsell");
           if (upMrr) bump(virtualSales, VIRTUAL_MRR_UPSELL, date, upMrr);
-          const upQtd = qtd(origin, "upsell");
+          const upQtd = qtd("upsell");
           if (upQtd && upsellMetric) bump(virtualSales, upsellMetric.id, date, upQtd);
         });
       }
