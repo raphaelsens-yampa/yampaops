@@ -14,12 +14,12 @@ import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
 import {
   CATEGORY_SLUG_TO_CLASSIFICATION,
-  ORIGIN_MIN_DATE,
   ORIGIN_MIN_DATE_HINT,
   ORIGIN_OPTIONS,
+  buildOriginShares,
   isOriginFiltered,
-  matchesOrigin,
-  normalizeClassificacao,
+  originShareAsOf,
+  type OriginClassification,
   type OriginFilter,
 } from "@/lib/origins";
 
