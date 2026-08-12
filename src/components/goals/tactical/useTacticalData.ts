@@ -53,7 +53,7 @@ export function useTacticalData(
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name"),
