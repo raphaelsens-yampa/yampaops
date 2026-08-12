@@ -178,6 +178,7 @@ export function MetabaseTracking() {
 
 
   const [productScope, setProductScope] = useState<ProductScope>("yampafin");
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [teamId, setTeamId] = useState<string>("all");
