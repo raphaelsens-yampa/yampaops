@@ -64,7 +64,16 @@ export function useTacticalData(
         supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
         supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
         fetchRealizedSources(fromISO, toISO),
+        isOriginFiltered(origin)
+          ? supabase
+              .from("metas_price_daily")
+              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd, tipo_snapshot")
+              .gte("data", fromDateStr < ORIGIN_MIN_DATE ? ORIGIN_MIN_DATE : fromDateStr)
+              .lte("data", toDateStr)
+              .not("origem_cliente", "is", null)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
+
 
       if (cancelled) return;
 
