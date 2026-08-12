@@ -1034,10 +1034,29 @@ export function MetabaseTracking() {
                     <Label htmlFor="include-yampa20" className="text-xs cursor-pointer">Incluir 2.0</Label>
                   </div>
                 )}
+                <div className="w-full sm:w-[220px]">
+                  <Label className="text-xs">Origem</Label>
+                  <Select value={originFilter} onValueChange={(v) => setOriginFilter(v as OriginFilter)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ORIGIN_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               {productScope !== "yampafin" && (
                 <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
               )}
+              {isOriginFiltered(originFilter) && (
+                <p className="mb-4 text-xs text-amber-600">
+                  Recorte por origem usa a base por price ID (Novos Pagantes, Upsell, Downsell e
+                  Recuperados). Métricas de estoque (Total de MRR, Ativos Pagantes, Churn) não têm
+                  quebra por origem e aparecem como "—". {ORIGIN_MIN_DATE_HINT}.
+                </p>
+              )}
+
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-start">
                 <div className="flex flex-col gap-1">
