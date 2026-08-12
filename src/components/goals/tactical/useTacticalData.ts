@@ -194,7 +194,8 @@ export function useTacticalData(
           .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
           .map((m) => m.id)
       );
-      for (const m of manualRes.data || []) {
+      // Lançamentos manuais (CS) não têm origem do cliente — ficam fora do recorte.
+      for (const m of originFiltered ? [] : manualRes.data || []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
         const retained = (m as any).entry_kind === "retained";
