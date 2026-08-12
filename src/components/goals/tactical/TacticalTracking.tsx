@@ -24,7 +24,6 @@ import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
 import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
-import { ORIGIN_LABELS, ORIGIN_SCOPES, type OriginScope } from "@/lib/originScope";
 
 
 import { LowTouchView } from "./LowTouchView";
@@ -48,13 +47,11 @@ export function TacticalTracking() {
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
-  /** Recorte por origem do cliente — metas são sempre yampa puras */
-  const [origin, setOrigin] = useState<OriginScope>("all");
 
 
-  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey, origin);
+  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
   const [lowTouchKey, setLowTouchKey] = useState(0);
-  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey, origin);
+  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
   const isLowTouch = teamId === LOW_TOUCH;
   const isOverview = teamId === ALL_TEAMS;
@@ -112,16 +109,6 @@ export function TacticalTracking() {
                   <SelectItem value={ALL_TEAMS}>Visão Geral</SelectItem>
                   <SelectItem value={LOW_TOUCH}>Low-touch</SelectItem>
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>Time {t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={origin} onValueChange={(v) => setOrigin(v as OriginScope)}>
-                <SelectTrigger className="flex-1 h-10 md:h-9 md:w-36 md:flex-none">
-                  <SelectValue placeholder="Origem" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORIGIN_SCOPES.map((o) => (
-                    <SelectItem key={o} value={o}>Origem: {ORIGIN_LABELS[o]}</SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
               {!isOverview && !isLowTouch && (
@@ -220,7 +207,7 @@ export function TacticalTracking() {
             <>
               <LowTouchView sales={lowTouch.sales} today={today} />
               <WeeklyGoalsPanel today={today} lowTouchSales={lowTouch.sales} />
-              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={origin} />
+              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} />
               <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
 
 
@@ -291,7 +278,7 @@ export function TacticalTracking() {
         today={today}
       />
 
-      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={origin} />
+      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} />
 
 
 
@@ -316,11 +303,6 @@ export function TacticalTracking() {
         today={today}
       />
 
-      {origin === "4blue" ? (
-        <p className="text-xs text-muted-foreground">
-          As vendas de origem 4blue não passam pelo Stripe: o detalhamento por cliente não está disponível neste recorte.
-        </p>
-      ) : (
       <TeamConversionsTable
         memberIds={memberIds}
         profiles={profiles}
@@ -329,7 +311,6 @@ export function TacticalTracking() {
         refreshKey={reloadKey}
         includeLowTouch={isOverview}
       />
-      )}
 
 
       <TeamRecoveriesTable

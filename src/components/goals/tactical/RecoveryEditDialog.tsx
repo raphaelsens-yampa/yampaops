@@ -22,7 +22,6 @@ export interface EditableRecovery {
   qty: string;
   note: string;
   entry_kind: "recovered" | "retained";
-  origem_cliente?: "yampa" | "4blue";
 }
 
 function toNumber(v: unknown): number {
@@ -67,7 +66,6 @@ export function RecoveryEditDialog({
           mrr_value: toNumber(form.mrr),
           note: form.note || null,
           entry_kind: form.entry_kind,
-          origem_cliente: form.origem_cliente ?? "yampa",
           user_id: form.seller_id || undefined,
         })
         .eq("id", form.rawId);
@@ -85,7 +83,6 @@ export function RecoveryEditDialog({
           mrr: toNumber(form.mrr),
           note: form.note || null,
           entry_kind: form.entry_kind,
-          origem_cliente: form.origem_cliente ?? "yampa",
         })
         .eq("id", form.rawId);
       error = res.error;
@@ -144,19 +141,6 @@ export function RecoveryEditDialog({
               <SelectContent>
                 <SelectItem value="recovered">Cliente recuperado</SelectItem>
                 <SelectItem value="retained">Cliente retido</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Origem do cliente</Label>
-            <Select
-              value={form.origem_cliente ?? "yampa"}
-              onValueChange={(v) => setForm({ ...form, origem_cliente: v as "yampa" | "4blue" })}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="yampa">yampa</SelectItem>
-                <SelectItem value="4blue">4blue</SelectItem>
               </SelectContent>
             </Select>
           </div>

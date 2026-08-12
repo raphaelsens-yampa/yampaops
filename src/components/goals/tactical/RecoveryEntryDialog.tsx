@@ -29,7 +29,6 @@ type NewRow = {
   mrr: string;
   note: string;
   entry_kind: "recovered" | "retained";
-  origem_cliente: "yampa" | "4blue";
 };
 
 const emptyRow = (today: Date): NewRow => ({
@@ -42,7 +41,6 @@ const emptyRow = (today: Date): NewRow => ({
   mrr: "",
   note: "",
   entry_kind: "recovered",
-  origem_cliente: "yampa",
 });
 
 function parseKind(v: unknown): "recovered" | "retained" {
@@ -116,7 +114,6 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       mrr: toNumber(row.mrr),
       note: row.note || null,
       entry_kind: row.entry_kind,
-      origem_cliente: row.origem_cliente,
       source: "manual",
       created_by: auth.user?.id as string,
     });
@@ -151,10 +148,6 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
           mrr: toNumber(pick(r, ["mrr", "mrr recuperado", "mrr_net"])),
           note: String(pick(r, ["observacao", "obs", "note"]) ?? "") || null,
           entry_kind: parseKind(pick(r, ["tipo", "entry_kind", "kind", "classificacao"])),
-          origem_cliente:
-            String(pick(r, ["origem", "origem_cliente", "origin"]) ?? "").toLowerCase().includes("4blue")
-              ? "4blue"
-              : "yampa",
           source: "import",
         };
       })
@@ -253,19 +246,6 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                   <SelectContent>
                     <SelectItem value="recovered">Cliente recuperado</SelectItem>
                     <SelectItem value="retained">Cliente retido</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Origem do cliente</Label>
-                <Select
-                  value={row.origem_cliente}
-                  onValueChange={(v) => setRow({ ...row, origem_cliente: v as "yampa" | "4blue" })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yampa">yampa</SelectItem>
-                    <SelectItem value="4blue">4blue</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
