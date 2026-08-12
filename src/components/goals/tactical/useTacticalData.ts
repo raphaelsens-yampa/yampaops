@@ -129,29 +129,19 @@ export function useTacticalData(
       const todayKey = toBRDateKey(todayReal);
 
       // ---- Recorte por origem (4blue / Yampa) ----
-      // Só `metas_price_daily` tem origem do cliente, então o realizado passa a
-      // vir 100% dessa base (inclusive o dia vigente) quando há filtro ativo.
+      // O realizado continua vindo das fontes canônicas (Stripe hoje / Metabase
+      // no histórico). `metas_price_daily` entra apenas como PARTICIPAÇÃO de
+      // cada origem, garantindo 4blue + Yampa = Visão Geral.
       const originFiltered = isOriginFiltered(origin);
-      let effSources = sources;
-      let effTodayKey = todayKey;
-      if (originFiltered) {
-        const built = buildOriginRealized(((originRes as any).data as any[]) || [], origin);
-        const metabase = new Map<string, MetabaseDayValue>();
-        for (const [metricKey, cls] of Object.entries(TACTICAL_METRIC_TO_CLASSIFICATION)) {
-          for (const date of built.dates) {
-            const v = built.daily.get(`${date}|${cls}`);
-            if (v) metabase.set(`${date}|${metricKey}`, { qtd: v.qtd, mrr: v.mrr });
-          }
-        }
-        effSources = { metabase, overrides: new Map() };
-        effTodayKey = ""; // nunca usa o caminho "Stripe do dia" no recorte por origem
-      }
+      const shares = originFiltered
+        ? buildOriginShares(((originRes as any).data as any[]) || [], origin)
+        : null;
 
       const resolved = resolveRealized({
-        sources: effSources,
+        sources,
         stripe: stripeRows,
         dates,
-        todayKey: effTodayKey,
+        todayKey,
       });
 
 
@@ -160,17 +150,28 @@ export function useTacticalData(
       const recoveredFtMetric = metricsData.find((m) => m.key === "recuperados_ft");
 
       for (const e of resolved.entries) {
-        if (e.mrr > 0 && mrrMetricId) bump(e.user_id, mrrMetricId, e.date, e.mrr);
+        let qtd = e.qtd;
+        let mrr = e.mrr;
+        if (shares) {
+          const cls = TACTICAL_METRIC_TO_CLASSIFICATION[e.metric_key];
+          if (!cls) continue;
+          const sq = originShareAsOf(shares, e.date, cls, "qtd");
+          const sm = originShareAsOf(shares, e.date, cls, "mrr");
+          if (sq === null || sm === null) continue;
+          qtd = qtd * sq;
+          mrr = mrr * sm;
+        }
+        if (mrr > 0 && mrrMetricId) bump(e.user_id, mrrMetricId, e.date, mrr);
         if (e.metric_key === "vendas_dia") {
-          if (dealsMetric) bump(e.user_id, dealsMetric.id, e.date, e.qtd);
-          if (e.mrr > 0) bump(e.user_id, VIRTUAL_MRR_SALES, e.date, e.mrr);
+          if (dealsMetric) bump(e.user_id, dealsMetric.id, e.date, qtd);
+          if (mrr > 0) bump(e.user_id, VIRTUAL_MRR_SALES, e.date, mrr);
           
         } else if (e.metric_key === "recuperados_ft") {
-          if (recoveredFtMetric) bump(e.user_id, recoveredFtMetric.id, e.date, e.qtd);
-          if (e.mrr > 0) bump(e.user_id, VIRTUAL_MRR_RECOVERED_FT, e.date, e.mrr);
+          if (recoveredFtMetric) bump(e.user_id, recoveredFtMetric.id, e.date, qtd);
+          if (mrr > 0) bump(e.user_id, VIRTUAL_MRR_RECOVERED_FT, e.date, mrr);
         } else if (e.metric_key === "upsell_dia") {
-          if (upsellMetric) bump(e.user_id, upsellMetric.id, e.date, e.qtd);
-          if (e.mrr > 0) bump(e.user_id, VIRTUAL_MRR_UPSELL, e.date, e.mrr);
+          if (upsellMetric) bump(e.user_id, upsellMetric.id, e.date, qtd);
+          if (mrr > 0) bump(e.user_id, VIRTUAL_MRR_UPSELL, e.date, mrr);
         }
       }
 
