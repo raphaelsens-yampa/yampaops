@@ -7,7 +7,15 @@ import {
   resolveRealized,
   type RealizedOrigin,
   type StripeDayRow,
+  type MetabaseDayValue,
 } from "./useTacticalRealized";
+import { buildOriginRealized } from "./useOriginRealized";
+import {
+  isOriginFiltered,
+  ORIGIN_MIN_DATE,
+  TACTICAL_METRIC_TO_CLASSIFICATION,
+  type OriginFilter,
+} from "@/lib/origins";
 
 export interface TeamMember { team_id: string; user_id: string; }
 
@@ -20,7 +28,12 @@ export const VIRTUAL_MRR_RECOVERED_FT = "virtual_mrr_recuperados_ft";
 
 
 
-export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
+export function useTacticalData(
+  rangeStart: Date,
+  rangeEnd: Date,
+  refreshKey: number = 0,
+  origin: OriginFilter = "all",
+) {
   const [metrics, setMetrics] = useState<TacticalMetric[]>([]);
   const [goals, setGoals] = useState<TacticalGoal[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -29,6 +42,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
   const [daily, setDaily] = useState<DailyDatum[]>([]);
   const [origins, setOrigins] = useState<Map<string, RealizedOrigin>>(new Map());
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +53,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name"),
@@ -50,7 +64,16 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
         supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
         fetchRealizedSources(fromISO, toISO),
+        isOriginFiltered(origin)
+          ? supabase
+              .from("metas_price_daily")
+              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd, tipo_snapshot")
+              .gte("data", fromDateStr < ORIGIN_MIN_DATE ? ORIGIN_MIN_DATE : fromDateStr)
+              .lte("data", toDateStr)
+              .not("origem_cliente", "is", null)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
+
 
       if (cancelled) return;
 
@@ -105,7 +128,33 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       }
       const todayReal = new Date();
       const todayKey = toBRDateKey(todayReal);
-      const resolved = resolveRealized({ sources, stripe: stripeRows, dates, todayKey });
+
+      // ---- Recorte por origem (4blue / Yampa) ----
+      // Só `metas_price_daily` tem origem do cliente, então o realizado passa a
+      // vir 100% dessa base (inclusive o dia vigente) quando há filtro ativo.
+      const originFiltered = isOriginFiltered(origin);
+      let effSources = sources;
+      let effTodayKey = todayKey;
+      if (originFiltered) {
+        const built = buildOriginRealized(((originRes as any).data as any[]) || [], origin);
+        const metabase = new Map<string, MetabaseDayValue>();
+        for (const [metricKey, cls] of Object.entries(TACTICAL_METRIC_TO_CLASSIFICATION)) {
+          for (const date of built.dates) {
+            const v = built.daily.get(`${date}|${cls}`);
+            if (v) metabase.set(`${date}|${metricKey}`, { qtd: v.qtd, mrr: v.mrr });
+          }
+        }
+        effSources = { metabase, overrides: new Map() };
+        effTodayKey = ""; // nunca usa o caminho "Stripe do dia" no recorte por origem
+      }
+
+      const resolved = resolveRealized({
+        sources: effSources,
+        stripe: stripeRows,
+        dates,
+        todayKey: effTodayKey,
+      });
+
 
       const mrrMetricId = mrrMetric?.id;
       const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
@@ -145,7 +194,8 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
           .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
           .map((m) => m.id)
       );
-      for (const m of manualRes.data || []) {
+      // Lançamentos manuais (CS) não têm origem do cliente — ficam fora do recorte.
+      for (const m of originFiltered ? [] : manualRes.data || []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
         const retained = (m as any).entry_kind === "retained";
@@ -168,7 +218,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
 
 
       // Recuperados/retidos lançados ou importados na tabela de recuperações também contam
-      for (const r of recovRes.data || []) {
+      for (const r of originFiltered ? [] : recovRes.data || []) {
         const seller = (r as any).seller_id;
         const dateKey = String((r as any).recovered_at || "").slice(0, 10);
         if (!seller || !dateKey) continue;
@@ -192,7 +242,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
     }
     load();
     return () => { cancelled = true; };
-  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
+  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
   return { metrics, goals, profiles, teams, members, daily, origins, loading };
 }

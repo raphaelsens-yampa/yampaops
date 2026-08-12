@@ -32,6 +32,7 @@ import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
 import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
 import { useLowTouchData } from "./useLowTouchData";
 import { metricsForTeam } from "./types";
+import { ORIGIN_OPTIONS, ORIGIN_MIN_DATE_HINT, isOriginFiltered, type OriginFilter } from "@/lib/origins";
 
 const ALL_TEAMS = "__all__";
 const LOW_TOUCH = "__lowtouch__";
@@ -48,13 +49,15 @@ export function TacticalTracking() {
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
-  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
+  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
   const [lowTouchKey, setLowTouchKey] = useState(0);
   const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
   const isLowTouch = teamId === LOW_TOUCH;
+
   const isOverview = teamId === ALL_TEAMS;
 
 
@@ -124,7 +127,22 @@ export function TacticalTracking() {
                   </SelectContent>
                 </Select>
               )}
+              {!isLowTouch && (
+                <Select value={originFilter} onValueChange={(v) => setOriginFilter(v as OriginFilter)}>
+                  <SelectTrigger className="flex-1 h-10 md:h-9 md:w-40 md:flex-none" aria-label="Origem">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORIGIN_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.value === "all" ? "Origem: Geral" : `Origem: ${o.label}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
 
             {/* Linha 2: data + visão + ações */}
             <div className="flex flex-wrap items-center gap-2">
@@ -186,6 +204,14 @@ export function TacticalTracking() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {isOriginFiltered(originFilter) && !isLowTouch && (
+        <p className="text-xs text-muted-foreground">
+          Recorte por origem: realizado de Vendas, Upsell e Recuperados FT vem da base Metabase por
+          price ID. Lançamentos manuais de CS (recuperados/retidos) não possuem origem e ficam fora.{" "}
+          {ORIGIN_MIN_DATE_HINT}.
+        </p>
       )}
 
 
