@@ -109,18 +109,21 @@ export function buildOriginShares(rows: OriginShareRow[], origin: OriginFilter):
   for (const r of rows) {
     const cls = normalizeClassificacao(r.classificacao);
     if (!cls || !r.data) continue;
-    const k = `${r.data}|${cls}`;
-    const cur = acc.get(k) ?? { oq: 0, om: 0, tq: 0, tm: 0 };
     const q = Math.abs(Number(r.qtd_mtd || 0));
     const m = Math.abs(Number(r.mrr_mtd || 0));
-    cur.tq += q;
-    cur.tm += m;
-    if (matchesOrigin(r.origem_cliente, origin)) {
-      cur.oq += q;
-      cur.om += m;
+    const isOrigin = matchesOrigin(r.origem_cliente, origin);
+    for (const key of [`${r.data}|${cls}`, `${r.data}|${ORIGIN_SHARE_ANY}`]) {
+      const cur = acc.get(key) ?? { oq: 0, om: 0, tq: 0, tm: 0 };
+      cur.tq += q;
+      cur.tm += m;
+      if (isOrigin) {
+        cur.oq += q;
+        cur.om += m;
+      }
+      acc.set(key, cur);
     }
-    acc.set(k, cur);
     dates.add(r.data);
+
   }
   const qtd = new Map<string, number>();
   const mrr = new Map<string, number>();
