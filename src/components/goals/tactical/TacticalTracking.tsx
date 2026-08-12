@@ -211,7 +211,8 @@ export function TacticalTracking() {
           Recorte por origem: o realizado histórico vem das fontes canônicas (Metabase) e é rateado
           pela participação da origem na base por price ID. O realizado do dia vigente (Stripe) e os
           lançamentos de CS (recuperados/retidos) são considerados origem Yampa. Dias anteriores ao
-          início da marcação de origem ficam fora do rateio.{" "}
+          início da marcação de origem usam a participação mais antiga conhecida como estimativa,
+          então 4blue + Yampa sempre soma o Geral.{" "}
           {ORIGIN_MIN_DATE_HINT}.
 
         </p>

@@ -100,6 +100,9 @@ export interface OriginShares {
   dates: string[];
 }
 
+/** Chave de participação agregada (todas as classificações) do dia. */
+export const ORIGIN_SHARE_ANY = "__any__";
+
 export const EMPTY_ORIGIN_SHARES: OriginShares = { qtd: new Map(), mrr: new Map(), dates: [] };
 
 export function buildOriginShares(rows: OriginShareRow[], origin: OriginFilter): OriginShares {
@@ -109,18 +112,21 @@ export function buildOriginShares(rows: OriginShareRow[], origin: OriginFilter):
   for (const r of rows) {
     const cls = normalizeClassificacao(r.classificacao);
     if (!cls || !r.data) continue;
-    const k = `${r.data}|${cls}`;
-    const cur = acc.get(k) ?? { oq: 0, om: 0, tq: 0, tm: 0 };
     const q = Math.abs(Number(r.qtd_mtd || 0));
     const m = Math.abs(Number(r.mrr_mtd || 0));
-    cur.tq += q;
-    cur.tm += m;
-    if (matchesOrigin(r.origem_cliente, origin)) {
-      cur.oq += q;
-      cur.om += m;
+    const isOrigin = matchesOrigin(r.origem_cliente, origin);
+    for (const key of [`${r.data}|${cls}`, `${r.data}|${ORIGIN_SHARE_ANY}`]) {
+      const cur = acc.get(key) ?? { oq: 0, om: 0, tq: 0, tm: 0 };
+      cur.tq += q;
+      cur.tm += m;
+      if (isOrigin) {
+        cur.oq += q;
+        cur.om += m;
+      }
+      acc.set(key, cur);
     }
-    acc.set(k, cur);
     dates.add(r.data);
+
   }
   const qtd = new Map<string, number>();
   const mrr = new Map<string, number>();
@@ -145,8 +151,24 @@ export function originShareAsOf(
     if (d > date) break;
     if (map.has(`${d}|${cls}`)) chosen = d;
   }
-  // Antes da 1ª data com marcação de origem não há como ratear: o dia fica
-  // fora do recorte (em vez de herdar uma participação futura e inventar dado).
-  if (!chosen) return null;
+  // Antes da 1ª data com marcação de origem usamos a participação mais antiga
+  // conhecida como estimativa. Assim a série histórica não "desaparece" no
+  // recorte e 4blue + Yampa continua somando o total geral.
+  if (!chosen) {
+    for (const d of shares.dates) {
+      if (map.has(`${d}|${cls}`)) {
+        chosen = d;
+        break;
+      }
+    }
+  }
+  if (!chosen) {
+    // Sem histórico para a classificação: usa a participação agregada do dia.
+    if (cls !== (ORIGIN_SHARE_ANY as unknown as OriginClassification)) {
+      return originShareAsOf(shares, date, ORIGIN_SHARE_ANY as unknown as OriginClassification, kind);
+    }
+    return null;
+  }
   return map.get(`${chosen}|${cls}`) ?? null;
+
 }
