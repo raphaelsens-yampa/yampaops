@@ -218,7 +218,7 @@ export function useTacticalData(
 
 
       // Recuperados/retidos lançados ou importados na tabela de recuperações também contam
-      for (const r of recovRes.data || []) {
+      for (const r of originFiltered ? [] : recovRes.data || []) {
         const seller = (r as any).seller_id;
         const dateKey = String((r as any).recovered_at || "").slice(0, 10);
         if (!seller || !dateKey) continue;
