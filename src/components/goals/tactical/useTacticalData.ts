@@ -204,8 +204,8 @@ export function useTacticalData(
           .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
           .map((m) => m.id)
       );
-      // Lançamentos manuais (CS) não têm origem do cliente — ficam fora do recorte.
-      for (const m of originFiltered ? [] : manualRes.data || []) {
+      // Lançamentos manuais (CS) são da base Yampa: entram em Geral e Yampa.
+      for (const m of includeManual ? manualRes.data || [] : []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
         const retained = (m as any).entry_kind === "retained";
@@ -228,7 +228,7 @@ export function useTacticalData(
 
 
       // Recuperados/retidos lançados ou importados na tabela de recuperações também contam
-      for (const r of originFiltered ? [] : recovRes.data || []) {
+      for (const r of includeManual ? recovRes.data || [] : []) {
         const seller = (r as any).seller_id;
         const dateKey = String((r as any).recovered_at || "").slice(0, 10);
         if (!seller || !dateKey) continue;
