@@ -32,6 +32,7 @@ import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
 import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
 import { useLowTouchData } from "./useLowTouchData";
 import { metricsForTeam } from "./types";
+import { ORIGIN_OPTIONS, ORIGIN_MIN_DATE_HINT, isOriginFiltered, type OriginFilter } from "@/lib/origins";
 
 const ALL_TEAMS = "__all__";
 const LOW_TOUCH = "__lowtouch__";
@@ -48,13 +49,15 @@ export function TacticalTracking() {
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
-  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey);
+  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
   const [lowTouchKey, setLowTouchKey] = useState(0);
   const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
   const isLowTouch = teamId === LOW_TOUCH;
+
   const isOverview = teamId === ALL_TEAMS;
 
 
