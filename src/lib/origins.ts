@@ -100,6 +100,9 @@ export interface OriginShares {
   dates: string[];
 }
 
+/** Chave de participação agregada (todas as classificações) do dia. */
+export const ORIGIN_SHARE_ANY = "__any__";
+
 export const EMPTY_ORIGIN_SHARES: OriginShares = { qtd: new Map(), mrr: new Map(), dates: [] };
 
 export function buildOriginShares(rows: OriginShareRow[], origin: OriginFilter): OriginShares {
@@ -159,7 +162,13 @@ export function originShareAsOf(
       }
     }
   }
-  if (!chosen) return null;
+  if (!chosen) {
+    // Sem histórico para a classificação: usa a participação agregada do dia.
+    if (cls !== (ORIGIN_SHARE_ANY as unknown as OriginClassification)) {
+      return originShareAsOf(shares, date, ORIGIN_SHARE_ANY as unknown as OriginClassification, kind);
+    }
+    return null;
+  }
   return map.get(`${chosen}|${cls}`) ?? null;
 
 }
