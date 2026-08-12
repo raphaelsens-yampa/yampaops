@@ -206,6 +206,14 @@ export function TacticalTracking() {
         </Card>
       )}
 
+      {isOriginFiltered(originFilter) && !isLowTouch && (
+        <p className="text-xs text-muted-foreground">
+          Recorte por origem: realizado de Vendas, Upsell e Recuperados FT vem da base Metabase por
+          price ID. Lançamentos manuais de CS (recuperados/retidos) não possuem origem e ficam fora.{" "}
+          {ORIGIN_MIN_DATE_HINT}.
+        </p>
+      )}
+
 
       {isAdmin && (
         <UnattributedSalesAlert rangeStart={rangeStart} rangeEnd={today} refreshKey={reloadKey} />
