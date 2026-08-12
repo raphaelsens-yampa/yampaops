@@ -23,6 +23,7 @@ import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
+import { StripeBackupPanel } from "./StripeBackupPanel";
 import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
 
 
@@ -190,6 +191,14 @@ export function TacticalTracking() {
 
       {isAdmin && (
         <UnattributedSalesAlert rangeStart={rangeStart} rangeEnd={today} refreshKey={reloadKey} />
+      )}
+
+      {isAdmin && (
+        <StripeBackupPanel
+          profiles={profiles}
+          today={today}
+          onChanged={() => setReloadKey((k) => k + 1)}
+        />
       )}
 
       {isLowTouch ? (

@@ -73,11 +73,17 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {metrics
-                  .filter((m) => m.source !== "stripe_mrr" && m.source !== "stripe_deals")
+                  .filter(
+                    (m) =>
+                      m.source !== "stripe_mrr" &&
+                      m.source !== "stripe_deals" &&
+                      m.key !== "upsell_dia" &&
+                      m.key !== "recuperados_ft",
+                  )
                   .map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">Vendas e MRR do dia são calculados automaticamente pelo Stripe. Recuperações do CS somam o automático (reativações) com o que você lançar aqui.</p>
+            <p className="text-xs text-muted-foreground mt-1">Vendas do dia e Recuperados FT vêm do Stripe (hoje) e do Metabase (dias anteriores). Upsell vem do Metabase (D-1). Recuperados/Retidos do CS são lançados aqui.</p>
 
           </div>
           {teamProfiles.length > 0 && (
