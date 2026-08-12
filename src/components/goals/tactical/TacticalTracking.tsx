@@ -208,11 +208,12 @@ export function TacticalTracking() {
 
       {isOriginFiltered(originFilter) && !isLowTouch && (
         <p className="text-xs text-muted-foreground">
-          Recorte por origem: o realizado continua vindo das fontes canônicas (Stripe/Metabase) e é
-          rateado pela participação da origem na base por price ID — por isso 4blue + Yampa = Geral.
-          Dias anteriores ao início da marcação de origem e lançamentos manuais de CS
-          (recuperados/retidos) ficam fora do recorte.{" "}
+          Recorte por origem: o realizado histórico vem das fontes canônicas (Metabase) e é rateado
+          pela participação da origem na base por price ID. O realizado do dia vigente (Stripe) e os
+          lançamentos de CS (recuperados/retidos) são considerados origem Yampa. Dias anteriores ao
+          início da marcação de origem ficam fora do rateio.{" "}
           {ORIGIN_MIN_DATE_HINT}.
+
         </p>
       )}
 
