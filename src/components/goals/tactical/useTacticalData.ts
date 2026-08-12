@@ -9,10 +9,10 @@ import {
   type StripeDayRow,
   type MetabaseDayValue,
 } from "./useTacticalRealized";
-import { buildOriginRealized } from "./useOriginRealized";
 import {
+  buildOriginShares,
   isOriginFiltered,
-  ORIGIN_MIN_DATE,
+  originShareAsOf,
   TACTICAL_METRIC_TO_CLASSIFICATION,
   type OriginFilter,
 } from "@/lib/origins";
