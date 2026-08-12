@@ -145,10 +145,8 @@ export function originShareAsOf(
     if (d > date) break;
     if (map.has(`${d}|${cls}`)) chosen = d;
   }
-  if (!chosen) {
-    // Antes da 1ª data com marcação de origem, usa a participação mais antiga conhecida.
-    chosen = shares.dates.find((d) => map.has(`${d}|${cls}`)) ?? null;
-  }
+  // Antes da 1ª data com marcação de origem não há como ratear: o dia fica
+  // fora do recorte (em vez de herdar uma participação futura e inventar dado).
   if (!chosen) return null;
   return map.get(`${chosen}|${cls}`) ?? null;
 }

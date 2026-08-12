@@ -208,8 +208,10 @@ export function TacticalTracking() {
 
       {isOriginFiltered(originFilter) && !isLowTouch && (
         <p className="text-xs text-muted-foreground">
-          Recorte por origem: realizado de Vendas, Upsell e Recuperados FT vem da base Metabase por
-          price ID. Lançamentos manuais de CS (recuperados/retidos) não possuem origem e ficam fora.{" "}
+          Recorte por origem: o realizado continua vindo das fontes canônicas (Stripe/Metabase) e é
+          rateado pela participação da origem na base por price ID — por isso 4blue + Yampa = Geral.
+          Dias anteriores ao início da marcação de origem e lançamentos manuais de CS
+          (recuperados/retidos) ficam fora do recorte.{" "}
           {ORIGIN_MIN_DATE_HINT}.
         </p>
       )}
