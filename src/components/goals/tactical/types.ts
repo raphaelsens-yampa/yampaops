@@ -52,7 +52,9 @@ export function formatMetric(value: number, unit: "count" | "currency"): string 
   if (unit === "currency") {
     return `R$ ${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
   }
-  return value.toLocaleString("pt-BR");
+  // Contagens podem vir fracionadas (rateio por vendedor / recorte por origem).
+  // Sempre exibimos número inteiro para não parecer "milhares" com a vírgula BR.
+  return Math.round(value).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 }
 
 export function toBRDateKey(d: Date): string {
