@@ -128,7 +128,33 @@ export function useTacticalData(
       }
       const todayReal = new Date();
       const todayKey = toBRDateKey(todayReal);
-      const resolved = resolveRealized({ sources, stripe: stripeRows, dates, todayKey });
+
+      // ---- Recorte por origem (4blue / Yampa) ----
+      // Só `metas_price_daily` tem origem do cliente, então o realizado passa a
+      // vir 100% dessa base (inclusive o dia vigente) quando há filtro ativo.
+      const originFiltered = isOriginFiltered(origin);
+      let effSources = sources;
+      let effTodayKey = todayKey;
+      if (originFiltered) {
+        const built = buildOriginRealized(((originRes as any).data as any[]) || [], origin);
+        const metabase = new Map<string, MetabaseDayValue>();
+        for (const [metricKey, cls] of Object.entries(TACTICAL_METRIC_TO_CLASSIFICATION)) {
+          for (const date of built.dates) {
+            const v = built.daily.get(`${date}|${cls}`);
+            if (v) metabase.set(`${date}|${metricKey}`, { qtd: v.qtd, mrr: v.mrr });
+          }
+        }
+        effSources = { metabase, overrides: new Map() };
+        effTodayKey = ""; // nunca usa o caminho "Stripe do dia" no recorte por origem
+      }
+
+      const resolved = resolveRealized({
+        sources: effSources,
+        stripe: stripeRows,
+        dates,
+        todayKey: effTodayKey,
+      });
+
 
       const mrrMetricId = mrrMetric?.id;
       const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
