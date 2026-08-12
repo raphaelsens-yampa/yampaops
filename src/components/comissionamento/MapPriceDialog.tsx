@@ -178,13 +178,26 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
         if (stripeRows && stripeRows.length > 0) {
           const overrideMrr = null; // mrr_override do price_map é tratado no webhook; aqui mantemos o mrr atual
           for (const s of stripeRows) {
+            const update: {
+              area?: string;
+              plan_name?: string;
+              product_name?: string;
+              assigned_seller_id?: string;
+              attribution_source?: string;
+            } = {
+              area: payload.area,
+              plan_name: planName,
+              product_name: normalizedOfferName || undefined,
+            };
+            // Mapa de Preços é a única fonte do vendedor: se o mapeamento foi
+            // criado/ajustado depois da venda, propaga a atribuição agora.
+            if (sellerUserId) {
+              update.assigned_seller_id = sellerUserId;
+              update.attribution_source = "price_map";
+            }
             const { error: sUpErr } = await supabase
               .from("stripe_conversions")
-              .update({
-                area: payload.area,
-                plan_name: planName,
-                product_name: normalizedOfferName || undefined,
-              })
+              .update(update)
               .eq("id", s.id);
             if (sUpErr) throw sUpErr;
             stripeUpdated++;
