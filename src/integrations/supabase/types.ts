@@ -2321,6 +2321,108 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_trials_daily: {
+        Row: {
+          bucket: string
+          business_segment: string | null
+          coletado_em: string
+          company_id: string | null
+          data: string
+          data_conversao: string | null
+          data_extracao: string | null
+          data_fim_trial: string | null
+          data_freetrial: string | null
+          data_pagamento_trial: string | null
+          dias_to_pagante: number | null
+          first_offer_id_paid: string | null
+          first_offer_name_paid: string | null
+          first_plan_paid: string | null
+          fonte: string
+          gateway: string | null
+          id: number
+          id_oferta: string | null
+          is_4blue_customer: string | null
+          mes_conversao: string | null
+          mes_ref: string
+          min_to_pagante: number | null
+          nome_oferta: string | null
+          paid_mrr: number | null
+          plano: string | null
+          sck: string | null
+          status_conversao: string
+          status_onboarding: string | null
+          stripe_price_id: string | null
+          tipo_snapshot: string
+          total_mrr: number | null
+        }
+        Insert: {
+          bucket: string
+          business_segment?: string | null
+          coletado_em?: string
+          company_id?: string | null
+          data: string
+          data_conversao?: string | null
+          data_extracao?: string | null
+          data_fim_trial?: string | null
+          data_freetrial?: string | null
+          data_pagamento_trial?: string | null
+          dias_to_pagante?: number | null
+          first_offer_id_paid?: string | null
+          first_offer_name_paid?: string | null
+          first_plan_paid?: string | null
+          fonte: string
+          gateway?: string | null
+          id?: number
+          id_oferta?: string | null
+          is_4blue_customer?: string | null
+          mes_conversao?: string | null
+          mes_ref: string
+          min_to_pagante?: number | null
+          nome_oferta?: string | null
+          paid_mrr?: number | null
+          plano?: string | null
+          sck?: string | null
+          status_conversao: string
+          status_onboarding?: string | null
+          stripe_price_id?: string | null
+          tipo_snapshot?: string
+          total_mrr?: number | null
+        }
+        Update: {
+          bucket?: string
+          business_segment?: string | null
+          coletado_em?: string
+          company_id?: string | null
+          data?: string
+          data_conversao?: string | null
+          data_extracao?: string | null
+          data_fim_trial?: string | null
+          data_freetrial?: string | null
+          data_pagamento_trial?: string | null
+          dias_to_pagante?: number | null
+          first_offer_id_paid?: string | null
+          first_offer_name_paid?: string | null
+          first_plan_paid?: string | null
+          fonte?: string
+          gateway?: string | null
+          id?: number
+          id_oferta?: string | null
+          is_4blue_customer?: string | null
+          mes_conversao?: string | null
+          mes_ref?: string
+          min_to_pagante?: number | null
+          nome_oferta?: string | null
+          paid_mrr?: number | null
+          plano?: string | null
+          sck?: string | null
+          status_conversao?: string
+          status_onboarding?: string | null
+          stripe_price_id?: string | null
+          tipo_snapshot?: string
+          total_mrr?: number | null
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           ac_id: string | null
@@ -3928,6 +4030,36 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_ranking_vendas_dia: {
+        Row: {
+          area: string | null
+          bucket: string | null
+          coorte: string | null
+          data_extracao: string | null
+          mes_ref: string | null
+          mrr_mtd: number | null
+          qtd_mtd: number | null
+          team_id: string | null
+          user_id: string | null
+          vendedor: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_de_para_price_id_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_de_para_price_id_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       metas_ranking_vendedor: {
         Row: {
           area: string | null
@@ -3956,6 +4088,16 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      metas_trials_bucket_daily: {
+        Row: {
+          bucket: string | null
+          corte: string | null
+          mes_ref: string | null
+          mrr_mtd: number | null
+          qtd_mtd: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
