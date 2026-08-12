@@ -7,7 +7,15 @@ import {
   resolveRealized,
   type RealizedOrigin,
   type StripeDayRow,
+  type MetabaseDayValue,
 } from "./useTacticalRealized";
+import { buildOriginRealized } from "./useOriginRealized";
+import {
+  isOriginFiltered,
+  ORIGIN_MIN_DATE,
+  TACTICAL_METRIC_TO_CLASSIFICATION,
+  type OriginFilter,
+} from "@/lib/origins";
 
 export interface TeamMember { team_id: string; user_id: string; }
 
@@ -20,7 +28,12 @@ export const VIRTUAL_MRR_RECOVERED_FT = "virtual_mrr_recuperados_ft";
 
 
 
-export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: number = 0) {
+export function useTacticalData(
+  rangeStart: Date,
+  rangeEnd: Date,
+  refreshKey: number = 0,
+  origin: OriginFilter = "all",
+) {
   const [metrics, setMetrics] = useState<TacticalMetric[]>([]);
   const [goals, setGoals] = useState<TacticalGoal[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -29,6 +42,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
   const [daily, setDaily] = useState<DailyDatum[]>([]);
   const [origins, setOrigins] = useState<Map<string, RealizedOrigin>>(new Map());
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     let cancelled = false;
