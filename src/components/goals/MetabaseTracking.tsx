@@ -509,12 +509,14 @@ export function MetabaseTracking() {
     return s;
   }, [sourceAgg]);
 
-  /** No recorte 2.0 a métrica simplesmente não existe → renderiza "—", nunca 0 */
+  /** Métrica inexistente no recorte ativo (2.0 ou origem) → renderiza "—", nunca 0 */
   const isUnavailableCategory = (id: string) => {
+    if (originUnavailableCategory(id)) return true;
     if (productScope !== "yampa20") return false;
     if (!YAMPA20_AVAILABLE_BASE_IDS.has(id)) return true;
     return !yampa20PresentBaseIds.has(id);
   };
+
 
 
 
