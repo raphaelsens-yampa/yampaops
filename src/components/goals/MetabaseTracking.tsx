@@ -12,6 +12,16 @@ import { Switch } from "@/components/ui/switch";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
+import {
+  CATEGORY_SLUG_TO_CLASSIFICATION,
+  ORIGIN_MIN_DATE,
+  ORIGIN_MIN_DATE_HINT,
+  ORIGIN_OPTIONS,
+  isOriginFiltered,
+  matchesOrigin,
+  normalizeClassificacao,
+  type OriginFilter,
+} from "@/lib/origins";
 
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
