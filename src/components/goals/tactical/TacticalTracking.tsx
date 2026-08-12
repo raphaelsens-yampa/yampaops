@@ -127,7 +127,22 @@ export function TacticalTracking() {
                   </SelectContent>
                 </Select>
               )}
+              {!isLowTouch && (
+                <Select value={originFilter} onValueChange={(v) => setOriginFilter(v as OriginFilter)}>
+                  <SelectTrigger className="flex-1 h-10 md:h-9 md:w-40 md:flex-none" aria-label="Origem">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORIGIN_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.value === "all" ? "Origem: Geral" : `Origem: ${o.label}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
 
             {/* Linha 2: data + visão + ações */}
             <div className="flex flex-wrap items-center gap-2">
