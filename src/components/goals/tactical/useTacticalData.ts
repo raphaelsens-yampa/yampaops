@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDateBR } from "@/lib/dateBR";
 import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } from "./types";
+import {
+  fetchRealizedSources,
+  resolveRealized,
+  type RealizedOrigin,
+  type StripeDayRow,
+} from "./useTacticalRealized";
 
 export interface TeamMember { team_id: string; user_id: string; }
 
@@ -21,6 +27,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
   const [teams, setTeams] = useState<Team[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [daily, setDaily] = useState<DailyDatum[]>([]);
+  const [origins, setOrigins] = useState<Map<string, RealizedOrigin>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,7 +39,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name"),
@@ -42,6 +49,7 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
         supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
         supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
+        fetchRealizedSources(fromISO, toISO),
       ]);
 
       if (cancelled) return;
@@ -75,33 +83,68 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         bump((a as any).user_id, m.id, toBRDateKey(d), 1);
       }
 
+      // ---- Realizado canônico: Stripe (hoje) / Metabase (histórico) / Override ----
+      const stripeRows: StripeDayRow[] = [];
       for (const c of convRes.data || []) {
         const seller = (c as any).assigned_seller_id;
         if (!seller || !(c as any).converted_at) continue;
         // Só considera conversão com valor > R$ 0 (líquido quando existir)
         const value = Number((c as any).mrr_net ?? (c as any).mrr ?? 0);
         if (!(value > 0)) continue;
-        const d = parseDateBR((c as any).converted_at);
-        const key = toBRDateKey(d);
-        if (mrrMetric) bump(seller, mrrMetric.id, key, value);
-        bump(seller, VIRTUAL_MRR_SALES, key, value);
-        if (dealsMetric) bump(seller, dealsMetric.id, key, 1);
-        if (reactMetric && (c as any).is_reactivation) bump(seller, reactMetric.id, key, 1);
+        stripeRows.push({
+          user_id: seller,
+          date: toBRDateKey(parseDateBR((c as any).converted_at)),
+          mrr: value,
+          isReactivation: Boolean((c as any).is_reactivation),
+        });
       }
 
+      const dates: string[] = [];
+      for (const d = new Date(fromISO); d <= toISO; d.setDate(d.getDate() + 1)) {
+        dates.push(toBRDateKey(d));
+      }
+      const todayReal = new Date();
+      const todayKey = toBRDateKey(todayReal);
+      const resolved = resolveRealized({ sources, stripe: stripeRows, dates, todayKey });
 
-      // MRR e Vendas do dia vêm 100% do Stripe — lançamento manual não se aplica.
-      // Recuperações do CS somam automático (reativação) + manual.
-      const lockedIds = new Set(
-        metricsData.filter((m) => m.source === "stripe_mrr" || m.source === "stripe_deals").map((m) => m.id)
-      );
       const mrrMetricId = mrrMetric?.id;
+      const upsellMetric = metricsData.find((m) => m.key === "upsell_dia");
+      const recoveredFtMetric = metricsData.find((m) => m.key === "recuperados_ft");
+
+      for (const e of resolved.entries) {
+        if (e.mrr > 0 && mrrMetricId) bump(e.user_id, mrrMetricId, e.date, e.mrr);
+        if (e.metric_key === "vendas_dia") {
+          if (dealsMetric) bump(e.user_id, dealsMetric.id, e.date, e.qtd);
+          if (e.mrr > 0) bump(e.user_id, VIRTUAL_MRR_SALES, e.date, e.mrr);
+          
+        } else if (e.metric_key === "recuperados_ft") {
+          if (recoveredFtMetric) bump(e.user_id, recoveredFtMetric.id, e.date, e.qtd);
+          if (e.mrr > 0) bump(e.user_id, VIRTUAL_MRR_RECOVERED_FT, e.date, e.mrr);
+        } else if (e.metric_key === "upsell_dia") {
+          if (upsellMetric) bump(e.user_id, upsellMetric.id, e.date, e.qtd);
+          if (e.mrr > 0) bump(e.user_id, VIRTUAL_MRR_UPSELL, e.date, e.mrr);
+        }
+      }
+
+      // MRR, Vendas do dia, Upsell e Recuperados FT têm fonte canônica
+      // (Stripe/Metabase) — lançamento manual não se aplica.
+      // Recuperados/Retidos do CS continuam manuais.
+      const lockedIds = new Set(
+        metricsData
+          .filter(
+            (m) =>
+              m.source === "stripe_mrr" ||
+              m.source === "stripe_deals" ||
+              m.key === "upsell_dia" ||
+              m.key === "recuperados_ft",
+          )
+          .map((m) => m.id),
+      );
       const recoveryMetricIds = new Set(
         metricsData
           .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
           .map((m) => m.id)
       );
-      const metricKeyById = new Map(metricsData.map((m) => [m.id, m.key]));
       for (const m of manualRes.data || []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
@@ -114,16 +157,12 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
         if (Number((m as any).mrr_value || 0) > 0) {
           const v = Number((m as any).mrr_value || 0);
           if (mrrMetricId) bump((m as any).user_id, mrrMetricId, (m as any).entry_date, v);
-          const key = metricKeyById.get(metricId);
-          const virtualId =
-            key === "upsell_dia"
-              ? VIRTUAL_MRR_UPSELL
-              : key === "recuperados_ft"
-                ? VIRTUAL_MRR_RECOVERED_FT
-                : retained
-                  ? VIRTUAL_MRR_RETENTION
-                  : VIRTUAL_MRR_RECOVERY;
-          bump((m as any).user_id, virtualId, (m as any).entry_date, v);
+          bump(
+            (m as any).user_id,
+            retained ? VIRTUAL_MRR_RETENTION : VIRTUAL_MRR_RECOVERY,
+            (m as any).entry_date,
+            v,
+          );
         }
       }
 
@@ -148,11 +187,12 @@ export function useTacticalData(rangeStart: Date, rangeEnd: Date, refreshKey: nu
 
 
       setDaily(Array.from(aggMap.values()));
+      setOrigins(resolved.origins);
       setLoading(false);
     }
     load();
     return () => { cancelled = true; };
   }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
 
-  return { metrics, goals, profiles, teams, members, daily, loading };
+  return { metrics, goals, profiles, teams, members, daily, origins, loading };
 }

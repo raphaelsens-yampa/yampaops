@@ -2216,6 +2216,54 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_novos_pagantes_daily: {
+        Row: {
+          area: string
+          classificacao: string
+          coletado_em: string
+          created_at: string
+          data: string
+          fonte: string | null
+          id: string
+          mes_ref: string | null
+          mrr_mtd: number
+          qtd_mtd: number
+          tipo_snapshot: string | null
+          updated_at: string
+          vendedor: string
+        }
+        Insert: {
+          area?: string
+          classificacao: string
+          coletado_em?: string
+          created_at?: string
+          data: string
+          fonte?: string | null
+          id?: string
+          mes_ref?: string | null
+          mrr_mtd?: number
+          qtd_mtd?: number
+          tipo_snapshot?: string | null
+          updated_at?: string
+          vendedor?: string
+        }
+        Update: {
+          area?: string
+          classificacao?: string
+          coletado_em?: string
+          created_at?: string
+          data?: string
+          fonte?: string | null
+          id?: string
+          mes_ref?: string | null
+          mrr_mtd?: number
+          qtd_mtd?: number
+          tipo_snapshot?: string | null
+          updated_at?: string
+          vendedor?: string
+        }
+        Relationships: []
+      }
       metas_price_daily: {
         Row: {
           classificacao: string
@@ -3779,6 +3827,45 @@ export type Database = {
           },
         ]
       }
+      tactical_realized_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          id: string
+          metric_key: string
+          mrr: number
+          origem: string
+          qtd: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data: string
+          id?: string
+          metric_key: string
+          mrr?: number
+          origem?: string
+          qtd?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          id?: string
+          metric_key?: string
+          mrr?: number
+          origem?: string
+          qtd?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       tactical_recoveries: {
         Row: {
           created_at: string
@@ -3830,6 +3917,42 @@ export type Database = {
           seller_id?: string | null
           source?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tactical_stripe_daily_backup: {
+        Row: {
+          captured_at: string
+          created_at: string
+          data: string
+          id: string
+          metric_key: string
+          mrr: number
+          qtd: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          data: string
+          id?: string
+          metric_key: string
+          mrr?: number
+          qtd?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          data?: string
+          id?: string
+          metric_key?: string
+          mrr?: number
+          qtd?: number
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -4026,6 +4149,22 @@ export type Database = {
           mrr_mtd: number | null
           qtd_dia: number | null
           qtd_mtd: number | null
+          vendedor: string | null
+        }
+        Relationships: []
+      }
+      metas_novos_pagantes_delta: {
+        Row: {
+          area: string | null
+          classificacao: string | null
+          data: string | null
+          fonte: string | null
+          mes_ref: string | null
+          mrr_dia: number | null
+          mrr_mtd: number | null
+          qtd_dia: number | null
+          qtd_mtd: number | null
+          tipo_snapshot: string | null
           vendedor: string | null
         }
         Relationships: []
