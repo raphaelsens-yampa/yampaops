@@ -242,7 +242,7 @@ export function useTacticalData(
     }
     load();
     return () => { cancelled = true; };
-  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
+  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
   return { metrics, goals, profiles, teams, members, daily, origins, loading };
 }
