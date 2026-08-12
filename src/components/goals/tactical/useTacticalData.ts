@@ -67,8 +67,7 @@ export function useTacticalData(
         isOriginFiltered(origin)
           ? supabase
               .from("metas_price_daily")
-              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd, tipo_snapshot")
-              .gte("data", fromDateStr < ORIGIN_MIN_DATE ? ORIGIN_MIN_DATE : fromDateStr)
+              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
               .lte("data", toDateStr)
               .not("origem_cliente", "is", null)
           : Promise.resolve({ data: [] as any[] }),
