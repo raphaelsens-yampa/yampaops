@@ -132,7 +132,13 @@ export function useTacticalData(
       // O realizado continua vindo das fontes canônicas (Stripe hoje / Metabase
       // no histórico). `metas_price_daily` entra apenas como PARTICIPAÇÃO de
       // cada origem, garantindo 4blue + Yampa = Visão Geral.
+      // Exceções (por definição do negócio):
+      //  - Realizado do dia vigente / override vem do Stripe => origem Yampa.
+      //  - Recuperados/Retidos do CS (manual/importação) => origem Yampa.
       const originFiltered = isOriginFiltered(origin);
+      const isYampa = origin === "yampa";
+      const includeStripeOrigin = !originFiltered || isYampa;
+      const includeManual = !originFiltered || isYampa;
       const shares = originFiltered
         ? buildOriginShares(((originRes as any).data as any[]) || [], origin)
         : null;
@@ -152,7 +158,8 @@ export function useTacticalData(
       for (const e of resolved.entries) {
         let qtd = e.qtd;
         let mrr = e.mrr;
-        if (shares) {
+        const fromStripe = e.origin === "stripe" || e.origin === "override";
+        if (shares && !fromStripe) {
           const cls = TACTICAL_METRIC_TO_CLASSIFICATION[e.metric_key];
           if (!cls) continue;
           const sq = originShareAsOf(shares, e.date, cls, "qtd");
@@ -160,7 +167,10 @@ export function useTacticalData(
           if (sq === null || sm === null) continue;
           qtd = qtd * sq;
           mrr = mrr * sm;
+        } else if (fromStripe && !includeStripeOrigin) {
+          continue;
         }
+
         if (mrr > 0 && mrrMetricId) bump(e.user_id, mrrMetricId, e.date, mrr);
         if (e.metric_key === "vendas_dia") {
           if (dealsMetric) bump(e.user_id, dealsMetric.id, e.date, qtd);
@@ -194,8 +204,8 @@ export function useTacticalData(
           .filter((m) => m.key === "clientes_recuperados" || m.source === "stripe_reactivation")
           .map((m) => m.id)
       );
-      // Lançamentos manuais (CS) não têm origem do cliente — ficam fora do recorte.
-      for (const m of originFiltered ? [] : manualRes.data || []) {
+      // Lançamentos manuais (CS) são da base Yampa: entram em Geral e Yampa.
+      for (const m of includeManual ? manualRes.data || [] : []) {
         const metricId = (m as any).metric_id;
         if (lockedIds.has(metricId)) continue;
         const retained = (m as any).entry_kind === "retained";
@@ -218,7 +228,7 @@ export function useTacticalData(
 
 
       // Recuperados/retidos lançados ou importados na tabela de recuperações também contam
-      for (const r of originFiltered ? [] : recovRes.data || []) {
+      for (const r of includeManual ? recovRes.data || [] : []) {
         const seller = (r as any).seller_id;
         const dateKey = String((r as any).recovered_at || "").slice(0, 10);
         if (!seller || !dateKey) continue;
