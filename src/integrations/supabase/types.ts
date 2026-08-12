@@ -2264,6 +2264,51 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_origem_daily: {
+        Row: {
+          base: string
+          coletado_em: string
+          data: string
+          data_execucao: string
+          fonte: string
+          id: number
+          mes_ref: string
+          metrica: string
+          mrr_mtd: number | null
+          origem_cliente: string
+          qtd_mtd: number | null
+          tipo_snapshot: string
+        }
+        Insert: {
+          base: string
+          coletado_em?: string
+          data: string
+          data_execucao: string
+          fonte: string
+          id?: number
+          mes_ref: string
+          metrica: string
+          mrr_mtd?: number | null
+          origem_cliente: string
+          qtd_mtd?: number | null
+          tipo_snapshot?: string
+        }
+        Update: {
+          base?: string
+          coletado_em?: string
+          data?: string
+          data_execucao?: string
+          fonte?: string
+          id?: number
+          mes_ref?: string
+          metrica?: string
+          mrr_mtd?: number | null
+          origem_cliente?: string
+          qtd_mtd?: number | null
+          tipo_snapshot?: string
+        }
+        Relationships: []
+      }
       metas_price_daily: {
         Row: {
           classificacao: string
