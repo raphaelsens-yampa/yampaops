@@ -57,8 +57,10 @@ export const CATEGORY_SLUG_TO_CLASSIFICATION: Record<string, OriginClassificatio
   upsell: "upsell",
   downsell: "downsell",
   recuperados: "recuperados",
-  recuperacao_churn: "recuperados",
+  recuperacao_ft: "recuperados",
+  vendas_do_dia: "novos_pagantes",
 };
+
 
 /** Métrica tática -> classificação com recorte por origem. */
 export const TACTICAL_METRIC_TO_CLASSIFICATION: Record<string, OriginClassification> = {
