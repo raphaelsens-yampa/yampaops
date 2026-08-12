@@ -344,7 +344,6 @@ export function MetabaseTracking() {
       const { data } = await supabase
         .from("metas_price_daily")
         .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
-        .gte("data", ORIGIN_MIN_DATE)
         .not("origem_cliente", "is", null);
       if (cancelled) return;
       setOriginRows(((data as any[]) || []) as any);
@@ -352,73 +351,44 @@ export function MetabaseTracking() {
     return () => { cancelled = true; };
   }, [originFilter]);
 
-  /** Classificação (origem) -> categorias que a consomem */
-  const categoriesByClassification = useMemo(() => {
-    const map = new Map<string, GoalCategory[]>();
+  /** Participação (0..1) de cada origem por dia/classificação. */
+  const originShares = useMemo(
+    () => buildOriginShares(originRows as any, originFilter),
+    [originRows, originFilter],
+  );
+
+  /** category_id -> classificação com recorte por origem */
+  const classByCategoryId = useMemo(() => {
+    const map = new Map<string, OriginClassification>();
     categories.forEach((c) => {
       const cls = CATEGORY_SLUG_TO_CLASSIFICATION[(c as any).slug];
-      if (!cls) return;
-      const list = map.get(cls) ?? [];
-      list.push(c);
-      map.set(cls, list);
+      if (cls) map.set(c.id, cls);
     });
     return map;
   }, [categories]);
 
-  /**
-   * MTD as-of da data de referência, por mês e classificação, virando AggRow.
-   * Categorias sem quebra por origem simplesmente não geram linha → UI mostra "—".
-   */
-  const originAgg = useMemo<AggRow[]>(() => {
-    if (!isOriginFiltered(originFilter)) return [];
-    // último snapshot de cada mês com data <= refDate
-    const latest = new Map<string, string>(); // year_month -> data
-    originRows.forEach((r) => {
-      if (!r.data || r.data > refDate) return;
-      const ym = r.data.slice(0, 7);
-      const prev = latest.get(ym);
-      if (!prev || prev < r.data) latest.set(ym, r.data);
-    });
-    const byKey = new Map<string, { qtd: number; mrr: number }>(); // `${ym}|${cls}`
-    originRows.forEach((r) => {
-      if (!matchesOrigin(r.origem_cliente, originFilter)) return;
-      const cls = normalizeClassificacao(r.classificacao);
-      if (!cls || !r.data) return;
-      const ym = r.data.slice(0, 7);
-      if (latest.get(ym) !== r.data) return;
-      const k = `${ym}|${cls}`;
-      const prev = byKey.get(k) ?? { qtd: 0, mrr: 0 };
-      byKey.set(k, { qtd: prev.qtd + Number(r.qtd_mtd || 0), mrr: prev.mrr + Number(r.mrr_mtd || 0) });
-    });
-
-    const rows: AggRow[] = [];
-    for (const [k, v] of byKey) {
-      const [ym, cls] = k.split("|");
-      for (const cat of categoriesByClassification.get(cls) ?? []) {
-        const isCount = cat.metric_type === "count";
-        rows.push({
-          year_month: ym,
-          metric_key: `origin_${cls}`,
-          scope: "company",
-          team_id: null,
-          user_id: null,
-          campaign_id: null,
-          category_id: cat.id,
-          area: cat.area,
-          realized_amount: isCount ? v.qtd : v.mrr,
-          deals_count: v.qtd,
-        });
-      }
-    }
-    return rows;
-  }, [originFilter, originRows, refDate, categoriesByClassification]);
-
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
-    if (isOriginFiltered(originFilter)) return originAgg;
-    if (!historicalMode) return agg;
-    return hasSnapshotForRef ? snapshotAsAgg : [];
-  }, [originFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
+    const base = !historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [];
+    if (!isOriginFiltered(originFilter)) return base;
+    // Aplica a participação da origem sobre o realizado canônico:
+    // 4blue + Yampa = Visão Geral, e cada recorte <= total.
+    const out: AggRow[] = [];
+    for (const r of base) {
+      const cls = r.category_id ? classByCategoryId.get(r.category_id) : undefined;
+      if (!cls) continue; // categoria sem recorte por origem -> "—"
+      const asOf = `${r.year_month}-31` <= refDate ? `${r.year_month}-31` : refDate;
+      const sq = originShareAsOf(originShares, asOf, cls, "qtd");
+      const sm = originShareAsOf(originShares, asOf, cls, "mrr");
+      if (sq === null || sm === null) continue;
+      out.push({
+        ...r,
+        realized_amount: Number(r.realized_amount || 0) * sm,
+        deals_count: Number(r.deals_count || 0) * sq,
+      });
+    }
+    return out;
+  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
