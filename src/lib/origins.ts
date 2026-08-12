@@ -145,8 +145,18 @@ export function originShareAsOf(
     if (d > date) break;
     if (map.has(`${d}|${cls}`)) chosen = d;
   }
-  // Antes da 1ª data com marcação de origem não há como ratear: o dia fica
-  // fora do recorte (em vez de herdar uma participação futura e inventar dado).
+  // Antes da 1ª data com marcação de origem usamos a participação mais antiga
+  // conhecida como estimativa. Assim a série histórica não "desaparece" no
+  // recorte e 4blue + Yampa continua somando o total geral.
+  if (!chosen) {
+    for (const d of shares.dates) {
+      if (map.has(`${d}|${cls}`)) {
+        chosen = d;
+        break;
+      }
+    }
+  }
   if (!chosen) return null;
   return map.get(`${chosen}|${cls}`) ?? null;
+
 }
