@@ -227,12 +227,10 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
   }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
 
 
+  // Atingimento sempre realizado ÷ meta. Para categorias "teto" (menor é melhor),
+  // ficar abaixo de 100% é bom — a cor é definida por isGood, não pelo percentual.
   const pctOf = (target: number | null, realized: number | null, cat: GoalCategory) => {
     if (!target || target <= 0 || realized === null) return null;
-    if (isBetterBelow(cat.goal_direction)) {
-      if (realized <= 0) return 100;
-      return Math.min(999, (target / realized) * 100);
-    }
     return (realized / target) * 100;
   };
 
