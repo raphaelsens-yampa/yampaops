@@ -277,7 +277,7 @@ export function WeeklyGoalsPanel({
     const hasFinRealized = rows.some((r) => r.finRealized !== null);
     const finRealized = hasFinRealized ? rows.reduce((s, r) => s + (r.finRealized ?? 0), 0) : null;
     return { businessDays, target, realized, finTarget, finRealized };
-  }, [rows]);
+  }, [rows, unit]);
 
   const pctOf = (r: { target: number | null; realized: number | null }) =>
     r.target && r.target > 0 && r.realized !== null ? (r.realized / r.target) * 100 : null;
