@@ -266,7 +266,12 @@ export function WeeklyGoalsPanel({
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
     const hasTarget = rows.some((r) => r.target !== null);
     const target = hasTarget ? rows.reduce((s, r) => s + (r.target ?? 0), 0) : null;
-    const realized = rows.reduce((s, r) => s + (r.realized ?? 0), 0);
+    // Em contagens, cada semana é exibida arredondada; o total precisa somar
+    // exatamente os valores mostrados (evita "16" quando as linhas somam 17).
+    const realized = rows.reduce(
+      (s, r) => s + (r.realized === null ? 0 : unit === "count" ? Math.round(r.realized) : r.realized),
+      0,
+    );
     const hasFinTarget = rows.some((r) => r.finTarget !== null);
     const finTarget = hasFinTarget ? rows.reduce((s, r) => s + (r.finTarget ?? 0), 0) : null;
     const hasFinRealized = rows.some((r) => r.finRealized !== null);
