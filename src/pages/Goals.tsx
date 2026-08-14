@@ -225,6 +225,10 @@ export default function GoalsPage() {
         <Input type="number" placeholder="MRR Alvo (R$)" value={gMrr} onChange={(e) => setGMrr(e.target.value)} />
         <Input type="number" placeholder="Qtd Deals" value={gDeals} onChange={(e) => setGDeals(e.target.value)} />
         <Input type="number" placeholder="ARPA Alvo (R$)" value={gArpa} onChange={(e) => setGArpa(e.target.value)} />
+        <Input type="number" step="0.01" placeholder="Percentual Alvo (%)" value={gPct} onChange={(e) => setGPct(e.target.value)} />
+        <p className="text-xs text-muted-foreground">
+          Use o campo percentual para métricas de razão, como Churn % (logos).
+        </p>
       </div>
 
       <Button onClick={saveGoal} className="w-full">
