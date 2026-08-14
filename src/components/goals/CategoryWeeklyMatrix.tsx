@@ -136,7 +136,9 @@ export function CategoryWeeklyMatrix() {
             new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
           );
           const base = valueAsOf(leafPoints, prevKey, monthStartKey) ?? 0;
-          return cur - base;
+          // Fluxo acumulado no mês (MTD) só cresce. Quedas na série vêm de
+          // reprocessamento/revisão da base — nunca de realizado negativo.
+          return Math.max(0, cur - base);
         };
 
         const cells: Cell[] = weeks.map((w) => {
