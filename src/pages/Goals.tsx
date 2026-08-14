@@ -466,6 +466,7 @@ export default function GoalsPage() {
                           <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
                           <TableCell className="text-right">{g.target_deals || 0}</TableCell>
                           <TableCell className="text-right">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</TableCell>
+                          <TableCell className="text-right">{Number(g.target_pct || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</TableCell>
                           {role === "admin" && (
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
