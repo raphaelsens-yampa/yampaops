@@ -185,7 +185,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
                   new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
                 );
                 const base = valueAsOf(points, prevKey, monthStartKey) ?? 0;
-                realized = cur - base;
+                realized = Math.max(0, cur - base);
               }
             }
           }
