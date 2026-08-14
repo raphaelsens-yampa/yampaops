@@ -79,7 +79,7 @@ export function useCategoryWeeklyData(refDate: Date, refreshKey = 0): CategoryWe
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase
           .from("goals")
-          .select("category_id, target_mrr, target_deals, target_tpv, period_start, period_end")
+          .select("category_id, target_mrr, target_deals, target_tpv, target_pct, period_start, period_end")
           .lte("period_start", endKey)
           .gte("period_end", startKey),
         supabase
@@ -101,7 +101,10 @@ export function useCategoryWeeklyData(refDate: Date, refreshKey = 0): CategoryWe
       for (const g of (goalsRes.data as any[]) || []) {
         if (!g.category_id) continue;
         const value =
-          Number(g.target_mrr || 0) || Number(g.target_deals || 0) || Number(g.target_tpv || 0);
+          Number(g.target_pct || 0) ||
+          Number(g.target_mrr || 0) ||
+          Number(g.target_deals || 0) ||
+          Number(g.target_tpv || 0);
         if (!value) continue;
         t.set(g.category_id, Math.max(t.get(g.category_id) ?? 0, value));
       }
