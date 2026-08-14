@@ -441,6 +441,7 @@ export default function GoalsPage() {
                       <TableHead className="text-right">MRR Alvo</TableHead>
                       <TableHead className="text-right">Deals</TableHead>
                       <TableHead className="text-right">ARPA</TableHead>
+                      <TableHead className="text-right">%</TableHead>
                       {role === "admin" && <TableHead className="text-right">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
