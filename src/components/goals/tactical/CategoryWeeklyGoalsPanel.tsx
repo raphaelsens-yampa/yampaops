@@ -146,7 +146,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
             new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
           );
           const base = valueAsOf(leafPoints, prevKey, monthStartKey) ?? 0;
-          return cur - base;
+          // MTD só cresce: queda na série = revisão da base, não realizado negativo.
+          return Math.max(0, cur - base);
         };
 
         const rows: WeekRow[] = weeks.map((w) => {
