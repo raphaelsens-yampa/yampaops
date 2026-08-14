@@ -110,16 +110,19 @@ interface Goal {
   target_mrr: number;
   target_deals?: number | null;
   target_tpv?: number | null;
+  target_pct?: number | null;
 }
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 /**
  * Valor da meta independente do tipo de métrica da categoria.
- * Categorias de quantidade/razão são cadastradas em target_deals (ou target_tpv),
- * então usamos o primeiro campo preenchido.
+ * Categorias de quantidade/razão são cadastradas em target_deals, target_pct
+ * (percentual) ou target_tpv, então usamos o primeiro campo preenchido.
  */
 function goalTargetValue(g: Goal): number {
+  const pct = Number(g.target_pct || 0);
+  if (pct) return pct;
   const mrr = Number(g.target_mrr || 0);
   if (mrr) return mrr;
   const deals = Number(g.target_deals || 0);
