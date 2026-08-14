@@ -399,7 +399,7 @@ export default function GoalsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2 pt-1 border-t">
+                      <div className="grid grid-cols-4 gap-2 pt-1 border-t">
                         <div>
                           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">MRR</p>
                           <p className="text-sm font-semibold">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</p>
@@ -411,6 +411,12 @@ export default function GoalsPage() {
                         <div>
                           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">ARPA</p>
                           <p className="text-sm font-semibold">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">%</p>
+                          <p className="text-sm font-semibold">
+                            {Number(g.target_pct || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+                          </p>
                         </div>
                       </div>
                     </CardContent>
