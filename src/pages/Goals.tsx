@@ -57,6 +57,7 @@ export default function GoalsPage() {
   const [gMrr, setGMrr] = useState("");
   const [gDeals, setGDeals] = useState("");
   const [gArpa, setGArpa] = useState("");
+  const [gPct, setGPct] = useState("");
   const [gCategory, setGCategory] = useState<string>("none");
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
@@ -84,7 +85,7 @@ export default function GoalsPage() {
 
   function resetForm() {
     setGScope("company"); setGUser("none"); setGTeam("none"); setGCampaignId("none");
-    setGStart(""); setGEnd(""); setGMrr(""); setGDeals(""); setGArpa("");
+    setGStart(""); setGEnd(""); setGMrr(""); setGDeals(""); setGArpa(""); setGPct("");
     setGCategory("none");
     setEditingGoal(null);
   }
@@ -100,6 +101,7 @@ export default function GoalsPage() {
     setGMrr(goal.target_mrr?.toString() || "");
     setGDeals(goal.target_deals?.toString() || "");
     setGArpa(goal.target_tpv?.toString() || "");
+    setGPct(goal.target_pct ? goal.target_pct.toString() : "");
     setGCategory(goal.category_id || "none");
     setOpen(true);
   }
@@ -115,6 +117,7 @@ export default function GoalsPage() {
       target_mrr: parseFloat(gMrr) || 0,
       target_deals: parseInt(gDeals) || 0,
       target_tpv: parseFloat(gArpa) || 0,
+      target_pct: parseFloat(gPct) || 0,
       category_id: gCategory === "none" ? null : gCategory,
     };
   }
