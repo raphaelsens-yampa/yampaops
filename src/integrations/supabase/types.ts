@@ -1567,6 +1567,7 @@ export type Database = {
           scope: string | null
           target_deals: number | null
           target_mrr: number | null
+          target_pct: number
           target_tpv: number | null
           team_id: string | null
           updated_at: string
@@ -1585,6 +1586,7 @@ export type Database = {
           scope?: string | null
           target_deals?: number | null
           target_mrr?: number | null
+          target_pct?: number
           target_tpv?: number | null
           team_id?: string | null
           updated_at?: string
@@ -1603,6 +1605,7 @@ export type Database = {
           scope?: string | null
           target_deals?: number | null
           target_mrr?: number | null
+          target_pct?: number
           target_tpv?: number | null
           team_id?: string | null
           updated_at?: string
