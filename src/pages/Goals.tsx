@@ -57,6 +57,7 @@ export default function GoalsPage() {
   const [gMrr, setGMrr] = useState("");
   const [gDeals, setGDeals] = useState("");
   const [gArpa, setGArpa] = useState("");
+  const [gPct, setGPct] = useState("");
   const [gCategory, setGCategory] = useState<string>("none");
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
@@ -84,7 +85,7 @@ export default function GoalsPage() {
 
   function resetForm() {
     setGScope("company"); setGUser("none"); setGTeam("none"); setGCampaignId("none");
-    setGStart(""); setGEnd(""); setGMrr(""); setGDeals(""); setGArpa("");
+    setGStart(""); setGEnd(""); setGMrr(""); setGDeals(""); setGArpa(""); setGPct("");
     setGCategory("none");
     setEditingGoal(null);
   }
@@ -100,6 +101,7 @@ export default function GoalsPage() {
     setGMrr(goal.target_mrr?.toString() || "");
     setGDeals(goal.target_deals?.toString() || "");
     setGArpa(goal.target_tpv?.toString() || "");
+    setGPct(goal.target_pct ? goal.target_pct.toString() : "");
     setGCategory(goal.category_id || "none");
     setOpen(true);
   }
@@ -115,6 +117,7 @@ export default function GoalsPage() {
       target_mrr: parseFloat(gMrr) || 0,
       target_deals: parseInt(gDeals) || 0,
       target_tpv: parseFloat(gArpa) || 0,
+      target_pct: parseFloat(gPct) || 0,
       category_id: gCategory === "none" ? null : gCategory,
     };
   }
@@ -222,6 +225,10 @@ export default function GoalsPage() {
         <Input type="number" placeholder="MRR Alvo (R$)" value={gMrr} onChange={(e) => setGMrr(e.target.value)} />
         <Input type="number" placeholder="Qtd Deals" value={gDeals} onChange={(e) => setGDeals(e.target.value)} />
         <Input type="number" placeholder="ARPA Alvo (R$)" value={gArpa} onChange={(e) => setGArpa(e.target.value)} />
+        <Input type="number" step="0.01" placeholder="Percentual Alvo (%)" value={gPct} onChange={(e) => setGPct(e.target.value)} />
+        <p className="text-xs text-muted-foreground">
+          Use o campo percentual para métricas de razão, como Churn % (logos).
+        </p>
       </div>
 
       <Button onClick={saveGoal} className="w-full">
@@ -392,7 +399,7 @@ export default function GoalsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2 pt-1 border-t">
+                      <div className="grid grid-cols-4 gap-2 pt-1 border-t">
                         <div>
                           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">MRR</p>
                           <p className="text-sm font-semibold">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</p>
@@ -404,6 +411,12 @@ export default function GoalsPage() {
                         <div>
                           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">ARPA</p>
                           <p className="text-sm font-semibold">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">%</p>
+                          <p className="text-sm font-semibold">
+                            {Number(g.target_pct || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -428,6 +441,7 @@ export default function GoalsPage() {
                       <TableHead className="text-right">MRR Alvo</TableHead>
                       <TableHead className="text-right">Deals</TableHead>
                       <TableHead className="text-right">ARPA</TableHead>
+                      <TableHead className="text-right">%</TableHead>
                       {role === "admin" && <TableHead className="text-right">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -452,6 +466,7 @@ export default function GoalsPage() {
                           <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
                           <TableCell className="text-right">{g.target_deals || 0}</TableCell>
                           <TableCell className="text-right">R$ {(g.target_tpv || 0).toLocaleString("pt-BR")}</TableCell>
+                          <TableCell className="text-right">{Number(g.target_pct || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</TableCell>
                           {role === "admin" && (
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">

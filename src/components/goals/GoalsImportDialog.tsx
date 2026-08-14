@@ -32,6 +32,7 @@ interface ParsedRow {
   target_mrr: number;
   target_deals: number;
   target_tpv: number;
+  target_pct: number;
   categoryLabel: string;
   targetLabel: string;
   error: string | null;
@@ -46,6 +47,7 @@ const HEADERS = [
   "meta_mrr",
   "meta_quantidade",
   "meta_tpv",
+  "meta_percentual",
 ];
 
 const norm = (s: unknown) =>
@@ -128,6 +130,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
       ["meta_mrr", "Não", "Valor em R$ (ex.: 350000). Use para metas de MRR/valor"],
       ["meta_quantidade", "Não", "Número inteiro. Use para metas de quantidade (deals, usuários, logos)"],
       ["meta_tpv", "Não", "Valor em R$ do TPV/ARPA, se aplicável"],
+      ["meta_percentual", "Não", "Meta percentual (%), ex.: churn % de logos"],
       ["", "", "Preencha ao menos um dos campos de meta com valor maior que zero"],
       ["Categorias disponíveis", "", categories.map((c) => c.name).join(" | ")],
       ["Times disponíveis", "", teams.map((t) => t.name).join(" | ")],
@@ -157,6 +160,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
       mrr: col("meta_mrr"),
       qtd: col("meta_quantidade"),
       tpv: col("meta_tpv"),
+      pct: col("meta_percentual"),
     };
     if (idx.escopo < 0 || idx.inicio < 0 || idx.fim < 0) {
       toast({ title: "Cabeçalho inválido", description: "Use o modelo padrão para importar.", variant: "destructive" });
@@ -208,14 +212,15 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
       const target_mrr = parseNum(get(idx.mrr));
       const target_deals = Math.round(parseNum(get(idx.qtd)));
       const target_tpv = parseNum(get(idx.tpv));
-      if (!error && target_mrr <= 0 && target_deals <= 0 && target_tpv <= 0) error = "Nenhuma meta preenchida";
+      const target_pct = parseNum(get(idx.pct));
+      if (!error && target_mrr <= 0 && target_deals <= 0 && target_tpv <= 0 && target_pct <= 0) error = "Nenhuma meta preenchida";
 
       parsed.push({
         line: r + 1,
         scope: scope ?? "company",
         category_id, user_id, team_id, campaign_id, campaign,
         period_start: period_start ?? "", period_end: period_end ?? "",
-        target_mrr, target_deals, target_tpv,
+        target_mrr, target_deals, target_tpv, target_pct,
         categoryLabel, targetLabel, error,
       });
     }
@@ -237,6 +242,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
       target_mrr: r.target_mrr,
       target_deals: r.target_deals,
       target_tpv: r.target_tpv,
+      target_pct: r.target_pct,
     }));
     const { error } = await supabase.from("goals").insert(payload as any);
     setSaving(false);
