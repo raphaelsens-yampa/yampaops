@@ -1591,7 +1591,10 @@ export function MetabaseTracking() {
           </CardContent>
         </Card>
       )}
+
+      <CategoryWeeklyMatrix />
     </div>
+
   );
 }
 
