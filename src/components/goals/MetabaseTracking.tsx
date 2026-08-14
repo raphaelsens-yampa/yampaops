@@ -22,6 +22,8 @@ import {
   type OriginClassification,
   type OriginFilter,
 } from "@/lib/origins";
+import { CategoryWeeklyMatrix } from "@/components/goals/CategoryWeeklyMatrix";
+
 
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -1591,7 +1593,10 @@ export function MetabaseTracking() {
           </CardContent>
         </Card>
       )}
+
+      <CategoryWeeklyMatrix />
     </div>
+
   );
 }
 
