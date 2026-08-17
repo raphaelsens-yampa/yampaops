@@ -161,9 +161,10 @@ Deno.serve(async (req) => {
 
 
     return new Response(
-      JSON.stringify({ ok: true, ingested: records.length, month_refreshed: from, unresolved_metric_keys: Array.from(new Set(unresolved)) }),
+      JSON.stringify({ ok: true, ingested: records.length, month_refreshed: from, snapshot_gaps_filled: gapFill ?? null, unresolved_metric_keys: Array.from(new Set(unresolved)) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
+
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
