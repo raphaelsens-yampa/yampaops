@@ -112,6 +112,20 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
     } catch {}
   };
 
+  const [revised, setRevised] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVISED_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setRevisedPersist = (v: boolean) => {
+    setRevised(v);
+    try {
+      localStorage.setItem(REVISED_KEY, v ? "1" : "0");
+    } catch {}
+  };
+
   const weeks = useMemo(() => weeksOfMonth(today), [today]);
   const todayKey = toBRDateKey(today);
   const monthStart = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
