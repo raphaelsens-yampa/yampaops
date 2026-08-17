@@ -462,6 +462,7 @@ export function WeeklyGoalsPanel({
                     </span>
                     <span className="text-muted-foreground">
                       {" "}/ {r.target === null ? "—" : formatMetric(r.target, unit)}
+                      <DeltaChip d={r.targetDelta} />
                     </span>
                   </span>
                   <span
