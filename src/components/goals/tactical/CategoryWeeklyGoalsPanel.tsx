@@ -228,6 +228,28 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               ? 0
               : null;
 
+        // Metas vivas: semanas futuras absorvem o saldo do mês (estoque não rateia).
+        let displayRows = rows;
+        let unrecovered = 0;
+        if (revised && !isStock && monthTarget > 0) {
+          const res = computeRevisedWeeklyTargets({
+            monthTarget,
+            lowerIsBetter: isBetterBelow(cat.goal_direction),
+            weeks: rows.map((r) => ({
+              businessDays: r.businessDays,
+              originalTarget: r.target,
+              realized: r.realized,
+              status: (r.isFuture ? "future" : r.isCurrent ? "current" : "closed") as WeekStatus,
+            })),
+          });
+          unrecovered = res.unrecovered;
+          displayRows = rows.map((r, i) => ({
+            ...r,
+            target: r.target === null ? null : res.weeks[i].revisedTarget,
+            targetDelta: r.target === null ? null : res.weeks[i].delta,
+          }));
+        }
+
         const partialOrigin =
           originFiltered &&
           (isAggregate
@@ -238,13 +260,15 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           cat,
           monthTarget,
           isStock,
-          rows,
+          rows: displayRows,
+          unrecovered,
           realizedTotal,
           partialOrigin,
           source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit, revised]);
+
 
 
   // Atingimento sempre realizado ÷ meta. Para categorias "teto" (menor é melhor),
