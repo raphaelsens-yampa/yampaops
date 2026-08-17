@@ -58,6 +58,7 @@ interface Row {
 }
 
 const LT_MRR = "__lt_mrr__";
+const REVISED_KEY = "tactical_weekly_revised_v1";
 const LT_COUNT = "__lt_count__";
 const ALL = "__all__";
 
