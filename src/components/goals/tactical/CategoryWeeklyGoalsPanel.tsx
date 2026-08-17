@@ -24,6 +24,7 @@ import {
   useCategoryWeeklyData,
   type CategorySnapPoint,
 } from "./useCategoryWeeklyData";
+import { isOriginFiltered, originLabel, ORIGIN_NO_SPLIT_HINT, type OriginFilter } from "@/lib/origins";
 
 const STORAGE_KEY = "tactical_category_weekly_v1";
 const DEFAULT_SLUGS = ["total_de_mrr_ms3g6o38"];
@@ -32,6 +33,7 @@ interface Props {
   today: Date;
   daily?: DailyDatum[];
   refreshKey?: number;
+  origin?: OriginFilter;
 }
 
 interface WeekRow {
@@ -63,8 +65,13 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
   return found;
 }
 
-export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: Props) {
-  const { categories, targets, series, loading } = useCategoryWeeklyData(today, refreshKey);
+export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
+  const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
+    today,
+    refreshKey,
+    origin,
+  );
+  const originFiltered = isOriginFiltered(origin);
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
@@ -216,16 +223,23 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
               ? 0
               : null;
 
+        const partialOrigin =
+          originFiltered &&
+          (isAggregate
+            ? componentIds.some((id) => noOriginSplit.has(id))
+            : noOriginSplit.has(cat.id));
+
         return {
           cat,
           monthTarget,
           isStock,
           rows,
           realizedTotal,
+          partialOrigin,
           source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit]);
 
 
   // Atingimento sempre realizado ÷ meta. Para categorias "teto" (menor é melhor),
@@ -311,7 +325,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
         {blocks.length === 0 && (
           <p className="text-sm text-muted-foreground">Selecione ao menos uma categoria.</p>
         )}
-        {blocks.map(({ cat, monthTarget, isStock, rows, realizedTotal, source }) => {
+        {blocks.map(({ cat, monthTarget, isStock, rows, realizedTotal, source, partialOrigin }) => {
           const monthPct = pctOf(monthTarget, realizedTotal, cat);
           const good = isGood(monthTarget, realizedTotal, cat);
           return (
@@ -325,6 +339,12 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
                   )}
                   {isStock && <Badge variant="secondary" className="text-[10px]">estoque</Badge>}
                   <span className="text-[10px] text-muted-foreground">fonte: {source}</span>
+                  {originFiltered && (
+                    <Badge variant="secondary" className="text-[10px]">{originLabel(origin)}</Badge>
+                  )}
+                  {partialOrigin && (
+                    <span className="text-[10px] text-amber-600">{ORIGIN_NO_SPLIT_HINT}</span>
+                  )}
                 </div>
                 <span className="text-xs">
                   Mês:{" "}
