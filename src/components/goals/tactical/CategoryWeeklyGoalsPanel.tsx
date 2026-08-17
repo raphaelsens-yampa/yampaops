@@ -24,6 +24,7 @@ import {
   useCategoryWeeklyData,
   type CategorySnapPoint,
 } from "./useCategoryWeeklyData";
+import { isOriginFiltered, originLabel, ORIGIN_NO_SPLIT_HINT, type OriginFilter } from "@/lib/origins";
 
 const STORAGE_KEY = "tactical_category_weekly_v1";
 const DEFAULT_SLUGS = ["total_de_mrr_ms3g6o38"];
@@ -32,6 +33,7 @@ interface Props {
   today: Date;
   daily?: DailyDatum[];
   refreshKey?: number;
+  origin?: OriginFilter;
 }
 
 interface WeekRow {
@@ -63,8 +65,13 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
   return found;
 }
 
-export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: Props) {
-  const { categories, targets, series, loading } = useCategoryWeeklyData(today, refreshKey);
+export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
+  const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
+    today,
+    refreshKey,
+    origin,
+  );
+  const originFiltered = isOriginFiltered(origin);
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
@@ -216,16 +223,23 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0 }: 
               ? 0
               : null;
 
+        const partialOrigin =
+          originFiltered &&
+          (isAggregate
+            ? componentIds.some((id) => noOriginSplit.has(id))
+            : noOriginSplit.has(cat.id));
+
         return {
           cat,
           monthTarget,
           isStock,
           rows,
           realizedTotal,
+          partialOrigin,
           source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit]);
 
 
   // Atingimento sempre realizado ÷ meta. Para categorias "teto" (menor é melhor),
