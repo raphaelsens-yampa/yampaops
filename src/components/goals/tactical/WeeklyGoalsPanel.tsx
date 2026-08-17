@@ -427,10 +427,13 @@ export function WeeklyGoalsPanel({
         </div>
         {revised && (
           <p className="text-[11px] text-muted-foreground">
-            Metas de semanas fechadas e da semana vigente são oficializadas; o saldo do mês é
-            redistribuído entre as semanas futuras por dias úteis.
+            Metas de semanas fechadas e da semana vigente são oficializadas; o saldo que falta para
+            fechar a meta do mês é redistribuído entre as semanas futuras por dias úteis. Por isso a
+            soma da coluna Meta pode ficar acima (ou abaixo) da meta original do mês — ela reflete o
+            que ainda precisa ser feito, não o rateio inicial.
           </p>
         )}
+
       </CardHeader>
       <CardContent className="px-4 md:px-6">
         {/* Mobile: cards */}
