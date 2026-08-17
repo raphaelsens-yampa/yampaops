@@ -320,6 +320,27 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
             <CardTitle className="text-sm sm:text-base">Metas por categoria — quebra semanal</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
           </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="inline-flex rounded-md border p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "ghost" : "secondary"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(false)}
+              >
+                Original
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "secondary" : "ghost"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(true)}
+              >
+                Revisada
+              </Button>
+            </div>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-10 md:h-9 md:w-56 justify-between">
