@@ -47,7 +47,10 @@ interface WeekRow {
   realized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Variação entre meta revisada e original (só semanas futuras). */
+  targetDelta?: number | null;
 }
+
 
 function fmt(value: number, cat: GoalCategory): string {
   if (cat.metric_type === "ratio") return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
