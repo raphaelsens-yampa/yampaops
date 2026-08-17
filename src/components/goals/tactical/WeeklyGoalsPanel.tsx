@@ -191,7 +191,7 @@ export function WeeklyGoalsPanel({
   const todayKey = toBRDateKey(today);
 
 
-  const rows: Row[] = useMemo(() => {
+  const baseRows: Row[] = useMemo(() => {
     const users = memberIds.length
       ? memberIds
       : Array.from(new Set(daily.map((d) => d.user_id)));
