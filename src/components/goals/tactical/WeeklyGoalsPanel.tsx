@@ -356,6 +356,24 @@ export function WeeklyGoalsPanel({
 
   const monthLabel = format(today, "MMMM 'de' yyyy", { locale: ptBR });
 
+  /** Chip com a variação da meta revisada em relação à original. */
+  const deltaText = (d: number | null | undefined, u: "count" | "currency" = unit) => {
+    if (d === null || d === undefined || Math.abs(d) < 0.5) return null;
+    return `${d > 0 ? "▲ +" : "▼ −"}${formatMetric(Math.abs(d), u)}`;
+  };
+  const DeltaChip = ({ d, u = unit }: { d: number | null | undefined; u?: "count" | "currency" }) => {
+    const t = deltaText(d, u);
+    if (!t) return null;
+    return (
+      <span
+        className={cn("ml-1 text-[10px]", d! > 0 ? "text-destructive" : "text-emerald-600")}
+        title="Meta reajustada pelo saldo das semanas fechadas"
+      >
+        {t}
+      </span>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
@@ -364,28 +382,55 @@ export function WeeklyGoalsPanel({
             <CardTitle className="text-sm sm:text-base">Metas semanais do mês</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
           </div>
-          <Select value={selected} onValueChange={setMetricId}>
-            <SelectTrigger className="h-10 md:h-9 md:w-52">
-              <SelectValue placeholder="Métrica" />
-            </SelectTrigger>
-            <SelectContent>
-              {isLowTouch ? (
-                <>
-                  <SelectItem value={LT_MRR}>MRR Low-touch</SelectItem>
-                  <SelectItem value={LT_COUNT}>Vendas Low-touch</SelectItem>
-                </>
-              ) : (
-                <>
-                  <SelectItem value={ALL}>Visão Geral (todas)</SelectItem>
-                  {visible.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-                  ))}
-                </>
-              )}
-
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="inline-flex rounded-md border p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "ghost" : "secondary"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(false)}
+              >
+                Original
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "secondary" : "ghost"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(true)}
+              >
+                Revisada
+              </Button>
+            </div>
+            <Select value={selected} onValueChange={setMetricId}>
+              <SelectTrigger className="h-10 md:h-9 md:w-52">
+                <SelectValue placeholder="Métrica" />
+              </SelectTrigger>
+              <SelectContent>
+                {isLowTouch ? (
+                  <>
+                    <SelectItem value={LT_MRR}>MRR Low-touch</SelectItem>
+                    <SelectItem value={LT_COUNT}>Vendas Low-touch</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value={ALL}>Visão Geral (todas)</SelectItem>
+                    {visible.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+        {revised && (
+          <p className="text-[11px] text-muted-foreground">
+            Metas de semanas fechadas e da semana vigente são oficializadas; o saldo do mês é
+            redistribuído entre as semanas futuras por dias úteis.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="px-4 md:px-6">
         {/* Mobile: cards */}
