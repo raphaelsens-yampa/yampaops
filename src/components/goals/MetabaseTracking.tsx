@@ -1210,6 +1210,12 @@ export function MetabaseTracking() {
                     Snapshot parcial — {snapshotMeta.count}/{EXPECTED_SNAPSHOT_METRICS} métricas (ausentes exibem "—")
                   </Badge>
                 )}
+                {historicalMode && hasSnapshotForRef && snapshotMeta.isCarryForward && (
+                  <Badge variant="outline" className="border-sky-400 text-sky-600">
+                    Sem captura no dia — valores replicados do último dia capturado
+                  </Badge>
+                )}
+
                 {historicalMode && !hasSnapshotForRef && (
                   <Badge variant="outline" className="border-rose-400 text-rose-600">
                     Sem snapshot para {fmtDateKey(refDate)}
