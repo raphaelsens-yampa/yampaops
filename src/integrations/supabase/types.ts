@@ -1986,6 +1986,45 @@ export type Database = {
           },
         ]
       }
+      metabase_ingest_log: {
+        Row: {
+          data_ref: string | null
+          error_message: string | null
+          fonte: string
+          id: string
+          raw_payload: Json
+          received_at: string
+          rows_received: number
+          rows_written: number
+          status: string
+          target_table: string | null
+        }
+        Insert: {
+          data_ref?: string | null
+          error_message?: string | null
+          fonte?: string
+          id?: string
+          raw_payload: Json
+          received_at?: string
+          rows_received?: number
+          rows_written?: number
+          status?: string
+          target_table?: string | null
+        }
+        Update: {
+          data_ref?: string | null
+          error_message?: string | null
+          fonte?: string
+          id?: string
+          raw_payload?: Json
+          received_at?: string
+          rows_received?: number
+          rows_written?: number
+          status?: string
+          target_table?: string | null
+        }
+        Relationships: []
+      }
       metabase_monthly_agg: {
         Row: {
           area: string | null
