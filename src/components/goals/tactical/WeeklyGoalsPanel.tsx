@@ -52,6 +52,9 @@ interface Row {
   finRealized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Diferença entre meta revisada e original (só semanas futuras). */
+  targetDelta?: number | null;
+  finTargetDelta?: number | null;
 }
 
 const LT_MRR = "__lt_mrr__";
