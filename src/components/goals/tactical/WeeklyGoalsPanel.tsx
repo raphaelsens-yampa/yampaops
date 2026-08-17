@@ -556,7 +556,10 @@ export function WeeklyGoalsPanel({
                     </td>
                     {showFin && (
                       <>
-                        <td className="py-2 text-right pl-4">{fmtCur(r.finTarget)}</td>
+                        <td className="py-2 text-right pl-4 whitespace-nowrap">
+                          {fmtCur(r.finTarget)}
+                          <DeltaChip d={r.finTargetDelta} u="currency" />
+                        </td>
                         <td className="py-2 text-right">{fmtCur(r.finRealized)}</td>
                         <td
                           className={cn(
