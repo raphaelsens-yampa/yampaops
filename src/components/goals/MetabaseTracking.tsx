@@ -303,8 +303,11 @@ export function MetabaseTracking() {
       tipo: rows[0]?.tipo_snapshot || null,
       isPartial: rows.length > 0 && rows.length < EXPECTED_SNAPSHOT_METRICS,
       reconstructedKeys: reconstructed,
+      /** Snapshot gerado por replicação do último dia capturado (sem captura no dia). */
+      isCarryForward: rows.length > 0 && rows.every((r) => r.tipo_snapshot === "carry_forward"),
     };
   }, [snapRows, refDate]);
+
 
   /**
    * Snapshot → formato AggRow, resolvido as-of: para cada (mês, métrica) usa a
