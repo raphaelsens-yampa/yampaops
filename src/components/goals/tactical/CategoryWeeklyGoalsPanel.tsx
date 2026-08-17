@@ -25,8 +25,10 @@ import {
   type CategorySnapPoint,
 } from "./useCategoryWeeklyData";
 import { isOriginFiltered, originLabel, ORIGIN_NO_SPLIT_HINT, type OriginFilter } from "@/lib/origins";
+import { computeRevisedWeeklyTargets, type WeekStatus } from "@/lib/revisedGoals";
 
 const STORAGE_KEY = "tactical_category_weekly_v1";
+const REVISED_KEY = "tactical_category_weekly_revised_v1";
 const DEFAULT_SLUGS = ["total_de_mrr_ms3g6o38"];
 
 interface Props {
