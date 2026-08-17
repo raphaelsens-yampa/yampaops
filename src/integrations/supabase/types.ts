@@ -4320,6 +4320,10 @@ export type Database = {
           previous_price_id: string
         }[]
       }
+      fill_snapshot_gaps: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       get_chatwoot_labels: { Args: never; Returns: string[] }
       has_role: {
         Args: {
