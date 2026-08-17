@@ -500,7 +500,21 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                           </td>
                           <td className="py-2 text-muted-foreground">{r.rangeLabel}</td>
                           <td className="py-2 text-right text-muted-foreground">{r.businessDays}</td>
-                          <td className="py-2 text-right">{r.target === null ? "—" : fmt(r.target, cat)}</td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {r.target === null ? "—" : fmt(r.target, cat)}
+                            {r.targetDelta !== null && r.targetDelta !== undefined && Math.abs(r.targetDelta) >= 0.5 && (
+                              <span
+                                className={cn(
+                                  "ml-1 text-[10px]",
+                                  r.targetDelta > 0 ? "text-destructive" : "text-emerald-600",
+                                )}
+                                title="Meta reajustada pelo saldo das semanas fechadas"
+                              >
+                                {r.targetDelta > 0 ? "▲ +" : "▼ −"}
+                                {fmt(Math.abs(r.targetDelta), cat)}
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 text-right font-medium">
                             {r.realized === null ? "—" : fmt(r.realized, cat)}
                           </td>
