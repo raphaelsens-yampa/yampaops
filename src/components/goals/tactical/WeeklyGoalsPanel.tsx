@@ -538,8 +538,9 @@ export function WeeklyGoalsPanel({
                     </td>
                     <td className="py-2 text-muted-foreground">{r.rangeLabel}</td>
                     <td className="py-2 text-right">{r.businessDays}</td>
-                    <td className="py-2 text-right">
+                    <td className="py-2 text-right whitespace-nowrap">
                       {r.target === null ? "—" : formatMetric(r.target, unit)}
+                      <DeltaChip d={r.targetDelta} />
                     </td>
                     <td className="py-2 text-right">
                       {r.realized === null ? "—" : formatMetric(r.realized, unit)}
