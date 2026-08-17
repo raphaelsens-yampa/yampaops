@@ -384,7 +384,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
-          {revised && " Na visão Revisada, o saldo das semanas fechadas é redistribuído nas semanas futuras."}
+          {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>
       <CardContent className="px-4 md:px-6 space-y-5">
