@@ -325,7 +325,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
         {blocks.length === 0 && (
           <p className="text-sm text-muted-foreground">Selecione ao menos uma categoria.</p>
         )}
-        {blocks.map(({ cat, monthTarget, isStock, rows, realizedTotal, source }) => {
+        {blocks.map(({ cat, monthTarget, isStock, rows, realizedTotal, source, partialOrigin }) => {
           const monthPct = pctOf(monthTarget, realizedTotal, cat);
           const good = isGood(monthTarget, realizedTotal, cat);
           return (
@@ -339,6 +339,12 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                   )}
                   {isStock && <Badge variant="secondary" className="text-[10px]">estoque</Badge>}
                   <span className="text-[10px] text-muted-foreground">fonte: {source}</span>
+                  {originFiltered && (
+                    <Badge variant="secondary" className="text-[10px]">{originLabel(origin)}</Badge>
+                  )}
+                  {partialOrigin && (
+                    <span className="text-[10px] text-amber-600">{ORIGIN_NO_SPLIT_HINT}</span>
+                  )}
                 </div>
                 <span className="text-xs">
                   Mês:{" "}
