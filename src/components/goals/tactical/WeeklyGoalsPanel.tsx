@@ -4,7 +4,9 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { computeRevisedWeeklyTargets, type WeekStatus } from "@/lib/revisedGoals";
 import { cn } from "@/lib/utils";
 import {
   businessDaysBetween,
@@ -50,9 +52,13 @@ interface Row {
   finRealized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Diferença entre meta revisada e original (só semanas futuras). */
+  targetDelta?: number | null;
+  finTargetDelta?: number | null;
 }
 
 const LT_MRR = "__lt_mrr__";
+const REVISED_KEY = "tactical_weekly_revised_v1";
 const LT_COUNT = "__lt_count__";
 const ALL = "__all__";
 
@@ -186,7 +192,7 @@ export function WeeklyGoalsPanel({
   const todayKey = toBRDateKey(today);
 
 
-  const rows: Row[] = useMemo(() => {
+  const baseRows: Row[] = useMemo(() => {
     const users = memberIds.length
       ? memberIds
       : Array.from(new Set(daily.map((d) => d.user_id)));
@@ -262,6 +268,59 @@ export function WeeklyGoalsPanel({
     });
   }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
 
+  /** Metas semanais vivas: semanas futuras absorvem o saldo do mês. */
+  const [revised, setRevised] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVISED_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setRevisedPersist = (v: boolean) => {
+    setRevised(v);
+    try {
+      localStorage.setItem(REVISED_KEY, v ? "1" : "0");
+    } catch {}
+  };
+
+  const rows: Row[] = useMemo(() => {
+    if (!revised) return baseRows;
+    const statusOf = (r: Row): WeekStatus =>
+      r.isFuture ? "future" : r.isCurrent ? "current" : "closed";
+
+    const monthTarget = baseRows.reduce((s, r) => s + (r.target ?? 0), 0);
+    const res = computeRevisedWeeklyTargets({
+      monthTarget,
+      weeks: baseRows.map((r) => ({
+        businessDays: r.businessDays,
+        originalTarget: r.target,
+        realized: r.realized,
+        status: statusOf(r),
+      })),
+    });
+
+    const finMonthTarget = baseRows.reduce((s, r) => s + (r.finTarget ?? 0), 0);
+    const finRes = computeRevisedWeeklyTargets({
+      monthTarget: finMonthTarget,
+      weeks: baseRows.map((r) => ({
+        businessDays: r.businessDays,
+        originalTarget: r.finTarget,
+        realized: r.finRealized,
+        status: statusOf(r),
+      })),
+    });
+
+    return baseRows.map((r, i) => ({
+      ...r,
+      target: r.target === null ? null : res.weeks[i].revisedTarget,
+      targetDelta: r.target === null ? null : res.weeks[i].delta,
+      finTarget: r.finTarget === null ? null : finRes.weeks[i].revisedTarget,
+      finTargetDelta: r.finTarget === null ? null : finRes.weeks[i].delta,
+    }));
+  }, [baseRows, revised]);
+
+
+
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
     const hasTarget = rows.some((r) => r.target !== null);
@@ -297,6 +356,24 @@ export function WeeklyGoalsPanel({
 
   const monthLabel = format(today, "MMMM 'de' yyyy", { locale: ptBR });
 
+  /** Chip com a variação da meta revisada em relação à original. */
+  const deltaText = (d: number | null | undefined, u: "count" | "currency" = unit) => {
+    if (d === null || d === undefined || Math.abs(d) < 0.5) return null;
+    return `${d > 0 ? "▲ +" : "▼ −"}${formatMetric(Math.abs(d), u)}`;
+  };
+  const DeltaChip = ({ d, u = unit }: { d: number | null | undefined; u?: "count" | "currency" }) => {
+    const t = deltaText(d, u);
+    if (!t) return null;
+    return (
+      <span
+        className={cn("ml-1 text-[10px]", d! > 0 ? "text-destructive" : "text-emerald-600")}
+        title="Meta reajustada pelo saldo das semanas fechadas"
+      >
+        {t}
+      </span>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
@@ -305,28 +382,55 @@ export function WeeklyGoalsPanel({
             <CardTitle className="text-sm sm:text-base">Metas semanais do mês</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
           </div>
-          <Select value={selected} onValueChange={setMetricId}>
-            <SelectTrigger className="h-10 md:h-9 md:w-52">
-              <SelectValue placeholder="Métrica" />
-            </SelectTrigger>
-            <SelectContent>
-              {isLowTouch ? (
-                <>
-                  <SelectItem value={LT_MRR}>MRR Low-touch</SelectItem>
-                  <SelectItem value={LT_COUNT}>Vendas Low-touch</SelectItem>
-                </>
-              ) : (
-                <>
-                  <SelectItem value={ALL}>Visão Geral (todas)</SelectItem>
-                  {visible.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-                  ))}
-                </>
-              )}
-
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="inline-flex rounded-md border p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "ghost" : "secondary"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(false)}
+              >
+                Original
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "secondary" : "ghost"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(true)}
+              >
+                Revisada
+              </Button>
+            </div>
+            <Select value={selected} onValueChange={setMetricId}>
+              <SelectTrigger className="h-10 md:h-9 md:w-52">
+                <SelectValue placeholder="Métrica" />
+              </SelectTrigger>
+              <SelectContent>
+                {isLowTouch ? (
+                  <>
+                    <SelectItem value={LT_MRR}>MRR Low-touch</SelectItem>
+                    <SelectItem value={LT_COUNT}>Vendas Low-touch</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value={ALL}>Visão Geral (todas)</SelectItem>
+                    {visible.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+        {revised && (
+          <p className="text-[11px] text-muted-foreground">
+            Metas de semanas fechadas e da semana vigente são oficializadas; o saldo do mês é
+            redistribuído entre as semanas futuras por dias úteis.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="px-4 md:px-6">
         {/* Mobile: cards */}
@@ -358,6 +462,7 @@ export function WeeklyGoalsPanel({
                     </span>
                     <span className="text-muted-foreground">
                       {" "}/ {r.target === null ? "—" : formatMetric(r.target, unit)}
+                      <DeltaChip d={r.targetDelta} />
                     </span>
                   </span>
                   <span
@@ -434,8 +539,9 @@ export function WeeklyGoalsPanel({
                     </td>
                     <td className="py-2 text-muted-foreground">{r.rangeLabel}</td>
                     <td className="py-2 text-right">{r.businessDays}</td>
-                    <td className="py-2 text-right">
+                    <td className="py-2 text-right whitespace-nowrap">
                       {r.target === null ? "—" : formatMetric(r.target, unit)}
+                      <DeltaChip d={r.targetDelta} />
                     </td>
                     <td className="py-2 text-right">
                       {r.realized === null ? "—" : formatMetric(r.realized, unit)}
@@ -451,7 +557,10 @@ export function WeeklyGoalsPanel({
                     </td>
                     {showFin && (
                       <>
-                        <td className="py-2 text-right pl-4">{fmtCur(r.finTarget)}</td>
+                        <td className="py-2 text-right pl-4 whitespace-nowrap">
+                          {fmtCur(r.finTarget)}
+                          <DeltaChip d={r.finTargetDelta} u="currency" />
+                        </td>
                         <td className="py-2 text-right">{fmtCur(r.finRealized)}</td>
                         <td
                           className={cn(

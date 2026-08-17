@@ -25,8 +25,10 @@ import {
   type CategorySnapPoint,
 } from "./useCategoryWeeklyData";
 import { isOriginFiltered, originLabel, ORIGIN_NO_SPLIT_HINT, type OriginFilter } from "@/lib/origins";
+import { computeRevisedWeeklyTargets, type WeekStatus } from "@/lib/revisedGoals";
 
 const STORAGE_KEY = "tactical_category_weekly_v1";
+const REVISED_KEY = "tactical_category_weekly_revised_v1";
 const DEFAULT_SLUGS = ["total_de_mrr_ms3g6o38"];
 
 interface Props {
@@ -45,7 +47,10 @@ interface WeekRow {
   realized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Variação entre meta revisada e original (só semanas futuras). */
+  targetDelta?: number | null;
 }
+
 
 function fmt(value: number, cat: GoalCategory): string {
   if (cat.metric_type === "ratio") return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
@@ -104,6 +109,20 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
     setSelectedIds(next);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+  };
+
+  const [revised, setRevised] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVISED_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setRevisedPersist = (v: boolean) => {
+    setRevised(v);
+    try {
+      localStorage.setItem(REVISED_KEY, v ? "1" : "0");
     } catch {}
   };
 
@@ -223,6 +242,28 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               ? 0
               : null;
 
+        // Metas vivas: semanas futuras absorvem o saldo do mês (estoque não rateia).
+        let displayRows = rows;
+        let unrecovered = 0;
+        if (revised && !isStock && monthTarget > 0) {
+          const res = computeRevisedWeeklyTargets({
+            monthTarget,
+            lowerIsBetter: isBetterBelow(cat.goal_direction),
+            weeks: rows.map((r) => ({
+              businessDays: r.businessDays,
+              originalTarget: r.target,
+              realized: r.realized,
+              status: (r.isFuture ? "future" : r.isCurrent ? "current" : "closed") as WeekStatus,
+            })),
+          });
+          unrecovered = res.unrecovered;
+          displayRows = rows.map((r, i) => ({
+            ...r,
+            target: r.target === null ? null : res.weeks[i].revisedTarget,
+            targetDelta: r.target === null ? null : res.weeks[i].delta,
+          }));
+        }
+
         const partialOrigin =
           originFiltered &&
           (isAggregate
@@ -233,13 +274,15 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           cat,
           monthTarget,
           isStock,
-          rows,
+          rows: displayRows,
+          unrecovered,
           realizedTotal,
           partialOrigin,
           source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit, revised]);
+
 
 
   // Atingimento sempre realizado ÷ meta. Para categorias "teto" (menor é melhor),
@@ -277,6 +320,27 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
             <CardTitle className="text-sm sm:text-base">Metas por categoria — quebra semanal</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
           </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="inline-flex rounded-md border p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "ghost" : "secondary"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(false)}
+              >
+                Original
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={revised ? "secondary" : "ghost"}
+                className="h-8 px-2 text-xs"
+                onClick={() => setRevisedPersist(true)}
+              >
+                Revisada
+              </Button>
+            </div>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-10 md:h-9 md:w-56 justify-between">
@@ -314,11 +378,13 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               ))}
             </PopoverContent>
           </Popover>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
+          {revised && " Na visão Revisada, o saldo das semanas fechadas é redistribuído nas semanas futuras."}
         </p>
       </CardHeader>
       <CardContent className="px-4 md:px-6 space-y-5">
@@ -434,7 +500,21 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                           </td>
                           <td className="py-2 text-muted-foreground">{r.rangeLabel}</td>
                           <td className="py-2 text-right text-muted-foreground">{r.businessDays}</td>
-                          <td className="py-2 text-right">{r.target === null ? "—" : fmt(r.target, cat)}</td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {r.target === null ? "—" : fmt(r.target, cat)}
+                            {r.targetDelta !== null && r.targetDelta !== undefined && Math.abs(r.targetDelta) >= 0.5 && (
+                              <span
+                                className={cn(
+                                  "ml-1 text-[10px]",
+                                  r.targetDelta > 0 ? "text-destructive" : "text-emerald-600",
+                                )}
+                                title="Meta reajustada pelo saldo das semanas fechadas"
+                              >
+                                {r.targetDelta > 0 ? "▲ +" : "▼ −"}
+                                {fmt(Math.abs(r.targetDelta), cat)}
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 text-right font-medium">
                             {r.realized === null ? "—" : fmt(r.realized, cat)}
                           </td>

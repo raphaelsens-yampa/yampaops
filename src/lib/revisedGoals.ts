@@ -95,3 +95,83 @@ export function adjustedDailyTarget(params: {
   if (remainingBusinessDays <= 0) return dailyTarget;
   return Math.max(0, (monthTarget - realizedBeforeToday) / remainingBusinessDays);
 }
+
+/* ────────────────────────────────────────────────────────────────
+ * Metas semanais vivas — rebalanceamento entre semanas do mês.
+ *
+ * Semanas fechadas e a semana vigente mantêm a meta original
+ * (dado oficializado). O saldo que falta para fechar a meta do mês
+ * é rateado entre as semanas futuras por dias úteis.
+ * ──────────────────────────────────────────────────────────────── */
+
+export type WeekStatus = "closed" | "current" | "future";
+
+export interface WeeklyRevisionInput {
+  businessDays: number;
+  originalTarget: number | null;
+  realized: number | null;
+  status: WeekStatus;
+}
+
+export interface WeeklyRevisionOutput {
+  revisedTarget: number | null;
+  /** revisada - original (positivo = mais exigente). null quando não há revisão. */
+  delta: number | null;
+}
+
+export interface WeeklyRevisionResult {
+  weeks: WeeklyRevisionOutput[];
+  /** Saldo que não cabe mais no mês (sem semanas futuras disponíveis). */
+  unrecovered: number;
+}
+
+export function computeRevisedWeeklyTargets({
+  weeks,
+  monthTarget,
+  lowerIsBetter = false,
+}: {
+  weeks: WeeklyRevisionInput[];
+  monthTarget: number;
+  lowerIsBetter?: boolean;
+}): WeeklyRevisionResult {
+  const keep = (w: WeeklyRevisionInput): WeeklyRevisionOutput => ({
+    revisedTarget: w.originalTarget,
+    delta: w.originalTarget === null ? null : 0,
+  });
+
+  if (!monthTarget || monthTarget <= 0) {
+    return { weeks: weeks.map(keep), unrecovered: 0 };
+  }
+
+  const closedRealized = weeks
+    .filter((w) => w.status === "closed")
+    .reduce((s, w) => s + (w.realized ?? 0), 0);
+  const currentTarget = weeks
+    .filter((w) => w.status === "current")
+    .reduce((s, w) => s + (w.originalTarget ?? 0), 0);
+
+  const saldo = monthTarget - closedRealized - currentTarget;
+
+  const future = weeks.filter((w) => w.status === "future");
+  const totalBD = future.reduce((s, w) => s + Math.max(0, w.businessDays), 0);
+
+  if (!future.length || totalBD <= 0) {
+    return {
+      weeks: weeks.map((w) =>
+        w.status === "future" ? { revisedTarget: 0, delta: -(w.originalTarget ?? 0) } : keep(w),
+      ),
+      unrecovered: Math.max(0, lowerIsBetter ? -saldo : saldo),
+    };
+  }
+
+  const pool = Math.max(0, saldo);
+
+  return {
+    weeks: weeks.map((w) => {
+      if (w.status !== "future") return keep(w);
+      const revised = (pool * Math.max(0, w.businessDays)) / totalBD;
+      return { revisedTarget: revised, delta: revised - (w.originalTarget ?? 0) };
+    }),
+    unrecovered: 0,
+  };
+}
