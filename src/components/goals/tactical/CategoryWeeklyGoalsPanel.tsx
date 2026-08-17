@@ -378,11 +378,13 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               ))}
             </PopoverContent>
           </Popover>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
+          {revised && " Na visão Revisada, o saldo das semanas fechadas é redistribuído nas semanas futuras."}
         </p>
       </CardHeader>
       <CardContent className="px-4 md:px-6 space-y-5">
