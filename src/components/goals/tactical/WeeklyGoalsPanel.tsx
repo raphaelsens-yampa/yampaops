@@ -267,6 +267,59 @@ export function WeeklyGoalsPanel({
     });
   }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
 
+  /** Metas semanais vivas: semanas futuras absorvem o saldo do mês. */
+  const [revised, setRevised] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REVISED_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setRevisedPersist = (v: boolean) => {
+    setRevised(v);
+    try {
+      localStorage.setItem(REVISED_KEY, v ? "1" : "0");
+    } catch {}
+  };
+
+  const rows: Row[] = useMemo(() => {
+    if (!revised) return baseRows;
+    const statusOf = (r: Row): WeekStatus =>
+      r.isFuture ? "future" : r.isCurrent ? "current" : "closed";
+
+    const monthTarget = baseRows.reduce((s, r) => s + (r.target ?? 0), 0);
+    const res = computeRevisedWeeklyTargets({
+      monthTarget,
+      weeks: baseRows.map((r) => ({
+        businessDays: r.businessDays,
+        originalTarget: r.target,
+        realized: r.realized,
+        status: statusOf(r),
+      })),
+    });
+
+    const finMonthTarget = baseRows.reduce((s, r) => s + (r.finTarget ?? 0), 0);
+    const finRes = computeRevisedWeeklyTargets({
+      monthTarget: finMonthTarget,
+      weeks: baseRows.map((r) => ({
+        businessDays: r.businessDays,
+        originalTarget: r.finTarget,
+        realized: r.finRealized,
+        status: statusOf(r),
+      })),
+    });
+
+    return baseRows.map((r, i) => ({
+      ...r,
+      target: r.target === null ? null : res.weeks[i].revisedTarget,
+      targetDelta: r.target === null ? null : res.weeks[i].delta,
+      finTarget: r.finTarget === null ? null : finRes.weeks[i].revisedTarget,
+      finTargetDelta: r.finTarget === null ? null : finRes.weeks[i].delta,
+    }));
+  }, [baseRows, revised]);
+
+
+
   const totals = useMemo(() => {
     const businessDays = rows.reduce((s, r) => s + r.businessDays, 0);
     const hasTarget = rows.some((r) => r.target !== null);
