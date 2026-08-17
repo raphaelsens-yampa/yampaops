@@ -4,7 +4,9 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { computeRevisedWeeklyTargets, type WeekStatus } from "@/lib/revisedGoals";
 import { cn } from "@/lib/utils";
 import {
   businessDaysBetween,
