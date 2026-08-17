@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GoalCategory } from "@/lib/goalCategories";
 import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "./useTacticalData";
+import {
+  buildOriginShares,
+  CATEGORY_SLUG_TO_CLASSIFICATION,
+  isOriginFiltered,
+  originShareAsOf,
+  type OriginFilter,
+} from "@/lib/origins";
 
 /** Categorias exclusivas da conta yampa 2.0 — não entram nesta visão. */
 const YAMPA20_CATEGORY_IDS = new Set([
@@ -44,6 +51,8 @@ export interface CategoryWeeklyData {
   targets: Map<string, number>;
   /** category_id -> série diária (asc) do mês, incluindo o último dia do mês anterior */
   series: Map<string, CategorySnapPoint[]>;
+  /** categorias sem recorte por origem na base (só aparecem na Visão Geral) */
+  noOriginSplit: Set<string>;
   loading: boolean;
 }
 
@@ -63,10 +72,15 @@ function snapValue(row: any, category?: GoalCategory): number {
   return Number(row.realized_amount ?? 0);
 }
 
-export function useCategoryWeeklyData(refDate: Date, refreshKey = 0): CategoryWeeklyData {
+export function useCategoryWeeklyData(
+  refDate: Date,
+  refreshKey = 0,
+  origin: OriginFilter = "all",
+): CategoryWeeklyData {
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
   const [series, setSeries] = useState<Map<string, CategorySnapPoint[]>>(new Map());
+  const [noOriginSplit, setNoOriginSplit] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,7 +89,8 @@ export function useCategoryWeeklyData(refDate: Date, refreshKey = 0): CategoryWe
       setLoading(true);
       const { startKey, endKey, prevEndKey } = monthBounds(refDate);
 
-      const [catRes, goalsRes, snapRes] = await Promise.all([
+      const originFiltered = isOriginFiltered(origin);
+      const [catRes, goalsRes, snapRes, originRes] = await Promise.all([
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase
           .from("goals")
@@ -88,6 +103,13 @@ export function useCategoryWeeklyData(refDate: Date, refreshKey = 0): CategoryWe
           .gte("data", prevEndKey)
           .lte("data", endKey)
           .order("data", { ascending: true }),
+        originFiltered
+          ? supabase
+              .from("metas_price_daily")
+              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
+              .lte("data", endKey)
+              .not("origem_cliente", "is", null)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
 
       if (cancelled) return;
@@ -109,24 +131,60 @@ export function useCategoryWeeklyData(refDate: Date, refreshKey = 0): CategoryWe
         t.set(g.category_id, Math.max(t.get(g.category_id) ?? 0, value));
       }
 
+      // Recorte por origem: `metas_snapshot_diario` não tem origem, então o
+      // realizado é rateado pela PARTICIPAÇÃO da origem em `metas_price_daily`.
+      // Categorias sem classificação correspondente (Churn de MRR, Churn %,
+      // Total de MRR, Ativos) não têm recorte e ficam indisponíveis.
+      const shares = originFiltered
+        ? buildOriginShares(((originRes as any).data as any[]) || [], origin)
+        : null;
+      const unsupported = new Set<string>();
+
       const s = new Map<string, CategorySnapPoint[]>();
       for (const row of (snapRes.data as any[]) || []) {
         if (!row.category_id) continue;
         const cat = byId.get(row.category_id);
+        let value = snapValue(row, cat);
+        if (shares) {
+          const cls = cat ? CATEGORY_SLUG_TO_CLASSIFICATION[cat.slug] : undefined;
+          if (!cls) {
+            unsupported.add(row.category_id as string);
+            continue;
+          }
+          const share = originShareAsOf(
+            shares,
+            row.data as string,
+            cls,
+            cat?.metric_type === "count" ? "qtd" : "mrr",
+          );
+          if (share === null) {
+            unsupported.add(row.category_id as string);
+            continue;
+          }
+          value = value * share;
+        }
         const list = s.get(row.category_id) ?? [];
-        list.push({ date: row.data as string, value: snapValue(row, cat) });
+        list.push({ date: row.data as string, value });
         s.set(row.category_id, list);
+      }
+      if (shares) {
+        for (const c of cats) {
+          if (!CATEGORY_SLUG_TO_CLASSIFICATION[c.slug] && !(c.component_category_ids ?? []).length) {
+            unsupported.add(c.id);
+          }
+        }
       }
 
       setCategories(cats);
       setTargets(t);
       setSeries(s);
+      setNoOriginSplit(unsupported);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin]);
 
-  return { categories, targets, series, loading };
+  return { categories, targets, series, noOriginSplit, loading };
 }
