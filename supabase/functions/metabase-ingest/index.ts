@@ -153,6 +153,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Nenhum dia pode ficar sem snapshot: replica o último dia capturado nas lacunas.
+    const { data: gapFill } = await supabase.rpc('fill_snapshot_gaps', {
+      p_from: null,
+      p_to: null,
+    });
+
+
     return new Response(
       JSON.stringify({ ok: true, ingested: records.length, month_refreshed: from, unresolved_metric_keys: Array.from(new Set(unresolved)) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
