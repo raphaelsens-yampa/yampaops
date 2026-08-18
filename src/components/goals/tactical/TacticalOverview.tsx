@@ -61,7 +61,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [] }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [], recoveryChannels }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
