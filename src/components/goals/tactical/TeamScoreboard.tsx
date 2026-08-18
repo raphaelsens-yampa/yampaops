@@ -15,6 +15,8 @@ import {
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
+import { CHANNEL_LABEL } from "./recoveryChannels";
+import type { SellerChannelTotals } from "./useRecoveryChannelData";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -29,7 +31,10 @@ interface Props {
   teams?: Team[];
   members?: TeamMember[];
   lowTouchSales?: LowTouchSale[];
+  /** MRR recuperado/retido de hoje por vendedor, quebrado por canal. */
+  recoveryChannels?: Map<string, SellerChannelTotals>;
 }
+
 
 
 const MEDALS = ["🥇", "🥈", "🥉"];
