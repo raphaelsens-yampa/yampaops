@@ -129,11 +129,14 @@ export default function AcFunnelMetrics() {
   const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number; events: number } | null>(null);
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [allDeals, setAllDeals] = useState<Deal[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [groupId, setGroupId] = useState<string>("");
   const [from, setFrom] = useState<string>(addDays(todaySp(), -29));
   const [to, setTo] = useState<string>(todaySp());
+  const [owner, setOwner] = useState<string>("__all__");
+  const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
 
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
@@ -146,7 +149,7 @@ export default function AcFunnelMetrics() {
     setGroupId(gid);
 
     if (gid) {
-      const [s, d, e] = await Promise.all([
+      const [s, d, e, t] = await Promise.all([
         supabase.from("ac_funnel_stages").select("*").eq("ac_group_id", gid).order("position"),
         supabase.from("ac_funnel_deals").select("*").eq("ac_group_id", gid).limit(5000),
         supabase
@@ -157,17 +160,21 @@ export default function AcFunnelMetrics() {
           .lte("occurred_at", `${to}T23:59:59-03:00`)
           .order("occurred_at", { ascending: false })
           .limit(20000),
+        supabase.from("ac_funnel_deal_tasks").select("*").eq("ac_group_id", gid).limit(20000),
       ]);
       setStages((s.data ?? []) as Stage[]);
-      setDeals((d.data ?? []) as Deal[]);
-      setEvents((e.data ?? []) as Event[]);
+      setAllDeals((d.data ?? []) as Deal[]);
+      setAllEvents((e.data ?? []) as Event[]);
+      setAllTasks((t.data ?? []) as Task[]);
     } else {
       setStages([]);
-      setDeals([]);
-      setEvents([]);
+      setAllDeals([]);
+      setAllEvents([]);
+      setAllTasks([]);
     }
     setLoading(false);
   }
+
 
   useEffect(() => {
     loadAll();
