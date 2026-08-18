@@ -41,7 +41,9 @@ export function useTacticalData(
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [daily, setDaily] = useState<DailyDatum[]>([]);
   const [origins, setOrigins] = useState<Map<string, RealizedOrigin>>(new Map());
+  const [unmatchedOwners, setUnmatchedOwners] = useState<{ owner_name: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
+
 
 
   useEffect(() => {
