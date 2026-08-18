@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TacticalMetric, Profile, toBRDateKey } from "./types";
+import { CHANNEL_LABEL, RecoveryChannel, reasonsForChannel, useRecoveryReasons } from "./recoveryChannels";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -29,6 +30,9 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const [mrrValue, setMrrValue] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [entryKind, setEntryKind] = useState<"recovered" | "retained">("recovered");
+  const [channel, setChannel] = useState<RecoveryChannel>("cs");
+  const [reasonId, setReasonId] = useState<string>("");
+  const { reasons } = useRecoveryReasons();
 
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRetidos = selectedMetric?.key === "clientes_retidos";
@@ -41,8 +45,14 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
 
   const teamProfiles = profiles.filter((p) => !memberIds.length || memberIds.includes(p.user_id));
 
+  const availableReasons = reasonsForChannel(reasons, channel);
+
   async function save() {
     if (!metricId || !value || !user) return;
+    if (isRecuperados && channel === "cs" && !reasonId) {
+      toast({ title: "Informe o motivo", description: "Registros via CS exigem o motivo da recuperação/retenção.", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("tactical_manual_entries").insert({
       metric_id: metricId,
       user_id: ownerId || user.id,
@@ -50,12 +60,14 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
       value: parseFloat(value),
       mrr_value: hasMrrField && mrrValue ? parseFloat(mrrValue) : 0,
       entry_kind: isRecuperados ? kind : "recovered",
+      recovery_channel: isRecuperados ? channel : null,
+      reason_id: isRecuperados && reasonId ? reasonId : null,
       note: note || null,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Registro lançado" });
     setOpen(false);
-    setMetricId(""); setValue(""); setMrrValue(""); setNote(""); setEntryKind("recovered");
+    setMetricId(""); setValue(""); setMrrValue(""); setNote(""); setEntryKind("recovered"); setChannel("cs"); setReasonId("");
     onSaved();
   }
 
@@ -114,6 +126,34 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
                 Recuperado: cliente que havia cancelado e voltou. Retido: cliente que pediu cancelamento e foi mantido.
               </p>
             </div>
+          )}
+          {isRecuperados && (
+            <>
+              <div>
+                <Label>Canal</Label>
+                <Select value={channel} onValueChange={(v) => { setChannel(v as RecoveryChannel); setReasonId(""); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cobranca">{CHANNEL_LABEL.cobranca} (Stripe)</SelectItem>
+                    <SelectItem value="cs">{CHANNEL_LABEL.cs} (ação humana)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cobrança: a retentativa/cobrança forçada no Stripe recuperou o MRR. CS: ação do time.
+                </p>
+              </div>
+              <div>
+                <Label>Motivo{channel === "cs" ? "" : " (opcional)"}</Label>
+                <Select value={reasonId} onValueChange={setReasonId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {availableReasons.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
           <div>
             <Label>{hasMrrField ? "Quantidade de clientes" : "Valor"}</Label>

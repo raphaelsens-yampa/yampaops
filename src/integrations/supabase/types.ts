@@ -3824,6 +3824,8 @@ export type Database = {
           mrr_value: number
           note: string | null
           origem_cliente: string
+          reason_id: string | null
+          recovery_channel: string | null
           updated_at: string
           user_id: string
           value: number
@@ -3837,6 +3839,8 @@ export type Database = {
           mrr_value?: number
           note?: string | null
           origem_cliente?: string
+          reason_id?: string | null
+          recovery_channel?: string | null
           updated_at?: string
           user_id: string
           value?: number
@@ -3850,6 +3854,8 @@ export type Database = {
           mrr_value?: number
           note?: string | null
           origem_cliente?: string
+          reason_id?: string | null
+          recovery_channel?: string | null
           updated_at?: string
           user_id?: string
           value?: number
@@ -3860,6 +3866,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "tactical_metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tactical_manual_entries_reason_id_fkey"
+            columns: ["reason_id"]
+            isOneToOne: false
+            referencedRelation: "tactical_recovery_reasons"
             referencedColumns: ["id"]
           },
         ]
@@ -3966,7 +3979,9 @@ export type Database = {
           origem_cliente: string
           plan_name: string | null
           price: number
+          reason_id: string | null
           recovered_at: string
+          recovery_channel: string
           seller_id: string | null
           source: string
           updated_at: string
@@ -3983,7 +3998,9 @@ export type Database = {
           origem_cliente?: string
           plan_name?: string | null
           price?: number
+          reason_id?: string | null
           recovered_at?: string
+          recovery_channel?: string
           seller_id?: string | null
           source?: string
           updated_at?: string
@@ -4000,10 +4017,47 @@ export type Database = {
           origem_cliente?: string
           plan_name?: string | null
           price?: number
+          reason_id?: string | null
           recovered_at?: string
+          recovery_channel?: string
           seller_id?: string | null
           source?: string
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactical_recoveries_reason_id_fkey"
+            columns: ["reason_id"]
+            isOneToOne: false
+            referencedRelation: "tactical_recovery_reasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tactical_recovery_reasons: {
+        Row: {
+          active: boolean
+          channel: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          channel?: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          channel?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
         }
         Relationships: []
       }

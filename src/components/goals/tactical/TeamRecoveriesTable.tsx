@@ -23,6 +23,8 @@ import { parseDateBR } from "@/lib/dateBR";
 import { Profile, TacticalMetric, toBRDateKey } from "./types";
 import { RecoveryEntryDialog } from "./RecoveryEntryDialog";
 import { RecoveryEditDialog, EditableRecovery } from "./RecoveryEditDialog";
+import { RecoveryReasonsConfig } from "./RecoveryReasonsConfig";
+import { CHANNEL_LABEL, RecoveryChannel, useRecoveryReasons } from "./recoveryChannels";
 
 interface Row {
   id: string;
@@ -39,6 +41,8 @@ interface Row {
   rawId?: string;
   kind?: "recovery" | "manual_entry";
   note?: string | null;
+  channel: RecoveryChannel;
+  reasonId: string | null;
 }
 
 function fmtBRL(v: number) {
@@ -68,6 +72,13 @@ export function TeamRecoveriesTable({
   const [loading, setLoading] = useState(true);
   const [localRefresh, setLocalRefresh] = useState(0);
   const [kindFilter, setKindFilter] = useState<"all" | "recovered" | "retained">("all");
+  const [channelFilter, setChannelFilter] = useState<"all" | RecoveryChannel>("all");
+  const [reasonFilter, setReasonFilter] = useState<string>("all");
+  const { reasons, reload: reloadReasons } = useRecoveryReasons();
+  const reasonName = useMemo(
+    () => new Map(reasons.map((r) => [r.id, r.name])),
+    [reasons],
+  );
   const [editing, setEditing] = useState<EditableRecovery | null>(null);
   const [deleting, setDeleting] = useState<EditableRecovery | null>(null);
 
@@ -106,7 +117,7 @@ export function TeamRecoveriesTable({
         recoveryMetricIds.length
           ? supabase
               .from("tactical_manual_entries")
-              .select("id, user_id, entry_date, value, mrr_value, note, metric_id, entry_kind")
+              .select("id, user_id, entry_date, value, mrr_value, note, metric_id, entry_kind, recovery_channel, reason_id")
               .in("metric_id", recoveryMetricIds)
               .gte("entry_date", toBRDateKey(from))
               .lte("entry_date", toBRDateKey(to))
@@ -114,7 +125,7 @@ export function TeamRecoveriesTable({
           : Promise.resolve({ data: [] as any[] }),
         supabase
           .from("tactical_recoveries")
-          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source, entry_kind")
+          .select("id, customer_name, customer_email, plan_name, seller_id, recovered_at, price, mrr, note, source, entry_kind, recovery_channel, reason_id")
           .gte("recovered_at", toBRDateKey(from))
           .lte("recovered_at", toBRDateKey(to))
           .order("recovered_at", { ascending: false }),
@@ -136,6 +147,8 @@ export function TeamRecoveriesTable({
           origin: "stripe" as const,
           qty: 1,
           entryKind: "recovered" as const,
+          channel: "cobranca" as RecoveryChannel,
+          reasonId: null as string | null,
         }))
         .filter((r) => r.mrr > 0);
 
@@ -156,6 +169,8 @@ export function TeamRecoveriesTable({
           rawId: m.id,
           kind: "manual_entry",
           note: m.note,
+          channel: (m.recovery_channel === "cobranca" ? "cobranca" : "cs") as RecoveryChannel,
+          reasonId: m.reason_id ?? null,
         });
       }
 
@@ -176,6 +191,8 @@ export function TeamRecoveriesTable({
           rawId: r.id,
           kind: "recovery",
           note: r.note,
+          channel: (r.recovery_channel === "cobranca" ? "cobranca" : "cs") as RecoveryChannel,
+          reasonId: r.reason_id ?? null,
         });
 
       }
@@ -207,6 +224,8 @@ export function TeamRecoveriesTable({
     const q = query.trim().toLowerCase();
     let list = rows;
     if (kindFilter !== "all") list = list.filter((r) => r.entryKind === kindFilter);
+    if (channelFilter !== "all") list = list.filter((r) => r.channel === channelFilter);
+    if (reasonFilter !== "all") list = list.filter((r) => (r.reasonId || "none") === reasonFilter);
     if (!q) return list;
     return list.filter(
       (r) =>
@@ -214,12 +233,40 @@ export function TeamRecoveriesTable({
         (r.name || "").toLowerCase().includes(q) ||
         (r.plan || "").toLowerCase().includes(q),
     );
-  }, [rows, query, kindFilter]);
+  }, [rows, query, kindFilter, channelFilter, reasonFilter]);
 
   const totalMrr = filtered.reduce((s, r) => s + r.mrr, 0);
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
   const recoveredQty = filtered.filter((r) => r.entryKind === "recovered").reduce((s, r) => s + r.qty, 0);
   const retainedQty = filtered.filter((r) => r.entryKind === "retained").reduce((s, r) => s + r.qty, 0);
+
+  const byChannel = useMemo(() => {
+    const acc: Record<RecoveryChannel, { qty: number; mrr: number; recovered: number; retained: number }> = {
+      cobranca: { qty: 0, mrr: 0, recovered: 0, retained: 0 },
+      cs: { qty: 0, mrr: 0, recovered: 0, retained: 0 },
+    };
+    for (const r of filtered) {
+      const a = acc[r.channel];
+      a.qty += r.qty;
+      a.mrr += r.mrr;
+      if (r.entryKind === "retained") a.retained += r.qty;
+      else a.recovered += r.qty;
+    }
+    return acc;
+  }, [filtered]);
+
+  const reasonRanking = useMemo(() => {
+    const map = new Map<string, { name: string; qty: number; mrr: number }>();
+    for (const r of filtered) {
+      const key = r.reasonId || "none";
+      const name = r.reasonId ? reasonName.get(r.reasonId) || "Motivo removido" : "Sem motivo declarado";
+      const cur = map.get(key) || { name, qty: 0, mrr: 0 };
+      cur.qty += r.qty;
+      cur.mrr += r.mrr;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr || b.qty - a.qty);
+  }, [filtered, reasonName]);
 
   function toEditable(r: Row): EditableRecovery {
     return {
@@ -235,6 +282,8 @@ export function TeamRecoveriesTable({
       qty: String(r.qty ?? ""),
       note: r.note || "",
       entry_kind: r.entryKind,
+      recovery_channel: r.channel,
+      reason_id: r.reasonId || "",
     };
   }
 
@@ -283,6 +332,24 @@ export function TeamRecoveriesTable({
                 <SelectItem value="retained">Retidos</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={channelFilter} onValueChange={(v) => setChannelFilter(v as typeof channelFilter)}>
+              <SelectTrigger className="h-10 md:h-8 md:w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os canais</SelectItem>
+                <SelectItem value="cobranca">{CHANNEL_LABEL.cobranca}</SelectItem>
+                <SelectItem value="cs">{CHANNEL_LABEL.cs}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={reasonFilter} onValueChange={setReasonFilter}>
+              <SelectTrigger className="h-10 md:h-8 md:w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os motivos</SelectItem>
+                <SelectItem value="none">Sem motivo declarado</SelectItem>
+                {reasons.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={days} onValueChange={setDays}>
               <SelectTrigger className="h-10 md:h-8 md:w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -297,6 +364,7 @@ export function TeamRecoveriesTable({
             <div className="col-span-2 md:col-auto">
               <RecoveryEntryDialog
                 profiles={profiles}
+                reasons={reasons}
                 memberIds={memberIds}
                 today={today}
                 onSaved={() => setLocalRefresh((k) => k + 1)}
@@ -306,6 +374,41 @@ export function TeamRecoveriesTable({
         </CardHeader>
         <CollapsibleContent>
       <CardContent className="px-3 sm:px-4 md:px-6">
+
+        <div className="grid gap-2 sm:grid-cols-2 mb-3">
+          {(["cobranca", "cs"] as RecoveryChannel[]).map((ch) => (
+            <div key={ch} className="rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium">
+                  Via {CHANNEL_LABEL[ch]}
+                  <span className="text-muted-foreground font-normal">
+                    {ch === "cobranca" ? " · cobrança forçada no Stripe" : " · ação do time"}
+                  </span>
+                </p>
+                <p className="text-sm font-semibold">{fmtBRL(byChannel[ch].mrr)}</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {byChannel[ch].qty} clientes · {byChannel[ch].recovered} recuperados · {byChannel[ch].retained} retidos
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {reasonRanking.length > 0 && (
+          <div className="rounded-lg border p-3 mb-3">
+            <p className="text-xs font-medium mb-2">Motivos no período</p>
+            <div className="space-y-1">
+              {reasonRanking.slice(0, 6).map((r) => (
+                <div key={r.name} className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="truncate">{r.name}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {r.qty} · {fmtBRL(r.mrr)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p>
@@ -327,6 +430,9 @@ export function TeamRecoveriesTable({
                   <Badge variant={r.entryKind === "retained" ? "default" : "secondary"} className="text-[10px]">
                     {r.entryKind === "retained" ? "Retido" : "Recuperado"}
                   </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {CHANNEL_LABEL[r.channel]}
+                  </Badge>
                   {r.origin !== "stripe" && (
                     <Badge variant="outline" className="text-[10px]">
                       {r.origin === "import" ? "Importado" : "Manual"}
@@ -338,6 +444,9 @@ export function TeamRecoveriesTable({
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   {r.plan || "—"} · {profiles.find((p) => p.user_id === r.seller_id)?.full_name || "—"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Motivo: {r.reasonId ? reasonName.get(r.reasonId) || "—" : "—"}
                 </p>
                 {r.rawId && (
                   <div className="flex gap-2 pt-1">
@@ -370,6 +479,8 @@ export function TeamRecoveriesTable({
                   <TableHead>E-mail</TableHead>
                   <TableHead>Plano</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Canal</TableHead>
+                  <TableHead>Motivo</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
@@ -394,6 +505,12 @@ export function TeamRecoveriesTable({
                       <Badge variant={r.entryKind === "retained" ? "default" : "secondary"}>
                         {r.entryKind === "retained" ? "Retido" : "Recuperado"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{CHANNEL_LABEL[r.channel]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-[180px] truncate">
+                      {r.reasonId ? reasonName.get(r.reasonId) || "—" : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {profiles.find((p) => p.user_id === r.seller_id)?.full_name || "—"}
@@ -430,7 +547,7 @@ export function TeamRecoveriesTable({
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
-                  <TableCell colSpan={7}>Total ({totalQty})</TableCell>
+                  <TableCell colSpan={9}>Total ({totalQty})</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
                   <TableCell />
                 </TableRow>
@@ -440,6 +557,9 @@ export function TeamRecoveriesTable({
           </>
 
         )}
+        <div className="mt-4">
+          <RecoveryReasonsConfig reasons={reasons} onChanged={reloadReasons} />
+        </div>
       </CardContent>
         </CollapsibleContent>
       </Collapsible>
@@ -447,6 +567,7 @@ export function TeamRecoveriesTable({
       <RecoveryEditDialog
         entry={editing}
         profiles={profiles}
+        reasons={reasons}
         onClose={() => setEditing(null)}
         onSaved={() => setLocalRefresh((k) => k + 1)}
       />
