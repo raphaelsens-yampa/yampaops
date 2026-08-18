@@ -88,13 +88,13 @@ export type Database = {
           created_at: string
           deal_value: number
           event_type: string
-          from_stage_id: string | null
+          from_stage_id: string
           from_status: number | null
           id: string
           occurred_at: string
           owner_name: string | null
           source: string
-          to_stage_id: string | null
+          to_stage_id: string
           to_status: number | null
         }
         Insert: {
@@ -104,13 +104,13 @@ export type Database = {
           created_at?: string
           deal_value?: number
           event_type?: string
-          from_stage_id?: string | null
+          from_stage_id?: string
           from_status?: number | null
           id?: string
           occurred_at?: string
           owner_name?: string | null
           source?: string
-          to_stage_id?: string | null
+          to_stage_id?: string
           to_status?: number | null
         }
         Update: {
@@ -120,13 +120,13 @@ export type Database = {
           created_at?: string
           deal_value?: number
           event_type?: string
-          from_stage_id?: string | null
+          from_stage_id?: string
           from_status?: number | null
           id?: string
           occurred_at?: string
           owner_name?: string | null
           source?: string
-          to_stage_id?: string | null
+          to_stage_id?: string
           to_status?: number | null
         }
         Relationships: []
