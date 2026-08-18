@@ -41,7 +41,24 @@ async function loadOwners(): Promise<Record<string, string>> {
   }
 }
 
+async function syncStages(db: ReturnType<typeof admin>, groupId: string) {
+  const data = await acFetch(`dealGroups/${groupId}/stages?limit=100`);
+  const rows = (data.dealStages ?? []).map((s: any) => ({
+    ac_stage_id: String(s.id),
+    ac_group_id: groupId,
+    title: s.title ?? "",
+    position: num(s.order),
+    color: s.color ? `#${String(s.color).replace(/^#/, "")}` : null,
+  }));
+  if (rows.length) {
+    const { error } = await db.from("ac_funnel_stages").upsert(rows, { onConflict: "ac_stage_id" });
+    if (error) throw new Error(`stages upsert: ${error.message}`);
+  }
+  return rows.length;
+}
+
 const LOSS_FIELD_LABEL = /motivo de perda/i;
+
 
 /** Descobre o id do campo personalizado "Deal - Sales - Motivo de perda". */
 async function findLossReasonFieldId(): Promise<string | null> {
