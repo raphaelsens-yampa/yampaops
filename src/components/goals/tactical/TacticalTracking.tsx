@@ -90,6 +90,27 @@ export function TacticalTracking() {
     [metrics, teamId, isOverview],
   );
 
+  // Canal (Cobrança x CS) e motivo das recuperações/retenções
+  const [recoveryKey, setRecoveryKey] = useState(0);
+  const { reasons: recoveryReasons } = useRecoveryReasons();
+  const { rows: recoveryRows } = useRecoveryChannelData(rangeStart, today, memberIds, reloadKey + recoveryKey);
+  const todayKeyStr = useMemo(() => format(today, "yyyy-MM-dd"), [today]);
+  const monthStartKey = useMemo(
+    () => format(new Date(today.getFullYear(), today.getMonth(), 1), "yyyy-MM-dd"),
+    [today],
+  );
+  const recoveryMonthSummary = useMemo(
+    () => summarizeChannels(recoveryRows.filter((r) => r.dateKey >= monthStartKey && r.dateKey <= todayKeyStr)),
+    [recoveryRows, monthStartKey, todayKeyStr],
+  );
+  const recoveryTodayRows = useMemo(
+    () => recoveryRows.filter((r) => r.dateKey === todayKeyStr),
+    [recoveryRows, todayKeyStr],
+  );
+  const recoveryBySeller = useMemo(() => channelsBySeller(recoveryTodayRows), [recoveryTodayRows]);
+
+
+
   useEffect(() => {
     if (!user) return;
     if (!isAdmin) { setFocusUser(user.id); return; }
