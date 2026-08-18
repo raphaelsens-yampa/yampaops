@@ -67,10 +67,24 @@ type Deal = {
   owner_name: string | null;
   value: number;
   status: number;
+  loss_reason: string | null;
   deal_created_at: string | null;
   stage_changed_at: string | null;
   closed_at: string | null;
 };
+
+type Task = {
+  ac_task_id: string;
+  ac_deal_id: string;
+  ac_stage_id: string | null;
+  title: string | null;
+  task_type: string | null;
+  owner_name: string | null;
+  due_date: string | null;
+  is_done: boolean;
+  done_at: string | null;
+};
+
 
 type Event = {
   id: string;
