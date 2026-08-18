@@ -376,9 +376,14 @@ Deno.serve(async (req) => {
 
     const action = String(body.action ?? "sync");
 
-
+    if (action === "audit_stages") {
+      const groupId = String(body.groupId ?? "");
+      if (!groupId) return json({ error: "groupId obrigatório" }, 400);
+      return json({ ok: true, audit: await auditFunnel(db, groupId) });
+    }
 
     if (action === "list_funnels") {
+
       const out: any[] = [];
       let offset = 0;
       let total = Infinity;
