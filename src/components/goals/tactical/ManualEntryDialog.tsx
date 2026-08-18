@@ -90,7 +90,9 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
                       m.source !== "stripe_mrr" &&
                       m.source !== "stripe_deals" &&
                       m.key !== "upsell_dia" &&
-                      m.key !== "recuperados_ft",
+                      m.key !== "recuperados_ft" &&
+                      m.source !== "ac_stage_move",
+
                   )
                   .map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
               </SelectContent>
