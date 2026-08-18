@@ -514,6 +514,10 @@ export default function AcFunnelMetrics() {
             <p className="text-sm text-muted-foreground">
               Métricas de funil somente leitura: aberturas, movimentações entre etapas e fechamentos.
             </p>
+            <p className="text-xs text-muted-foreground">
+              Última sincronização: {spDateTime(current?.last_sync_at)}
+            </p>
+
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={runBackfill} disabled={backfilling || !groupId} className="w-full sm:w-auto">
