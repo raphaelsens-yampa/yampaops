@@ -302,6 +302,7 @@ export function TacticalTracking() {
               today={today}
               revisedView={revisedView}
               lowTouchSales={lowTouch.sales}
+              recoveryChannels={recoveryMonthSummary}
 
             />
           ) : (
@@ -317,7 +318,9 @@ export function TacticalTracking() {
               daily={daily}
               today={today}
               revisedView={revisedView}
+              recoveryToday={summarizeChannels(recoveryTodayRows.filter((r) => r.sellerId === focusUser))}
             />
+
           )}
           {!isAdmin && (
             <ManualEntryDialog metrics={teamMetrics} onSaved={() => setReloadKey((k) => k + 1)} />
