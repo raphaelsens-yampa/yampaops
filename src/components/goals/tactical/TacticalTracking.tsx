@@ -25,6 +25,10 @@ import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
 import { StripeBackupPanel } from "./StripeBackupPanel";
 import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
+import { RecoveryChannelPanel } from "./RecoveryChannelPanel";
+import { useRecoveryChannelData, channelsBySeller, summarizeChannels } from "./useRecoveryChannelData";
+import { useRecoveryReasons } from "./recoveryChannels";
+
 
 
 import { LowTouchView } from "./LowTouchView";
