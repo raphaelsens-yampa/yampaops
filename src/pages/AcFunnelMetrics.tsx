@@ -426,6 +426,24 @@ export default function AcFunnelMetrics() {
     }
   }
 
+  /** Reconstrói Ganhos/Perdidos do período filtrado a partir do snapshot de negócios. */
+  async function runClosuresBackfill() {
+    setClosuresBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
+        body: { action: "backfill_closures", groupId, from, to },
+      });
+      if (error) throw error;
+      toast.success(`Fechamentos registrados: ${data?.won ?? 0} ganhos e ${data?.lost ?? 0} perdidos`);
+      await loadAll(groupId);
+    } catch (e: any) {
+      toast.error(`Falha ao registrar fechamentos: ${e?.message ?? e}`);
+    } finally {
+      setClosuresBackfilling(false);
+    }
+  }
+
+
   async function listFunnels() {
     setListing(true);
     try {
