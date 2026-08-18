@@ -52,7 +52,7 @@ export function TacticalTracking() {
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
-  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
+  const { metrics, goals, profiles, teams, members, daily, unmatchedOwners, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
   const [lowTouchKey, setLowTouchKey] = useState(0);
   const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
