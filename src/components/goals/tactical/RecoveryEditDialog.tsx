@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Profile } from "./types";
+import { CHANNEL_LABEL, RecoveryChannel, RecoveryReason, reasonsForChannel } from "./recoveryChannels";
 
 export interface EditableRecovery {
   kind: "recovery" | "manual_entry";
@@ -22,6 +23,8 @@ export interface EditableRecovery {
   qty: string;
   note: string;
   entry_kind: "recovered" | "retained";
+  recovery_channel: RecoveryChannel;
+  reason_id: string;
 }
 
 function toNumber(v: unknown): number {
@@ -36,11 +39,13 @@ function toNumber(v: unknown): number {
 export function RecoveryEditDialog({
   entry,
   profiles,
+  reasons,
   onClose,
   onSaved,
 }: {
   entry: EditableRecovery | null;
   profiles: Profile[];
+  reasons: RecoveryReason[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -51,6 +56,7 @@ export function RecoveryEditDialog({
 
   if (!form) return null;
   const isManualEntry = form.kind === "manual_entry";
+  const availableReasons = reasonsForChannel(reasons, form.recovery_channel);
 
   async function save() {
     if (!form) return;
@@ -66,6 +72,8 @@ export function RecoveryEditDialog({
           mrr_value: toNumber(form.mrr),
           note: form.note || null,
           entry_kind: form.entry_kind,
+          recovery_channel: form.recovery_channel,
+          reason_id: form.reason_id || null,
           user_id: form.seller_id || undefined,
         })
         .eq("id", form.rawId);
@@ -83,6 +91,8 @@ export function RecoveryEditDialog({
           mrr: toNumber(form.mrr),
           note: form.note || null,
           entry_kind: form.entry_kind,
+          recovery_channel: form.recovery_channel,
+          reason_id: form.reason_id || null,
         })
         .eq("id", form.rawId);
       error = res.error;
@@ -151,6 +161,30 @@ export function RecoveryEditDialog({
               <SelectContent>
                 {profiles.map((p) => (
                   <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "—"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Canal</Label>
+            <Select
+              value={form.recovery_channel}
+              onValueChange={(v) => setForm({ ...form, recovery_channel: v as RecoveryChannel, reason_id: "" })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cobranca">{CHANNEL_LABEL.cobranca} (Stripe)</SelectItem>
+                <SelectItem value="cs">{CHANNEL_LABEL.cs} (ação humana)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Motivo{form.recovery_channel === "cs" ? "" : " (opcional)"}</Label>
+            <Select value={form.reason_id} onValueChange={(v) => setForm({ ...form, reason_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {availableReasons.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
