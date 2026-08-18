@@ -552,6 +552,13 @@ export default function AcFunnelMetrics() {
                 </div>
 
                 <div className="flex flex-wrap items-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setFrom(`${todaySp().slice(0, 7)}-01`); setTo(todaySp()); }}
+                  >
+                    Mês atual
+                  </Button>
                   {[
                     { l: "7d", d: 6 },
                     { l: "30d", d: 29 },
@@ -567,6 +574,7 @@ export default function AcFunnelMetrics() {
                     </Button>
                   ))}
                 </div>
+
               </CardContent>
             </Card>
 
