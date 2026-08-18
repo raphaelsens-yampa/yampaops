@@ -971,7 +971,17 @@ export default function AcFunnelMetrics() {
                 </Table>
               </CardContent>
             </Card>
+
+            {!!groupId && (
+              <AcOpportunityMetricConfig
+                groupId={groupId}
+                stages={stages}
+                owners={owners}
+                canEdit={role === "admin"}
+              />
+            )}
           </TabsContent>
+
         </Tabs>
       </div>
     </Layout>
