@@ -182,6 +182,8 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
   let deals = 0;
   let events = 0;
   const nowIso = new Date().toISOString();
+  const dealStage = new Map<string, string | null>();
+
 
   while (offset < total) {
     const data = await acFetch(
