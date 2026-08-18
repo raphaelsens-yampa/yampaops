@@ -158,11 +158,20 @@ Deno.serve(async (req) => {
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const cronSecret = req.headers.get("x-cron-secret");
-    const isCron = !!cronSecret && cronSecret === Deno.env.get("AC_WEBHOOK_SECRET");
+    const db = admin();
+
+    let isCron = !!cronSecret && cronSecret === Deno.env.get("AC_WEBHOOK_SECRET");
+    if (!isCron && cronSecret) {
+      const { data: tok } = await db
+        .from("ac_cron_tokens")
+        .select("token")
+        .eq("token", cronSecret)
+        .maybeSingle();
+      isCron = !!tok;
+    }
 
     if (!isCron && !(await isAdmin(req))) return json({ error: "forbidden" }, 403);
 
-    const db = admin();
     const action = String(body.action ?? "sync");
 
     if (action === "list_funnels") {
