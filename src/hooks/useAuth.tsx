@@ -59,7 +59,7 @@ function defaultsForRole(role: AppRole): Permissions {
       sales: ro, sales_campaigns: ro, commissions: ro, link_builder: ro, precificacao: ro,
       discounts: ro, discounts_overview: ro, discounts_portfolio: ro, discounts_rules: none,
       gestao: ro, contacts: { view: true, create: true, edit: true }, team: ro, users: none, import: ro, tags: none,
-      integracoes: none, integration_stripe: none, integration_chatwoot: none,
+      integracoes: none, integration_stripe: none, integration_chatwoot: none, integration_ac_funnels: none,
 
     };
   }
@@ -72,7 +72,7 @@ function defaultsForRole(role: AppRole): Permissions {
     sales: ro, sales_campaigns: none, commissions: ro, link_builder: ro, precificacao: ro,
     discounts: ro, discounts_overview: none, discounts_portfolio: ro, discounts_rules: none,
     gestao: none, contacts: none, team: none, users: none, import: none, tags: none,
-    integracoes: none, integration_stripe: none, integration_chatwoot: none,
+    integracoes: none, integration_stripe: none, integration_chatwoot: none, integration_ac_funnels: none,
 
   };
 }

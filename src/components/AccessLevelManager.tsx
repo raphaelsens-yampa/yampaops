@@ -77,6 +77,7 @@ export const CRM_SECTIONS = [
       // { key: "integration_ac", label: "ActiveCampaign" }, // archived
       { key: "integration_stripe", label: "Stripe" },
       { key: "integration_chatwoot", label: "Chatwoot" },
+      { key: "integration_ac_funnels", label: "Funis ActiveCampaign" },
       // { key: "integration_audit", label: "Auditoria de Integrações" }, // archived
 
     ],

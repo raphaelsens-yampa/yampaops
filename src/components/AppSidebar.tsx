@@ -2,7 +2,7 @@ import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
   FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Filter,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -287,6 +287,7 @@ export function AppSidebar() {
         { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
         { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
         { title: "Chatwoot → ActiveCampaign", url: "/integrations/chatwoot-ac", icon: Link2, area: "integration_chatwoot", adminOnly: true },
+        { title: "Funis ActiveCampaign", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", adminOnly: true },
         // Integration Audit archived (AC-centric)
       ],
     },
