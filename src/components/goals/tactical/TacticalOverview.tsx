@@ -270,6 +270,47 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
           ))}
         </div>
       )}
+
+      {recoveryChannels && recoveryChannels.total.qty > 0 && (
+        <Card>
+          <CardContent className="p-3 sm:p-4 space-y-2">
+            <p className="text-[11px] sm:text-xs uppercase tracking-wider text-muted-foreground">
+              Recuperados e retidos no mês · por canal
+            </p>
+            <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3">
+              {([
+                ["cobranca", recoveryChannels.cobranca],
+                ["cs", recoveryChannels.cs],
+              ] as const).map(([ch, v]) => (
+                <div key={ch} className="rounded-md border p-2">
+                  <p className="text-[11px] text-muted-foreground">{CHANNEL_LABEL[ch]}</p>
+                  <p className="text-base sm:text-lg font-heading font-bold">
+                    {v.qty} {v.qty === 1 ? "cliente" : "clientes"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatMetric(v.mrr, "currency")} ·{" "}
+                    {recoveryChannels.total.mrr > 0
+                      ? Math.round((v.mrr / recoveryChannels.total.mrr) * 100)
+                      : 0}
+                    % do MRR
+                  </p>
+                </div>
+              ))}
+              <div className="rounded-md border p-2">
+                <p className="text-[11px] text-muted-foreground">Total</p>
+                <p className="text-base sm:text-lg font-heading font-bold">{recoveryChannels.total.qty}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatMetric(recoveryChannels.total.mrr, "currency")}
+                  {recoveryChannels.missingReason > 0 && (
+                    <span className="text-amber-600"> · {recoveryChannels.missingReason} sem motivo</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 }
