@@ -135,6 +135,9 @@ export function WeeklyGoalsPanel({
         return VIRTUAL_MRR_UPSELL;
       case "recuperados_ft":
         return VIRTUAL_MRR_RECOVERED_FT;
+      case "oportunidades_abertas":
+        return undefined;
+
       default:
         return mrrMetric?.id;
     }

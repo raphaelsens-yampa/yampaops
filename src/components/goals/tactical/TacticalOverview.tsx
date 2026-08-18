@@ -78,7 +78,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   }, [metrics, goals, daily, memberIds, members, todayKey]);
 
 
-  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos"];
+  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
   const withGoal = rows.filter((r) => r.target > 0);
 
   // Vendas/MRR Low-touch de hoje (áreas sem ação de Sales/CS)

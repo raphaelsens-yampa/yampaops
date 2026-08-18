@@ -52,7 +52,7 @@ export function TacticalTracking() {
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
-  const { metrics, goals, profiles, teams, members, daily, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
+  const { metrics, goals, profiles, teams, members, daily, unmatchedOwners, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
   const [lowTouchKey, setLowTouchKey] = useState(0);
   const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
@@ -206,7 +206,16 @@ export function TacticalTracking() {
         </Card>
       )}
 
+      {!isLowTouch && unmatchedOwners.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Oportunidades abertas sem vendedor vinculado:{" "}
+          {unmatchedOwners.map((o) => `${o.owner_name} (${o.count})`).join(", ")}. Vincule em Funis
+          ActiveCampaign → Conexão para que contem no realizado.
+        </p>
+      )}
+
       {isOriginFiltered(originFilter) && !isLowTouch && (
+
         <p className="text-xs text-muted-foreground">
           Recorte por origem: o realizado histórico vem das fontes canônicas (Metabase) e é rateado
           pela participação da origem na base por price ID. O realizado do dia vigente (Stripe) e os

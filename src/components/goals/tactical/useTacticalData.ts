@@ -41,7 +41,9 @@ export function useTacticalData(
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [daily, setDaily] = useState<DailyDatum[]>([]);
   const [origins, setOrigins] = useState<Map<string, RealizedOrigin>>(new Map());
+  const [unmatchedOwners, setUnmatchedOwners] = useState<{ owner_name: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
+
 
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function useTacticalData(
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes, moveCfgRes, ownerMapRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name"),
@@ -71,7 +73,10 @@ export function useTacticalData(
               .lte("data", toDateStr)
               .not("origem_cliente", "is", null)
           : Promise.resolve({ data: [] as any[] }),
+        supabase.from("ac_stage_move_config").select("*").eq("metric_key", "oportunidades_abertas").maybeSingle(),
+        supabase.from("ac_owner_seller_map").select("ac_group_id, owner_name, seller_id"),
       ]);
+
 
 
       if (cancelled) return;
@@ -245,14 +250,59 @@ export function useTacticalData(
         }
       }
 
+      // ---- Oportunidades abertas: movimentação Backlog -> Em contato (ActiveCampaign) ----
+      // Base Yampa: entra em "Geral" e "Yampa"; não há recorte 4blue.
+      const oppMetric = metricsData.find((m) => m.key === "oportunidades_abertas");
+      const moveCfg = (moveCfgRes as any)?.data as
+        | { ac_group_id: string; from_stage_id: string; to_stage_id: string; start_date: string }
+        | null
+        | undefined;
+      const unmatched = new Map<string, number>();
 
+      if (oppMetric && moveCfg && includeManual) {
+        const nameToId = new Map<string, string>();
+        for (const p of (profilesRes.data as Profile[]) || []) {
+          if (p.full_name) nameToId.set(p.full_name.trim().toLowerCase(), p.user_id);
+        }
+        for (const om of ((ownerMapRes as any).data as any[]) || []) {
+          if (om.ac_group_id === moveCfg.ac_group_id && om.owner_name) {
+            nameToId.set(String(om.owner_name).trim().toLowerCase(), om.seller_id);
+          }
+        }
+
+        const startKey = moveCfg.start_date > fromDateStr ? moveCfg.start_date : fromDateStr;
+        const { data: moveEvents } = await supabase
+          .from("ac_funnel_stage_events")
+          .select("owner_name, occurred_at, from_stage_id, to_stage_id")
+          .eq("ac_group_id", moveCfg.ac_group_id)
+          .eq("event_type", "stage_change")
+          .eq("from_stage_id", moveCfg.from_stage_id)
+          .eq("to_stage_id", moveCfg.to_stage_id)
+          .gte("occurred_at", `${startKey}T00:00:00-03:00`)
+          .lte("occurred_at", `${toDateStr}T23:59:59-03:00`)
+          .limit(20000);
+
+        for (const ev of moveEvents || []) {
+          const ownerName = String((ev as any).owner_name || "").trim();
+          const sellerId = nameToId.get(ownerName.toLowerCase());
+          const dateKey = toBRDateKey(parseDateBR((ev as any).occurred_at));
+          if (!sellerId) {
+            unmatched.set(ownerName || "Sem proprietário", (unmatched.get(ownerName || "Sem proprietário") ?? 0) + 1);
+            continue;
+          }
+          bump(sellerId, oppMetric.id, dateKey, 1);
+        }
+      }
+
+      setUnmatchedOwners(Array.from(unmatched, ([owner_name, count]) => ({ owner_name, count })));
       setDaily(Array.from(aggMap.values()));
       setOrigins(resolved.origins);
       setLoading(false);
+
     }
     load();
     return () => { cancelled = true; };
   }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
-  return { metrics, goals, profiles, teams, members, daily, origins, loading };
+  return { metrics, goals, profiles, teams, members, daily, origins, unmatchedOwners, loading };
 }

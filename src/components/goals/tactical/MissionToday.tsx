@@ -89,7 +89,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     });
 
 
-  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos"];
+  const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
   const withGoal = rows.filter((r) => r.target > 0);
   const others: { id: string; label: string; unit: TacticalMetric["unit"]; value: number }[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
