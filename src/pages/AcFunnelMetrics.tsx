@@ -515,7 +515,7 @@ export default function AcFunnelMetrics() {
           {/* ---------------- MÉTRICAS ---------------- */}
           <TabsContent value="metricas" className="space-y-6">
             <Card>
-              <CardContent className="grid grid-cols-1 gap-3 pt-6 sm:grid-cols-2 lg:grid-cols-4">
+              <CardContent className="grid grid-cols-1 gap-3 pt-6 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1.5">
                   <Label>Funil</Label>
                   <Select value={groupId} onValueChange={setGroupId}>
@@ -528,6 +528,18 @@ export default function AcFunnelMetrics() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
+                  <Label>Proprietário</Label>
+                  <Select value={owner} onValueChange={setOwner}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Todos</SelectItem>
+                      {owners.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
                   <Label>De</Label>
                   <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
                 </div>
@@ -535,6 +547,7 @@ export default function AcFunnelMetrics() {
                   <Label>Até</Label>
                   <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
                 </div>
+
                 <div className="flex flex-wrap items-end gap-2">
                   {[
                     { l: "7d", d: 6 },
