@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ac_cron_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          token?: string
+        }
+        Relationships: []
+      }
       ac_funnel_deals: {
         Row: {
           ac_contact_id: string | null
