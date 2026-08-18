@@ -17,6 +17,8 @@ import {
 import type { TeamMember } from "./useTacticalData";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
+import { CHANNEL_LABEL } from "./recoveryChannels";
+import type { ChannelSummary } from "./useRecoveryChannelData";
 
 
 interface Props {
@@ -29,7 +31,10 @@ interface Props {
   today: Date;
   revisedView?: boolean;
   lowTouchSales?: LowTouchSale[];
+  /** Recorte Cobrança x CS das recuperações/retenções no mês corrente. */
+  recoveryChannels?: ChannelSummary;
 }
+
 
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
