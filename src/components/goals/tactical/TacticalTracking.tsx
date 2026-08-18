@@ -25,6 +25,10 @@ import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
 import { StripeBackupPanel } from "./StripeBackupPanel";
 import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
+import { RecoveryChannelPanel } from "./RecoveryChannelPanel";
+import { useRecoveryChannelData, channelsBySeller, summarizeChannels } from "./useRecoveryChannelData";
+import { useRecoveryReasons } from "./recoveryChannels";
+
 
 
 import { LowTouchView } from "./LowTouchView";
@@ -85,6 +89,27 @@ export function TacticalTracking() {
     () => metricsForTeam(metrics, isOverview ? null : teamId || null),
     [metrics, teamId, isOverview],
   );
+
+  // Canal (Cobrança x CS) e motivo das recuperações/retenções
+  const [recoveryKey, setRecoveryKey] = useState(0);
+  const { reasons: recoveryReasons } = useRecoveryReasons();
+  const { rows: recoveryRows } = useRecoveryChannelData(rangeStart, today, memberIds, reloadKey + recoveryKey);
+  const todayKeyStr = useMemo(() => format(today, "yyyy-MM-dd"), [today]);
+  const monthStartKey = useMemo(
+    () => format(new Date(today.getFullYear(), today.getMonth(), 1), "yyyy-MM-dd"),
+    [today],
+  );
+  const recoveryMonthSummary = useMemo(
+    () => summarizeChannels(recoveryRows.filter((r) => r.dateKey >= monthStartKey && r.dateKey <= todayKeyStr)),
+    [recoveryRows, monthStartKey, todayKeyStr],
+  );
+  const recoveryTodayRows = useMemo(
+    () => recoveryRows.filter((r) => r.dateKey === todayKeyStr),
+    [recoveryRows, todayKeyStr],
+  );
+  const recoveryBySeller = useMemo(() => channelsBySeller(recoveryTodayRows), [recoveryTodayRows]);
+
+
 
   useEffect(() => {
     if (!user) return;
@@ -277,6 +302,7 @@ export function TacticalTracking() {
               today={today}
               revisedView={revisedView}
               lowTouchSales={lowTouch.sales}
+              recoveryChannels={recoveryMonthSummary}
 
             />
           ) : (
@@ -292,7 +318,9 @@ export function TacticalTracking() {
               daily={daily}
               today={today}
               revisedView={revisedView}
+              recoveryToday={summarizeChannels(recoveryTodayRows.filter((r) => r.sellerId === focusUser))}
             />
+
           )}
           {!isAdmin && (
             <ManualEntryDialog metrics={teamMetrics} onSaved={() => setReloadKey((k) => k + 1)} />
@@ -312,6 +340,8 @@ export function TacticalTracking() {
           teams={teams}
           members={members}
           lowTouchSales={isOverview ? lowTouch.sales : []}
+          recoveryChannels={recoveryBySeller}
+
         />
 
 
@@ -327,6 +357,14 @@ export function TacticalTracking() {
       />
 
       <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} />
+
+      <RecoveryChannelPanel
+        rows={recoveryRows}
+        reasons={recoveryReasons}
+        today={today}
+        teamName={isOverview ? null : activeTeam?.name ?? null}
+      />
+
 
 
 

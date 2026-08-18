@@ -13,6 +13,9 @@ import {
   toBRDateKey,
 } from "./types";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
+import { CHANNEL_LABEL } from "./recoveryChannels";
+import type { ChannelSummary } from "./useRecoveryChannelData";
+
 
 
 interface Props {
@@ -27,7 +30,10 @@ interface Props {
   daily: DailyDatum[];
   today: Date;
   revisedView?: boolean;
+  /** Recorte Cobrança x CS das recuperações/retenções de hoje deste colaborador. */
+  recoveryToday?: ChannelSummary;
 }
+
 
 function computeStreak(userId: string, metricId: string, target: number, daily: DailyDatum[], today: Date): number {
   if (target <= 0) return 0;
@@ -71,7 +77,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, revisedView = false }: Props) {
+export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, revisedView = false, recoveryToday }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -264,6 +270,28 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
           ))}
         </div>
       )}
+
+      {recoveryToday && recoveryToday.total.qty > 0 && (
+        <p className="text-[11px] sm:text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium text-foreground">Hoje por canal:</span>
+          <span>
+            {CHANNEL_LABEL.cobranca} {recoveryToday.cobranca.qty} ·{" "}
+            {recoveryToday.cobranca.mrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+          </span>
+          <span>|</span>
+          <span>
+            {CHANNEL_LABEL.cs} {recoveryToday.cs.qty} ·{" "}
+            {recoveryToday.cs.mrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+          </span>
+          {recoveryToday.missingReason > 0 && (
+            <>
+              <span>|</span>
+              <span className="text-amber-600">{recoveryToday.missingReason} sem motivo</span>
+            </>
+          )}
+        </p>
+      )}
+
     </div>
   );
 }

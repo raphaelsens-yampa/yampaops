@@ -15,6 +15,8 @@ import {
 } from "./types";
 import type { TeamMember } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
+import { CHANNEL_LABEL } from "./recoveryChannels";
+import type { SellerChannelTotals } from "./useRecoveryChannelData";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -29,7 +31,10 @@ interface Props {
   teams?: Team[];
   members?: TeamMember[];
   lowTouchSales?: LowTouchSale[];
+  /** MRR recuperado/retido de hoje por vendedor, quebrado por canal. */
+  recoveryChannels?: Map<string, SellerChannelTotals>;
 }
+
 
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -44,7 +49,7 @@ function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, gro
   return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
 }
 
-export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [], lowTouchSales = [] }: Props) {
+export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
   const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
   useEffect(() => {
     setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
@@ -165,6 +170,18 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
                 </span>
               </div>
               <Progress value={r.pct} className="h-1.5" />
+              {(() => {
+                const ch = recoveryChannels?.get(r.uid);
+                if (!ch || (ch.cobrancaQty === 0 && ch.csQty === 0)) return null;
+                return (
+                  <p className="text-[10px] text-muted-foreground">
+                    {CHANNEL_LABEL.cobranca} {ch.cobrancaQty} ({formatMetric(ch.cobrancaMrr, "currency")}) ·{" "}
+                    {CHANNEL_LABEL.cs} {ch.csQty} ({formatMetric(ch.csMrr, "currency")})
+                  </p>
+                );
+              })()}
+
+
             </div>
           ))}
           {rows.length === 0 && <p className="text-sm text-muted-foreground">Sem membros neste time.</p>}
