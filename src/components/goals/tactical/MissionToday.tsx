@@ -27,7 +27,10 @@ interface Props {
   daily: DailyDatum[];
   today: Date;
   revisedView?: boolean;
+  /** Recorte Cobrança x CS das recuperações/retenções de hoje deste colaborador. */
+  recoveryToday?: ChannelSummary;
 }
+
 
 function computeStreak(userId: string, metricId: string, target: number, daily: DailyDatum[], today: Date): number {
   if (target <= 0) return 0;
