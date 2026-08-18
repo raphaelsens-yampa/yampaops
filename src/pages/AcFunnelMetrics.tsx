@@ -41,7 +41,7 @@ import * as XLSX from "xlsx";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/ac-funnel-webhook`;
-const AC_APP_BASE = "https://4blue83310.activehosted.com";
+const AC_APP_BASE = (localStorage.getItem("ac_app_base_url") || "https://app.activecampaign.com").replace(/\/+$/, "");
 const TZ = "America/Sao_Paulo";
 
 type Funnel = {
