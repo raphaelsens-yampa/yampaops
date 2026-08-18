@@ -53,7 +53,7 @@ export function useTacticalData(
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes, moveCfgRes, ownerMapRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name"),
@@ -71,7 +71,10 @@ export function useTacticalData(
               .lte("data", toDateStr)
               .not("origem_cliente", "is", null)
           : Promise.resolve({ data: [] as any[] }),
+        supabase.from("ac_stage_move_config").select("*").eq("metric_key", "oportunidades_abertas").maybeSingle(),
+        supabase.from("ac_owner_seller_map").select("ac_group_id, owner_name, seller_id"),
       ]);
+
 
 
       if (cancelled) return;
