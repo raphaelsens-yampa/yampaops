@@ -170,6 +170,17 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
                 </span>
               </div>
               <Progress value={r.pct} className="h-1.5" />
+              {(() => {
+                const ch = recoveryChannels?.get(r.uid);
+                if (!ch || (ch.cobranca.qty === 0 && ch.cs.qty === 0)) return null;
+                return (
+                  <p className="text-[10px] text-muted-foreground">
+                    {CHANNEL_LABEL.cobranca} {ch.cobranca.qty} ({formatMetric(ch.cobranca.mrr, "currency")}) ·{" "}
+                    {CHANNEL_LABEL.cs} {ch.cs.qty} ({formatMetric(ch.cs.mrr, "currency")})
+                  </p>
+                );
+              })()}
+
             </div>
           ))}
           {rows.length === 0 && <p className="text-sm text-muted-foreground">Sem membros neste time.</p>}
