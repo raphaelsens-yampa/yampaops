@@ -134,7 +134,9 @@ export default function AcFunnelMetrics() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [groupId, setGroupId] = useState<string>("");
-  const [from, setFrom] = useState<string>(addDays(todaySp(), -29));
+  // Padrão: mês vigente, do dia 1 até hoje (fuso São Paulo)
+  const [from, setFrom] = useState<string>(`${todaySp().slice(0, 7)}-01`);
+
   const [to, setTo] = useState<string>(todaySp());
   const [owner, setOwner] = useState<string>("__all__");
   const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
