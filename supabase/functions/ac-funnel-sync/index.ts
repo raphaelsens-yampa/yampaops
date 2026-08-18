@@ -221,6 +221,92 @@ Deno.serve(async (req) => {
       return json({ ok: true, connected });
     }
 
+    if (action === "backfill_activities") {
+      const groupId = String(body.groupId ?? "");
+      if (!groupId) return json({ error: "groupId obrigatório" }, 400);
+      const days = Math.min(Math.max(num(body.days) || 180, 1), 730);
+      const since = new Date(Date.now() - days * 86400000);
+
+      // Deals do funil (mapa id -> metadados)
+      const { data: dealRows } = await db
+        .from("ac_funnel_deals")
+        .select("ac_deal_id, value, contact_email, owner_name")
+        .eq("ac_group_id", groupId);
+      const dealMap = new Map<string, any>((dealRows ?? []).map((d: any) => [String(d.ac_deal_id), d]));
+      const { data: stageRows } = await db
+        .from("ac_funnel_stages")
+        .select("ac_stage_id")
+        .eq("ac_group_id", groupId);
+      const validStages = new Set((stageRows ?? []).map((s: any) => String(s.ac_stage_id)));
+
+      let scanned = 0;
+      let written = 0;
+      let sample: any = null;
+      let stop = false;
+      const rows: Record<string, unknown>[] = [];
+
+      for (let offset = 0; offset < 20000 && !stop; offset += 100) {
+        const data = await acFetch(`dealActivities?limit=100&offset=${offset}&orders[id]=DESC`);
+        const acts = data.dealActivities ?? [];
+        if (!acts.length) break;
+        for (const a of acts) {
+          scanned++;
+          if (!sample) sample = a;
+          const at = iso(a.cdate ?? a.tstamp ?? a.created_timestamp);
+          if (at && new Date(at) < since) { stop = true; continue; }
+          const dealId = String(a.deal ?? a.dealid ?? "");
+          const deal = dealMap.get(dealId);
+          if (!deal) continue;
+
+          const dataType = String(a.dataType ?? a.datatype ?? "");
+          const oldV = a.oldvalue == null ? "" : String(a.oldvalue);
+          const newV = a.newvalue == null ? "" : String(a.newvalue);
+          const base = {
+            ac_deal_id: dealId,
+            ac_group_id: groupId,
+            deal_value: num(deal.value),
+            contact_email: deal.contact_email ?? null,
+            owner_name: deal.owner_name ?? null,
+            source: "backfill_activities",
+            occurred_at: at ?? new Date().toISOString(),
+          };
+
+          if (dataType === "stage" && (validStages.has(newV) || validStages.has(oldV))) {
+            rows.push({
+              ...base,
+              event_type: "stage_change",
+              from_stage_id: validStages.has(oldV) ? oldV : "",
+              to_stage_id: validStages.has(newV) ? newV : "",
+              from_status: null,
+              to_status: null,
+            });
+          } else if (dataType === "status") {
+            const st = num(newV);
+            rows.push({
+              ...base,
+              event_type: st === 1 ? "won" : st === 2 ? "lost" : "reopened",
+              from_stage_id: "",
+              to_stage_id: "",
+              from_status: num(oldV),
+              to_status: st,
+            });
+          }
+        }
+      }
+
+      for (let i = 0; i < rows.length; i += 500) {
+        const chunk = rows.slice(i, i + 500);
+        const { error } = await db.from("ac_funnel_stage_events").upsert(chunk, {
+          onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
+          ignoreDuplicates: true,
+        });
+        if (error) console.error("backfill upsert error:", error.message);
+        else written += chunk.length;
+      }
+
+      return json({ ok: true, scanned, candidates: rows.length, written, sample_keys: sample ? Object.keys(sample) : [] });
+    }
+
     // action === "sync"
     let targets: string[] = [];
     if (body.groupId) {
