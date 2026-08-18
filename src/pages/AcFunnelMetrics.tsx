@@ -112,6 +112,7 @@ export default function AcFunnelMetrics() {
   const [syncing, setSyncing] = useState(false);
   const [listing, setListing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number; events: number } | null>(null);
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -263,12 +264,22 @@ export default function AcFunnelMetrics() {
 
   async function runBackfill() {
     setBackfilling(true);
+    setBackfillProgress({ done: 0, total: 0, events: 0 });
     try {
-      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
-        body: { action: "backfill_activities", groupId, days: 180 },
-      });
-      if (error) throw error;
-      toast.success(`Histórico importado: ${data?.written ?? 0} eventos (${data?.scanned ?? 0} atividades lidas)`);
+      let startIndex = 0;
+      let events = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
+          body: { action: "backfill_activities", groupId, days: 365, startIndex, batchSize: 100 },
+        });
+        if (error) throw error;
+        events += Number(data?.written ?? 0);
+        startIndex = Number(data?.next_index ?? startIndex);
+        setBackfillProgress({ done: startIndex, total: Number(data?.total_deals ?? 0), events });
+        if (data?.done) break;
+      }
+      toast.success(`Histórico importado: ${events} eventos`);
       await loadAll(groupId);
     } catch (e: any) {
       toast.error(`Falha no backfill: ${e?.message ?? e}`);
@@ -349,7 +360,9 @@ export default function AcFunnelMetrics() {
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={runBackfill} disabled={backfilling || !groupId} className="w-full sm:w-auto">
               {backfilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <History className="mr-2 h-4 w-4" />}
-              Importar histórico (180d)
+              {backfilling && backfillProgress
+                ? `Histórico ${backfillProgress.done}/${backfillProgress.total}`
+                : "Importar histórico (12m)"}
             </Button>
             <Button onClick={runSync} disabled={syncing || !groupId} className="w-full sm:w-auto">
               {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
