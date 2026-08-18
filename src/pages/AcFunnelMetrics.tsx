@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AcOpportunityMetricConfig } from "@/components/goals/tactical/AcOpportunityMetricConfig";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
