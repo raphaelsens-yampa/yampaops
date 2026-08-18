@@ -41,24 +41,116 @@ async function loadOwners(): Promise<Record<string, string>> {
   }
 }
 
-async function syncStages(db: ReturnType<typeof admin>, groupId: string) {
-  const data = await acFetch(`dealGroups/${groupId}/stages?limit=100`);
-  const rows = (data.dealStages ?? []).map((s: any) => ({
-    ac_stage_id: String(s.id),
-    ac_group_id: groupId,
-    title: s.title ?? "",
-    position: num(s.order),
-    color: s.color ? `#${String(s.color).replace(/^#/, "")}` : null,
-  }));
-  if (rows.length) {
-    const { error } = await db.from("ac_funnel_stages").upsert(rows, { onConflict: "ac_stage_id" });
-    if (error) throw new Error(`stages upsert: ${error.message}`);
+const LOSS_FIELD_LABEL = /motivo de perda/i;
+
+/** Descobre o id do campo personalizado "Deal - Sales - Motivo de perda". */
+async function findLossReasonFieldId(): Promise<string | null> {
+  try {
+    let offset = 0;
+    let total = Infinity;
+    while (offset < total) {
+      const data = await acFetch(`dealCustomFieldMeta?limit=100&offset=${offset}`);
+      total = num(data.meta?.total);
+      const items = data.dealCustomFieldMeta ?? [];
+      if (!items.length) break;
+      const hit = items.find((m: any) => LOSS_FIELD_LABEL.test(String(m.fieldLabel ?? "")));
+      if (hit) return String(hit.id);
+      offset += 100;
+    }
+  } catch (e) {
+    console.error("findLossReasonFieldId failed:", (e as Error).message);
+  }
+  return null;
+}
+
+/** Mapa dealId -> motivo de perda. */
+async function loadLossReasons(): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const fieldId = await findLossReasonFieldId();
+  if (!fieldId) return out;
+  try {
+    let offset = 0;
+    let total = Infinity;
+    while (offset < total) {
+      const data = await acFetch(`dealCustomFieldMeta/${fieldId}/dealCustomFieldData?limit=100&offset=${offset}`);
+      total = num(data.meta?.total);
+      const items = data.dealCustomFieldMeta ?? data.dealCustomFieldData ?? [];
+      if (!items.length) break;
+      for (const it of items) {
+        const v = String(it.fieldValue ?? "").trim();
+        if (v) out.set(String(it.dealId), v);
+      }
+      offset += 100;
+      if (offset > 20000) break;
+    }
+  } catch (e) {
+    console.error("loadLossReasons failed:", (e as Error).message);
+  }
+  return out;
+}
+
+/** Sincroniza tarefas de negócios do funil. */
+async function syncTasks(
+  db: ReturnType<typeof admin>,
+  groupId: string,
+  owners: Record<string, string>,
+  dealStage: Map<string, string | null>,
+): Promise<number> {
+  const types: Record<string, string> = {};
+  try {
+    const t = await acFetch("dealTasktypes?limit=100");
+    for (const tt of t.dealTasktypes ?? []) types[String(tt.id)] = String(tt.title ?? "");
+  } catch (e) {
+    console.error("dealTasktypes failed:", (e as Error).message);
+  }
+
+  const rows: Record<string, unknown>[] = [];
+  let offset = 0;
+  let total = Infinity;
+  while (offset < total) {
+    const data = await acFetch(`dealTasks?limit=100&offset=${offset}&filters%5Breltype%5D=Deal`);
+    total = num(data.meta?.total);
+    const batch = data.dealTasks ?? [];
+    if (!batch.length) break;
+    for (const t of batch) {
+      const dealId = String(t.relid ?? "");
+      if (!dealStage.has(dealId)) continue;
+      const assignee = String(t.assignee ?? t.user ?? "");
+      rows.push({
+        ac_task_id: String(t.id),
+        ac_deal_id: dealId,
+        ac_group_id: groupId,
+        ac_stage_id: dealStage.get(dealId) ?? null,
+        title: t.title ?? null,
+        task_type_id: t.dealTasktype ? String(t.dealTasktype) : null,
+        task_type: types[String(t.dealTasktype)] ?? null,
+        assignee_id: assignee || null,
+        owner_name: owners[assignee] ?? null,
+        due_date: iso(t.duedate),
+        is_done: num(t.status) === 1,
+        done_at: iso(t.donedate),
+        updated_at: new Date().toISOString(),
+      });
+    }
+    offset += 100;
+    if (offset > 50000) break;
+  }
+
+  // Substitui o retrato de tarefas do funil
+  await db.from("ac_funnel_deal_tasks").delete().eq("ac_group_id", groupId);
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await db
+      .from("ac_funnel_deal_tasks")
+      .upsert(rows.slice(i, i + 500), { onConflict: "ac_task_id" });
+    if (error) console.error("tasks upsert error:", error.message);
   }
   return rows.length;
 }
 
 async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners: Record<string, string>) {
   const stages = await syncStages(db, groupId);
+  const lossReasons = await loadLossReasons();
+
 
   const { data: storedRows, error: storedErr } = await db
     .from("ac_funnel_deals")
