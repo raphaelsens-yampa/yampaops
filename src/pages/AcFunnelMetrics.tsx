@@ -674,6 +674,155 @@ export default function AcFunnelMetrics() {
                   </CardContent>
                 </Card>
 
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Ranking de Ganhos por Proprietário</CardTitle>
+                      <CardDescription>Negócios marcados como Ganho com fechamento no período</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Proprietário</TableHead>
+                            <TableHead className="text-right">Ganhos</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {wonRanking.rows.map((r, i) => (
+                            <TableRow key={r.owner}>
+                              <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                              <TableCell className="font-medium">{r.owner}</TableCell>
+                              <TableCell className="text-right tabular-nums">{r.qtd}</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                          {!wonRanking.rows.length && (
+                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem ganhos no período</TableCell></TableRow>
+                          )}
+                          {!!wonRanking.rows.length && (
+                            <TableRow className="border-t-2 font-semibold">
+                              <TableCell />
+                              <TableCell>Total</TableCell>
+                              <TableCell className="text-right tabular-nums">{wonRanking.totalQtd}</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(wonRanking.totalValor)}</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Motivos de Perda</CardTitle>
+                      <CardDescription>Campo "Deal - Sales - Motivo de perda" · {lossRanking.total} negócios perdidos no período</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Motivo</TableHead>
+                            <TableHead className="text-right">Qtd</TableHead>
+                            <TableHead className="text-right">%</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lossRanking.rows.map((r) => (
+                            <TableRow key={r.reason}>
+                              <TableCell className="font-medium">{r.reason}</TableCell>
+                              <TableCell className="text-right tabular-nums">{r.qtd}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {lossRanking.total ? ((r.qtd / lossRanking.total) * 100).toFixed(0) : 0}%
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                          {!lossRanking.rows.length && (
+                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem perdas no período</TableCell></TableRow>
+                          )}
+                          {!!lossRanking.rows.length && (
+                            <TableRow className="border-t-2 font-semibold">
+                              <TableCell>Total</TableCell>
+                              <TableCell className="text-right tabular-nums">{lossRanking.total}</TableCell>
+                              <TableCell className="text-right tabular-nums">100%</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(lossRanking.totalValor)}</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Tarefas por Negócio</CardTitle>
+                      <CardDescription>
+                        Retrato atual das tarefas · concluídas contadas no período · visão por {taskDim === "owner" ? "proprietário" : taskDim === "stage" ? "etapa" : "ação"}
+                      </CardDescription>
+                    </div>
+                    <Select value={taskDim} onValueChange={(v) => setTaskDim(v as typeof taskDim)}>
+                      <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="owner">Por proprietário</SelectItem>
+                        <SelectItem value="stage">Por etapa</SelectItem>
+                        <SelectItem value="action">Por ação</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[160px]">
+                            {taskDim === "owner" ? "Proprietário" : taskDim === "stage" ? "Etapa" : "Ação"}
+                          </TableHead>
+                          <TableHead className="text-right">Próximas</TableHead>
+                          <TableHead className="text-right">Agendadas</TableHead>
+                          <TableHead className="text-right">Atrasadas</TableHead>
+                          <TableHead className="text-right">Concluídas</TableHead>
+                          <TableHead className="text-right">Sem tarefa</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {taskMatrix.rows.map((r) => (
+                          <TableRow key={r.key}>
+                            <TableCell className="font-medium">{r.key}</TableCell>
+                            <TableCell className="text-right tabular-nums">{r.proximas || "–"}</TableCell>
+                            <TableCell className="text-right tabular-nums">{r.agendadas || "–"}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {r.atrasadas ? <Badge variant="destructive">{r.atrasadas}</Badge> : <span className="text-muted-foreground">–</span>}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{r.concluidas || "–"}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {r.semTarefa ? <Badge variant="secondary">{r.semTarefa}</Badge> : <span className="text-muted-foreground">–</span>}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {!taskMatrix.rows.length && (
+                          <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem tarefas sincronizadas</TableCell></TableRow>
+                        )}
+                        {!!taskMatrix.rows.length && (
+                          <TableRow className="border-t-2 font-semibold">
+                            <TableCell>Total</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.proximas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.agendadas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.atrasadas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.concluidas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.semTarefa}</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+
                 <Card>
                   <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
