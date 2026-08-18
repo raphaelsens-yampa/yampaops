@@ -14,6 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
+      ac_funnel_deals: {
+        Row: {
+          ac_contact_id: string | null
+          ac_deal_id: string
+          ac_group_id: string
+          ac_stage_id: string | null
+          closed_at: string | null
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string
+          currency: string | null
+          deal_created_at: string | null
+          deal_updated_at: string | null
+          first_seen_at: string
+          owner_id: string | null
+          owner_name: string | null
+          stage_changed_at: string | null
+          status: number
+          title: string | null
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          ac_contact_id?: string | null
+          ac_deal_id: string
+          ac_group_id: string
+          ac_stage_id?: string | null
+          closed_at?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          currency?: string | null
+          deal_created_at?: string | null
+          deal_updated_at?: string | null
+          first_seen_at?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          stage_changed_at?: string | null
+          status?: number
+          title?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          ac_contact_id?: string | null
+          ac_deal_id?: string
+          ac_group_id?: string
+          ac_stage_id?: string | null
+          closed_at?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          currency?: string | null
+          deal_created_at?: string | null
+          deal_updated_at?: string | null
+          first_seen_at?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          stage_changed_at?: string | null
+          status?: number
+          title?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      ac_funnel_stage_events: {
+        Row: {
+          ac_deal_id: string
+          ac_group_id: string
+          contact_email: string | null
+          created_at: string
+          deal_value: number
+          event_type: string
+          from_stage_id: string | null
+          from_status: number | null
+          id: string
+          occurred_at: string
+          owner_name: string | null
+          source: string
+          to_stage_id: string | null
+          to_status: number | null
+        }
+        Insert: {
+          ac_deal_id: string
+          ac_group_id: string
+          contact_email?: string | null
+          created_at?: string
+          deal_value?: number
+          event_type?: string
+          from_stage_id?: string | null
+          from_status?: number | null
+          id?: string
+          occurred_at?: string
+          owner_name?: string | null
+          source?: string
+          to_stage_id?: string | null
+          to_status?: number | null
+        }
+        Update: {
+          ac_deal_id?: string
+          ac_group_id?: string
+          contact_email?: string | null
+          created_at?: string
+          deal_value?: number
+          event_type?: string
+          from_stage_id?: string | null
+          from_status?: number | null
+          id?: string
+          occurred_at?: string
+          owner_name?: string | null
+          source?: string
+          to_stage_id?: string | null
+          to_status?: number | null
+        }
+        Relationships: []
+      }
+      ac_funnel_stages: {
+        Row: {
+          ac_group_id: string
+          ac_stage_id: string
+          color: string | null
+          created_at: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ac_group_id: string
+          ac_stage_id: string
+          color?: string | null
+          created_at?: string
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ac_group_id?: string
+          ac_stage_id?: string
+          color?: string | null
+          created_at?: string
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ac_funnels: {
+        Row: {
+          ac_group_id: string
+          connected_at: string | null
+          created_at: string
+          deals_count: number
+          is_connected: boolean
+          last_sync_at: string | null
+          last_webhook_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ac_group_id: string
+          connected_at?: string | null
+          created_at?: string
+          deals_count?: number
+          is_connected?: boolean
+          last_sync_at?: string | null
+          last_webhook_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ac_group_id?: string
+          connected_at?: string | null
+          created_at?: string
+          deals_count?: number
+          is_connected?: boolean
+          last_sync_at?: string | null
+          last_webhook_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ac_pipeline_selection: {
         Row: {
           ac_pipeline_id: string
