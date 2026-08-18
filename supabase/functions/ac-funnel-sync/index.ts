@@ -339,7 +339,63 @@ Deno.serve(async (req) => {
       return json({ ok: true, connected });
     }
 
+    // Reconstrói eventos de Ganho/Perda a partir do snapshot de negócios (status + closed_at).
+    // Útil quando o webhook não estava ativo no período.
+    if (action === "backfill_closures") {
+      const groupId = String(body.groupId ?? "");
+      if (!groupId) return json({ error: "groupId obrigatório" }, 400);
+      const fromDate = String(body.from ?? "").slice(0, 10);
+      const toDate = String(body.to ?? "").slice(0, 10);
+      if (!fromDate || !toDate) return json({ error: "from e to obrigatórios (YYYY-MM-DD)" }, 400);
+
+      const { data: closed, error: qErr } = await db
+        .from("ac_funnel_deals")
+        .select("ac_deal_id, ac_stage_id, status, value, contact_email, owner_name, closed_at")
+        .eq("ac_group_id", groupId)
+        .in("status", [1, 2])
+        .gte("closed_at", `${fromDate}T00:00:00-03:00`)
+        .lte("closed_at", `${toDate}T23:59:59-03:00`)
+        .limit(20000);
+      if (qErr) return json({ error: qErr.message }, 400);
+
+      const rows = (closed ?? []).map((d: any) => ({
+        ac_deal_id: String(d.ac_deal_id),
+        ac_group_id: groupId,
+        event_type: d.status === 1 ? "won" : "lost",
+        from_stage_id: d.ac_stage_id ?? "",
+        to_stage_id: d.ac_stage_id ?? "",
+        from_status: 0,
+        to_status: d.status,
+        deal_value: num(d.value),
+        contact_email: d.contact_email ?? null,
+        owner_name: d.owner_name ?? null,
+        occurred_at: d.closed_at,
+        source: "backfill_closures",
+      }));
+
+      let written = 0;
+      for (let i = 0; i < rows.length; i += 500) {
+        const chunk = rows.slice(i, i + 500);
+        const { error } = await db.from("ac_funnel_stage_events").upsert(chunk, {
+          onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
+          ignoreDuplicates: true,
+        });
+        if (error) return json({ error: error.message }, 400);
+        written += chunk.length;
+      }
+
+      return json({
+        ok: true,
+        from: fromDate,
+        to: toDate,
+        won: rows.filter((r) => r.event_type === "won").length,
+        lost: rows.filter((r) => r.event_type === "lost").length,
+        written,
+      });
+    }
+
     if (action === "backfill_activities") {
+
       const groupId = String(body.groupId ?? "");
       if (!groupId) return json({ error: "groupId obrigatório" }, 400);
       const days = Math.min(Math.max(num(body.days) || 180, 1), 730);

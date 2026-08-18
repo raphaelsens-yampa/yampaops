@@ -127,6 +127,8 @@ export default function AcFunnelMetrics() {
   const [syncing, setSyncing] = useState(false);
   const [listing, setListing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [closuresBackfilling, setClosuresBackfilling] = useState(false);
+
   const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number; events: number } | null>(null);
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -134,7 +136,9 @@ export default function AcFunnelMetrics() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [groupId, setGroupId] = useState<string>("");
-  const [from, setFrom] = useState<string>(addDays(todaySp(), -29));
+  // Padrão: mês vigente, do dia 1 até hoje (fuso São Paulo)
+  const [from, setFrom] = useState<string>(`${todaySp().slice(0, 7)}-01`);
+
   const [to, setTo] = useState<string>(todaySp());
   const [owner, setOwner] = useState<string>("__all__");
   const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
@@ -424,6 +428,24 @@ export default function AcFunnelMetrics() {
     }
   }
 
+  /** Reconstrói Ganhos/Perdidos do período filtrado a partir do snapshot de negócios. */
+  async function runClosuresBackfill() {
+    setClosuresBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
+        body: { action: "backfill_closures", groupId, from, to },
+      });
+      if (error) throw error;
+      toast.success(`Fechamentos registrados: ${data?.won ?? 0} ganhos e ${data?.lost ?? 0} perdidos`);
+      await loadAll(groupId);
+    } catch (e: any) {
+      toast.error(`Falha ao registrar fechamentos: ${e?.message ?? e}`);
+    } finally {
+      setClosuresBackfilling(false);
+    }
+  }
+
+
   async function listFunnels() {
     setListing(true);
     try {
@@ -500,6 +522,17 @@ export default function AcFunnelMetrics() {
                 ? `Histórico ${backfillProgress.done}/${backfillProgress.total}`
                 : "Importar histórico (12m)"}
             </Button>
+            <Button
+              variant="outline"
+              onClick={runClosuresBackfill}
+              disabled={closuresBackfilling || !groupId}
+              className="w-full sm:w-auto"
+              title="Registra Ganhos/Perdidos do período filtrado a partir dos negócios sincronizados"
+            >
+              {closuresBackfilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trophy className="mr-2 h-4 w-4" />}
+              Registrar fechamentos do período
+            </Button>
+
             <Button onClick={runSync} disabled={syncing || !groupId} className="w-full sm:w-auto">
               {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Sincronizar agora
@@ -550,6 +583,13 @@ export default function AcFunnelMetrics() {
                 </div>
 
                 <div className="flex flex-wrap items-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setFrom(`${todaySp().slice(0, 7)}-01`); setTo(todaySp()); }}
+                  >
+                    Mês atual
+                  </Button>
                   {[
                     { l: "7d", d: 6 },
                     { l: "30d", d: 29 },
@@ -565,6 +605,7 @@ export default function AcFunnelMetrics() {
                     </Button>
                   ))}
                 </div>
+
               </CardContent>
             </Card>
 
