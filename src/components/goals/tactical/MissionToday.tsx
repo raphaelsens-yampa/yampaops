@@ -77,7 +77,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, revisedView = false }: Props) {
+export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, revisedView = false, recoveryToday }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
