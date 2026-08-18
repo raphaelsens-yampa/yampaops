@@ -272,6 +272,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ac_owner_seller_map: {
+        Row: {
+          ac_group_id: string
+          created_at: string
+          id: string
+          owner_name: string
+          seller_id: string
+          updated_at: string
+        }
+        Insert: {
+          ac_group_id: string
+          created_at?: string
+          id?: string
+          owner_name: string
+          seller_id: string
+          updated_at?: string
+        }
+        Update: {
+          ac_group_id?: string
+          created_at?: string
+          id?: string
+          owner_name?: string
+          seller_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ac_pipeline_selection: {
         Row: {
           ac_pipeline_id: string
@@ -301,6 +328,39 @@ export type Database = {
           is_selected?: boolean
           last_synced_at?: string | null
           local_pipeline_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ac_stage_move_config: {
+        Row: {
+          ac_group_id: string
+          created_at: string
+          from_stage_id: string
+          id: string
+          metric_key: string
+          start_date: string
+          to_stage_id: string
+          updated_at: string
+        }
+        Insert: {
+          ac_group_id: string
+          created_at?: string
+          from_stage_id: string
+          id?: string
+          metric_key?: string
+          start_date?: string
+          to_stage_id: string
+          updated_at?: string
+        }
+        Update: {
+          ac_group_id?: string
+          created_at?: string
+          from_stage_id?: string
+          id?: string
+          metric_key?: string
+          start_date?: string
+          to_stage_id?: string
           updated_at?: string
         }
         Relationships: []
