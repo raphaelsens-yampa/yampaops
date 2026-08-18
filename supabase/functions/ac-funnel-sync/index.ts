@@ -164,10 +164,34 @@ async function syncTasks(
   return rows.length;
 }
 
+/** Busca TODOS os negócios do funil, paginando até a API não retornar novos ids. */
+async function fetchAllAcDeals(groupId: string): Promise<{ deals: any[]; contacts: Record<string, any> }> {
+  const byId = new Map<string, any>();
+  const contacts: Record<string, any> = {};
+  let offset = 0;
+  while (offset <= 20000) {
+    const data = await acFetch(
+      `deals?filters%5Bgroup%5D=${encodeURIComponent(groupId)}&include=contact&limit=${PAGE}&offset=${offset}&orders%5Bid%5D=ASC`,
+    );
+    for (const c of data.contacts ?? []) contacts[String(c.id)] = c;
+    const batch = data.deals ?? [];
+    if (!batch.length) break;
+    let added = 0;
+    for (const d of batch) {
+      const id = String(d.id);
+      if (!byId.has(id)) added++;
+      byId.set(id, d);
+    }
+    offset += PAGE;
+    // página inteira repetida => a API parou de avançar
+    if (added === 0 && batch.length < PAGE) break;
+  }
+  return { deals: Array.from(byId.values()), contacts };
+}
+
 async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners: Record<string, string>) {
   const stages = await syncStages(db, groupId);
   const lossReasons = await loadLossReasons();
-
 
   const { data: storedRows, error: storedErr } = await db
     .from("ac_funnel_deals")
@@ -177,78 +201,78 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
   const stored = new Map<string, StoredDeal>();
   for (const r of storedRows ?? []) stored.set(String(r.ac_deal_id), r as StoredDeal);
 
-  let offset = 0;
-  let total = Infinity;
   let deals = 0;
   let events = 0;
   const nowIso = new Date().toISOString();
   const dealStage = new Map<string, string | null>();
 
+  const { deals: acDeals, contacts } = await fetchAllAcDeals(groupId);
+  const seen = new Set<string>();
+  const upserts: Record<string, unknown>[] = [];
 
-  while (offset < total) {
-    const data = await acFetch(
-      `deals?filters%5Bgroup%5D=${encodeURIComponent(groupId)}&include=contact&limit=${PAGE}&offset=${offset}&orders%5Bcdate%5D=ASC`,
-    );
-    total = num(data.meta?.total);
-    const contacts: Record<string, any> = {};
-    for (const c of data.contacts ?? []) contacts[String(c.id)] = c;
+  for (const d of acDeals) {
+    const id = String(d.id);
+    seen.add(id);
+    const contact = contacts[String(d.contact)] ?? null;
+    const next = {
+      ac_deal_id: id,
+      ac_group_id: groupId,
+      ac_stage_id: d.stage ? String(d.stage) : null,
+      status: num(d.status),
+      value: num(d.value) / 100,
+      contact_email: contact?.email ? String(contact.email).toLowerCase() : null,
+      owner_name: owners[String(d.owner)] ?? null,
+      deal_created_at: iso(d.cdate),
+      occurred_at: iso(d.mdate) ?? nowIso,
+    };
+    const prev = stored.get(id) ?? null;
+    events += await writeEvents(db, prev, next, "sync");
 
-    const batch = data.deals ?? [];
-    if (!batch.length) break;
-
-    const upserts: Record<string, unknown>[] = [];
-    for (const d of batch) {
-      const id = String(d.id);
-      const contact = contacts[String(d.contact)] ?? null;
-      const next = {
-        ac_deal_id: id,
-        ac_group_id: groupId,
-        ac_stage_id: d.stage ? String(d.stage) : null,
-        status: num(d.status),
-        value: num(d.value) / 100,
-        contact_email: contact?.email ? String(contact.email).toLowerCase() : null,
-        owner_name: owners[String(d.owner)] ?? null,
-        deal_created_at: iso(d.cdate),
-        occurred_at: iso(d.mdate) ?? nowIso,
-      };
-      const prev = stored.get(id) ?? null;
-      events += await writeEvents(db, prev, next, "sync");
-
-      upserts.push({
-        ac_deal_id: id,
-        ac_group_id: groupId,
-        ac_stage_id: next.ac_stage_id,
-        title: d.title ?? null,
-        contact_name: contact ? `${contact.firstName ?? ""} ${contact.lastName ?? ""}`.trim() || null : null,
-        contact_email: next.contact_email,
-        ac_contact_id: d.contact ? String(d.contact) : null,
-        owner_id: d.owner ? String(d.owner) : null,
-        owner_name: next.owner_name,
-        value: next.value,
-        currency: d.currency ?? null,
-        status: next.status,
-        deal_created_at: next.deal_created_at,
-        deal_updated_at: iso(d.mdate),
-        stage_changed_at: prev && (prev.ac_stage_id ?? "") !== (next.ac_stage_id ?? "") ? next.occurred_at : undefined,
-        closed_at: next.status === 1 || next.status === 2 ? (iso(d.mdate) ?? nowIso) : null,
-        loss_reason: lossReasons.get(id) ?? null,
-      });
-      dealStage.set(id, next.ac_stage_id);
-      deals++;
-    }
-
-
-    const clean = upserts.map((u) => {
-      const o: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(u)) if (v !== undefined) o[k] = v;
-      return o;
+    upserts.push({
+      ac_deal_id: id,
+      ac_group_id: groupId,
+      ac_stage_id: next.ac_stage_id,
+      title: d.title ?? null,
+      contact_name: contact ? `${contact.firstName ?? ""} ${contact.lastName ?? ""}`.trim() || null : null,
+      contact_email: next.contact_email,
+      ac_contact_id: d.contact ? String(d.contact) : null,
+      owner_id: d.owner ? String(d.owner) : null,
+      owner_name: next.owner_name,
+      value: next.value,
+      currency: d.currency ? String(d.currency).toUpperCase() : null,
+      status: next.status,
+      deal_created_at: next.deal_created_at,
+      deal_updated_at: iso(d.mdate),
+      stage_changed_at: prev && (prev.ac_stage_id ?? "") !== (next.ac_stage_id ?? "") ? next.occurred_at : undefined,
+      closed_at: next.status === 1 || next.status === 2 ? (iso(d.mdate) ?? nowIso) : null,
+      loss_reason: lossReasons.get(id) ?? null,
     });
-    const { error } = await db.from("ac_funnel_deals").upsert(clean, { onConflict: "ac_deal_id" });
-    if (error) throw new Error(`deals upsert: ${error.message}`);
-
-    offset += PAGE;
-    if (offset > 20000) break;
+    dealStage.set(id, next.ac_stage_id);
+    deals++;
   }
+
+  const clean = upserts.map((u) => {
+    const o: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(u)) if (v !== undefined) o[k] = v;
+    return o;
+  });
+  for (let i = 0; i < clean.length; i += 500) {
+    const { error } = await db.from("ac_funnel_deals").upsert(clean.slice(i, i + 500), { onConflict: "ac_deal_id" });
+    if (error) throw new Error(`deals upsert: ${error.message}`);
+  }
+
+  // Reconciliação: negócios que não estão mais no funil saem do snapshot
+  let removed = 0;
+  if (seen.size) {
+    const stale = Array.from(stored.keys()).filter((id) => !seen.has(id));
+    for (let i = 0; i < stale.length; i += 200) {
+      const chunk = stale.slice(i, i + 200);
+      const { error } = await db.from("ac_funnel_deals").delete().eq("ac_group_id", groupId).in("ac_deal_id", chunk);
+      if (error) console.error("reconcile delete error:", error.message);
+      else removed += chunk.length;
+    }
+  }
+
   const tasks = await syncTasks(db, groupId, owners, dealStage);
 
   await db
@@ -256,8 +280,70 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
     .update({ last_sync_at: nowIso, deals_count: deals })
     .eq("ac_group_id", groupId);
 
-  return { group_id: groupId, stages, deals, events, tasks };
+  return { group_id: groupId, stages, deals, events, tasks, removed };
 }
+
+/** Auditoria somente leitura: compara o AC com o snapshot local. */
+async function auditFunnel(db: ReturnType<typeof admin>, groupId: string) {
+  const { deals: acDeals } = await fetchAllAcDeals(groupId);
+  const { data: stageRows } = await db
+    .from("ac_funnel_stages")
+    .select("ac_stage_id, title")
+    .eq("ac_group_id", groupId);
+  const stageTitle = new Map((stageRows ?? []).map((s: any) => [String(s.ac_stage_id), String(s.title)]));
+
+  const { data: dbRows } = await db
+    .from("ac_funnel_deals")
+    .select("ac_deal_id, ac_stage_id, status")
+    .eq("ac_group_id", groupId)
+    .limit(20000);
+
+  const acMap = new Map(acDeals.map((d: any) => [String(d.id), d]));
+  const dbMap = new Map((dbRows ?? []).map((r: any) => [String(r.ac_deal_id), r]));
+
+  const counts = new Map<string, { stage: string; ac: number; db: number }>();
+  const bump = (stageId: string | null, side: "ac" | "db") => {
+    const key = stageId ?? "—";
+    const row = counts.get(key) ?? { stage: stageTitle.get(key) ?? `Etapa ${key}`, ac: 0, db: 0 };
+    row[side]++;
+    counts.set(key, row);
+  };
+
+  for (const d of acDeals) if (num(d.status) === 0 || num(d.status) === 3) bump(d.stage ? String(d.stage) : null, "ac");
+  for (const r of dbRows ?? []) if (num(r.status) === 0 || num(r.status) === 3) bump(r.ac_stage_id, "db");
+
+  const missingInDb = acDeals.filter((d: any) => !dbMap.has(String(d.id))).map((d: any) => String(d.id));
+  const extraInDb = Array.from(dbMap.keys()).filter((id) => !acMap.has(id));
+  const divergent: any[] = [];
+  for (const [id, r] of dbMap) {
+    const d = acMap.get(id);
+    if (!d) continue;
+    const acStage = d.stage ? String(d.stage) : null;
+    if ((acStage ?? "") !== (r.ac_stage_id ?? "") || num(d.status) !== num(r.status)) {
+      divergent.push({
+        ac_deal_id: id,
+        ac_stage: stageTitle.get(acStage ?? "") ?? acStage,
+        db_stage: stageTitle.get(r.ac_stage_id ?? "") ?? r.ac_stage_id,
+        ac_status: num(d.status),
+        db_status: num(r.status),
+      });
+    }
+  }
+
+  return {
+    group_id: groupId,
+    ac_total: acDeals.length,
+    db_total: dbMap.size,
+    stage_counts: Array.from(counts.values()).sort((a, b) => b.ac - a.ac),
+    missing_in_db: missingInDb.length,
+    missing_in_db_ids: missingInDb.slice(0, 50),
+    extra_in_db: extraInDb.length,
+    extra_in_db_ids: extraInDb.slice(0, 50),
+    divergent: divergent.length,
+    divergent_sample: divergent.slice(0, 50),
+  };
+}
+
 
 
 Deno.serve(async (req) => {
@@ -290,9 +376,14 @@ Deno.serve(async (req) => {
 
     const action = String(body.action ?? "sync");
 
-
+    if (action === "audit_stages") {
+      const groupId = String(body.groupId ?? "");
+      if (!groupId) return json({ error: "groupId obrigatório" }, 400);
+      return json({ ok: true, audit: await auditFunnel(db, groupId) });
+    }
 
     if (action === "list_funnels") {
+
       const out: any[] = [];
       let offset = 0;
       let total = Infinity;

@@ -142,6 +142,9 @@ export default function AcFunnelMetrics() {
   const [to, setTo] = useState<string>(todaySp());
   const [owner, setOwner] = useState<string>("__all__");
   const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
+  const [auditing, setAuditing] = useState(false);
+  const [audit, setAudit] = useState<any | null>(null);
+
 
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
@@ -385,7 +388,27 @@ export default function AcFunnelMetrics() {
       .sort((a, b) => (b.deal_created_at ?? "").localeCompare(a.deal_created_at ?? ""));
   }, [deals, events]);
 
+  /** Auditoria somente leitura: compara etapa por etapa com o ActiveCampaign. */
+  async function runAudit() {
+    setAuditing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
+        body: { action: "audit_stages", groupId },
+      });
+      if (error) throw error;
+      setAudit(data?.audit ?? null);
+      const a = data?.audit;
+      if (a && !a.missing_in_db && !a.extra_in_db && !a.divergent) toast.success("Snapshot idêntico ao ActiveCampaign");
+      else toast.warning(`Divergências encontradas: ${a?.missing_in_db ?? 0} faltando, ${a?.extra_in_db ?? 0} sobrando, ${a?.divergent ?? 0} diferentes`);
+    } catch (e: any) {
+      toast.error(`Falha na auditoria: ${e?.message ?? e}`);
+    } finally {
+      setAuditing(false);
+    }
+  }
+
   async function runSync() {
+
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
@@ -514,6 +537,10 @@ export default function AcFunnelMetrics() {
             <p className="text-sm text-muted-foreground">
               Métricas de funil somente leitura: aberturas, movimentações entre etapas e fechamentos.
             </p>
+            <p className="text-xs text-muted-foreground">
+              Última sincronização: {spDateTime(current?.last_sync_at)}
+            </p>
+
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button variant="outline" onClick={runBackfill} disabled={backfilling || !groupId} className="w-full sm:w-auto">
@@ -1013,6 +1040,63 @@ export default function AcFunnelMetrics() {
                 </Table>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">Auditoria de etapas</CardTitle>
+                  <CardDescription>
+                    Compara, negócio a negócio, o funil no ActiveCampaign com o que está gravado aqui. Não grava nada.
+                  </CardDescription>
+                </div>
+                <Button variant="outline" onClick={runAudit} disabled={auditing || !groupId}>
+                  {auditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Auditar agora
+                </Button>
+              </CardHeader>
+              {!!audit && (
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                    <InfoBox label="Negócios no AC" value={String(audit.ac_total ?? 0)} />
+                    <InfoBox label="Negócios aqui" value={String(audit.db_total ?? 0)} />
+                    <InfoBox label="Faltando aqui" value={String(audit.missing_in_db ?? 0)} />
+                    <InfoBox label="Etapa/status diferente" value={String(audit.divergent ?? 0)} />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Etapa (em aberto)</TableHead>
+                          <TableHead className="text-right">ActiveCampaign</TableHead>
+                          <TableHead className="text-right">Painel</TableHead>
+                          <TableHead className="text-right">Diferença</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(audit.stage_counts ?? []).map((s: any) => (
+                          <TableRow key={s.stage}>
+                            <TableCell className="font-medium">{s.stage}</TableCell>
+                            <TableCell className="text-right tabular-nums">{s.ac}</TableCell>
+                            <TableCell className="text-right tabular-nums">{s.db}</TableCell>
+                            <TableCell className={`text-right tabular-nums ${s.ac === s.db ? "text-muted-foreground" : "text-destructive"}`}>
+                              {s.db - s.ac}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {(audit.missing_in_db > 0 || audit.extra_in_db > 0) && (
+                    <p className="text-xs text-muted-foreground">
+                      Clique em "Sincronizar agora" para corrigir: a sincronização importa os negócios faltantes e remove
+                      os que já saíram do funil.
+                    </p>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+
+
 
             {!!groupId && (
               <AcOpportunityMetricConfig
