@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     if (action === "probe") {
       const p = String(body.path ?? "dealCustomFieldMeta?limit=100");
       const data = await acFetch(p);
-      return json({ ok: true, keys: Object.keys(data), sample: JSON.stringify(data).slice(0, 4000) });
+      return json({ ok: true, keys: Object.keys(data), sample: JSON.stringify(data).slice(0, 40000) });
     }
 
 
