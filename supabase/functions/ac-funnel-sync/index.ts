@@ -239,30 +239,37 @@ Deno.serve(async (req) => {
         .eq("ac_group_id", groupId);
       const validStages = new Set((stageRows ?? []).map((s: any) => String(s.ac_stage_id)));
 
+      const dealIds = Array.from(dealMap.keys());
+      const startIdx = Math.min(Math.max(num(body.startIndex), 0), dealIds.length);
+      const batch = Math.min(Math.max(num(body.batchSize) || 120, 1), 400);
+      const slice = dealIds.slice(startIdx, startIdx + batch);
+
       let scanned = 0;
       let written = 0;
-      let sample: any = null;
       const typeCounts: Record<string, number> = {};
-      let stop = false;
       const rows: Record<string, unknown>[] = [];
 
-      for (let offset = 0; offset < 20000 && !stop; offset += 100) {
-        const data = await acFetch(`dealActivities?limit=100&offset=${offset}&orders[id]=DESC`);
-        const acts = data.dealActivities ?? [];
-        if (!acts.length) break;
+      for (const dealId of slice) {
+        const deal = dealMap.get(dealId);
+        let acts: any[] = [];
+        try {
+          const data = await acFetch(`dealActivities?limit=100&filters[dealid]=${dealId}`);
+          acts = data.dealActivities ?? [];
+        } catch (err) {
+          console.error(`dealActivities ${dealId} falhou: ${(err as Error).message}`);
+          continue;
+        }
+        // ordem cronológica para reconstruir transições
+        acts.sort((a, b) => String(a.cdate ?? "").localeCompare(String(b.cdate ?? "")));
         for (const a of acts) {
           scanned++;
-          if (!sample) sample = a;
-          const at = iso(a.cdate ?? a.tstamp ?? a.created_timestamp);
-          if (at && new Date(at) < since) { stop = true; continue; }
-          const dealId = String(a.deal ?? a.dealid ?? "");
-          const deal = dealMap.get(dealId);
-          if (!deal) continue;
-
-          const dataType = String(a.dataType ?? a.datatype ?? "");
-          typeCounts[dataType] = (typeCounts[dataType] ?? 0) + 1;
+          const at = iso(a.cdate ?? a.sortdate);
+          if (!at || new Date(at) < since) continue;
+          const dataType = String(a.dataType ?? "");
+          const action = String(a.dataAction ?? "");
+          typeCounts[`${dataType || "-"}:${action || "-"}`] = (typeCounts[`${dataType || "-"}:${action || "-"}`] ?? 0) + 1;
           const oldV = a.dataOldval == null ? "" : String(a.dataOldval);
-          const newV = String(a.d_stageid ?? a.stage ?? "");
+          const newV = String(a.d_stageid ?? "");
           const base = {
             ac_deal_id: dealId,
             ac_group_id: groupId,
@@ -270,10 +277,10 @@ Deno.serve(async (req) => {
             contact_email: deal.contact_email ?? null,
             owner_name: deal.owner_name ?? null,
             source: "backfill_activities",
-            occurred_at: at ?? new Date().toISOString(),
+            occurred_at: at,
           };
 
-          if ((dataType === "stage" || dataType === "deal-stage") && (validStages.has(newV) || validStages.has(oldV))) {
+          if (dataType === "stage" && (validStages.has(newV) || validStages.has(oldV))) {
             rows.push({
               ...base,
               event_type: "stage_change",
@@ -282,13 +289,13 @@ Deno.serve(async (req) => {
               from_status: null,
               to_status: null,
             });
-          } else if (dataType === "status" || dataType === "deal-status") {
-            const st = num(a.dataId ?? newV);
+          } else if (dataType === "status") {
+            const st = num(a.dataId);
             rows.push({
               ...base,
               event_type: st === 1 ? "won" : st === 2 ? "lost" : "reopened",
-              from_stage_id: "",
-              to_stage_id: "",
+              from_stage_id: validStages.has(newV) ? newV : "",
+              to_stage_id: validStages.has(newV) ? newV : "",
               from_status: num(oldV),
               to_status: st,
             });
@@ -306,7 +313,8 @@ Deno.serve(async (req) => {
         else written += chunk.length;
       }
 
-      return json({ ok: true, scanned, candidates: rows.length, written, type_counts: typeCounts, sample });
+      const nextIndex = startIdx + slice.length;
+      return json({ ok: true, scanned, candidates: rows.length, written, type_counts: typeCounts, total_deals: dealIds.length, next_index: nextIndex, done: nextIndex >= dealIds.length });
     }
 
     // action === "sync"
