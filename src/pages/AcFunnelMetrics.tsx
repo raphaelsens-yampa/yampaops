@@ -142,6 +142,9 @@ export default function AcFunnelMetrics() {
   const [to, setTo] = useState<string>(todaySp());
   const [owner, setOwner] = useState<string>("__all__");
   const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
+  const [auditing, setAuditing] = useState(false);
+  const [audit, setAudit] = useState<any | null>(null);
+
 
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
