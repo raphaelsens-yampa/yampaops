@@ -340,6 +340,8 @@ export function TacticalTracking() {
           teams={teams}
           members={members}
           lowTouchSales={isOverview ? lowTouch.sales : []}
+          recoveryChannels={recoveryBySeller}
+
         />
 
 
