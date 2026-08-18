@@ -11,9 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Upload } from "lucide-react";
 import { Profile, toBRDateKey } from "./types";
+import { CHANNEL_LABEL, RecoveryChannel, RecoveryReason, parseChannel, reasonsForChannel } from "./recoveryChannels";
 
 interface Props {
   profiles: Profile[];
+  reasons: RecoveryReason[];
   memberIds: string[];
   today: Date;
   onSaved?: () => void;
@@ -29,6 +31,8 @@ type NewRow = {
   mrr: string;
   note: string;
   entry_kind: "recovered" | "retained";
+  recovery_channel: RecoveryChannel;
+  reason_id: string;
 };
 
 const emptyRow = (today: Date): NewRow => ({
@@ -41,6 +45,8 @@ const emptyRow = (today: Date): NewRow => ({
   mrr: "",
   note: "",
   entry_kind: "recovered",
+  recovery_channel: "cs",
+  reason_id: "",
 });
 
 function parseKind(v: unknown): "recovered" | "retained" {
@@ -88,18 +94,27 @@ function pick(row: Record<string, unknown>, keys: string[]): unknown {
   return undefined;
 }
 
-export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Props) {
+export function RecoveryEntryDialog({ profiles, reasons, memberIds, today, onSaved }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [row, setRow] = useState<NewRow>(emptyRow(today));
   const [preview, setPreview] = useState<any[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const availableReasons = reasonsForChannel(reasons, row.recovery_channel);
+  const reasonByName = new Map(
+    reasons.filter((r) => r.active).map((r) => [r.name.toLowerCase().trim(), r.id]),
+  );
+
   const teamProfiles = profiles.filter((p) => !memberIds.length || memberIds.includes(p.user_id));
 
   async function saveManual() {
     if (!row.customer_name && !row.customer_email) {
       toast({ title: "Informe o cliente", description: "Preencha o nome ou o e-mail.", variant: "destructive" });
+      return;
+    }
+    if (row.recovery_channel === "cs" && !row.reason_id) {
+      toast({ title: "Informe o motivo", description: "Registros via CS exigem o motivo da recuperação/retenção.", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -114,6 +129,8 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
       mrr: toNumber(row.mrr),
       note: row.note || null,
       entry_kind: row.entry_kind,
+      recovery_channel: row.recovery_channel,
+      reason_id: row.reason_id || null,
       source: "manual",
       created_by: auth.user?.id as string,
     });
@@ -148,6 +165,11 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
           mrr: toNumber(pick(r, ["mrr", "mrr recuperado", "mrr_net"])),
           note: String(pick(r, ["observacao", "obs", "note"]) ?? "") || null,
           entry_kind: parseKind(pick(r, ["tipo", "entry_kind", "kind", "classificacao"])),
+          recovery_channel: parseChannel(pick(r, ["canal", "channel", "recovery_channel"])),
+          reason_id:
+            reasonByName.get(
+              String(pick(r, ["motivo", "reason", "motivo recuperacao"]) ?? "").toLowerCase().trim(),
+            ) ?? null,
           source: "import",
         };
       })
@@ -184,8 +206,8 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
 
   function downloadTemplate() {
     const ws = XLSX.utils.json_to_sheet([
-      { Cliente: "Empresa Exemplo", "E-mail": "cliente@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Recuperado", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
-      { Cliente: "Outra Empresa", "E-mail": "outro@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Retido", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
+      { Cliente: "Empresa Exemplo", "E-mail": "cliente@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Recuperado", Canal: "Cobrança", Motivo: "Cartão atualizado", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
+      { Cliente: "Outra Empresa", "E-mail": "outro@exemplo.com", Plano: "Plano Pro", Responsável: teamProfiles[0]?.full_name ?? "", Tipo: "Retido", Canal: "CS", Motivo: "Renegociação de valor", Data: toBRDateKey(today), Preço: 199.9, MRR: 199.9, Observação: "" },
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Recuperados");
@@ -250,6 +272,32 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                 </Select>
               </div>
               <div className="space-y-1">
+                <Label>Canal</Label>
+                <Select
+                  value={row.recovery_channel}
+                  onValueChange={(v) => setRow({ ...row, recovery_channel: v as RecoveryChannel, reason_id: "" })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cobranca">{CHANNEL_LABEL.cobranca} (Stripe)</SelectItem>
+                    <SelectItem value="cs">{CHANNEL_LABEL.cs} (ação humana)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>
+                  Motivo{row.recovery_channel === "cs" ? "" : " (opcional)"}
+                </Label>
+                <Select value={row.reason_id} onValueChange={(v) => setRow({ ...row, reason_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {availableReasons.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
                 <Label>Data</Label>
                 <Input type="date" value={row.recovered_at} onChange={(e) => setRow({ ...row, recovered_at: e.target.value })} />
               </div>
@@ -273,7 +321,7 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
 
           <TabsContent value="import" className="space-y-3 pt-3">
             <p className="text-sm text-muted-foreground">
-              Colunas aceitas: Cliente, E-mail, Plano, Responsável, Tipo (Recuperado/Retido), Data, Preço, MRR, Observação.
+              Colunas aceitas: Cliente, E-mail, Plano, Responsável, Tipo (Recuperado/Retido), Canal (Cobrança/CS), Motivo, Data, Preço, MRR, Observação.
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -296,6 +344,8 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                       <th className="text-left p-2">E-mail</th>
                       <th className="text-left p-2">Plano</th>
                       <th className="text-left p-2">Tipo</th>
+                      <th className="text-left p-2">Canal</th>
+                      <th className="text-left p-2">Motivo</th>
                       <th className="text-left p-2">Data</th>
                       <th className="text-right p-2">Preço</th>
                       <th className="text-right p-2">MRR</th>
@@ -308,6 +358,8 @@ export function RecoveryEntryDialog({ profiles, memberIds, today, onSaved }: Pro
                         <td className="p-2">{r.customer_email || "—"}</td>
                         <td className="p-2">{r.plan_name || "—"}</td>
                         <td className="p-2">{r.entry_kind === "retained" ? "Retido" : "Recuperado"}</td>
+                        <td className="p-2">{CHANNEL_LABEL[r.recovery_channel as RecoveryChannel]}</td>
+                        <td className="p-2">{reasons.find((x) => x.id === r.reason_id)?.name || "—"}</td>
                         <td className="p-2">{r.recovered_at}</td>
                         <td className="p-2 text-right">{r.price}</td>
                         <td className="p-2 text-right">{r.mrr}</td>
