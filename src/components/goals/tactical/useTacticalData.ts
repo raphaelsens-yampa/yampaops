@@ -304,5 +304,5 @@ export function useTacticalData(
     return () => { cancelled = true; };
   }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
-  return { metrics, goals, profiles, teams, members, daily, origins, loading };
+  return { metrics, goals, profiles, teams, members, daily, origins, unmatchedOwners, loading };
 }
