@@ -249,14 +249,16 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
     offset += PAGE;
     if (offset > 20000) break;
   }
+  const tasks = await syncTasks(db, groupId, owners, dealStage);
 
   await db
     .from("ac_funnels")
     .update({ last_sync_at: nowIso, deals_count: deals })
     .eq("ac_group_id", groupId);
 
-  return { group_id: groupId, stages, deals, events };
+  return { group_id: groupId, stages, deals, events, tasks };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
