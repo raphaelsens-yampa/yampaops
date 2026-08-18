@@ -231,9 +231,12 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
         deal_updated_at: iso(d.mdate),
         stage_changed_at: prev && (prev.ac_stage_id ?? "") !== (next.ac_stage_id ?? "") ? next.occurred_at : undefined,
         closed_at: next.status === 1 || next.status === 2 ? (iso(d.mdate) ?? nowIso) : null,
+        loss_reason: lossReasons.get(id) ?? null,
       });
+      dealStage.set(id, next.ac_stage_id);
       deals++;
     }
+
 
     const clean = upserts.map((u) => {
       const o: Record<string, unknown> = {};
