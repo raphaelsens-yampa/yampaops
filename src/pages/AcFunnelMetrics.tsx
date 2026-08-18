@@ -1041,6 +1041,63 @@ export default function AcFunnelMetrics() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">Auditoria de etapas</CardTitle>
+                  <CardDescription>
+                    Compara, negócio a negócio, o funil no ActiveCampaign com o que está gravado aqui. Não grava nada.
+                  </CardDescription>
+                </div>
+                <Button variant="outline" onClick={runAudit} disabled={auditing || !groupId}>
+                  {auditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Auditar agora
+                </Button>
+              </CardHeader>
+              {!!audit && (
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                    <InfoBox label="Negócios no AC" value={String(audit.ac_total ?? 0)} />
+                    <InfoBox label="Negócios aqui" value={String(audit.db_total ?? 0)} />
+                    <InfoBox label="Faltando aqui" value={String(audit.missing_in_db ?? 0)} />
+                    <InfoBox label="Etapa/status diferente" value={String(audit.divergent ?? 0)} />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Etapa (em aberto)</TableHead>
+                          <TableHead className="text-right">ActiveCampaign</TableHead>
+                          <TableHead className="text-right">Painel</TableHead>
+                          <TableHead className="text-right">Diferença</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(audit.stage_counts ?? []).map((s: any) => (
+                          <TableRow key={s.stage}>
+                            <TableCell className="font-medium">{s.stage}</TableCell>
+                            <TableCell className="text-right tabular-nums">{s.ac}</TableCell>
+                            <TableCell className="text-right tabular-nums">{s.db}</TableCell>
+                            <TableCell className={`text-right tabular-nums ${s.ac === s.db ? "text-muted-foreground" : "text-destructive"}`}>
+                              {s.db - s.ac}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {(audit.missing_in_db > 0 || audit.extra_in_db > 0) && (
+                    <p className="text-xs text-muted-foreground">
+                      Clique em "Sincronizar agora" para corrigir: a sincronização importa os negócios faltantes e remove
+                      os que já saíram do funil.
+                    </p>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+
+
+
             {!!groupId && (
               <AcOpportunityMetricConfig
                 groupId={groupId}
