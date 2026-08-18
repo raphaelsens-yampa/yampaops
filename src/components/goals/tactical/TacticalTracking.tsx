@@ -358,6 +358,14 @@ export function TacticalTracking() {
 
       <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} />
 
+      <RecoveryChannelPanel
+        rows={recoveryRows}
+        reasons={recoveryReasons}
+        today={today}
+        teamName={isOverview ? null : activeTeam?.name ?? null}
+      />
+
+
 
 
       <TacticalProgressChart
