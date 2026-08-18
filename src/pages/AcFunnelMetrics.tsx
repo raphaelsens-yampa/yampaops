@@ -194,6 +194,120 @@ export default function AcFunnelMetrics() {
 
   const stageName = (id: string | null) => (id ? stageMap.get(id)?.title ?? `Etapa ${id}` : "—");
 
+  const owners = useMemo(() => {
+    const set = new Set<string>();
+    allDeals.forEach((d) => d.owner_name && set.add(d.owner_name));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [allDeals]);
+
+  const matchOwner = (name: string | null) => owner === "__all__" || (name ?? "—") === owner;
+
+  const deals = useMemo(() => allDeals.filter((d) => matchOwner(d.owner_name)), [allDeals, owner]);
+  const events = useMemo(() => allEvents.filter((e) => matchOwner(e.owner_name)), [allEvents, owner]);
+  const tasks = useMemo(() => allTasks.filter((t) => matchOwner(t.owner_name)), [allTasks, owner]);
+
+  const inPeriod = (iso: string | null) => {
+    if (!iso) return false;
+    const day = spDate(iso);
+    return day >= from && day <= to;
+  };
+
+  /** Ranking de ganhos por proprietário (negócios fechados como Ganho no período). */
+  const wonRanking = useMemo(() => {
+    const map = new Map<string, { owner: string; qtd: number; valor: number }>();
+    deals
+      .filter((d) => d.status === 1 && inPeriod(d.closed_at ?? d.stage_changed_at ?? d.deal_created_at))
+      .forEach((d) => {
+        const key = d.owner_name ?? "Sem proprietário";
+        const row = map.get(key) ?? { owner: key, qtd: 0, valor: 0 };
+        row.qtd++;
+        row.valor += Number(d.value || 0);
+        map.set(key, row);
+      });
+    const rows = Array.from(map.values()).sort((a, b) => b.valor - a.valor || b.qtd - a.qtd);
+    return {
+      rows,
+      totalQtd: rows.reduce((a, r) => a + r.qtd, 0),
+      totalValor: rows.reduce((a, r) => a + r.valor, 0),
+    };
+  }, [deals, from, to]);
+
+  /** Ranking de motivos de perda (campo "Deal - Sales - Motivo de perda"). */
+  const lossRanking = useMemo(() => {
+    const lost = deals.filter((d) => d.status === 2 && inPeriod(d.closed_at ?? d.stage_changed_at ?? d.deal_created_at));
+    const map = new Map<string, { reason: string; qtd: number; valor: number }>();
+    lost.forEach((d) => {
+      const key = (d.loss_reason ?? "").trim() || "Sem motivo informado";
+      const row = map.get(key) ?? { reason: key, qtd: 0, valor: 0 };
+      row.qtd++;
+      row.valor += Number(d.value || 0);
+      map.set(key, row);
+    });
+    const rows = Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
+    return { rows, total: lost.length, totalValor: rows.reduce((a, r) => a + r.valor, 0) };
+  }, [deals, from, to]);
+
+  /** Visão de tarefas por proprietário / etapa / ação. */
+  const taskMatrix = useMemo(() => {
+    const today = todaySp();
+    const openDeals = deals.filter((d) => d.status === 0 || d.status === 3);
+    const dealById = new Map(deals.map((d) => [d.ac_deal_id, d]));
+    const withTask = new Set(tasks.filter((t) => !t.is_done).map((t) => t.ac_deal_id));
+
+    const keyOf = (dim: typeof taskDim, t: Task | null, d: Deal | null) => {
+      if (dim === "owner") return (t?.owner_name ?? d?.owner_name) || "Sem proprietário";
+      if (dim === "stage") return stageName((t?.ac_stage_id ?? d?.ac_stage_id) ?? null);
+      return t?.task_type || "Sem ação definida";
+    };
+
+    const map = new Map<
+      string,
+      { key: string; proximas: number; agendadas: number; atrasadas: number; concluidas: number; semTarefa: number }
+    >();
+    const bump = (key: string) => {
+      const row = map.get(key) ?? { key, proximas: 0, agendadas: 0, atrasadas: 0, concluidas: 0, semTarefa: 0 };
+      map.set(key, row);
+      return row;
+    };
+
+    tasks.forEach((t) => {
+      const d = dealById.get(t.ac_deal_id) ?? null;
+      if (!d) return;
+      const row = bump(keyOf(taskDim, t, d));
+      if (t.is_done) {
+        if (inPeriod(t.done_at)) row.concluidas++;
+        return;
+      }
+      row.agendadas++;
+      const due = t.due_date ? spDate(t.due_date) : null;
+      if (due && due < today) row.atrasadas++;
+      else row.proximas++;
+    });
+
+    // Negócios abertos sem tarefa atribuída
+    if (taskDim !== "action") {
+      openDeals
+        .filter((d) => !withTask.has(d.ac_deal_id))
+        .forEach((d) => {
+          bump(keyOf(taskDim, null, d)).semTarefa++;
+        });
+    }
+
+    const rows = Array.from(map.values()).sort((a, b) => b.agendadas - a.agendadas || a.key.localeCompare(b.key, "pt-BR"));
+    const totals = rows.reduce(
+      (a, r) => ({
+        proximas: a.proximas + r.proximas,
+        agendadas: a.agendadas + r.agendadas,
+        atrasadas: a.atrasadas + r.atrasadas,
+        concluidas: a.concluidas + r.concluidas,
+        semTarefa: a.semTarefa + r.semTarefa,
+      }),
+      { proximas: 0, agendadas: 0, atrasadas: 0, concluidas: 0, semTarefa: 0 },
+    );
+    return { rows, totals };
+  }, [tasks, deals, taskDim, from, to, stageMap]);
+
+
   const kpis = useMemo(() => {
     const created = events.filter((e) => e.event_type === "created");
     const moves = events.filter((e) => e.event_type === "stage_change");
