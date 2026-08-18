@@ -84,19 +84,19 @@ export async function writeEvents(
     rows.push({
       ...base,
       event_type: "created",
-      from_stage_id: null,
-      to_stage_id: next.ac_stage_id,
+      from_stage_id: "",
+      to_stage_id: next.ac_stage_id ?? "",
       from_status: null,
       to_status: next.status,
       occurred_at: next.deal_created_at ?? next.occurred_at,
     });
   } else {
-    if ((prev.ac_stage_id ?? null) !== (next.ac_stage_id ?? null)) {
+    if ((prev.ac_stage_id ?? "") !== (next.ac_stage_id ?? "")) {
       rows.push({
         ...base,
         event_type: "stage_change",
-        from_stage_id: prev.ac_stage_id,
-        to_stage_id: next.ac_stage_id,
+        from_stage_id: prev.ac_stage_id ?? "",
+        to_stage_id: next.ac_stage_id ?? "",
         from_status: prev.status,
         to_status: next.status,
         occurred_at: next.occurred_at,
@@ -106,8 +106,8 @@ export async function writeEvents(
       rows.push({
         ...base,
         event_type: next.status === 1 ? "won" : next.status === 2 ? "lost" : "reopened",
-        from_stage_id: prev.ac_stage_id,
-        to_stage_id: next.ac_stage_id,
+        from_stage_id: prev.ac_stage_id ?? "",
+        to_stage_id: next.ac_stage_id ?? "",
         from_status: prev.status,
         to_status: next.status,
         occurred_at: next.occurred_at,
@@ -121,10 +121,7 @@ export async function writeEvents(
     ignoreDuplicates: true,
   });
   if (error) {
-    // índice único é parcial via COALESCE; em caso de conflito não mapeável, insere ignorando erro de duplicidade
-    if (!String(error.message).includes("duplicate")) {
-      console.error("writeEvents error:", error.message);
-    }
+    console.error("writeEvents error:", error.message);
     return 0;
   }
   return rows.length;
