@@ -270,6 +270,28 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
           ))}
         </div>
       )}
+
+      {recoveryToday && recoveryToday.total.qty > 0 && (
+        <p className="text-[11px] sm:text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium text-foreground">Hoje por canal:</span>
+          <span>
+            {CHANNEL_LABEL.cobranca} {recoveryToday.cobranca.qty} ·{" "}
+            {recoveryToday.cobranca.mrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+          </span>
+          <span>|</span>
+          <span>
+            {CHANNEL_LABEL.cs} {recoveryToday.cs.qty} ·{" "}
+            {recoveryToday.cs.mrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+          </span>
+          {recoveryToday.missingReason > 0 && (
+            <>
+              <span>|</span>
+              <span className="text-amber-600">{recoveryToday.missingReason} sem motivo</span>
+            </>
+          )}
+        </p>
+      )}
+
     </div>
   );
 }
