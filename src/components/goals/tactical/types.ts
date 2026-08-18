@@ -6,7 +6,9 @@ export type TacticalSource =
   | "stripe_mrr"
   | "stripe_deals"
   | "stripe_reactivation"
+  | "ac_stage_move"
   | "manual";
+
 
 export interface TacticalMetric {
   id: string;
