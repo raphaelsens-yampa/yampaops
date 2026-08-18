@@ -385,7 +385,27 @@ export default function AcFunnelMetrics() {
       .sort((a, b) => (b.deal_created_at ?? "").localeCompare(a.deal_created_at ?? ""));
   }, [deals, events]);
 
+  /** Auditoria somente leitura: compara etapa por etapa com o ActiveCampaign. */
+  async function runAudit() {
+    setAuditing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
+        body: { action: "audit_stages", groupId },
+      });
+      if (error) throw error;
+      setAudit(data?.audit ?? null);
+      const a = data?.audit;
+      if (a && !a.missing_in_db && !a.extra_in_db && !a.divergent) toast.success("Snapshot idêntico ao ActiveCampaign");
+      else toast.warning(`Divergências encontradas: ${a?.missing_in_db ?? 0} faltando, ${a?.extra_in_db ?? 0} sobrando, ${a?.divergent ?? 0} diferentes`);
+    } catch (e: any) {
+      toast.error(`Falha na auditoria: ${e?.message ?? e}`);
+    } finally {
+      setAuditing(false);
+    }
+  }
+
   async function runSync() {
+
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
