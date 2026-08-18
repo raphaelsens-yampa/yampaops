@@ -24,6 +24,7 @@ import {
   XCircle,
   Clock,
   Download,
+  History,
 } from "lucide-react";
 import {
   Bar,
@@ -110,6 +111,7 @@ export default function AcFunnelMetrics() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [listing, setListing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -259,6 +261,22 @@ export default function AcFunnelMetrics() {
     }
   }
 
+  async function runBackfill() {
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
+        body: { action: "backfill_activities", groupId, days: 180 },
+      });
+      if (error) throw error;
+      toast.success(`Histórico importado: ${data?.written ?? 0} eventos (${data?.scanned ?? 0} atividades lidas)`);
+      await loadAll(groupId);
+    } catch (e: any) {
+      toast.error(`Falha no backfill: ${e?.message ?? e}`);
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   async function listFunnels() {
     setListing(true);
     try {
@@ -328,10 +346,16 @@ export default function AcFunnelMetrics() {
               Métricas de funil somente leitura: aberturas, movimentações entre etapas e fechamentos.
             </p>
           </div>
-          <Button onClick={runSync} disabled={syncing || !groupId} className="w-full sm:w-auto">
-            {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Sincronizar agora
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={runBackfill} disabled={backfilling || !groupId} className="w-full sm:w-auto">
+              {backfilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <History className="mr-2 h-4 w-4" />}
+              Importar histórico (180d)
+            </Button>
+            <Button onClick={runSync} disabled={syncing || !groupId} className="w-full sm:w-auto">
+              {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sincronizar agora
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="metricas">
