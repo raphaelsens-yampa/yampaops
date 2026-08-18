@@ -127,6 +127,8 @@ export default function AcFunnelMetrics() {
   const [syncing, setSyncing] = useState(false);
   const [listing, setListing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [closuresBackfilling, setClosuresBackfilling] = useState(false);
+
   const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number; events: number } | null>(null);
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
