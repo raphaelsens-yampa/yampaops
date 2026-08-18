@@ -522,6 +522,17 @@ export default function AcFunnelMetrics() {
                 ? `Histórico ${backfillProgress.done}/${backfillProgress.total}`
                 : "Importar histórico (12m)"}
             </Button>
+            <Button
+              variant="outline"
+              onClick={runClosuresBackfill}
+              disabled={closuresBackfilling || !groupId}
+              className="w-full sm:w-auto"
+              title="Registra Ganhos/Perdidos do período filtrado a partir dos negócios sincronizados"
+            >
+              {closuresBackfilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trophy className="mr-2 h-4 w-4" />}
+              Registrar fechamentos do período
+            </Button>
+
             <Button onClick={runSync} disabled={syncing || !groupId} className="w-full sm:w-auto">
               {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Sincronizar agora
