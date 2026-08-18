@@ -242,6 +242,7 @@ Deno.serve(async (req) => {
       let scanned = 0;
       let written = 0;
       let sample: any = null;
+      const typeCounts: Record<string, number> = {};
       let stop = false;
       const rows: Record<string, unknown>[] = [];
 
@@ -259,8 +260,9 @@ Deno.serve(async (req) => {
           if (!deal) continue;
 
           const dataType = String(a.dataType ?? a.datatype ?? "");
-          const oldV = a.oldvalue == null ? "" : String(a.oldvalue);
-          const newV = a.newvalue == null ? "" : String(a.newvalue);
+          typeCounts[dataType] = (typeCounts[dataType] ?? 0) + 1;
+          const oldV = a.dataOldval == null ? "" : String(a.dataOldval);
+          const newV = String(a.d_stageid ?? a.stage ?? "");
           const base = {
             ac_deal_id: dealId,
             ac_group_id: groupId,
@@ -271,7 +273,7 @@ Deno.serve(async (req) => {
             occurred_at: at ?? new Date().toISOString(),
           };
 
-          if (dataType === "stage" && (validStages.has(newV) || validStages.has(oldV))) {
+          if ((dataType === "stage" || dataType === "deal-stage") && (validStages.has(newV) || validStages.has(oldV))) {
             rows.push({
               ...base,
               event_type: "stage_change",
@@ -280,8 +282,8 @@ Deno.serve(async (req) => {
               from_status: null,
               to_status: null,
             });
-          } else if (dataType === "status") {
-            const st = num(newV);
+          } else if (dataType === "status" || dataType === "deal-status") {
+            const st = num(a.dataId ?? newV);
             rows.push({
               ...base,
               event_type: st === 1 ? "won" : st === 2 ? "lost" : "reopened",
@@ -304,7 +306,7 @@ Deno.serve(async (req) => {
         else written += chunk.length;
       }
 
-      return json({ ok: true, scanned, candidates: rows.length, written, sample_keys: sample ? Object.keys(sample) : [] });
+      return json({ ok: true, scanned, candidates: rows.length, written, type_counts: typeCounts, sample });
     }
 
     // action === "sync"
