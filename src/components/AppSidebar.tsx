@@ -241,7 +241,9 @@ export function AppSidebar() {
       collapsible: true,
       defaultOpen: openComercial,
       items: [
+        { title: "Funis ActiveCampaign", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", managerOnly: true },
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
+
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },
@@ -287,7 +289,7 @@ export function AppSidebar() {
         { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
         { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
         { title: "Chatwoot → ActiveCampaign", url: "/integrations/chatwoot-ac", icon: Link2, area: "integration_chatwoot", adminOnly: true },
-        { title: "Funis ActiveCampaign", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", adminOnly: true },
+        
         // Integration Audit archived (AC-centric)
       ],
     },

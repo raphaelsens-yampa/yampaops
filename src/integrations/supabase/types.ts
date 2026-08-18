@@ -35,6 +35,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ac_funnel_deal_tasks: {
+        Row: {
+          ac_deal_id: string
+          ac_group_id: string
+          ac_stage_id: string | null
+          ac_task_id: string
+          assignee_id: string | null
+          created_at: string
+          done_at: string | null
+          due_date: string | null
+          is_done: boolean
+          owner_name: string | null
+          task_type: string | null
+          task_type_id: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          ac_deal_id: string
+          ac_group_id: string
+          ac_stage_id?: string | null
+          ac_task_id: string
+          assignee_id?: string | null
+          created_at?: string
+          done_at?: string | null
+          due_date?: string | null
+          is_done?: boolean
+          owner_name?: string | null
+          task_type?: string | null
+          task_type_id?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ac_deal_id?: string
+          ac_group_id?: string
+          ac_stage_id?: string | null
+          ac_task_id?: string
+          assignee_id?: string | null
+          created_at?: string
+          done_at?: string | null
+          due_date?: string | null
+          is_done?: boolean
+          owner_name?: string | null
+          task_type?: string | null
+          task_type_id?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ac_funnel_deals: {
         Row: {
           ac_contact_id: string | null
@@ -49,6 +100,7 @@ export type Database = {
           deal_created_at: string | null
           deal_updated_at: string | null
           first_seen_at: string
+          loss_reason: string | null
           owner_id: string | null
           owner_name: string | null
           stage_changed_at: string | null
@@ -70,6 +122,7 @@ export type Database = {
           deal_created_at?: string | null
           deal_updated_at?: string | null
           first_seen_at?: string
+          loss_reason?: string | null
           owner_id?: string | null
           owner_name?: string | null
           stage_changed_at?: string | null
@@ -91,6 +144,7 @@ export type Database = {
           deal_created_at?: string | null
           deal_updated_at?: string | null
           first_seen_at?: string
+          loss_reason?: string | null
           owner_id?: string | null
           owner_name?: string | null
           stage_changed_at?: string | null

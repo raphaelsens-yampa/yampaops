@@ -67,10 +67,24 @@ type Deal = {
   owner_name: string | null;
   value: number;
   status: number;
+  loss_reason: string | null;
   deal_created_at: string | null;
   stage_changed_at: string | null;
   closed_at: string | null;
 };
+
+type Task = {
+  ac_task_id: string;
+  ac_deal_id: string;
+  ac_stage_id: string | null;
+  title: string | null;
+  task_type: string | null;
+  owner_name: string | null;
+  due_date: string | null;
+  is_done: boolean;
+  done_at: string | null;
+};
+
 
 type Event = {
   id: string;
@@ -115,11 +129,14 @@ export default function AcFunnelMetrics() {
   const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number; events: number } | null>(null);
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [allDeals, setAllDeals] = useState<Deal[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [groupId, setGroupId] = useState<string>("");
   const [from, setFrom] = useState<string>(addDays(todaySp(), -29));
   const [to, setTo] = useState<string>(todaySp());
+  const [owner, setOwner] = useState<string>("__all__");
+  const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
 
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
@@ -132,7 +149,7 @@ export default function AcFunnelMetrics() {
     setGroupId(gid);
 
     if (gid) {
-      const [s, d, e] = await Promise.all([
+      const [s, d, e, t] = await Promise.all([
         supabase.from("ac_funnel_stages").select("*").eq("ac_group_id", gid).order("position"),
         supabase.from("ac_funnel_deals").select("*").eq("ac_group_id", gid).limit(5000),
         supabase
@@ -143,17 +160,21 @@ export default function AcFunnelMetrics() {
           .lte("occurred_at", `${to}T23:59:59-03:00`)
           .order("occurred_at", { ascending: false })
           .limit(20000),
+        supabase.from("ac_funnel_deal_tasks").select("*").eq("ac_group_id", gid).limit(20000),
       ]);
       setStages((s.data ?? []) as Stage[]);
-      setDeals((d.data ?? []) as Deal[]);
-      setEvents((e.data ?? []) as Event[]);
+      setAllDeals((d.data ?? []) as Deal[]);
+      setAllEvents((e.data ?? []) as Event[]);
+      setAllTasks((t.data ?? []) as Task[]);
     } else {
       setStages([]);
-      setDeals([]);
-      setEvents([]);
+      setAllDeals([]);
+      setAllEvents([]);
+      setAllTasks([]);
     }
     setLoading(false);
   }
+
 
   useEffect(() => {
     loadAll();
@@ -172,6 +193,120 @@ export default function AcFunnelMetrics() {
   }, [stages]);
 
   const stageName = (id: string | null) => (id ? stageMap.get(id)?.title ?? `Etapa ${id}` : "—");
+
+  const owners = useMemo(() => {
+    const set = new Set<string>();
+    allDeals.forEach((d) => d.owner_name && set.add(d.owner_name));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [allDeals]);
+
+  const matchOwner = (name: string | null) => owner === "__all__" || (name ?? "—") === owner;
+
+  const deals = useMemo(() => allDeals.filter((d) => matchOwner(d.owner_name)), [allDeals, owner]);
+  const events = useMemo(() => allEvents.filter((e) => matchOwner(e.owner_name)), [allEvents, owner]);
+  const tasks = useMemo(() => allTasks.filter((t) => matchOwner(t.owner_name)), [allTasks, owner]);
+
+  const inPeriod = (iso: string | null) => {
+    if (!iso) return false;
+    const day = spDate(iso);
+    return day >= from && day <= to;
+  };
+
+  /** Ranking de ganhos por proprietário (negócios fechados como Ganho no período). */
+  const wonRanking = useMemo(() => {
+    const map = new Map<string, { owner: string; qtd: number; valor: number }>();
+    deals
+      .filter((d) => d.status === 1 && inPeriod(d.closed_at ?? d.stage_changed_at ?? d.deal_created_at))
+      .forEach((d) => {
+        const key = d.owner_name ?? "Sem proprietário";
+        const row = map.get(key) ?? { owner: key, qtd: 0, valor: 0 };
+        row.qtd++;
+        row.valor += Number(d.value || 0);
+        map.set(key, row);
+      });
+    const rows = Array.from(map.values()).sort((a, b) => b.valor - a.valor || b.qtd - a.qtd);
+    return {
+      rows,
+      totalQtd: rows.reduce((a, r) => a + r.qtd, 0),
+      totalValor: rows.reduce((a, r) => a + r.valor, 0),
+    };
+  }, [deals, from, to]);
+
+  /** Ranking de motivos de perda (campo "Deal - Sales - Motivo de perda"). */
+  const lossRanking = useMemo(() => {
+    const lost = deals.filter((d) => d.status === 2 && inPeriod(d.closed_at ?? d.stage_changed_at ?? d.deal_created_at));
+    const map = new Map<string, { reason: string; qtd: number; valor: number }>();
+    lost.forEach((d) => {
+      const key = (d.loss_reason ?? "").trim() || "Sem motivo informado";
+      const row = map.get(key) ?? { reason: key, qtd: 0, valor: 0 };
+      row.qtd++;
+      row.valor += Number(d.value || 0);
+      map.set(key, row);
+    });
+    const rows = Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
+    return { rows, total: lost.length, totalValor: rows.reduce((a, r) => a + r.valor, 0) };
+  }, [deals, from, to]);
+
+  /** Visão de tarefas por proprietário / etapa / ação. */
+  const taskMatrix = useMemo(() => {
+    const today = todaySp();
+    const openDeals = deals.filter((d) => d.status === 0 || d.status === 3);
+    const dealById = new Map(deals.map((d) => [d.ac_deal_id, d]));
+    const withTask = new Set(tasks.filter((t) => !t.is_done).map((t) => t.ac_deal_id));
+
+    const keyOf = (dim: typeof taskDim, t: Task | null, d: Deal | null) => {
+      if (dim === "owner") return (t?.owner_name ?? d?.owner_name) || "Sem proprietário";
+      if (dim === "stage") return stageName((t?.ac_stage_id ?? d?.ac_stage_id) ?? null);
+      return t?.task_type || "Sem ação definida";
+    };
+
+    const map = new Map<
+      string,
+      { key: string; proximas: number; agendadas: number; atrasadas: number; concluidas: number; semTarefa: number }
+    >();
+    const bump = (key: string) => {
+      const row = map.get(key) ?? { key, proximas: 0, agendadas: 0, atrasadas: 0, concluidas: 0, semTarefa: 0 };
+      map.set(key, row);
+      return row;
+    };
+
+    tasks.forEach((t) => {
+      const d = dealById.get(t.ac_deal_id) ?? null;
+      if (!d) return;
+      const row = bump(keyOf(taskDim, t, d));
+      if (t.is_done) {
+        if (inPeriod(t.done_at)) row.concluidas++;
+        return;
+      }
+      row.agendadas++;
+      const due = t.due_date ? spDate(t.due_date) : null;
+      if (due && due < today) row.atrasadas++;
+      else row.proximas++;
+    });
+
+    // Negócios abertos sem tarefa atribuída
+    if (taskDim !== "action") {
+      openDeals
+        .filter((d) => !withTask.has(d.ac_deal_id))
+        .forEach((d) => {
+          bump(keyOf(taskDim, null, d)).semTarefa++;
+        });
+    }
+
+    const rows = Array.from(map.values()).sort((a, b) => b.agendadas - a.agendadas || a.key.localeCompare(b.key, "pt-BR"));
+    const totals = rows.reduce(
+      (a, r) => ({
+        proximas: a.proximas + r.proximas,
+        agendadas: a.agendadas + r.agendadas,
+        atrasadas: a.atrasadas + r.atrasadas,
+        concluidas: a.concluidas + r.concluidas,
+        semTarefa: a.semTarefa + r.semTarefa,
+      }),
+      { proximas: 0, agendadas: 0, atrasadas: 0, concluidas: 0, semTarefa: 0 },
+    );
+    return { rows, totals };
+  }, [tasks, deals, taskDim, from, to, stageMap]);
+
 
   const kpis = useMemo(() => {
     const created = events.filter((e) => e.event_type === "created");
@@ -380,7 +515,7 @@ export default function AcFunnelMetrics() {
           {/* ---------------- MÉTRICAS ---------------- */}
           <TabsContent value="metricas" className="space-y-6">
             <Card>
-              <CardContent className="grid grid-cols-1 gap-3 pt-6 sm:grid-cols-2 lg:grid-cols-4">
+              <CardContent className="grid grid-cols-1 gap-3 pt-6 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1.5">
                   <Label>Funil</Label>
                   <Select value={groupId} onValueChange={setGroupId}>
@@ -393,6 +528,18 @@ export default function AcFunnelMetrics() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
+                  <Label>Proprietário</Label>
+                  <Select value={owner} onValueChange={setOwner}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Todos</SelectItem>
+                      {owners.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
                   <Label>De</Label>
                   <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
                 </div>
@@ -400,6 +547,7 @@ export default function AcFunnelMetrics() {
                   <Label>Até</Label>
                   <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
                 </div>
+
                 <div className="flex flex-wrap items-end gap-2">
                   {[
                     { l: "7d", d: 6 },
@@ -525,6 +673,155 @@ export default function AcFunnelMetrics() {
                     </Table>
                   </CardContent>
                 </Card>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Ranking de Ganhos por Proprietário</CardTitle>
+                      <CardDescription>Negócios marcados como Ganho com fechamento no período</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Proprietário</TableHead>
+                            <TableHead className="text-right">Ganhos</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {wonRanking.rows.map((r, i) => (
+                            <TableRow key={r.owner}>
+                              <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                              <TableCell className="font-medium">{r.owner}</TableCell>
+                              <TableCell className="text-right tabular-nums">{r.qtd}</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                          {!wonRanking.rows.length && (
+                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem ganhos no período</TableCell></TableRow>
+                          )}
+                          {!!wonRanking.rows.length && (
+                            <TableRow className="border-t-2 font-semibold">
+                              <TableCell />
+                              <TableCell>Total</TableCell>
+                              <TableCell className="text-right tabular-nums">{wonRanking.totalQtd}</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(wonRanking.totalValor)}</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Motivos de Perda</CardTitle>
+                      <CardDescription>Campo "Deal - Sales - Motivo de perda" · {lossRanking.total} negócios perdidos no período</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Motivo</TableHead>
+                            <TableHead className="text-right">Qtd</TableHead>
+                            <TableHead className="text-right">%</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lossRanking.rows.map((r) => (
+                            <TableRow key={r.reason}>
+                              <TableCell className="font-medium">{r.reason}</TableCell>
+                              <TableCell className="text-right tabular-nums">{r.qtd}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {lossRanking.total ? ((r.qtd / lossRanking.total) * 100).toFixed(0) : 0}%
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                          {!lossRanking.rows.length && (
+                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem perdas no período</TableCell></TableRow>
+                          )}
+                          {!!lossRanking.rows.length && (
+                            <TableRow className="border-t-2 font-semibold">
+                              <TableCell>Total</TableCell>
+                              <TableCell className="text-right tabular-nums">{lossRanking.total}</TableCell>
+                              <TableCell className="text-right tabular-nums">100%</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(lossRanking.totalValor)}</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Tarefas por Negócio</CardTitle>
+                      <CardDescription>
+                        Retrato atual das tarefas · concluídas contadas no período · visão por {taskDim === "owner" ? "proprietário" : taskDim === "stage" ? "etapa" : "ação"}
+                      </CardDescription>
+                    </div>
+                    <Select value={taskDim} onValueChange={(v) => setTaskDim(v as typeof taskDim)}>
+                      <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="owner">Por proprietário</SelectItem>
+                        <SelectItem value="stage">Por etapa</SelectItem>
+                        <SelectItem value="action">Por ação</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[160px]">
+                            {taskDim === "owner" ? "Proprietário" : taskDim === "stage" ? "Etapa" : "Ação"}
+                          </TableHead>
+                          <TableHead className="text-right">Próximas</TableHead>
+                          <TableHead className="text-right">Agendadas</TableHead>
+                          <TableHead className="text-right">Atrasadas</TableHead>
+                          <TableHead className="text-right">Concluídas</TableHead>
+                          <TableHead className="text-right">Sem tarefa</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {taskMatrix.rows.map((r) => (
+                          <TableRow key={r.key}>
+                            <TableCell className="font-medium">{r.key}</TableCell>
+                            <TableCell className="text-right tabular-nums">{r.proximas || "–"}</TableCell>
+                            <TableCell className="text-right tabular-nums">{r.agendadas || "–"}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {r.atrasadas ? <Badge variant="destructive">{r.atrasadas}</Badge> : <span className="text-muted-foreground">–</span>}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{r.concluidas || "–"}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {r.semTarefa ? <Badge variant="secondary">{r.semTarefa}</Badge> : <span className="text-muted-foreground">–</span>}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {!taskMatrix.rows.length && (
+                          <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem tarefas sincronizadas</TableCell></TableRow>
+                        )}
+                        {!!taskMatrix.rows.length && (
+                          <TableRow className="border-t-2 font-semibold">
+                            <TableCell>Total</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.proximas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.agendadas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.atrasadas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.concluidas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{taskMatrix.totals.semTarefa}</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
 
                 <Card>
                   <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
