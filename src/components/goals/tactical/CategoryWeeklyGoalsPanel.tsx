@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -71,6 +73,8 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
 }
 
 export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
+  const [open, setOpen] = useState(true);
+
   const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
@@ -316,10 +320,14 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+            <div>
             <CardTitle className="text-sm sm:text-base">Metas por categoria — quebra semanal</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
+            </div>
           </div>
+
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="inline-flex rounded-md border p-0.5">
               <Button
@@ -387,7 +395,9 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>
+      {open && (
       <CardContent className="px-4 md:px-6 space-y-5">
+
         {blocks.length === 0 && (
           <p className="text-sm text-muted-foreground">Selecione ao menos uma categoria.</p>
         )}
@@ -569,6 +579,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           );
         })}
       </CardContent>
+      )}
     </Card>
+
   );
 }

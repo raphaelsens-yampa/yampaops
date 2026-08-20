@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { CategoryManager } from "@/components/goals/CategoryManager";
 import { FinanceSettings } from "@/components/goals/FinanceSettings";
+import { TacticalSettingsPanel } from "@/components/goals/tactical/TacticalSettingsPanel";
 import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
 import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
@@ -266,8 +267,8 @@ export default function GoalsPage() {
               {role === "admin" && <TabsTrigger value="categories" className="whitespace-nowrap">Categorias</TabsTrigger>}
               {role === "admin" && (
                 <TabsTrigger value="finance" className="whitespace-nowrap">
-                  <span className="md:hidden">Financeiro</span>
-                  <span className="hidden md:inline">Configurações Financeiras</span>
+                  <span className="md:hidden">Config.</span>
+                  <span className="hidden md:inline">Configurações</span>
                 </TabsTrigger>
               )}
             </TabsList>
@@ -291,6 +292,7 @@ export default function GoalsPage() {
           {role === "admin" && (
             <TabsContent value="finance" className="space-y-6">
               <FinanceSettings />
+              <TacticalSettingsPanel />
             </TabsContent>
           )}
 

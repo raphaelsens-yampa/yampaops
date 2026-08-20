@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
+
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trophy } from "lucide-react";
@@ -50,7 +52,9 @@ function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, gro
 }
 
 export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
+  const [open, setOpen] = useState(true);
   const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
+
   useEffect(() => {
     setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
   }, [teamId, teamName, metrics, groupByTeam]);
@@ -143,18 +147,25 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
   return (
     <Card className="h-full">
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
-        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-warning shrink-0" />
-          <span className="min-w-0">Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje</span>
-        </CardTitle>
+        <div className="flex items-center gap-1">
+          <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-warning shrink-0" />
+            <span className="min-w-0">Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje</span>
+          </CardTitle>
+        </div>
+        {open && (
         <Select value={metricId} onValueChange={setMetricId}>
           <SelectTrigger className="h-10 md:h-9"><SelectValue placeholder="Métrica" /></SelectTrigger>
           <SelectContent>
             {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        )}
       </CardHeader>
+      {open && (
       <CardContent className="space-y-4 px-4 md:px-6">
+
 
         <div className="space-y-3">
           {rows.map((r, i) => (
@@ -208,6 +219,8 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
           </div>
         </div>
       </CardContent>
+      )}
     </Card>
+
   );
 }

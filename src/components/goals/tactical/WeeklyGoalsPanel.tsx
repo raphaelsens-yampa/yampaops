@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
+
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,7 +73,9 @@ export function WeeklyGoalsPanel({
   today,
   lowTouchSales,
 }: Props) {
+  const [open, setOpen] = useState(true);
   const isLowTouch = Array.isArray(lowTouchSales);
+
 
   const visible = useMemo(
     () => metrics.filter((m) => m.key !== "call_realizada"),
@@ -381,10 +385,14 @@ export function WeeklyGoalsPanel({
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+            <div>
             <CardTitle className="text-sm sm:text-base">Metas semanais do mês</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
+            </div>
           </div>
+
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="inline-flex rounded-md border p-0.5">
               <Button
@@ -438,7 +446,9 @@ export function WeeklyGoalsPanel({
         )}
 
       </CardHeader>
+      {open && (
       <CardContent className="px-4 md:px-6">
+
         {/* Mobile: cards */}
         <div className="space-y-2 md:hidden">
           {rows.map((r) => {
@@ -636,6 +646,8 @@ export function WeeklyGoalsPanel({
           </p>
         )}
       </CardContent>
+      )}
     </Card>
+
   );
 }

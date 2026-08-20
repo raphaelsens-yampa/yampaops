@@ -13,6 +13,8 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
+
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,6 +47,8 @@ interface Props {
 type Granularity = "day" | "week" | "monthWeeks";
 
 export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today, revisedView = false }: Props) {
+  const [open, setOpen] = useState(true);
+
   const visible = useMemo(() => metrics.filter((m) => m.key !== "call_realizada"), [metrics]);
   const defaultMetricId = useMemo(
     () => visible.find((m) => m.key === "vendas_dia")?.id ?? visible[0]?.id ?? "",
@@ -170,7 +174,11 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
-          <CardTitle className="text-sm sm:text-base">Evolução acumulada — meta x realizado</CardTitle>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+            <CardTitle className="text-sm sm:text-base">Evolução acumulada — meta x realizado</CardTitle>
+          </div>
+
           <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
             <Select value={metric?.id ?? ""} onValueChange={setMetricId}>
               <SelectTrigger className="col-span-2 h-10 md:h-9 md:w-52"><SelectValue placeholder="Métrica" /></SelectTrigger>
@@ -238,7 +246,9 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
           </p>
         )}
       </CardHeader>
+      {open && (
       <CardContent className="px-2 sm:px-4 md:px-6">
+
         <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -284,6 +294,8 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
           </ResponsiveContainer>
         </div>
       </CardContent>
+      )}
     </Card>
+
   );
 }

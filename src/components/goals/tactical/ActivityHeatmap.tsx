@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DailyDatum, Profile, TacticalGoal, TacticalMetric, formatMetric, resolveDailyTarget, toBRDateKey } from "./types";
 
@@ -16,6 +17,7 @@ interface Props {
 const BUSINESS_DAYS = 30;
 
 export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, teamId, today }: Props) {
+  const [open, setOpen] = useState(true);
   const [metricId, setMetricId] = useState<string>(metrics[0]?.id ?? "");
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
 
@@ -47,15 +49,22 @@ export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, te
   return (
     <Card>
       <CardHeader className="flex flex-col items-stretch gap-3 space-y-0 pb-3 px-4 md:px-6 md:flex-row md:items-center md:justify-between">
-        <CardTitle className="text-sm sm:text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
+        <div className="flex items-center gap-1">
+          <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+          <CardTitle className="text-sm sm:text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
+        </div>
+        {open && (
         <Select value={metricId} onValueChange={setMetricId}>
           <SelectTrigger className="h-10 md:h-9 md:w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
             {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        )}
       </CardHeader>
+      {open && (
       <CardContent className="space-y-3 px-4 md:px-6">
+
         <div className="space-y-2 overflow-x-auto no-scrollbar">
           {users.map((uid) => {
             const name = profiles.find((p) => p.user_id === uid)?.full_name || "—";
@@ -93,6 +102,8 @@ export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, te
           <span>Meta batida</span>
         </div>
       </CardContent>
+      )}
     </Card>
+
   );
 }
