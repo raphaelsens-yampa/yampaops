@@ -438,7 +438,9 @@ export function WeeklyGoalsPanel({
         )}
 
       </CardHeader>
+      {open && (
       <CardContent className="px-4 md:px-6">
+
         {/* Mobile: cards */}
         <div className="space-y-2 md:hidden">
           {rows.map((r) => {
