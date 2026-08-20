@@ -16,7 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, ChevronDown } from "lucide-react";
+import { Pencil, Trash2, ChevronDown, ListChecks } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { parseDateBR } from "@/lib/dateBR";
@@ -24,7 +25,9 @@ import { Profile, TacticalMetric, toBRDateKey } from "./types";
 import { RecoveryEntryDialog } from "./RecoveryEntryDialog";
 import { RecoveryEditDialog, EditableRecovery } from "./RecoveryEditDialog";
 import { RecoveryReasonsConfig } from "./RecoveryReasonsConfig";
+import { RecoveryBulkClassifyDialog, BulkTarget } from "./RecoveryBulkClassifyDialog";
 import { CHANNEL_LABEL, RecoveryChannel, useRecoveryReasons } from "./recoveryChannels";
+
 
 interface Row {
   id: string;
