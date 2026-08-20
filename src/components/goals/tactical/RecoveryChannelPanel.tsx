@@ -51,7 +51,7 @@ export function RecoveryChannelPanel({
   today: Date;
   teamName: string | null;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<"7" | "30" | "month">("month");
   const [measure, setMeasure] = useState<"qty" | "mrr">("mrr");
   const [channelTab, setChannelTab] = useState<"all" | RecoveryChannel>("all");

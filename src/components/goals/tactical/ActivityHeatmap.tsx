@@ -17,7 +17,7 @@ interface Props {
 const BUSINESS_DAYS = 30;
 
 export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, teamId, today }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [metricId, setMetricId] = useState<string>(metrics[0]?.id ?? "");
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
 

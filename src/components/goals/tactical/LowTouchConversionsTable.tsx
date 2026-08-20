@@ -23,7 +23,7 @@ export function LowTouchConversionsTable({
   today: Date;
 }) {
   const [days, setDays] = useState("30");
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [names, setNames] = useState<Map<string, string | null>>(new Map());
 

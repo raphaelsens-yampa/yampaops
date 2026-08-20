@@ -73,7 +73,7 @@ export function WeeklyGoalsPanel({
   today,
   lowTouchSales,
 }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const isLowTouch = Array.isArray(lowTouchSales);
 
 

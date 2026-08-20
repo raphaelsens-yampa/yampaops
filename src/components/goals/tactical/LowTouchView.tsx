@@ -23,8 +23,8 @@ interface Props {
 
 export function LowTouchView({ sales, today }: Props) {
   const [preset, setPreset] = useState("30");
-  const [chartOpen, setChartOpen] = useState(true);
-  const [rankOpen, setRankOpen] = useState(true);
+  const [chartOpen, setChartOpen] = useState(false);
+  const [rankOpen, setRankOpen] = useState(false);
   const todayKey = toBRDateKey(today);
 
   const todaySales = useMemo(() => sales.filter((s) => s.dateKey === todayKey), [sales, todayKey]);
