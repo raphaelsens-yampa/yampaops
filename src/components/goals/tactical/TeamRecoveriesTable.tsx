@@ -60,6 +60,7 @@ export function TeamRecoveriesTable({
   teamName,
   today,
   refreshKey = 0,
+  onChanged,
 }: {
   memberIds: string[];
   profiles: Profile[];
@@ -67,7 +68,9 @@ export function TeamRecoveriesTable({
   teamName: string | null;
   today: Date;
   refreshKey?: number;
+  onChanged?: () => void;
 }) {
+
   const [days, setDays] = useState("30");
   const [open, setOpen] = useState(true);
   const [query, setQuery] = useState("");
