@@ -511,9 +511,20 @@ export function TeamRecoveriesTable({
             {filtered.map((r) => (
               <div key={r.id} className="rounded-lg border p-3 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium truncate">{r.name || r.email || "—"}</p>
+                  <div className="flex items-start gap-2 min-w-0">
+                    {r.rawId && (
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={!!selected[r.id]}
+                        onCheckedChange={() => toggleRow(r.id)}
+                        aria-label="Selecionar registro"
+                      />
+                    )}
+                    <p className="text-sm font-medium truncate">{r.name || r.email || "—"}</p>
+                  </div>
                   <p className="text-sm font-semibold shrink-0">{r.mrr > 0 ? fmtBRL(r.mrr) : "—"}</p>
                 </div>
+
                 {r.name && r.email && <p className="text-[11px] text-muted-foreground truncate">{r.email}</p>}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge variant={r.entryKind === "retained" ? "default" : "secondary"} className="text-[10px]">
