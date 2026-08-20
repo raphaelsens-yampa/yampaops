@@ -387,7 +387,9 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>
+      {open && (
       <CardContent className="px-4 md:px-6 space-y-5">
+
         {blocks.length === 0 && (
           <p className="text-sm text-muted-foreground">Selecione ao menos uma categoria.</p>
         )}
