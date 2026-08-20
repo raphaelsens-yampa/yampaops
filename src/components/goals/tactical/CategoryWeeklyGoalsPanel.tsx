@@ -71,6 +71,8 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
 }
 
 export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
+  const [open, setOpen] = useState(true);
+
   const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
