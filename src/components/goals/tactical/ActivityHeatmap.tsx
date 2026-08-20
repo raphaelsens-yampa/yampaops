@@ -100,6 +100,8 @@ export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, te
           <span>Meta batida</span>
         </div>
       </CardContent>
+      )}
     </Card>
+
   );
 }
