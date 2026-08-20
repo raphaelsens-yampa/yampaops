@@ -689,7 +689,9 @@ export function TeamRecoveriesTable({
         onSaved={() => {
           setSelected({});
           setLocalRefresh((k) => k + 1);
+          onChanged?.();
         }}
+
       />
 
       <RecoveryEditDialog
