@@ -569,6 +569,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           );
         })}
       </CardContent>
+      )}
     </Card>
+
   );
 }
