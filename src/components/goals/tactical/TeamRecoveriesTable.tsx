@@ -363,6 +363,7 @@ export function TeamRecoveriesTable({
             <Badge variant="outline" className="justify-center">{retainedQty} retidos</Badge>
             <div className="col-span-2 md:col-auto">
               <RecoveryEntryDialog
+                onReasonsChanged={reloadReasons}
                 profiles={profiles}
                 reasons={reasons}
                 memberIds={memberIds}
@@ -565,6 +566,7 @@ export function TeamRecoveriesTable({
       </Collapsible>
 
       <RecoveryEditDialog
+        onReasonsChanged={reloadReasons}
         entry={editing}
         profiles={profiles}
         reasons={reasons}

@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Upload } from "lucide-react";
 import { Profile, toBRDateKey } from "./types";
 import { CHANNEL_LABEL, RecoveryChannel, RecoveryReason, parseChannel, reasonsForChannel } from "./recoveryChannels";
+import { ManageReasonsButton } from "./ManageReasonsButton";
 
 interface Props {
   profiles: Profile[];
@@ -19,6 +20,7 @@ interface Props {
   memberIds: string[];
   today: Date;
   onSaved?: () => void;
+  onReasonsChanged?: () => void;
 }
 
 type NewRow = {
@@ -94,7 +96,7 @@ function pick(row: Record<string, unknown>, keys: string[]): unknown {
   return undefined;
 }
 
-export function RecoveryEntryDialog({ profiles, reasons, memberIds, today, onSaved }: Props) {
+export function RecoveryEntryDialog({ profiles, reasons, memberIds, today, onSaved, onReasonsChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [row, setRow] = useState<NewRow>(emptyRow(today));
@@ -285,9 +287,12 @@ export function RecoveryEntryDialog({ profiles, reasons, memberIds, today, onSav
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>
-                  Motivo{row.recovery_channel === "cs" ? "" : " (opcional)"}
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>
+                    Motivo{row.recovery_channel === "cs" ? "" : " (opcional)"}
+                  </Label>
+                  <ManageReasonsButton onChanged={onReasonsChanged} />
+                </div>
                 <Select value={row.reason_id} onValueChange={(v) => setRow({ ...row, reason_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
