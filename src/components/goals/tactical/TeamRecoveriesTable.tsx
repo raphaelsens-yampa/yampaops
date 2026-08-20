@@ -16,7 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, ChevronDown } from "lucide-react";
+import { Pencil, Trash2, ChevronDown, ListChecks } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { parseDateBR } from "@/lib/dateBR";
@@ -24,7 +25,9 @@ import { Profile, TacticalMetric, toBRDateKey } from "./types";
 import { RecoveryEntryDialog } from "./RecoveryEntryDialog";
 import { RecoveryEditDialog, EditableRecovery } from "./RecoveryEditDialog";
 import { RecoveryReasonsConfig } from "./RecoveryReasonsConfig";
+import { RecoveryBulkClassifyDialog, BulkTarget } from "./RecoveryBulkClassifyDialog";
 import { CHANNEL_LABEL, RecoveryChannel, useRecoveryReasons } from "./recoveryChannels";
+
 
 interface Row {
   id: string;
@@ -57,6 +60,7 @@ export function TeamRecoveriesTable({
   teamName,
   today,
   refreshKey = 0,
+  onChanged,
 }: {
   memberIds: string[];
   profiles: Profile[];
@@ -64,7 +68,9 @@ export function TeamRecoveriesTable({
   teamName: string | null;
   today: Date;
   refreshKey?: number;
+  onChanged?: () => void;
 }) {
+
   const [days, setDays] = useState("30");
   const [open, setOpen] = useState(true);
   const [query, setQuery] = useState("");
@@ -81,6 +87,9 @@ export function TeamRecoveriesTable({
   );
   const [editing, setEditing] = useState<EditableRecovery | null>(null);
   const [deleting, setDeleting] = useState<EditableRecovery | null>(null);
+  const [selected, setSelected] = useState<Record<string, true>>({});
+  const [bulkOpen, setBulkOpen] = useState(false);
+
 
 
   const recoveryMetricIds = useMemo(
@@ -235,6 +244,54 @@ export function TeamRecoveriesTable({
     );
   }, [rows, query, kindFilter, channelFilter, reasonFilter]);
 
+  // Pendências de classificação (registros editáveis sem motivo declarado)
+  const pendingCount = useMemo(() => rows.filter((r) => r.rawId && !r.reasonId).length, [rows]);
+  const selectableFiltered = useMemo(() => filtered.filter((r) => r.rawId), [filtered]);
+  const selectedRows = useMemo(() => selectableFiltered.filter((r) => selected[r.id]), [selectableFiltered, selected]);
+  const allSelected = selectableFiltered.length > 0 && selectedRows.length === selectableFiltered.length;
+  const bulkTargets: BulkTarget[] = useMemo(
+    () =>
+      selectedRows.map((r) => ({
+        rawId: r.rawId as string,
+        table: r.kind === "manual_entry" ? "tactical_manual_entries" : "tactical_recoveries",
+        channel: r.channel,
+      })),
+    [selectedRows],
+  );
+
+  useEffect(() => {
+    setSelected({});
+  }, [rows]);
+
+  function toggleRow(id: string) {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[id]) delete next[id];
+      else next[id] = true;
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected({});
+      return;
+    }
+    const next: Record<string, true> = {};
+    for (const r of selectableFiltered) next[r.id] = true;
+    setSelected(next);
+  }
+
+  function showPendingOnly() {
+    setReasonFilter("none");
+    setKindFilter("all");
+    setChannelFilter("all");
+    setQuery("");
+    setOpen(true);
+  }
+
+
+
   const totalMrr = filtered.reduce((s, r) => s + r.mrr, 0);
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
   const recoveredQty = filtered.filter((r) => r.entryKind === "recovered").reduce((s, r) => s + r.qty, 0);
@@ -361,6 +418,19 @@ export function TeamRecoveriesTable({
             </Select>
             <Badge variant="secondary" className="justify-center">{recoveredQty} recuperados</Badge>
             <Badge variant="outline" className="justify-center">{retainedQty} retidos</Badge>
+            {pendingCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="col-span-2 h-9 md:h-8 md:col-auto text-amber-600 border-amber-500/50"
+                onClick={showPendingOnly}
+              >
+                <ListChecks className="h-3.5 w-3.5 mr-1" />
+                {pendingCount} sem motivo
+              </Button>
+            )}
+
             <div className="col-span-2 md:col-auto">
               <RecoveryEntryDialog
                 onReasonsChanged={reloadReasons}
@@ -411,7 +481,28 @@ export function TeamRecoveriesTable({
           </div>
         )}
 
+        {selectableFiltered.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 mb-3">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar todos os visíveis" />
+              Selecionar todos os visíveis ({selectableFiltered.length})
+            </label>
+            <span className="text-xs text-muted-foreground">
+              {selectedRows.length} selecionado{selectedRows.length === 1 ? "" : "s"}
+            </span>
+            <Button
+              size="sm"
+              className="h-8 ml-auto"
+              disabled={selectedRows.length === 0}
+              onClick={() => setBulkOpen(true)}
+            >
+              Definir canal/motivo
+            </Button>
+          </div>
+        )}
+
         {loading ? (
+
           <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
@@ -423,9 +514,20 @@ export function TeamRecoveriesTable({
             {filtered.map((r) => (
               <div key={r.id} className="rounded-lg border p-3 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium truncate">{r.name || r.email || "—"}</p>
+                  <div className="flex items-start gap-2 min-w-0">
+                    {r.rawId && (
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={!!selected[r.id]}
+                        onCheckedChange={() => toggleRow(r.id)}
+                        aria-label="Selecionar registro"
+                      />
+                    )}
+                    <p className="text-sm font-medium truncate">{r.name || r.email || "—"}</p>
+                  </div>
                   <p className="text-sm font-semibold shrink-0">{r.mrr > 0 ? fmtBRL(r.mrr) : "—"}</p>
                 </div>
+
                 {r.name && r.email && <p className="text-[11px] text-muted-foreground truncate">{r.email}</p>}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge variant={r.entryKind === "retained" ? "default" : "secondary"} className="text-[10px]">
@@ -476,6 +578,9 @@ export function TeamRecoveriesTable({
 
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[36px]">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar todos" />
+                  </TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Plano</TableHead>
@@ -491,8 +596,18 @@ export function TeamRecoveriesTable({
               </TableHeader>
               <TableBody>
                 {filtered.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} data-state={selected[r.id] ? "selected" : undefined}>
+                    <TableCell>
+                      {r.rawId && (
+                        <Checkbox
+                          checked={!!selected[r.id]}
+                          onCheckedChange={() => toggleRow(r.id)}
+                          aria-label="Selecionar registro"
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
+
                       {r.name || "—"}
                       {r.origin !== "stripe" && (
                         <Badge variant="outline" className="ml-2">
@@ -548,7 +663,7 @@ export function TeamRecoveriesTable({
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
-                  <TableCell colSpan={9}>Total ({totalQty})</TableCell>
+                  <TableCell colSpan={10}>Total ({totalQty})</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
                   <TableCell />
                 </TableRow>
@@ -565,7 +680,22 @@ export function TeamRecoveriesTable({
         </CollapsibleContent>
       </Collapsible>
 
+      <RecoveryBulkClassifyDialog
+        targets={bulkTargets}
+        reasons={reasons}
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onReasonsChanged={reloadReasons}
+        onSaved={() => {
+          setSelected({});
+          setLocalRefresh((k) => k + 1);
+          onChanged?.();
+        }}
+
+      />
+
       <RecoveryEditDialog
+
         onReasonsChanged={reloadReasons}
         entry={editing}
         profiles={profiles}

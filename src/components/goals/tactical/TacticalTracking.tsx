@@ -407,6 +407,8 @@ export function TacticalTracking() {
 
         today={today}
         refreshKey={reloadKey}
+        onChanged={() => setRecoveryKey((k) => k + 1)}
+
       />
         </>
       )}
