@@ -170,7 +170,11 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
-          <CardTitle className="text-sm sm:text-base">Evolução acumulada — meta x realizado</CardTitle>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+            <CardTitle className="text-sm sm:text-base">Evolução acumulada — meta x realizado</CardTitle>
+          </div>
+
           <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
             <Select value={metric?.id ?? ""} onValueChange={setMetricId}>
               <SelectTrigger className="col-span-2 h-10 md:h-9 md:w-52"><SelectValue placeholder="Métrica" /></SelectTrigger>
