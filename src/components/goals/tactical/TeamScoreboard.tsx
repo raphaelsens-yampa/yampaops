@@ -208,6 +208,8 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
           </div>
         </div>
       </CardContent>
+      )}
     </Card>
+
   );
 }
