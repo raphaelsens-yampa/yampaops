@@ -660,7 +660,7 @@ export function TeamRecoveriesTable({
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
-                  <TableCell colSpan={9}>Total ({totalQty})</TableCell>
+                  <TableCell colSpan={10}>Total ({totalQty})</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
                   <TableCell />
                 </TableRow>
