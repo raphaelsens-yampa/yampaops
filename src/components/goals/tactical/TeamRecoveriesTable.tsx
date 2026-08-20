@@ -84,6 +84,9 @@ export function TeamRecoveriesTable({
   );
   const [editing, setEditing] = useState<EditableRecovery | null>(null);
   const [deleting, setDeleting] = useState<EditableRecovery | null>(null);
+  const [selected, setSelected] = useState<Record<string, true>>({});
+  const [bulkOpen, setBulkOpen] = useState(false);
+
 
 
   const recoveryMetricIds = useMemo(
