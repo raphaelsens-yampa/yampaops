@@ -575,6 +575,9 @@ export function TeamRecoveriesTable({
 
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[36px]">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar todos" />
+                  </TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Plano</TableHead>
@@ -590,8 +593,18 @@ export function TeamRecoveriesTable({
               </TableHeader>
               <TableBody>
                 {filtered.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} data-state={selected[r.id] ? "selected" : undefined}>
+                    <TableCell>
+                      {r.rawId && (
+                        <Checkbox
+                          checked={!!selected[r.id]}
+                          onCheckedChange={() => toggleRow(r.id)}
+                          aria-label="Selecionar registro"
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
+
                       {r.name || "—"}
                       {r.origin !== "stripe" && (
                         <Badge variant="outline" className="ml-2">
