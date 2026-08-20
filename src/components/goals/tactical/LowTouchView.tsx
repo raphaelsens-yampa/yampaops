@@ -5,6 +5,7 @@ import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +23,8 @@ interface Props {
 
 export function LowTouchView({ sales, today }: Props) {
   const [preset, setPreset] = useState("30");
+  const [chartOpen, setChartOpen] = useState(true);
+  const [rankOpen, setRankOpen] = useState(true);
   const todayKey = toBRDateKey(today);
 
   const todaySales = useMemo(() => sales.filter((s) => s.dateKey === todayKey), [sales, todayKey]);
@@ -128,11 +131,14 @@ export function LowTouchView({ sales, today }: Props) {
 
       <Card>
         <CardHeader className="pb-3 px-4 md:px-6 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
-          <div>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={chartOpen} onToggle={() => setChartOpen((v) => !v)} />
+            <div>
             <CardTitle className="text-sm sm:text-base">Conversão diária — Low-touch</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               Vendas e MRR realizados por dia no período selecionado.
             </p>
+            </div>
           </div>
           <Select value={preset} onValueChange={setPreset}>
             <SelectTrigger className="h-10 md:h-9 md:w-40"><SelectValue /></SelectTrigger>
@@ -145,6 +151,7 @@ export function LowTouchView({ sales, today }: Props) {
           </Select>
         </CardHeader>
 
+        {chartOpen && (
         <CardContent className="px-2 sm:px-4 md:px-6">
           <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -172,13 +179,18 @@ export function LowTouchView({ sales, today }: Props) {
             </ResponsiveContainer>
           </div>
         </CardContent>
+        )}
       </Card>
 
       <Card>
         <CardHeader className="pb-3 px-4 md:px-6 flex flex-row items-center justify-between gap-3">
-          <CardTitle className="text-sm sm:text-base">Ranking por área</CardTitle>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={rankOpen} onToggle={() => setRankOpen((v) => !v)} />
+            <CardTitle className="text-sm sm:text-base">Ranking por área</CardTitle>
+          </div>
           <Badge variant="secondary">{totalCount} vendas</Badge>
         </CardHeader>
+        {rankOpen && (
         <CardContent className="px-2 sm:px-4 md:px-6">
           {ranking.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
@@ -219,6 +231,7 @@ export function LowTouchView({ sales, today }: Props) {
 
           )}
         </CardContent>
+        )}
       </Card>
     </div>
   );
