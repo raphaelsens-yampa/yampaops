@@ -677,7 +677,20 @@ export function TeamRecoveriesTable({
         </CollapsibleContent>
       </Collapsible>
 
+      <RecoveryBulkClassifyDialog
+        targets={bulkTargets}
+        reasons={reasons}
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onReasonsChanged={reloadReasons}
+        onSaved={() => {
+          setSelected({});
+          setLocalRefresh((k) => k + 1);
+        }}
+      />
+
       <RecoveryEditDialog
+
         onReasonsChanged={reloadReasons}
         entry={editing}
         profiles={profiles}
