@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapseToggle } from "./CollapseToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DailyDatum, Profile, TacticalGoal, TacticalMetric, formatMetric, resolveDailyTarget, toBRDateKey } from "./types";
 
@@ -16,6 +17,7 @@ interface Props {
 const BUSINESS_DAYS = 30;
 
 export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, teamId, today }: Props) {
+  const [open, setOpen] = useState(true);
   const [metricId, setMetricId] = useState<string>(metrics[0]?.id ?? "");
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
 
