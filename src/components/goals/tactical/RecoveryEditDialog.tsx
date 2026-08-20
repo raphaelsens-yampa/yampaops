@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "@/hooks/use-toast";
 import { Profile } from "./types";
 import { CHANNEL_LABEL, RecoveryChannel, RecoveryReason, reasonsForChannel } from "./recoveryChannels";
+import { ManageReasonsButton } from "./ManageReasonsButton";
 
 export interface EditableRecovery {
   kind: "recovery" | "manual_entry";
@@ -42,12 +43,14 @@ export function RecoveryEditDialog({
   reasons,
   onClose,
   onSaved,
+  onReasonsChanged,
 }: {
   entry: EditableRecovery | null;
   profiles: Profile[];
   reasons: RecoveryReason[];
   onClose: () => void;
   onSaved: () => void;
+  onReasonsChanged?: () => void;
 }) {
   const [form, setForm] = useState<EditableRecovery | null>(entry);
   const [saving, setSaving] = useState(false);
@@ -179,7 +182,10 @@ export function RecoveryEditDialog({
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Motivo{form.recovery_channel === "cs" ? "" : " (opcional)"}</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label>Motivo{form.recovery_channel === "cs" ? "" : " (opcional)"}</Label>
+              <ManageReasonsButton onChanged={onReasonsChanged} />
+            </div>
             <Select value={form.reason_id} onValueChange={(v) => setForm({ ...form, reason_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>

@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TacticalMetric, Profile, toBRDateKey } from "./types";
 import { CHANNEL_LABEL, RecoveryChannel, reasonsForChannel, useRecoveryReasons } from "./recoveryChannels";
+import { ManageReasonsButton } from "./ManageReasonsButton";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -32,7 +33,7 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const [entryKind, setEntryKind] = useState<"recovered" | "retained">("recovered");
   const [channel, setChannel] = useState<RecoveryChannel>("cs");
   const [reasonId, setReasonId] = useState<string>("");
-  const { reasons } = useRecoveryReasons();
+  const { reasons, reload: reloadReasons } = useRecoveryReasons();
 
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRetidos = selectedMetric?.key === "clientes_retidos";
@@ -145,7 +146,10 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
                 </p>
               </div>
               <div>
-                <Label>Motivo{channel === "cs" ? "" : " (opcional)"}</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Motivo{channel === "cs" ? "" : " (opcional)"}</Label>
+                  <ManageReasonsButton onChanged={reloadReasons} />
+                </div>
                 <Select value={reasonId} onValueChange={setReasonId}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
