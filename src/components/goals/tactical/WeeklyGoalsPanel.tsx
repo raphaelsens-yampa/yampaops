@@ -636,6 +636,8 @@ export function WeeklyGoalsPanel({
           </p>
         )}
       </CardContent>
+      )}
     </Card>
+
   );
 }
