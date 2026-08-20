@@ -45,6 +45,8 @@ interface Props {
 type Granularity = "day" | "week" | "monthWeeks";
 
 export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId, today, revisedView = false }: Props) {
+  const [open, setOpen] = useState(true);
+
   const visible = useMemo(() => metrics.filter((m) => m.key !== "call_realizada"), [metrics]);
   const defaultMetricId = useMemo(
     () => visible.find((m) => m.key === "vendas_dia")?.id ?? visible[0]?.id ?? "",
