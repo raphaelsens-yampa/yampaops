@@ -145,7 +145,10 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
                 </p>
               </div>
               <div>
-                <Label>Motivo{channel === "cs" ? "" : " (opcional)"}</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Motivo{channel === "cs" ? "" : " (opcional)"}</Label>
+                  <ManageReasonsButton onChanged={reloadReasons} />
+                </div>
                 <Select value={reasonId} onValueChange={setReasonId}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
