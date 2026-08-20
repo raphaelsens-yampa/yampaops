@@ -241,6 +241,54 @@ export function TeamRecoveriesTable({
     );
   }, [rows, query, kindFilter, channelFilter, reasonFilter]);
 
+  // Pendências de classificação (registros editáveis sem motivo declarado)
+  const pendingCount = useMemo(() => rows.filter((r) => r.rawId && !r.reasonId).length, [rows]);
+  const selectableFiltered = useMemo(() => filtered.filter((r) => r.rawId), [filtered]);
+  const selectedRows = useMemo(() => selectableFiltered.filter((r) => selected[r.id]), [selectableFiltered, selected]);
+  const allSelected = selectableFiltered.length > 0 && selectedRows.length === selectableFiltered.length;
+  const bulkTargets: BulkTarget[] = useMemo(
+    () =>
+      selectedRows.map((r) => ({
+        rawId: r.rawId as string,
+        table: r.kind === "manual_entry" ? "tactical_manual_entries" : "tactical_recoveries",
+        channel: r.channel,
+      })),
+    [selectedRows],
+  );
+
+  useEffect(() => {
+    setSelected({});
+  }, [rows]);
+
+  function toggleRow(id: string) {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[id]) delete next[id];
+      else next[id] = true;
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected({});
+      return;
+    }
+    const next: Record<string, true> = {};
+    for (const r of selectableFiltered) next[r.id] = true;
+    setSelected(next);
+  }
+
+  function showPendingOnly() {
+    setReasonFilter("none");
+    setKindFilter("all");
+    setChannelFilter("all");
+    setQuery("");
+    setOpen(true);
+  }
+
+
+
   const totalMrr = filtered.reduce((s, r) => s + r.mrr, 0);
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
   const recoveredQty = filtered.filter((r) => r.entryKind === "recovered").reduce((s, r) => s + r.qty, 0);
