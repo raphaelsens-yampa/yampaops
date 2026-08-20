@@ -47,15 +47,22 @@ export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, te
   return (
     <Card>
       <CardHeader className="flex flex-col items-stretch gap-3 space-y-0 pb-3 px-4 md:px-6 md:flex-row md:items-center md:justify-between">
-        <CardTitle className="text-sm sm:text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
+        <div className="flex items-center gap-1">
+          <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+          <CardTitle className="text-sm sm:text-base">Consistência — últimos {BUSINESS_DAYS} dias úteis</CardTitle>
+        </div>
+        {open && (
         <Select value={metricId} onValueChange={setMetricId}>
           <SelectTrigger className="h-10 md:h-9 md:w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
             {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        )}
       </CardHeader>
+      {open && (
       <CardContent className="space-y-3 px-4 md:px-6">
+
         <div className="space-y-2 overflow-x-auto no-scrollbar">
           {users.map((uid) => {
             const name = profiles.find((p) => p.user_id === uid)?.full_name || "—";
