@@ -52,7 +52,7 @@ function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, gro
 }
 
 export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
 
   useEffect(() => {
