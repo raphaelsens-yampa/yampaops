@@ -32,7 +32,7 @@ export function ManualEntryDialog({ metrics, profiles = [], memberIds = [], defa
   const [entryKind, setEntryKind] = useState<"recovered" | "retained">("recovered");
   const [channel, setChannel] = useState<RecoveryChannel>("cs");
   const [reasonId, setReasonId] = useState<string>("");
-  const { reasons } = useRecoveryReasons();
+  const { reasons, reload: reloadReasons } = useRecoveryReasons();
 
   const selectedMetric = metrics.find((m) => m.id === metricId);
   const isRetidos = selectedMetric?.key === "clientes_retidos";
