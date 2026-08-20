@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TacticalMetric, Profile, toBRDateKey } from "./types";
 import { CHANNEL_LABEL, RecoveryChannel, reasonsForChannel, useRecoveryReasons } from "./recoveryChannels";
+import { ManageReasonsButton } from "./ManageReasonsButton";
 
 interface Props {
   metrics: TacticalMetric[];
