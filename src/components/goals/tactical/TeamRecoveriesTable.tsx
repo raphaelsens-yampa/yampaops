@@ -478,7 +478,28 @@ export function TeamRecoveriesTable({
           </div>
         )}
 
+        {selectableFiltered.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 mb-3">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar todos os visíveis" />
+              Selecionar todos os visíveis ({selectableFiltered.length})
+            </label>
+            <span className="text-xs text-muted-foreground">
+              {selectedRows.length} selecionado{selectedRows.length === 1 ? "" : "s"}
+            </span>
+            <Button
+              size="sm"
+              className="h-8 ml-auto"
+              disabled={selectedRows.length === 0}
+              onClick={() => setBulkOpen(true)}
+            >
+              Definir canal/motivo
+            </Button>
+          </div>
+        )}
+
         {loading ? (
+
           <p className="text-sm text-muted-foreground py-6 text-center">Carregando...</p>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
