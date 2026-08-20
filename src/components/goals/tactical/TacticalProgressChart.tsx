@@ -238,7 +238,9 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
           </p>
         )}
       </CardHeader>
+      {open && (
       <CardContent className="px-2 sm:px-4 md:px-6">
+
         <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
