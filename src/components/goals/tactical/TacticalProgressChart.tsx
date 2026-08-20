@@ -284,6 +284,8 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
           </ResponsiveContainer>
         </div>
       </CardContent>
+      )}
     </Card>
+
   );
 }
