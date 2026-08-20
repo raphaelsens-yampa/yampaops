@@ -71,7 +71,9 @@ export function WeeklyGoalsPanel({
   today,
   lowTouchSales,
 }: Props) {
+  const [open, setOpen] = useState(true);
   const isLowTouch = Array.isArray(lowTouchSales);
+
 
   const visible = useMemo(
     () => metrics.filter((m) => m.key !== "call_realizada"),
