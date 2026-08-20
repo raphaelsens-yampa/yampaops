@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings2, RefreshCw, CalendarIcon } from "lucide-react";
+import { RefreshCw, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -18,12 +18,10 @@ import { ActivityHeatmap } from "./ActivityHeatmap";
 import { TeamConversionsTable } from "./TeamConversionsTable";
 import { TeamRecoveriesTable } from "./TeamRecoveriesTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
-import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { TacticalOverview } from "./TacticalOverview";
 import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
-import { StripeBackupPanel } from "./StripeBackupPanel";
 import { CategoryWeeklyGoalsPanel } from "./CategoryWeeklyGoalsPanel";
 import { RecoveryChannelPanel } from "./RecoveryChannelPanel";
 import { useRecoveryChannelData, channelsBySeller, summarizeChannels } from "./useRecoveryChannelData";
@@ -49,7 +47,6 @@ export function TacticalTracking() {
   const today = useMemo(() => { const d = new Date(refDate); d.setHours(0, 0, 0, 0); return d; }, [refDate]);
   const rangeStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - 89); return d; }, [today]);
   const [reloadKey, setReloadKey] = useState(0);
-  const [showConfig, setShowConfig] = useState(false);
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
@@ -214,18 +211,6 @@ export function TacticalTracking() {
                   <ManualEntryDialog metrics={teamMetrics} profiles={profiles} memberIds={memberIds} defaultUserId={focusUser} onSaved={() => setReloadKey((k) => k + 1)} />
                 </div>
               )}
-              {!isLowTouch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-10 md:h-9 w-10 md:w-auto p-0 md:px-3 shrink-0"
-                  aria-label="Configurar metas diárias"
-                  onClick={() => setShowConfig((v) => !v)}
-                >
-                  <Settings2 className="h-4 w-4 md:mr-1" />
-                  <span className="hidden md:inline">Configurar metas diárias</span>
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -255,14 +240,6 @@ export function TacticalTracking() {
 
       {isAdmin && (
         <UnattributedSalesAlert rangeStart={rangeStart} rangeEnd={today} refreshKey={reloadKey} />
-      )}
-
-      {isAdmin && (
-        <StripeBackupPanel
-          profiles={profiles}
-          today={today}
-          onChanged={() => setReloadKey((k) => k + 1)}
-        />
       )}
 
       {isLowTouch ? (
@@ -413,16 +390,6 @@ export function TacticalTracking() {
         </>
       )}
 
-      {isAdmin && showConfig && !isLowTouch && (
-
-        <TacticalGoalsManager
-          metrics={metrics}
-          profiles={profiles}
-          teams={teams}
-          goals={goals}
-          onChanged={() => setReloadKey((k) => k + 1)}
-        />
-      )}
     </div>
   );
 }
