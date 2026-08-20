@@ -316,10 +316,14 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
     <Card>
       <CardHeader className="pb-3 space-y-3 px-4 md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="flex items-center gap-1">
+            <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
+            <div>
             <CardTitle className="text-sm sm:text-base">Metas por categoria — quebra semanal</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
+            </div>
           </div>
+
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="inline-flex rounded-md border p-0.5">
               <Button
