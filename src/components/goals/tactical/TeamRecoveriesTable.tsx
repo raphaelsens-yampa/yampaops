@@ -415,6 +415,19 @@ export function TeamRecoveriesTable({
             </Select>
             <Badge variant="secondary" className="justify-center">{recoveredQty} recuperados</Badge>
             <Badge variant="outline" className="justify-center">{retainedQty} retidos</Badge>
+            {pendingCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="col-span-2 h-9 md:h-8 md:col-auto text-amber-600 border-amber-500/50"
+                onClick={showPendingOnly}
+              >
+                <ListChecks className="h-3.5 w-3.5 mr-1" />
+                {pendingCount} sem motivo
+              </Button>
+            )}
+
             <div className="col-span-2 md:col-auto">
               <RecoveryEntryDialog
                 onReasonsChanged={reloadReasons}
