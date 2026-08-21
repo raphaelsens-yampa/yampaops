@@ -81,6 +81,8 @@ export function useCategoryWeeklyData(
   refDate: Date,
   refreshKey = 0,
   origin: OriginFilter = "all",
+  /** Soma a conta yampa 2.0 em MRR/Ativos e a variação do 2.0 no Net MRR. */
+  includeYampa20 = false,
 ): CategoryWeeklyData {
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
