@@ -466,24 +466,38 @@ export function MetabaseTracking() {
         ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
         : r,
     );
-    // Delta mensal do estoque de MRR do 2.0 → linhas sintéticas de Net MRR
-    const mrr20 = new Map<string, number>();
+    // Net MRR com 2.0 = variação do ESTOQUE COMBINADO (yampaFin + 2.0) mês a
+    // mês. Não usamos o delta isolado do 2.0 (que só cai na migração).
+    const totalCombined = new Map<string, number>();
     const sample = new Map<string, AggRow>();
-    sourceAgg.forEach((r) => {
-      if (r.category_id !== YAMPA20_MRR_CAT) return;
-      mrr20.set(r.year_month, (mrr20.get(r.year_month) || 0) + Number(r.realized_amount || 0));
+    remapped.forEach((r) => {
+      if (r.category_id !== BASE_MRR_CAT) return;
+      totalCombined.set(r.year_month, (totalCombined.get(r.year_month) || 0) + Number(r.realized_amount || 0));
       if (!sample.has(r.year_month)) sample.set(r.year_month, r);
     });
-    const months = Array.from(mrr20.keys()).sort();
-    const netRows: AggRow[] = [];
+    const has20 = new Set(
+      sourceAgg.filter((r) => r.category_id === YAMPA20_MRR_CAT).map((r) => r.year_month),
+    );
+    const months = Array.from(totalCombined.keys()).sort();
+    const netByMonth = new Map<string, number>();
     months.forEach((ym, i) => {
       if (i === 0) return; // sem mês anterior não há variação apurável
-      const delta = (mrr20.get(ym) || 0) - (mrr20.get(months[i - 1]) || 0);
-      if (!delta) return;
-      const base = sample.get(ym)!;
-      netRows.push({ ...base, category_id: NET_MRR_CAT, metric_key: "net_mrr_yampa20", realized_amount: delta });
+      const prev = months[i - 1];
+      if (!has20.has(ym) || !has20.has(prev)) return; // sem estoque do 2.0 nas duas pontas
+      netByMonth.set(ym, (totalCombined.get(ym) || 0) - (totalCombined.get(prev) || 0));
     });
-    return [...remapped, ...netRows];
+    // Substitui (não soma) o realizado de Net MRR dos meses cobertos.
+    const withNet = remapped.filter(
+      (r) => !(r.category_id === NET_MRR_CAT && netByMonth.has(r.year_month)),
+    );
+    const netRows: AggRow[] = [];
+    netByMonth.forEach((value, ym) => {
+      const base = sample.get(ym);
+      if (!base) return;
+      netRows.push({ ...base, category_id: NET_MRR_CAT, metric_key: "net_mrr_combined", realized_amount: value });
+    });
+    return [...withNet, ...netRows];
+
   }, [sourceAgg, productScope]);
 
 
