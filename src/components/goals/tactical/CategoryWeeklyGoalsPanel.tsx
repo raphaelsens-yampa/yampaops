@@ -38,6 +38,8 @@ interface Props {
   daily?: DailyDatum[];
   refreshKey?: number;
   origin?: OriginFilter;
+  /** Soma a conta yampa 2.0 em MRR/Ativos e sua variação no Net MRR. */
+  includeYampa20?: boolean;
 }
 
 interface WeekRow {
@@ -72,15 +74,17 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
   return found;
 }
 
-export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
+export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all", includeYampa20 = false }: Props) {
   const [open, setOpen] = useState(false);
 
   const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
     origin,
+    includeYampa20,
   );
   const originFiltered = isOriginFiltered(origin);
+  const yampa20Applied = includeYampa20 && !originFiltered;
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
@@ -417,6 +421,9 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                   <span className="text-[10px] text-muted-foreground">fonte: {source}</span>
                   {originFiltered && (
                     <Badge variant="secondary" className="text-[10px]">{originLabel(origin)}</Badge>
+                  )}
+                  {yampa20Applied && ["total_de_mrr_ms3g6o38", "usuarios_ativos_pagantes_ms8yyce5", "net-mrr"].includes(cat.slug) && (
+                    <Badge variant="secondary" className="text-[10px]">+ 2.0</Badge>
                   )}
                   {partialOrigin && (
                     <span className="text-[10px] text-amber-600">{ORIGIN_NO_SPLIT_HINT}</span>

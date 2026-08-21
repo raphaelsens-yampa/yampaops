@@ -50,6 +50,8 @@ export function TacticalTracking() {
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
+  /** Soma a conta yampa 2.0 (MRR, Ativos e a variação no Net MRR). */
+  const [includeYampa20, setIncludeYampa20] = useState(false);
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
@@ -196,6 +198,17 @@ export function TacticalTracking() {
                   Revisada
                 </Label>
               </div>
+              <div className="flex items-center gap-2 rounded-md border px-2.5 h-10 md:h-9 flex-1 md:flex-none justify-center">
+                <Switch
+                  id="tactical-include-yampa20"
+                  checked={includeYampa20}
+                  onCheckedChange={setIncludeYampa20}
+                  disabled={isOriginFiltered(originFilter)}
+                />
+                <Label htmlFor="tactical-include-yampa20" className="text-xs cursor-pointer whitespace-nowrap">
+                  Incluir 2.0
+                </Label>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -257,7 +270,7 @@ export function TacticalTracking() {
             <>
               <LowTouchView sales={lowTouch.sales} today={today} />
               <WeeklyGoalsPanel today={today} lowTouchSales={lowTouch.sales} />
-              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} />
+              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} includeYampa20={includeYampa20} />
               <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
 
 
@@ -333,7 +346,7 @@ export function TacticalTracking() {
         today={today}
       />
 
-      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} />
+      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} includeYampa20={includeYampa20} />
 
       <RecoveryChannelPanel
         rows={recoveryRows}

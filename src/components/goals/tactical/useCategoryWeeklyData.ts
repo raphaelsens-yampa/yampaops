@@ -10,11 +10,16 @@ import {
   type OriginFilter,
 } from "@/lib/origins";
 
-/** Categorias exclusivas da conta yampa 2.0 — não entram nesta visão. */
-const YAMPA20_CATEGORY_IDS = new Set([
-  "736013b8-a8d9-4cb7-9853-116278e00a6d",
-  "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2",
-]);
+/** Categorias exclusivas da conta yampa 2.0 — nunca viram linha própria aqui. */
+const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
+const YAMPA20_ACTIVE_CAT = "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2";
+const YAMPA20_CATEGORY_IDS = new Set([YAMPA20_MRR_CAT, YAMPA20_ACTIVE_CAT]);
+/** Categorias do yampaFin que recebem o 2.0 quando "Incluir 2.0" está ativo. */
+const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
+const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
+/** Net MRR é FLUXO: recebe a VARIAÇÃO do estoque de MRR do 2.0 no período. */
+const NET_MRR_CAT = "259883ec-7be5-44cd-927f-947b12918da7";
+
 
 /**
  * Categorias cujo realizado é de ESTOQUE (nível no fim do período) e não de
@@ -76,6 +81,8 @@ export function useCategoryWeeklyData(
   refDate: Date,
   refreshKey = 0,
   origin: OriginFilter = "all",
+  /** Soma a conta yampa 2.0 em MRR/Ativos e a variação do 2.0 no Net MRR. */
+  includeYampa20 = false,
 ): CategoryWeeklyData {
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
@@ -175,6 +182,44 @@ export function useCategoryWeeklyData(
         }
       }
 
+      /**
+       * "Incluir 2.0": soma a conta yampa 2.0 na leitura (nada muda no banco).
+       * - MRR e Ativos Pagantes são ESTOQUE → soma no mesmo dia.
+       * - Net MRR é FLUXO → entra a VARIAÇÃO do estoque de MRR do 2.0 em relação
+       *   ao fechamento do mês anterior, exatamente como no Acompanhamento.
+       * Sem recorte por origem (a base do 2.0 não tem origem por price ID).
+       */
+      if (includeYampa20 && !shares) {
+        const mrr20 = new Map<string, number>();
+        const act20 = new Map<string, number>();
+        for (const row of (snapRes.data as any[]) || []) {
+          if (row.category_id === YAMPA20_MRR_CAT) {
+            mrr20.set(row.data as string, Number(row.realized_amount ?? 0));
+          } else if (row.category_id === YAMPA20_ACTIVE_CAT) {
+            act20.set(row.data as string, Number(row.deals_count ?? 0));
+          }
+        }
+        const addTo = (catId: string, extra: (date: string) => number | null) => {
+          const list = s.get(catId);
+          if (!list) return;
+          s.set(
+            catId,
+            list.map((p) => {
+              const add = extra(p.date);
+              return add === null ? p : { ...p, value: p.value + add };
+            }),
+          );
+        };
+        addTo(BASE_MRR_CAT, (d) => mrr20.get(d) ?? null);
+        addTo(BASE_ACTIVE_CAT, (d) => act20.get(d) ?? null);
+        const baseline = mrr20.get(prevEndKey) ?? null;
+        addTo(NET_MRR_CAT, (d) => {
+          if (baseline === null) return null;
+          const level = mrr20.get(d);
+          return level === undefined ? null : level - baseline;
+        });
+      }
+
       setCategories(cats);
       setTargets(t);
       setSeries(s);
@@ -184,7 +229,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20]);
 
   return { categories, targets, series, noOriginSplit, loading };
 }
