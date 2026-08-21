@@ -16,6 +16,7 @@ import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
+import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
   CATEGORY_SLUG_TO_CLASSIFICATION,
   ORIGIN_MIN_DATE_HINT,
@@ -491,7 +492,9 @@ export function MetabaseTracking() {
       if (i === 0) return; // sem mês anterior não há variação apurável
       const prev = months[i - 1];
       if (!has20.has(ym) || !baseMrr.has(prev)) return;
-      netByMonth.set(ym, (totalCombined.get(ym) || 0) - (baseMrr.get(prev) || 0));
+      const currentBase = baseMrr.get(ym) || 0;
+      const current20 = (totalCombined.get(ym) || 0) - currentBase;
+      netByMonth.set(ym, netMrrIncludingYampa20(currentBase, current20, baseMrr.get(prev) || 0));
     });
     // Substitui (não soma) o realizado de Net MRR dos meses cobertos.
     const withNet = remapped.filter(

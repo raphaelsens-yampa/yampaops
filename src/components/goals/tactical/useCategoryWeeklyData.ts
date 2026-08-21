@@ -5,6 +5,7 @@ import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
+import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
   buildOriginShares,
   CATEGORY_SLUG_TO_CLASSIFICATION,
@@ -243,7 +244,12 @@ export function useCategoryWeeklyData(
             NET_MRR_CAT,
             netList.map((p) => {
               const level = combined.get(p.date);
-              return level === undefined ? p : { ...p, value: level - baseBaseline };
+              const currentBase = baseMrrPoints.get(p.date);
+              if (level === undefined || currentBase === undefined) return p;
+              return {
+                ...p,
+                value: netMrrIncludingYampa20(currentBase, level - currentBase, baseBaseline),
+              };
             }),
           );
         }
