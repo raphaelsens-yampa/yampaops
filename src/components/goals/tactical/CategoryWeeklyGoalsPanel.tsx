@@ -38,6 +38,8 @@ interface Props {
   daily?: DailyDatum[];
   refreshKey?: number;
   origin?: OriginFilter;
+  /** Soma a conta yampa 2.0 em MRR/Ativos e sua variação no Net MRR. */
+  includeYampa20?: boolean;
 }
 
 interface WeekRow {
