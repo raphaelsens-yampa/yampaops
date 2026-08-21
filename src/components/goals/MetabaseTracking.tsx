@@ -1034,6 +1034,10 @@ export function MetabaseTracking() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="w-full sm:w-auto">
+                  <Label className="text-xs">Cenário de crescimento</Label>
+                  <GoalScenarioSelector />
+                </div>
               </div>
               {productScope !== "yampafin" && (
                 <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
