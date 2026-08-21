@@ -5,6 +5,7 @@ import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
+import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
   buildOriginShares,
   CATEGORY_SLUG_TO_CLASSIFICATION,
@@ -225,19 +226,30 @@ export function useCategoryWeeklyData(
         };
         addTo(BASE_MRR_CAT, (d) => mrr20.get(d) ?? null);
         addTo(BASE_ACTIVE_CAT, (d) => act20.get(d) ?? null);
-        // Net MRR com 2.0 = variação do ESTOQUE COMBINADO (yampaFin + 2.0) em
-        // relação ao fechamento do mês anterior. Não usamos o delta isolado do
-        // 2.0 (que só cai, pois a base está migrando para o yampaFin).
+        // Net MRR com 2.0 = estoque COMBINADO atual menos o fechamento anterior
+        // do yampaFin. O 2.0 é uma base em migração e sua queda isolada não pode
+        // reduzir o Net MRR consolidado.
+        const baseMrrPoints = new Map<string, number>();
+        for (const row of (snapRes.data as any[]) || []) {
+          if (row.category_id === BASE_MRR_CAT) {
+            baseMrrPoints.set(row.data as string, Number(row.realized_amount ?? 0));
+          }
+        }
         const combined = new Map<string, number>();
         for (const p of s.get(BASE_MRR_CAT) ?? []) combined.set(p.date, p.value);
-        const combinedBaseline = combined.get(prevEndKey) ?? null;
+        const baseBaseline = baseMrrPoints.get(prevEndKey) ?? null;
         const netList = s.get(NET_MRR_CAT);
-        if (netList && combinedBaseline !== null) {
+        if (netList && baseBaseline !== null) {
           s.set(
             NET_MRR_CAT,
             netList.map((p) => {
               const level = combined.get(p.date);
-              return level === undefined ? p : { ...p, value: level - combinedBaseline };
+              const currentBase = baseMrrPoints.get(p.date);
+              if (level === undefined || currentBase === undefined) return p;
+              return {
+                ...p,
+                value: netMrrIncludingYampa20(currentBase, level - currentBase, baseBaseline),
+              };
             }),
           );
         }

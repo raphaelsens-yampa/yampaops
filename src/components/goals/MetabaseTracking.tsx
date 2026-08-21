@@ -16,6 +16,7 @@ import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
+import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
   CATEGORY_SLUG_TO_CLASSIFICATION,
   ORIGIN_MIN_DATE_HINT,
@@ -466,8 +467,15 @@ export function MetabaseTracking() {
         ? { ...r, category_id: YAMPA20_TO_BASE[r.category_id] }
         : r,
     );
-    // Net MRR com 2.0 = variação do ESTOQUE COMBINADO (yampaFin + 2.0) mês a
-    // mês. Não usamos o delta isolado do 2.0 (que só cai na migração).
+    // Net MRR com 2.0 = estoque COMBINADO atual (yampaFin + 2.0) menos o
+    // fechamento anterior do yampaFin. A conta 2.0 é uma base em migração:
+    // compará-la isoladamente entre meses transformaria a redução esperada
+    // dessa base em Net MRR negativo e reduziria indevidamente o consolidado.
+    const baseMrr = new Map<string, number>();
+    sourceAgg.forEach((r) => {
+      if (r.category_id !== BASE_MRR_CAT) return;
+      baseMrr.set(r.year_month, (baseMrr.get(r.year_month) || 0) + Number(r.realized_amount || 0));
+    });
     const totalCombined = new Map<string, number>();
     const sample = new Map<string, AggRow>();
     remapped.forEach((r) => {
@@ -483,8 +491,10 @@ export function MetabaseTracking() {
     months.forEach((ym, i) => {
       if (i === 0) return; // sem mês anterior não há variação apurável
       const prev = months[i - 1];
-      if (!has20.has(ym) || !has20.has(prev)) return; // sem estoque do 2.0 nas duas pontas
-      netByMonth.set(ym, (totalCombined.get(ym) || 0) - (totalCombined.get(prev) || 0));
+      if (!has20.has(ym) || !baseMrr.has(prev)) return;
+      const currentBase = baseMrr.get(ym) || 0;
+      const current20 = (totalCombined.get(ym) || 0) - currentBase;
+      netByMonth.set(ym, netMrrIncludingYampa20(currentBase, current20, baseMrr.get(prev) || 0));
     });
     // Substitui (não soma) o realizado de Net MRR dos meses cobertos.
     const withNet = remapped.filter(
