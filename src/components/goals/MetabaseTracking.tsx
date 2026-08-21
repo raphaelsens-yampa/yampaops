@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
-import { applyScenarioToGoals, scenarioLabel } from "@/lib/goalScenario";
+import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import {
