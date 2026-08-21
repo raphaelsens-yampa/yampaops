@@ -14,6 +14,7 @@ import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
+import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import {
   CATEGORY_SLUG_TO_CLASSIFICATION,
@@ -213,9 +214,10 @@ export function MetabaseTracking() {
   const [allCategories, setAllCategories] = useState<GoalCategory[]>([]);
   // Cenário de crescimento (simulação local): eleva todas as metas em memória.
   const { growthPct: scenarioPct } = useGoalScenario();
+  const scenarioBaseline = useScenarioBaseline();
   const goals = useMemo(
-    () => applyScenarioToGoals(rawGoals, allCategories as any, scenarioPct),
-    [rawGoals, allCategories, scenarioPct],
+    () => applyScenarioToGoals(rawGoals, allCategories as any, scenarioPct, scenarioBaseline),
+    [rawGoals, allCategories, scenarioPct, scenarioBaseline],
   );
   const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { scenarioDailyFactor } from "@/lib/goalScenario";
+import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
 
 /**
  * Fator do cenário de crescimento aplicado às metas DIÁRIAS táticas
@@ -9,6 +10,7 @@ import { scenarioDailyFactor } from "@/lib/goalScenario";
  */
 export function useScenarioDailyFactor(ref: Date): number {
   const { growthPct } = useGoalScenario();
+  const baseline = useScenarioBaseline();
   const [factor, setFactor] = useState(1);
   const monthKey = `${ref.getFullYear()}-${ref.getMonth()}`;
 
@@ -30,6 +32,7 @@ export function useScenarioDailyFactor(ref: Date): number {
           ((catRes.data as any[]) || []) as any[],
           growthPct,
           ref,
+          baseline,
         ),
       );
     })();
@@ -37,7 +40,7 @@ export function useScenarioDailyFactor(ref: Date): number {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [growthPct, monthKey]);
+  }, [growthPct, monthKey, baseline?.month, baseline?.value]);
 
   return factor;
 }

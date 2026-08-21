@@ -4,6 +4,7 @@ import type { GoalCategory } from "@/lib/goalCategories";
 import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "./useTacticalData";
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
+import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
 import {
   buildOriginShares,
   CATEGORY_SLUG_TO_CLASSIFICATION,
@@ -93,6 +94,7 @@ export function useCategoryWeeklyData(
   const [loading, setLoading] = useState(true);
   /** Cenário de crescimento simulado (0 = metas cadastradas). */
   const { growthPct: scenarioPct } = useGoalScenario();
+  const scenarioBaseline = useScenarioBaseline();
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +138,7 @@ export function useCategoryWeeklyData(
         ((goalsRes.data as any[]) || []) as any[],
         ((catRes.data as any[]) || []) as any[],
         scenarioPct,
+        scenarioBaseline,
       );
       for (const g of scenarioGoals) {
         if (!g.category_id) continue;
@@ -239,7 +242,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, scenarioPct]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
 
   return { categories, targets, series, noOriginSplit, loading };
 }
