@@ -34,6 +34,8 @@ import { LowTouchAreasConfig } from "./LowTouchAreasConfig";
 import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
 import { useLowTouchData } from "./useLowTouchData";
 import { metricsForTeam } from "./types";
+import { useScenarioDailyFactor } from "./useScenarioDailyFactor";
+import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { ORIGIN_OPTIONS, ORIGIN_MIN_DATE_HINT, isOriginFiltered, type OriginFilter } from "@/lib/origins";
 
 const ALL_TEAMS = "__all__";
@@ -55,7 +57,19 @@ export function TacticalTracking() {
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
-  const { metrics, goals, profiles, teams, members, daily, unmatchedOwners, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
+  const { metrics, goals: rawGoals, profiles, teams, members, daily, unmatchedOwners, loading } = useTacticalData(rangeStart, today, reloadKey, originFilter);
+  /**
+   * Cenário de crescimento (simulação local): eleva as metas diárias na mesma
+   * proporção da exigência extra de entrada de MRR do mês.
+   */
+  const scenarioFactor = useScenarioDailyFactor(today);
+  const goals = useMemo(
+    () =>
+      scenarioFactor === 1
+        ? rawGoals
+        : rawGoals.map((g) => ({ ...g, daily_target: Number(g.daily_target || 0) * scenarioFactor })),
+    [rawGoals, scenarioFactor],
+  );
   const [lowTouchKey, setLowTouchKey] = useState(0);
   const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
 
@@ -209,6 +223,7 @@ export function TacticalTracking() {
                   Incluir 2.0
                 </Label>
               </div>
+              <GoalScenarioSelector className="w-full md:w-auto" />
               <Button
                 variant="outline"
                 size="sm"

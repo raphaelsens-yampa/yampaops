@@ -12,6 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { AREA_LABELS, isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
 import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
 import { computeRevisedTargets } from "@/lib/revisedGoals";
+import { applyScenarioToGoals } from "@/lib/goalScenario";
+import { useGoalScenario } from "@/hooks/useGoalScenario";
+import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
+import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import {
   CATEGORY_SLUG_TO_CLASSIFICATION,
   ORIGIN_MIN_DATE_HINT,
@@ -206,7 +210,15 @@ export function MetabaseTracking() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [agg, setAgg] = useState<AggRow[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [rawGoals, setRawGoals] = useState<Goal[]>([]);
+  const [allCategories, setAllCategories] = useState<GoalCategory[]>([]);
+  // Cenário de crescimento (simulação local): eleva todas as metas em memória.
+  const { growthPct: scenarioPct } = useGoalScenario();
+  const scenarioBaseline = useScenarioBaseline();
+  const goals = useMemo(
+    () => applyScenarioToGoals(rawGoals, allCategories as any, scenarioPct, scenarioBaseline),
+    [rawGoals, allCategories, scenarioPct, scenarioBaseline],
+  );
   const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // Histórico append-only por dia
@@ -224,6 +236,7 @@ export function MetabaseTracking() {
         supabase.from("sales_campaigns").select("id, name").order("name"),
       ]);
       // As categorias do 2.0 nunca entram na lista: são tratadas só pelo recorte de Produto
+      setAllCategories(((cRes.data as GoalCategory[]) || []));
       setCategories((((cRes.data as GoalCategory[]) || []).filter((c) => !YAMPA20_CATEGORY_IDS.has(c.id))));
       setTeams(tRes.data || []);
       setProfiles(pRes.data || []);
@@ -240,7 +253,7 @@ export function MetabaseTracking() {
         supabase.from("metabase_daily_raw").select("capture_date").order("capture_date", { ascending: false }).limit(1),
       ]);
       setAgg((aggRes.data as AggRow[]) || []);
-      setGoals((goalsRes.data as Goal[]) || []);
+      setRawGoals((goalsRes.data as Goal[]) || []);
       setMaxCapture(((capRes.data as any[]) || [])[0]?.capture_date || null);
       setLoading(false);
     })();
@@ -1022,6 +1035,10 @@ export function MetabaseTracking() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="w-full sm:w-auto">
+                  <Label className="text-xs">Cenário de crescimento</Label>
+                  <GoalScenarioSelector />
                 </div>
               </div>
               {productScope !== "yampafin" && (
