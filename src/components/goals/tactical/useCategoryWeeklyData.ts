@@ -10,11 +10,16 @@ import {
   type OriginFilter,
 } from "@/lib/origins";
 
-/** Categorias exclusivas da conta yampa 2.0 — não entram nesta visão. */
-const YAMPA20_CATEGORY_IDS = new Set([
-  "736013b8-a8d9-4cb7-9853-116278e00a6d",
-  "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2",
-]);
+/** Categorias exclusivas da conta yampa 2.0 — nunca viram linha própria aqui. */
+const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
+const YAMPA20_ACTIVE_CAT = "4f7772b8-1dcd-4e92-89bc-23fac2a57fa2";
+const YAMPA20_CATEGORY_IDS = new Set([YAMPA20_MRR_CAT, YAMPA20_ACTIVE_CAT]);
+/** Categorias do yampaFin que recebem o 2.0 quando "Incluir 2.0" está ativo. */
+const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
+const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
+/** Net MRR é FLUXO: recebe a VARIAÇÃO do estoque de MRR do 2.0 no período. */
+const NET_MRR_CAT = "259883ec-7be5-44cd-927f-947b12918da7";
+
 
 /**
  * Categorias cujo realizado é de ESTOQUE (nível no fim do período) e não de
