@@ -182,6 +182,44 @@ export function useCategoryWeeklyData(
         }
       }
 
+      /**
+       * "Incluir 2.0": soma a conta yampa 2.0 na leitura (nada muda no banco).
+       * - MRR e Ativos Pagantes são ESTOQUE → soma no mesmo dia.
+       * - Net MRR é FLUXO → entra a VARIAÇÃO do estoque de MRR do 2.0 em relação
+       *   ao fechamento do mês anterior, exatamente como no Acompanhamento.
+       * Sem recorte por origem (a base do 2.0 não tem origem por price ID).
+       */
+      if (includeYampa20 && !shares) {
+        const mrr20 = new Map<string, number>();
+        const act20 = new Map<string, number>();
+        for (const row of (snapRes.data as any[]) || []) {
+          if (row.category_id === YAMPA20_MRR_CAT) {
+            mrr20.set(row.data as string, Number(row.realized_amount ?? 0));
+          } else if (row.category_id === YAMPA20_ACTIVE_CAT) {
+            act20.set(row.data as string, Number(row.deals_count ?? 0));
+          }
+        }
+        const addTo = (catId: string, extra: (date: string) => number | null) => {
+          const list = s.get(catId);
+          if (!list) return;
+          s.set(
+            catId,
+            list.map((p) => {
+              const add = extra(p.date);
+              return add === null ? p : { ...p, value: p.value + add };
+            }),
+          );
+        };
+        addTo(BASE_MRR_CAT, (d) => mrr20.get(d) ?? null);
+        addTo(BASE_ACTIVE_CAT, (d) => act20.get(d) ?? null);
+        const baseline = mrr20.get(prevEndKey) ?? null;
+        addTo(NET_MRR_CAT, (d) => {
+          if (baseline === null) return null;
+          const level = mrr20.get(d);
+          return level === undefined ? null : level - baseline;
+        });
+      }
+
       setCategories(cats);
       setTargets(t);
       setSeries(s);
@@ -191,7 +229,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20]);
 
   return { categories, targets, series, noOriginSplit, loading };
 }
