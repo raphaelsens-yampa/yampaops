@@ -42,6 +42,7 @@ import ChatwootAuditMine from "./pages/ChatwootAuditMine";
 import SalesCampaigns from "./pages/SalesCampaigns";
 import SalesCampaignDetail from "./pages/SalesCampaignDetail";
 import SalesCampaignReports from "./pages/SalesCampaignReports";
+import CampaignHistory from "./pages/CampaignHistory";
 import AgentActivity from "./pages/AgentActivity";
 import DiscountOverview from "./pages/discounts/Overview";
 import DiscountPortfolio from "./pages/discounts/Portfolio";
