@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,6 +7,18 @@ import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { BASELINE_GROWTH_PCT, SCENARIO_PRESETS, scenarioLabel } from "@/lib/goalScenario";
 
 const CUSTOM = "custom";
+const MAX_PCT = 100;
+
+function isPresetPct(pct: number) {
+  return SCENARIO_PRESETS.includes(pct as (typeof SCENARIO_PRESETS)[number]);
+}
+
+/** Converte texto digitado em % válido (0 = sem cenário). */
+function parsePct(raw: string): number {
+  const n = Number(String(raw).replace(",", "."));
+  if (!isFinite(n) || n <= 0) return 0;
+  return Math.min(n, MAX_PCT);
+}
 
 /**
  * Seletor de cenário de crescimento (simulação local). Eleva todas as metas
@@ -14,9 +26,18 @@ const CUSTOM = "custom";
  */
 export function GoalScenarioSelector({ className }: { className?: string }) {
   const { growthPct, setScenario } = useGoalScenario();
-  const isPreset = SCENARIO_PRESETS.includes(growthPct as (typeof SCENARIO_PRESETS)[number]);
-  const [custom, setCustom] = useState(isPreset ? "" : String(growthPct || ""));
-  const mode = isPreset ? String(growthPct) : CUSTOM;
+  // Modo é estado próprio: "Personalizado…" continua selecionado mesmo com o campo vazio.
+  const [customMode, setCustomMode] = useState(() => growthPct > 0 && !isPresetPct(growthPct));
+  const [custom, setCustom] = useState(() =>
+    growthPct > 0 && !isPresetPct(growthPct) ? String(growthPct).replace(".", ",") : "",
+  );
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (customMode) inputRef.current?.focus();
+  }, [customMode]);
+
+  const mode = customMode ? CUSTOM : String(isPresetPct(growthPct) ? growthPct : 0);
 
   return (
     <div className={className}>
@@ -25,12 +46,14 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
           value={mode}
           onValueChange={(v) => {
             if (v === CUSTOM) {
-              const n = Number(custom.replace(",", "."));
-              setScenario(isFinite(n) ? n : 0);
-            } else {
-              setCustom("");
-              setScenario(Number(v));
+              setCustomMode(true);
+              const pct = parsePct(custom);
+              if (pct) setScenario(pct);
+              return;
             }
+            setCustomMode(false);
+            setCustom("");
+            setScenario(Number(v));
           }}
         >
           <SelectTrigger className="h-10 md:h-9 w-full md:w-56" aria-label="Cenário de crescimento">
@@ -44,17 +67,19 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
             <SelectItem value={CUSTOM}>Personalizado…</SelectItem>
           </SelectContent>
         </Select>
-        {mode === CUSTOM && (
+        {customMode && (
           <div className="flex items-center gap-1">
             <Input
+              ref={inputRef}
               className="h-10 md:h-9 w-24"
               inputMode="decimal"
               placeholder="% a.m."
+              aria-label="Crescimento personalizado por mês"
               value={custom}
               onChange={(e) => {
-                setCustom(e.target.value);
-                const n = Number(e.target.value.replace(",", "."));
-                setScenario(isFinite(n) ? n : 0);
+                const raw = e.target.value;
+                setCustom(raw);
+                setScenario(parsePct(raw));
               }}
             />
             <span className="text-xs text-muted-foreground">% a.m.</span>
@@ -66,6 +91,11 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
           </Badge>
         )}
       </div>
+      {customMode && growthPct <= 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Digite o crescimento mensal desejado (ex.: 7,5). Até {MAX_PCT}% a.m.
+        </p>
+      )}
       {growthPct > 0 && (
         <p className="mt-1 text-xs text-muted-foreground">
           Metas elevadas por crescimento composto de MRR; metas de churn/downsell ficam{" "}
