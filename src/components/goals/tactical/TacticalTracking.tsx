@@ -198,6 +198,17 @@ export function TacticalTracking() {
                   Revisada
                 </Label>
               </div>
+              <div className="flex items-center gap-2 rounded-md border px-2.5 h-10 md:h-9 flex-1 md:flex-none justify-center">
+                <Switch
+                  id="tactical-include-yampa20"
+                  checked={includeYampa20}
+                  onCheckedChange={setIncludeYampa20}
+                  disabled={isOriginFiltered(originFilter)}
+                />
+                <Label htmlFor="tactical-include-yampa20" className="text-xs cursor-pointer whitespace-nowrap">
+                  Incluir 2.0
+                </Label>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
