@@ -50,6 +50,8 @@ export function TacticalTracking() {
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
   const [revisedView, setRevisedView] = useState(false);
+  /** Soma a conta yampa 2.0 (MRR, Ativos e a variação no Net MRR). */
+  const [includeYampa20, setIncludeYampa20] = useState(false);
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
 
 
