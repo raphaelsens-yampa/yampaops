@@ -206,7 +206,14 @@ export function MetabaseTracking() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [agg, setAgg] = useState<AggRow[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [rawGoals, setRawGoals] = useState<Goal[]>([]);
+  const [allCategories, setAllCategories] = useState<GoalCategory[]>([]);
+  // Cenário de crescimento (simulação local): eleva todas as metas em memória.
+  const { growthPct: scenarioPct } = useGoalScenario();
+  const goals = useMemo(
+    () => applyScenarioToGoals(rawGoals, allCategories as any, scenarioPct),
+    [rawGoals, allCategories, scenarioPct],
+  );
   const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // Histórico append-only por dia
