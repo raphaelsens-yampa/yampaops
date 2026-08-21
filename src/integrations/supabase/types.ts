@@ -455,6 +455,141 @@ export type Database = {
           },
         ]
       }
+      campaign_history: {
+        Row: {
+          channel: string | null
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string | null
+          ref_month: string | null
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id?: string | null
+          ref_month?: string | null
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string | null
+          ref_month?: string | null
+          start_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_history_metrics: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          is_active: boolean
+          is_funnel: boolean
+          label: string
+          position: number
+          section: string | null
+          slug: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          direction?: string
+          id?: string
+          is_active?: boolean
+          is_funnel?: boolean
+          label: string
+          position?: number
+          section?: string | null
+          slug: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          is_active?: boolean
+          is_funnel?: boolean
+          label?: string
+          position?: number
+          section?: string | null
+          slug?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_history_values: {
+        Row: {
+          actual_value: number | null
+          campaign_id: string
+          created_at: string
+          funnel_actual_pct: number | null
+          funnel_target_pct: number | null
+          id: string
+          metric_id: string
+          target_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_value?: number | null
+          campaign_id: string
+          created_at?: string
+          funnel_actual_pct?: number | null
+          funnel_target_pct?: number | null
+          id?: string
+          metric_id: string
+          target_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_value?: number | null
+          campaign_id?: string
+          created_at?: string
+          funnel_actual_pct?: number | null
+          funnel_target_pct?: number | null
+          id?: string
+          metric_id?: string
+          target_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_history_values_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_history_values_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatwoot_ac_note_links: {
         Row: {
           ac_contact_id: string

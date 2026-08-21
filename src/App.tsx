@@ -42,6 +42,7 @@ import ChatwootAuditMine from "./pages/ChatwootAuditMine";
 import SalesCampaigns from "./pages/SalesCampaigns";
 import SalesCampaignDetail from "./pages/SalesCampaignDetail";
 import SalesCampaignReports from "./pages/SalesCampaignReports";
+import CampaignHistory from "./pages/CampaignHistory";
 import AgentActivity from "./pages/AgentActivity";
 import DiscountOverview from "./pages/discounts/Overview";
 import DiscountPortfolio from "./pages/discounts/Portfolio";
@@ -131,6 +132,7 @@ function AppRoutes() {
       <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
       <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
       <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />
+      <Route path="/sales-campaigns/history" element={<RequireArea area="sales_campaigns"><CampaignHistory /></RequireArea>} />
       <Route path="/sales-campaigns/:id" element={<RequireArea area="sales_campaigns"><SalesCampaignDetail /></RequireArea>} />
       <Route path="/atividade-agentes" element={<RequireArea area="agent_activity"><AgentActivity /></RequireArea>} />
       <Route path="/discounts/overview" element={<RequireArea area="discounts_overview"><DiscountOverview /></RequireArea>} />
