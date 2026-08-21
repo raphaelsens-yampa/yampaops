@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GoalCategory } from "@/lib/goalCategories";
 import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "./useTacticalData";
+import { applyScenarioToGoals } from "@/lib/goalScenario";
+import { useGoalScenario } from "@/hooks/useGoalScenario";
 import {
   buildOriginShares,
   CATEGORY_SLUG_TO_CLASSIFICATION,
@@ -89,6 +91,8 @@ export function useCategoryWeeklyData(
   const [series, setSeries] = useState<Map<string, CategorySnapPoint[]>>(new Map());
   const [noOriginSplit, setNoOriginSplit] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  /** Cenário de crescimento simulado (0 = metas cadastradas). */
+  const { growthPct: scenarioPct } = useGoalScenario();
 
   useEffect(() => {
     let cancelled = false;
@@ -127,7 +131,13 @@ export function useCategoryWeeklyData(
       const byId = new Map(cats.map((c) => [c.id, c]));
 
       const t = new Map<string, number>();
-      for (const g of (goalsRes.data as any[]) || []) {
+      // Cenário de crescimento eleva as metas em memória (nada muda no banco).
+      const scenarioGoals = applyScenarioToGoals(
+        ((goalsRes.data as any[]) || []) as any[],
+        ((catRes.data as any[]) || []) as any[],
+        scenarioPct,
+      );
+      for (const g of scenarioGoals) {
         if (!g.category_id) continue;
         const value =
           Number(g.target_pct || 0) ||
@@ -229,7 +239,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, scenarioPct]);
 
   return { categories, targets, series, noOriginSplit, loading };
 }
