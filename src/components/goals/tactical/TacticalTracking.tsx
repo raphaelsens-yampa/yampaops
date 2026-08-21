@@ -270,7 +270,7 @@ export function TacticalTracking() {
             <>
               <LowTouchView sales={lowTouch.sales} today={today} />
               <WeeklyGoalsPanel today={today} lowTouchSales={lowTouch.sales} />
-              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} />
+              <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} includeYampa20={includeYampa20} />
               <LowTouchConversionsTable sales={lowTouch.sales} today={today} />
 
 
@@ -346,7 +346,7 @@ export function TacticalTracking() {
         today={today}
       />
 
-      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} />
+      <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} includeYampa20={includeYampa20} />
 
       <RecoveryChannelPanel
         rows={recoveryRows}
