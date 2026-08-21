@@ -73,10 +73,19 @@ function isLowerBetter(direction?: string | null) {
 }
 
 /** Fatores por `categoryId|YYYY-MM`. Vazio quando o cenário é o cadastrado. */
+export interface ScenarioBaseline {
+  /** YYYY-MM do último mês fechado com realizado de Total de MRR */
+  month: string;
+  /** Total de MRR realizado nesse mês */
+  value: number;
+}
+
 export function buildScenarioFactors(
   goals: ScenarioGoalLike[],
   categories: ScenarioCategoryLike[],
   growthPct: number,
+  /** Ancora o cenário no último fechamento real; meses anteriores ficam intactos. */
+  baseline?: ScenarioBaseline | null,
 ): Map<string, number> {
   const factors = new Map<string, number>();
   const g = Number(growthPct) / 100;
@@ -108,10 +117,17 @@ export function buildScenarioFactors(
   const origTotal = (m: string) => (totalMrrCat ? orig.get(`${totalMrrCat.id}|${m}`) ?? 0 : 0);
 
   // ===== Estoque de MRR por crescimento composto =====
+  // Âncora: último mês fechado com realizado (quando informado). Meses até a
+  // âncora ficam intactos — só o futuro é simulado.
   const newStock = new Map<string, number>();
-  let anchorIdx = monthList.findIndex((m) => origTotal(m) > 0);
-  if (anchorIdx < 0) anchorIdx = 0;
-  let prev = origTotal(monthList[anchorIdx]);
+  let anchorIdx = baseline ? monthList.findIndex((m) => m === baseline.month) : -1;
+  let anchorValue = baseline && anchorIdx >= 0 ? baseline.value : 0;
+  if (anchorIdx < 0) {
+    anchorIdx = monthList.findIndex((m) => origTotal(m) > 0);
+    if (anchorIdx < 0) anchorIdx = 0;
+    anchorValue = origTotal(monthList[anchorIdx]);
+  }
+  let prev = anchorValue;
   monthList.forEach((m, idx) => {
     if (idx < anchorIdx) {
       newStock.set(m, origTotal(m));
@@ -124,6 +140,7 @@ export function buildScenarioFactors(
     prev = prev * (1 + g);
     newStock.set(m, prev);
   });
+  const anchorMonth = monthList[anchorIdx];
 
   const stockFactor = new Map<string, number>();
   monthList.forEach((m) => {
@@ -166,6 +183,10 @@ export function buildScenarioFactors(
   // ===== Fator final por categoria/mês =====
   for (const [key] of orig) {
     const [catId, month] = key.split("|");
+    if (month <= anchorMonth) {
+      factors.set(key, 1);
+      continue;
+    }
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
     let f: number;
@@ -202,8 +223,9 @@ export function applyScenarioToGoals<T extends ScenarioGoalLike>(
   goals: T[],
   categories: ScenarioCategoryLike[],
   growthPct: number,
+  baseline?: ScenarioBaseline | null,
 ): T[] {
-  const factors = buildScenarioFactors(goals, categories, growthPct);
+  const factors = buildScenarioFactors(goals, categories, growthPct, baseline);
   if (!factors.size) return goals;
   return goals.map((goal) => {
     const f = scenarioFactorFor(factors, goal.category_id, goal.period_start);
@@ -227,10 +249,11 @@ export function scenarioDailyFactor(
   categories: ScenarioCategoryLike[],
   growthPct: number,
   ref: Date,
+  baseline?: ScenarioBaseline | null,
 ): number {
   const g = Number(growthPct) / 100;
   if (!g || g <= 0) return 1;
-  const factors = buildScenarioFactors(goals, categories, growthPct);
+  const factors = buildScenarioFactors(goals, categories, growthPct, baseline);
   const month = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
   const increase = categories.find((c) => c.slug === INCREASE_SLUG);
   if (increase) {
