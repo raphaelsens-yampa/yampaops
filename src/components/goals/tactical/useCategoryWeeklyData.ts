@@ -225,12 +225,23 @@ export function useCategoryWeeklyData(
         };
         addTo(BASE_MRR_CAT, (d) => mrr20.get(d) ?? null);
         addTo(BASE_ACTIVE_CAT, (d) => act20.get(d) ?? null);
-        const baseline = mrr20.get(prevEndKey) ?? null;
-        addTo(NET_MRR_CAT, (d) => {
-          if (baseline === null) return null;
-          const level = mrr20.get(d);
-          return level === undefined ? null : level - baseline;
-        });
+        // Net MRR com 2.0 = variação do ESTOQUE COMBINADO (yampaFin + 2.0) em
+        // relação ao fechamento do mês anterior. Não usamos o delta isolado do
+        // 2.0 (que só cai, pois a base está migrando para o yampaFin).
+        const combined = new Map<string, number>();
+        for (const p of s.get(BASE_MRR_CAT) ?? []) combined.set(p.date, p.value);
+        const combinedBaseline = combined.get(prevEndKey) ?? null;
+        const netList = s.get(NET_MRR_CAT);
+        if (netList && combinedBaseline !== null) {
+          s.set(
+            NET_MRR_CAT,
+            netList.map((p) => {
+              const level = combined.get(p.date);
+              return level === undefined ? p : { ...p, value: level - combinedBaseline };
+            }),
+          );
+        }
+
       }
 
       setCategories(cats);
