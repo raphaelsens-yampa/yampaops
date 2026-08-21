@@ -74,15 +74,17 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
   return found;
 }
 
-export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all" }: Props) {
+export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all", includeYampa20 = false }: Props) {
   const [open, setOpen] = useState(false);
 
   const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
     origin,
+    includeYampa20,
   );
   const originFiltered = isOriginFiltered(origin);
+  const yampa20Applied = includeYampa20 && !originFiltered;
 
   const available = useMemo(
     () => categories.filter((c) => (targets.get(c.id) ?? 0) > 0),
