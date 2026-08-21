@@ -422,6 +422,9 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                   {originFiltered && (
                     <Badge variant="secondary" className="text-[10px]">{originLabel(origin)}</Badge>
                   )}
+                  {yampa20Applied && ["total_de_mrr_ms3g6o38", "usuarios_ativos_pagantes_ms8yyce5", "net-mrr"].includes(cat.slug) && (
+                    <Badge variant="secondary" className="text-[10px]">+ 2.0</Badge>
+                  )}
                   {partialOrigin && (
                     <span className="text-[10px] text-amber-600">{ORIGIN_NO_SPLIT_HINT}</span>
                   )}
