@@ -132,6 +132,7 @@ function AppRoutes() {
       <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
       <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
       <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />
+      <Route path="/sales-campaigns/history" element={<RequireArea area="sales_campaigns"><CampaignHistory /></RequireArea>} />
       <Route path="/sales-campaigns/:id" element={<RequireArea area="sales_campaigns"><SalesCampaignDetail /></RequireArea>} />
       <Route path="/atividade-agentes" element={<RequireArea area="agent_activity"><AgentActivity /></RequireArea>} />
       <Route path="/discounts/overview" element={<RequireArea area="discounts_overview"><DiscountOverview /></RequireArea>} />
