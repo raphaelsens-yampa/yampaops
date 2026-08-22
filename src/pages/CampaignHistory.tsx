@@ -227,7 +227,8 @@ export default function CampaignHistory() {
           label: k.label,
           actual: formatMetricValue(actual, "percent"),
           target: formatMetricValue(target, "percent"),
-          pct: formatPct(attainmentPct(target, actual)),
+          attainment: attainmentPct(target, actual),
+          cap: false,
         };
       }
 
