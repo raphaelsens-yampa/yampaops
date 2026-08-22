@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeRevisedWeeklyTargets, type WeeklyRevisionInput } from "@/lib/revisedGoals";
+import { weekBusinessDaysDone } from "@/components/goals/tactical/types";
 
 const w = (
   businessDays: number,
