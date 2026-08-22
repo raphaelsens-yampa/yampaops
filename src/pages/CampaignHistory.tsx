@@ -200,7 +200,7 @@ export default function CampaignHistory() {
       { label: "Total de Vendas", slug: "conversao" },
       { label: "MRR Gerado", slug: "mrr" },
       { label: "LTV/CAC", slug: "ltv_cac" },
-      { label: "Tempo de ROI", slug: "tempo_roi" },
+      { label: "Tempo de ROI", slug: "tempo_roi", cap: true },
     ];
 
     const val = (m: HistoryMetric): { target: number | null; actual: number | null } => {
