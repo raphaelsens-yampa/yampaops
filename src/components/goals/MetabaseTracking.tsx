@@ -963,6 +963,21 @@ export function MetabaseTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, revised, compareWindow]);
 
+  // MRR (Total de MRR) realizado por mês — base do "% de Crescimento a.m.".
+  // Já respeita o recorte de produto/origem pois parte de `scopedAgg`.
+  const mrrByMonth = useMemo(() => {
+    const map = new Array(12).fill(0);
+    scopedAgg.forEach((r) => {
+      if (r.category_id !== BASE_MRR_CAT) return;
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      map[d.getMonth()] += Number(r.realized_amount || 0);
+    });
+    return map;
+  }, [scopedAgg, year]);
+
+
+
 
   // Meses cobertos pelo Metabase no ano selecionado
   const coveredMonths = useMemo(() => {
@@ -1340,6 +1355,10 @@ export function MetabaseTracking() {
         const monthRealized = monthRow?.Realizado || 0;
         const monthGap = monthTarget - monthRealized;
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
+        const prevMonthIdx = currentMonthIdx - 1;
+        const curMrr = mrrByMonth[currentMonthIdx] || 0;
+        const prevMrr = mrrByMonth[prevMonthIdx] || 0;
+        const growthPct = prevMrr > 0 ? (curMrr / prevMrr - 1) * 100 : null;
         const monthLabel = MONTHS[currentMonthIdx];
         const revisedDeltaInWindow = chartData.reduce(
           (s, r) => s + (r.inWin ? (r.MetaRevisada || 0) - (r.Meta || 0) : 0),
@@ -1419,7 +1438,7 @@ export function MetabaseTracking() {
               </p>
             )}
             {kpiView === "month" ? (
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
                 <Card className="border-primary/40"><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     Meta do Mês ({monthLabel})
@@ -1441,6 +1460,21 @@ export function MetabaseTracking() {
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{gapTitle(monthGap)}</p>
                   <p className={`text-xl sm:text-2xl font-bold ${gapColor(monthGap)}`}>{gapValue(monthGap)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% de Crescimento a.m.</p>
+                  {growthPct === null ? (
+                    <p className="text-xl sm:text-2xl font-bold text-muted-foreground">—</p>
+                  ) : (
+                    <>
+                      <p className={`text-xl sm:text-2xl font-bold ${growthPct > 0 ? "text-emerald-600" : growthPct < 0 ? "text-rose-500" : "text-muted-foreground"}`}>
+                        {growthPct > 0 ? "+" : "−"}{Math.abs(growthPct).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {prevMonthIdx >= 0 ? `${MONTHS[currentMonthIdx]} R$ ${(curMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} · vs ${MONTHS[prevMonthIdx]} R$ ${(prevMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}` : ""}
+                      </p>
+                    </>
+                  )}
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
