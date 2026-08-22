@@ -1392,11 +1392,14 @@ export function MetabaseTracking() {
         const monthGap = monthTarget - monthRealized;
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
         const prevMonthIdx = currentMonthIdx - 1;
+        // Com "Incluir 2.0", o mês corrente é o estoque COMBINADO e o mês anterior
+        // é o fechamento do yampaFin: o 2.0 acrescenta, nunca reduz o crescimento.
+        const combineRef = productScope === "all" && !!baseStockByMonth.has20[currentMonthIdx];
         const curMrr = mrrByMonth[currentMonthIdx] || 0;
-        const prevMrr = mrrByMonth[prevMonthIdx] || 0;
+        const prevMrr = (combineRef ? baseStockByMonth.mrr[prevMonthIdx] : mrrByMonth[prevMonthIdx]) || 0;
         const growthPct = prevMrr > 0 ? (curMrr / prevMrr - 1) * 100 : null;
         const curAtivos = ativosByMonth[currentMonthIdx] || 0;
-        const prevAtivos = ativosByMonth[prevMonthIdx] || 0;
+        const prevAtivos = (combineRef ? baseStockByMonth.ativos[prevMonthIdx] : ativosByMonth[prevMonthIdx]) || 0;
         const growthPctAtivos = prevAtivos > 0 ? (curAtivos / prevAtivos - 1) * 100 : null;
 
         const monthLabel = MONTHS[currentMonthIdx];
