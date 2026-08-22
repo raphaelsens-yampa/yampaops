@@ -176,7 +176,7 @@ export interface MonthWeek {
 }
 
 /**
- * Semanas (segunda a domingo) do mês da data de referência, truncadas nos
+ * Semanas (domingo a sábado) do mês da data de referência, truncadas nos
  * limites do mês — nunca somam dias de outro mês.
  */
 export function weeksOfMonth(ref: Date): MonthWeek[] {
@@ -188,10 +188,10 @@ export function weeksOfMonth(ref: Date): MonthWeek[] {
   const pad = (n: number) => String(n).padStart(2, "0");
   while (cursor <= monthEnd) {
     const start = new Date(cursor);
-    // domingo encerra a semana
+    // sábado encerra a semana (domingo = início)
     const end = new Date(start);
-    const daysToSunday = (7 - start.getDay()) % 7; // 0 = já é domingo
-    end.setDate(end.getDate() + daysToSunday);
+    const daysToSaturday = (6 - start.getDay() + 7) % 7; // 0 = já é sábado
+    end.setDate(end.getDate() + daysToSaturday);
     if (end > monthEnd) end.setTime(monthEnd.getTime());
     weeks.push({
       index,
