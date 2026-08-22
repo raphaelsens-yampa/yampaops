@@ -296,8 +296,10 @@ export function WeeklyGoalsPanel({
 
   const rows: Row[] = useMemo(() => {
     if (!revised) return baseRows;
+    // Semana vigente com dias úteis encerrados (sáb/dom) entra como fechada,
+    // para o relatório de sábado já mostrar as semanas seguintes recalculadas.
     const statusOf = (r: Row): WeekStatus =>
-      r.isFuture ? "future" : r.isCurrent ? "current" : "closed";
+      r.isFuture ? "future" : r.isCurrent && !r.bdDone ? "current" : "closed";
 
     const monthTarget = baseRows.reduce((s, r) => s + (r.target ?? 0), 0);
     const res = computeRevisedWeeklyTargets({
