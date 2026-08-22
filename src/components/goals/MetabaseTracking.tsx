@@ -1462,6 +1462,21 @@ export function MetabaseTracking() {
                   <p className="text-[10px] text-muted-foreground mt-1">{gapLabel(monthGap)}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% de Crescimento a.m.</p>
+                  {growthPct === null ? (
+                    <p className="text-xl sm:text-2xl font-bold text-muted-foreground">—</p>
+                  ) : (
+                    <>
+                      <p className={`text-xl sm:text-2xl font-bold ${growthPct > 0 ? "text-emerald-600" : growthPct < 0 ? "text-rose-500" : "text-muted-foreground"}`}>
+                        {growthPct > 0 ? "+" : "−"}{Math.abs(growthPct).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {prevMonthIdx >= 0 ? `${MONTHS[currentMonthIdx]} R$ ${(curMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} · vs ${MONTHS[prevMonthIdx]} R$ ${(prevMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}` : ""}
+                      </p>
+                    </>
+                  )}
+                </CardContent></Card>
+                <Card><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% Atingido (vs Meta)</p>
                   <p className={`text-xl sm:text-2xl font-bold ${pctColor(monthPct, isLessBetter)}`}>{monthPct.toFixed(1)}%</p>
                 </CardContent></Card>
