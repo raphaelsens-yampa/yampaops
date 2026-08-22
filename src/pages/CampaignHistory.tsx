@@ -251,13 +251,14 @@ export default function CampaignHistory() {
         }
       }
       if (!hasVal) {
-        return { label: k.label, actual: formatMetricValue(null, unit), target: formatMetricValue(null, unit), pct: formatPct(null) };
+        return { label: k.label, actual: formatMetricValue(null, unit), target: formatMetricValue(null, unit), attainment: null, cap: !!k.cap };
       }
       return {
         label: k.label,
         actual: formatMetricValue(actual, unit),
         target: formatMetricValue(target, unit),
-        pct: formatPct(attainmentPct(target, actual)),
+        attainment: attainmentPct(target, actual),
+        cap: !!k.cap,
       };
     }).filter((k): k is NonNullable<typeof k> => Boolean(k));
   }, [selected, activeMetrics, values]);
