@@ -1373,6 +1373,10 @@ export function MetabaseTracking() {
         const curMrr = mrrByMonth[currentMonthIdx] || 0;
         const prevMrr = mrrByMonth[prevMonthIdx] || 0;
         const growthPct = prevMrr > 0 ? (curMrr / prevMrr - 1) * 100 : null;
+        const curAtivos = ativosByMonth[currentMonthIdx] || 0;
+        const prevAtivos = ativosByMonth[prevMonthIdx] || 0;
+        const growthPctAtivos = prevAtivos > 0 ? (curAtivos / prevAtivos - 1) * 100 : null;
+
         const monthLabel = MONTHS[currentMonthIdx];
         const revisedDeltaInWindow = chartData.reduce(
           (s, r) => s + (r.inWin ? (r.MetaRevisada || 0) - (r.Meta || 0) : 0),
