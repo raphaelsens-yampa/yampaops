@@ -377,16 +377,39 @@ export default function CampaignHistory() {
 
               {kpis.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {kpis.map((k) => (
-                    <Card key={k.label}>
-                      <CardContent className="p-4">
-                        <p className="truncate text-xs text-muted-foreground">{k.label}</p>
-                        <p className="text-xl font-bold tabular-nums">{k.actual}</p>
-                        <p className="text-xs text-muted-foreground tabular-nums">Meta: {k.target}</p>
-                        <Badge variant="secondary" className="mt-1 text-xs">{k.pct} da meta</Badge>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {kpis.map((k) => {
+                    // Cor da etiqueta conforme atingimento e direção da meta.
+                    // cap (teto): menor é melhor → verde se ≤100%, amarelo se 100–115%, vermelho se >115%.
+                    // base: maior é melhor → verde se ≥100%, amarelo se 85–99%, vermelho se <85%.
+                    let badgeClass = "bg-secondary text-secondary-foreground";
+                    if (k.attainment != null) {
+                      if (k.cap) {
+                        badgeClass =
+                          k.attainment <= 100
+                            ? "bg-success text-success-foreground"
+                            : k.attainment <= 115
+                            ? "bg-warning text-warning-foreground"
+                            : "bg-destructive text-destructive-foreground";
+                      } else {
+                        badgeClass =
+                          k.attainment >= 100
+                            ? "bg-success text-success-foreground"
+                            : k.attainment >= 85
+                            ? "bg-warning text-warning-foreground"
+                            : "bg-destructive text-destructive-foreground";
+                      }
+                    }
+                    return (
+                      <Card key={k.label}>
+                        <CardContent className="p-4">
+                          <p className="truncate text-xs text-muted-foreground">{k.label}</p>
+                          <p className="text-xl font-bold tabular-nums">{k.actual}</p>
+                          <p className="text-xs text-muted-foreground tabular-nums">Meta: {k.target}</p>
+                          <Badge className={`mt-1 text-xs ${badgeClass}`}>{formatPct(k.attainment)} da meta</Badge>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
 
