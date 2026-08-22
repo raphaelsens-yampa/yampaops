@@ -23,8 +23,8 @@ export function PeriodNavigator({ granularity, onGranularityChange, anchorDate, 
   const label = (() => {
     if (granularity === "day") return format(anchorDate, "dd 'de' MMMM yyyy", { locale: ptBR });
     if (granularity === "week") {
-      const s = startOfWeek(anchorDate, { weekStartsOn: 1 });
-      const e = endOfWeek(anchorDate, { weekStartsOn: 1 });
+      const s = startOfWeek(anchorDate, { weekStartsOn: 0 });
+      const e = endOfWeek(anchorDate, { weekStartsOn: 0 });
       return `${format(s, "dd MMM", { locale: ptBR })} → ${format(e, "dd MMM yyyy", { locale: ptBR })}`;
     }
     return format(anchorDate, "MMMM 'de' yyyy", { locale: ptBR });
@@ -61,7 +61,7 @@ export function getPeriodRange(granularity: Granularity, anchor: Date): { start:
     return { start, end };
   }
   if (granularity === "week") {
-    return { start: startOfWeek(anchor, { weekStartsOn: 1 }), end: endOfWeek(anchor, { weekStartsOn: 1 }) };
+    return { start: startOfWeek(anchor, { weekStartsOn: 0 }), end: endOfWeek(anchor, { weekStartsOn: 0 }) };
   }
   return { start: startOfMonth(anchor), end: endOfMonth(anchor) };
 }
