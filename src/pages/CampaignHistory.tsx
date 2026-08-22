@@ -190,7 +190,7 @@ export default function CampaignHistory() {
   const kpis = useMemo(() => {
     if (!selected) return [];
     const bySlug = new Map(activeMetrics.map((m) => [m.slug, m]));
-    const HIGHLIGHT: { label: string; slug: string | string[]; rate?: { num: string; den: string } }[] = [
+    const HIGHLIGHT: { label: string; slug?: string | string[]; rate?: { num: string; den: string } }[] = [
       { label: "Investimento", slug: "investimento" },
       { label: "CPL", slug: "cpl" },
       { label: "Total de Leads", slug: "leads_total" },
