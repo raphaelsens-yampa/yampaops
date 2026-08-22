@@ -65,7 +65,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
     const todayKey = toBRDateKey(today);
     const weekKeys: string[] = [];
     const d = new Date(today);
-    const dow = (d.getDay() + 6) % 7; // segunda = 0
+    const dow = d.getDay(); // domingo = 0 (semana domingo→sábado)
     d.setDate(d.getDate() - dow);
     for (let i = 0; i <= dow; i++) {
       weekKeys.push(toBRDateKey(d));
