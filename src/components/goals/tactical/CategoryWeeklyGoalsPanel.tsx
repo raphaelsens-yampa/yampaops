@@ -265,7 +265,11 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               businessDays: r.businessDays,
               originalTarget: r.target,
               realized: r.realized,
-              status: (r.isFuture ? "future" : r.isCurrent ? "current" : "closed") as WeekStatus,
+              status: (r.isFuture
+                ? "future"
+                : r.isCurrent && !r.bdDone
+                  ? "current"
+                  : "closed") as WeekStatus,
             })),
           });
           unrecovered = res.unrecovered;
