@@ -378,6 +378,7 @@ export default function CampaignHistory() {
                       <CardContent className="p-4">
                         <p className="truncate text-xs text-muted-foreground">{k.label}</p>
                         <p className="text-xl font-bold tabular-nums">{k.actual}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">Meta: {k.target}</p>
                         <Badge variant="secondary" className="mt-1 text-xs">{k.pct} da meta</Badge>
                       </CardContent>
                     </Card>
