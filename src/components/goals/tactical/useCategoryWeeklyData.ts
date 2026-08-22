@@ -75,11 +75,18 @@ function monthBounds(ref: Date) {
   return { startKey: key(start), endKey: key(end), prevEndKey: key(prevEnd) };
 }
 
-/** Valor do snapshot conforme o tipo da categoria. */
-function snapValue(row: any, category?: GoalCategory): number {
-  if (category?.metric_type === "count") return Number(row.deals_count ?? 0);
-  return Number(row.realized_amount ?? 0);
+/**
+ * Valor do snapshot conforme o tipo da categoria.
+ * `null` = snapshot existe mas sem dado para a categoria (não é zero!),
+ * então o ponto é ignorado e a leitura usa o último valor conhecido.
+ */
+function snapValue(row: any, category?: GoalCategory): number | null {
+  const raw = category?.metric_type === "count" ? row.deals_count : row.realized_amount;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
+
 
 export function useCategoryWeeklyData(
   refDate: Date,
@@ -165,7 +172,9 @@ export function useCategoryWeeklyData(
       for (const row of (snapRes.data as any[]) || []) {
         if (!row.category_id) continue;
         const cat = byId.get(row.category_id);
-        let value = snapValue(row, cat);
+        const rawValue = snapValue(row, cat);
+        if (rawValue === null) continue; // dia sem dado: mantém o último valor conhecido
+        let value = rawValue;
         if (shares) {
           const cls = cat ? CATEGORY_SLUG_TO_CLASSIFICATION[cat.slug] : undefined;
           if (!cls) {
@@ -186,6 +195,7 @@ export function useCategoryWeeklyData(
         }
         const list = s.get(row.category_id) ?? [];
         list.push({ date: row.data as string, value });
+
         s.set(row.category_id, list);
       }
       if (shares) {
