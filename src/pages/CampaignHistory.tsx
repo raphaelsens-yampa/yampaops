@@ -430,6 +430,45 @@ export default function CampaignHistory() {
                 )}
               </div>
 
+              {selected && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Card>
+                    <CardContent className="space-y-2 p-4">
+                      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />Tema da campanha
+                      </p>
+                      <p className="text-base font-semibold leading-snug">
+                        {selected.theme || <span className="font-normal text-muted-foreground">Não informado</span>}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>Duração do workshop: {selected.workshop_duration || "—"}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="space-y-2 p-4">
+                      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <Tag className="h-3.5 w-3.5 text-primary" />Ofertas da campanha
+                      </p>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Oferta principal</p>
+                        <p className="text-base font-semibold leading-snug">
+                          {selected.main_offer || <span className="font-normal text-muted-foreground">Não informada</span>}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Downsell</p>
+                        <p className="text-sm font-medium leading-snug">
+                          {selected.downsell_offer || <span className="font-normal text-muted-foreground">Sem downsell</span>}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+
               {kpis.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {kpis.map((k) => {
