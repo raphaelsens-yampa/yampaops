@@ -963,6 +963,21 @@ export function MetabaseTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, revised, compareWindow]);
 
+  // MRR (Total de MRR) realizado por mês — base do "% de Crescimento a.m.".
+  // Já respeita o recorte de produto/origem pois parte de `scopedAgg`.
+  const mrrByMonth = useMemo(() => {
+    const map = new Array(12).fill(0);
+    scopedAgg.forEach((r) => {
+      if (r.category_id !== BASE_MRR_CAT) return;
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      map[d.getMonth()] += Number(r.realized_amount || 0);
+    });
+    return map;
+  }, [scopedAgg, year]);
+
+
+
 
   // Meses cobertos pelo Metabase no ano selecionado
   const coveredMonths = useMemo(() => {
