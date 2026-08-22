@@ -156,7 +156,7 @@ function targetFraction(gStart: string, gEnd: string, winFrom: Date, winTo: Date
 
 function startOfWeek(d: Date) {
   const x = new Date(d);
-  const day = (x.getDay() + 6) % 7; // Monday=0
+  const day = x.getDay(); // domingo = 0 (semana domingo→sábado)
   x.setDate(x.getDate() - day);
   x.setHours(0, 0, 0, 0);
   return x;
