@@ -54,6 +54,8 @@ interface Row {
   finRealized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Semana vigente com todos os dias úteis já concluídos (sáb/dom). */
+  bdDone?: boolean;
   /** Diferença entre meta revisada e original (só semanas futuras). */
   targetDelta?: number | null;
   finTargetDelta?: number | null;
