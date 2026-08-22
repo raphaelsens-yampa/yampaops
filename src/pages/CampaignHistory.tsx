@@ -190,9 +190,11 @@ export default function CampaignHistory() {
   const kpis = useMemo(() => {
     if (!selected) return [];
     const bySlug = new Map(activeMetrics.map((m) => [m.slug, m]));
-    const HIGHLIGHT: { label: string; slug?: string | string[]; rate?: { num: string; den: string } }[] = [
-      { label: "Investimento", slug: "investimento" },
-      { label: "CPL", slug: "cpl" },
+    // cap=true → meta de teto (quanto menor o realizado, melhor) — Investimento e CPL.
+    // cap=false → meta de base (quanto maior, melhor) — demais indicadores.
+    const HIGHLIGHT: { label: string; slug?: string | string[]; rate?: { num: string; den: string }; cap?: boolean }[] = [
+      { label: "Investimento", slug: "investimento", cap: true },
+      { label: "CPL", slug: "cpl", cap: true },
       { label: "Total de Leads", slug: "leads_total" },
       { label: "% Conversão", rate: { num: "conversao", den: "leads_total" } },
       { label: "Total de Vendas", slug: "conversao" },
