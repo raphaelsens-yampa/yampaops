@@ -67,6 +67,10 @@ function CampaignDialog({
           end_date: campaign.end_date ?? "",
           channel: campaign.channel ?? "",
           notes: campaign.notes ?? "",
+          theme: campaign.theme ?? "",
+          workshop_duration: campaign.workshop_duration ?? "",
+          main_offer: campaign.main_offer ?? "",
+          downsell_offer: campaign.downsell_offer ?? "",
         }
       : emptyForm,
   );
@@ -85,6 +89,10 @@ function CampaignDialog({
       end_date: form.end_date || null,
       channel: form.channel || null,
       notes: form.notes || null,
+      theme: form.theme || null,
+      workshop_duration: form.workshop_duration || null,
+      main_offer: form.main_offer || null,
+      downsell_offer: form.downsell_offer || null,
     };
     const { error } = campaign
       ? await supabase.from("campaign_history").update(payload).eq("id", campaign.id)
@@ -125,6 +133,42 @@ function CampaignDialog({
             <div>
               <Label>Fim</Label>
               <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Tema da campanha</Label>
+              <Input
+                value={form.theme}
+                onChange={(e) => setForm({ ...form, theme: e.target.value })}
+                placeholder="Ex.: Precificação para clínicas"
+              />
+            </div>
+            <div>
+              <Label>Duração do workshop</Label>
+              <Input
+                value={form.workshop_duration}
+                onChange={(e) => setForm({ ...form, workshop_duration: e.target.value })}
+                placeholder="Ex.: 3 dias · 2h por dia"
+              />
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Oferta principal</Label>
+              <Input
+                value={form.main_offer}
+                onChange={(e) => setForm({ ...form, main_offer: e.target.value })}
+                placeholder="Ex.: Consultoria BPO 12x R$ 1.997"
+              />
+            </div>
+            <div>
+              <Label>Downsell (opcional)</Label>
+              <Input
+                value={form.downsell_offer}
+                onChange={(e) => setForm({ ...form, downsell_offer: e.target.value })}
+                placeholder="Ex.: Software anual à vista"
+              />
             </div>
           </div>
           <div>
