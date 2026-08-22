@@ -224,6 +224,7 @@ export default function CampaignHistory() {
         return {
           label: k.label,
           actual: formatMetricValue(actual, "percent"),
+          target: formatMetricValue(target, "percent"),
           pct: formatPct(attainmentPct(target, actual)),
         };
       }
@@ -247,11 +248,12 @@ export default function CampaignHistory() {
         }
       }
       if (!hasVal) {
-        return { label: k.label, actual: formatMetricValue(null, unit), pct: formatPct(null) };
+        return { label: k.label, actual: formatMetricValue(null, unit), target: formatMetricValue(null, unit), pct: formatPct(null) };
       }
       return {
         label: k.label,
         actual: formatMetricValue(actual, unit),
+        target: formatMetricValue(target, unit),
         pct: formatPct(attainmentPct(target, actual)),
       };
     }).filter((k): k is NonNullable<typeof k> => Boolean(k));
