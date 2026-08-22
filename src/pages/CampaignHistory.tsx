@@ -184,21 +184,50 @@ export default function CampaignHistory() {
     valuesQ.refetch();
   };
 
-  // KPIs em destaque: ordem fixa, 2 linhas de 4 cards. "Total de Vendas" soma WS + OB.
+  // KPIs em destaque: ordem fixa, 2 linhas de 4 cards.
+  // "Total de Vendas" = total de Conversões (indicador "conversao").
+  // "% Conversão" = taxa calculada conversões / leads.
   const kpis = useMemo(() => {
     if (!selected) return [];
     const bySlug = new Map(activeMetrics.map((m) => [m.slug, m]));
-    const HIGHLIGHT: { label: string; slug: string | string[] }[] = [
+    const HIGHLIGHT: { label: string; slug?: string | string[]; rate?: { num: string; den: string } }[] = [
       { label: "Investimento", slug: "investimento" },
       { label: "CPL", slug: "cpl" },
       { label: "Total de Leads", slug: "leads_total" },
-      { label: "% Conversão", slug: "conversao" },
-      { label: "Total de Vendas", slug: ["vendas_ws", "vendas_ob"] },
+      { label: "% Conversão", rate: { num: "conversao", den: "leads_total" } },
+      { label: "Total de Vendas", slug: "conversao" },
       { label: "MRR Gerado", slug: "mrr" },
       { label: "LTV/CAC", slug: "ltv_cac" },
       { label: "Tempo de ROI", slug: "tempo_roi" },
     ];
+
+    const val = (m: HistoryMetric): { target: number | null; actual: number | null } => {
+      const v = values.get(`${selected.id}|${m.id}`);
+      return {
+        target: v?.target_value == null ? null : Number(v.target_value),
+        actual: v?.actual_value == null ? null : Number(v.actual_value),
+      };
+    };
+
     return HIGHLIGHT.map((k) => {
+      // Taxa calculada: % Conversão = conversões / leads
+      if (k.rate) {
+        const num = bySlug.get(k.rate.num);
+        const den = bySlug.get(k.rate.den);
+        if (!num || !den) return null;
+        const n = val(num);
+        const d = val(den);
+        const rate = (a: number | null, b: number | null): number | null =>
+          a != null && b != null && b !== 0 ? (a / b) * 100 : null;
+        const actual = rate(n.actual, d.actual);
+        const target = rate(n.target, d.target);
+        return {
+          label: k.label,
+          actual: formatMetricValue(actual, "percent"),
+          pct: formatPct(attainmentPct(target, actual)),
+        };
+      }
+
       const slugs = Array.isArray(k.slug) ? k.slug : [k.slug];
       const metrics = slugs.map((s) => bySlug.get(s)).filter(Boolean) as HistoryMetric[];
       if (!metrics.length) return null;
@@ -207,23 +236,18 @@ export default function CampaignHistory() {
       let actual = 0;
       let hasVal = false;
       for (const m of metrics) {
-        const v = values.get(`${selected.id}|${m.id}`);
-        if (v?.target_value != null) {
-          target += Number(v.target_value);
+        const v = val(m);
+        if (v.target != null) {
+          target += v.target;
           hasVal = true;
         }
-        if (v?.actual_value != null) {
-          actual += Number(v.actual_value);
+        if (v.actual != null) {
+          actual += v.actual;
           hasVal = true;
         }
       }
       if (!hasVal) {
-        target = actual = 0;
-        return {
-          label: k.label,
-          actual: formatMetricValue(null, unit),
-          pct: formatPct(null),
-        };
+        return { label: k.label, actual: formatMetricValue(null, unit), pct: formatPct(null) };
       }
       return {
         label: k.label,
