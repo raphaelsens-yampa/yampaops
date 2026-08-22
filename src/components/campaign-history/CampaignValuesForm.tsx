@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -34,13 +34,28 @@ export function CampaignValuesForm({
   const { toast } = useToast();
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [saving, setSaving] = useState(false);
+  const draftKey = `campaign-history-draft:${campaign.id}`;
+  const hydratedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hydratedFor.current = null;
+      return;
+    }
+    // Só hidrata uma vez por abertura, para não apagar o que o usuário digitou
+    // quando as props (metrics/values) forem recriadas em novos renders.
+    if (hydratedFor.current === campaign.id) return;
+    hydratedFor.current = campaign.id;
+
+    let draft: Record<string, RowState> = {};
+    try {
+      draft = JSON.parse(localStorage.getItem(draftKey) || "{}") || {};
+    } catch { draft = {}; }
+
     const next: Record<string, RowState> = {};
     for (const m of metrics) {
       const v = values.get(`${campaign.id}|${m.id}`);
-      next[m.id] = {
+      next[m.id] = draft[m.id] ?? {
         target: toStr(v?.target_value),
         actual: toStr(v?.actual_value),
         funnelTarget: toStr(v?.funnel_target_pct),
@@ -48,10 +63,14 @@ export function CampaignValuesForm({
       };
     }
     setRows(next);
-  }, [open, campaign.id, metrics, values]);
+  }, [open, campaign.id, metrics, values, draftKey]);
 
   const set = (metricId: string, field: keyof RowState, value: string) =>
-    setRows((prev) => ({ ...prev, [metricId]: { ...prev[metricId], [field]: value } }));
+    setRows((prev) => {
+      const next = { ...prev, [metricId]: { ...prev[metricId], [field]: value } };
+      try { localStorage.setItem(draftKey, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
 
   const save = async () => {
     setSaving(true);
