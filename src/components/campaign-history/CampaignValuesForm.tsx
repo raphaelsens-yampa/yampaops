@@ -93,6 +93,7 @@ export function CampaignValuesForm({
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
     toast({ title: "Valores salvos" });
     onSaved();
     onOpenChange(false);
