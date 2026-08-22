@@ -460,40 +460,52 @@ export type Database = {
           channel: string | null
           created_at: string
           created_by: string | null
+          downsell_offer: string | null
           end_date: string | null
           id: string
+          main_offer: string | null
           name: string
           notes: string | null
           owner_id: string | null
           ref_month: string | null
           start_date: string | null
+          theme: string | null
           updated_at: string
+          workshop_duration: string | null
         }
         Insert: {
           channel?: string | null
           created_at?: string
           created_by?: string | null
+          downsell_offer?: string | null
           end_date?: string | null
           id?: string
+          main_offer?: string | null
           name: string
           notes?: string | null
           owner_id?: string | null
           ref_month?: string | null
           start_date?: string | null
+          theme?: string | null
           updated_at?: string
+          workshop_duration?: string | null
         }
         Update: {
           channel?: string | null
           created_at?: string
           created_by?: string | null
+          downsell_offer?: string | null
           end_date?: string | null
           id?: string
+          main_offer?: string | null
           name?: string
           notes?: string | null
           owner_id?: string | null
           ref_month?: string | null
           start_date?: string | null
+          theme?: string | null
           updated_at?: string
+          workshop_duration?: string | null
         }
         Relationships: []
       }
