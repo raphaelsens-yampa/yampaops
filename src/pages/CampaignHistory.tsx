@@ -190,9 +190,11 @@ export default function CampaignHistory() {
   const kpis = useMemo(() => {
     if (!selected) return [];
     const bySlug = new Map(activeMetrics.map((m) => [m.slug, m]));
-    const HIGHLIGHT: { label: string; slug?: string | string[]; rate?: { num: string; den: string } }[] = [
-      { label: "Investimento", slug: "investimento" },
-      { label: "CPL", slug: "cpl" },
+    // cap=true → meta de teto (quanto menor o realizado, melhor) — Investimento e CPL.
+    // cap=false → meta de base (quanto maior, melhor) — demais indicadores.
+    const HIGHLIGHT: { label: string; slug?: string | string[]; rate?: { num: string; den: string }; cap?: boolean }[] = [
+      { label: "Investimento", slug: "investimento", cap: true },
+      { label: "CPL", slug: "cpl", cap: true },
       { label: "Total de Leads", slug: "leads_total" },
       { label: "% Conversão", rate: { num: "conversao", den: "leads_total" } },
       { label: "Total de Vendas", slug: "conversao" },
@@ -225,7 +227,8 @@ export default function CampaignHistory() {
           label: k.label,
           actual: formatMetricValue(actual, "percent"),
           target: formatMetricValue(target, "percent"),
-          pct: formatPct(attainmentPct(target, actual)),
+          attainment: attainmentPct(target, actual),
+          cap: false,
         };
       }
 
@@ -248,13 +251,14 @@ export default function CampaignHistory() {
         }
       }
       if (!hasVal) {
-        return { label: k.label, actual: formatMetricValue(null, unit), target: formatMetricValue(null, unit), pct: formatPct(null) };
+        return { label: k.label, actual: formatMetricValue(null, unit), target: formatMetricValue(null, unit), attainment: null, cap: !!k.cap };
       }
       return {
         label: k.label,
         actual: formatMetricValue(actual, unit),
         target: formatMetricValue(target, unit),
-        pct: formatPct(attainmentPct(target, actual)),
+        attainment: attainmentPct(target, actual),
+        cap: !!k.cap,
       };
     }).filter((k): k is NonNullable<typeof k> => Boolean(k));
   }, [selected, activeMetrics, values]);
@@ -373,16 +377,39 @@ export default function CampaignHistory() {
 
               {kpis.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {kpis.map((k) => (
-                    <Card key={k.label}>
-                      <CardContent className="p-4">
-                        <p className="truncate text-xs text-muted-foreground">{k.label}</p>
-                        <p className="text-xl font-bold tabular-nums">{k.actual}</p>
-                        <p className="text-xs text-muted-foreground tabular-nums">Meta: {k.target}</p>
-                        <Badge variant="secondary" className="mt-1 text-xs">{k.pct} da meta</Badge>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {kpis.map((k) => {
+                    // Cor da etiqueta conforme atingimento e direção da meta.
+                    // cap (teto): menor é melhor → verde se ≤100%, amarelo se 100–115%, vermelho se >115%.
+                    // base: maior é melhor → verde se ≥100%, amarelo se 85–99%, vermelho se <85%.
+                    let badgeClass = "bg-secondary text-secondary-foreground";
+                    if (k.attainment != null) {
+                      if (k.cap) {
+                        badgeClass =
+                          k.attainment <= 100
+                            ? "bg-success text-success-foreground"
+                            : k.attainment <= 115
+                            ? "bg-warning text-warning-foreground"
+                            : "bg-destructive text-destructive-foreground";
+                      } else {
+                        badgeClass =
+                          k.attainment >= 100
+                            ? "bg-success text-success-foreground"
+                            : k.attainment >= 85
+                            ? "bg-warning text-warning-foreground"
+                            : "bg-destructive text-destructive-foreground";
+                      }
+                    }
+                    return (
+                      <Card key={k.label}>
+                        <CardContent className="p-4">
+                          <p className="truncate text-xs text-muted-foreground">{k.label}</p>
+                          <p className="text-xl font-bold tabular-nums">{k.actual}</p>
+                          <p className="text-xs text-muted-foreground tabular-nums">Meta: {k.target}</p>
+                          <Badge className={`mt-1 text-xs ${badgeClass}`}>{formatPct(k.attainment)} da meta</Badge>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
 
