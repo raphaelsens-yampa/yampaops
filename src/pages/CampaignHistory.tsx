@@ -437,10 +437,10 @@ export default function CampaignHistory() {
                       <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         <Sparkles className="h-3.5 w-3.5 text-primary" />Tema da campanha
                       </p>
-                      <p className="text-base font-semibold leading-snug">
+                      <p className="text-center text-base font-semibold leading-snug">
                         {selected.theme || <span className="font-normal text-muted-foreground">Não informado</span>}
                       </p>
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
                         <span>Duração do workshop: {selected.workshop_duration || "—"}</span>
                       </div>
