@@ -1355,6 +1355,10 @@ export function MetabaseTracking() {
         const monthRealized = monthRow?.Realizado || 0;
         const monthGap = monthTarget - monthRealized;
         const monthPct = monthTarget > 0 ? (monthRealized / monthTarget) * 100 : 0;
+        const prevMonthIdx = currentMonthIdx - 1;
+        const curMrr = mrrByMonth[currentMonthIdx] || 0;
+        const prevMrr = mrrByMonth[prevMonthIdx] || 0;
+        const growthPct = prevMrr > 0 ? (curMrr / prevMrr - 1) * 100 : null;
         const monthLabel = MONTHS[currentMonthIdx];
         const revisedDeltaInWindow = chartData.reduce(
           (s, r) => s + (r.inWin ? (r.MetaRevisada || 0) - (r.Meta || 0) : 0),
