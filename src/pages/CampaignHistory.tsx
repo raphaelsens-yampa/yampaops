@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Download, FileDown, History, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Clock, Download, FileDown, History, Pencil, Plus, Sparkles, Tag, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CampaignHistoryTable } from "@/components/campaign-history/CampaignHistoryTable";
