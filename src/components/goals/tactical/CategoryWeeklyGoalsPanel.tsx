@@ -242,6 +242,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
             realized,
             isCurrent,
             isFuture,
+            bdDone: isCurrent && weekBusinessDaysDone(w.start, w.end, today),
           };
         });
 
