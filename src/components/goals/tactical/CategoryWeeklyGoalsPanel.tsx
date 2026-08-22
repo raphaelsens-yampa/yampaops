@@ -52,6 +52,8 @@ interface WeekRow {
   realized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Semana vigente com todos os dias úteis já concluídos (sáb/dom). */
+  bdDone?: boolean;
   /** Variação entre meta revisada e original (só semanas futuras). */
   targetDelta?: number | null;
 }
