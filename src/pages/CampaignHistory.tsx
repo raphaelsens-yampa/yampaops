@@ -33,7 +33,18 @@ import {
   type HistoryValue,
 } from "@/lib/campaignHistory";
 
-const emptyForm = { name: "", ref_month: "", start_date: "", end_date: "", channel: "", notes: "" };
+const emptyForm = {
+  name: "",
+  ref_month: "",
+  start_date: "",
+  end_date: "",
+  channel: "",
+  notes: "",
+  theme: "",
+  workshop_duration: "",
+  main_offer: "",
+  downsell_offer: "",
+};
 
 function CampaignDialog({
   open,

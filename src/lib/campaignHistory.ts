@@ -27,6 +27,10 @@ export interface HistoryCampaign {
   end_date: string | null;
   channel: string | null;
   notes: string | null;
+  theme?: string | null;
+  workshop_duration?: string | null;
+  main_offer?: string | null;
+  downsell_offer?: string | null;
 }
 
 export interface HistoryValue {
