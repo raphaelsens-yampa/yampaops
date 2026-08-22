@@ -976,6 +976,20 @@ export function MetabaseTracking() {
     return map;
   }, [scopedAgg, year]);
 
+  // Ativos Pagantes realizados por mês — base do "% de Crescimento Ativos a.m.".
+  // Espelha `mrrByMonth`, filtrando pela categoria de estoque de Ativos Pagantes.
+  const ativosByMonth = useMemo(() => {
+    const map = new Array(12).fill(0);
+    scopedAgg.forEach((r) => {
+      if (r.category_id !== BASE_ACTIVE_CAT) return;
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      map[d.getMonth()] += Number(r.realized_amount || 0);
+    });
+    return map;
+  }, [scopedAgg, year]);
+
+
 
 
 
