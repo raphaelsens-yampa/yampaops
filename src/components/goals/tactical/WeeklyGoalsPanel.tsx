@@ -277,7 +277,7 @@ export function WeeklyGoalsPanel({
         bdDone: isCurrent && weekBusinessDaysDone(w.start, w.end, today),
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, today, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
 
   /** Metas semanais vivas: semanas futuras absorvem o saldo do mês. */
   const [revised, setRevised] = useState<boolean>(() => {
