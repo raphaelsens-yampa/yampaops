@@ -1438,7 +1438,7 @@ export function MetabaseTracking() {
               </p>
             )}
             {kpiView === "month" ? (
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
                 <Card className="border-primary/40"><CardContent className="p-3 sm:p-4">
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     Meta do Mês ({monthLabel})
