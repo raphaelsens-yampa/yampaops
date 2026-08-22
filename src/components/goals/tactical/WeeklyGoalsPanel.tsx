@@ -19,6 +19,7 @@ import {
   realizedBetween,
   resolveDailyTarget,
   toBRDateKey,
+  weekBusinessDaysDone,
   weeksOfMonth,
 } from "./types";
 import type { LowTouchSale } from "./useLowTouchData";
@@ -54,6 +55,8 @@ interface Row {
   finRealized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Semana vigente com todos os dias úteis já concluídos (sáb/dom). */
+  bdDone?: boolean;
   /** Diferença entre meta revisada e original (só semanas futuras). */
   targetDelta?: number | null;
   finTargetDelta?: number | null;
@@ -271,9 +274,10 @@ export function WeeklyGoalsPanel({
         finRealized,
         isCurrent,
         isFuture,
+        bdDone: isCurrent && weekBusinessDaysDone(w.start, w.end, today),
       };
     });
-  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
+  }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, today, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
 
   /** Metas semanais vivas: semanas futuras absorvem o saldo do mês. */
   const [revised, setRevised] = useState<boolean>(() => {
@@ -292,8 +296,10 @@ export function WeeklyGoalsPanel({
 
   const rows: Row[] = useMemo(() => {
     if (!revised) return baseRows;
+    // Semana vigente com dias úteis encerrados (sáb/dom) entra como fechada,
+    // para o relatório de sábado já mostrar as semanas seguintes recalculadas.
     const statusOf = (r: Row): WeekStatus =>
-      r.isFuture ? "future" : r.isCurrent ? "current" : "closed";
+      r.isFuture ? "future" : r.isCurrent && !r.bdDone ? "current" : "closed";
 
     const monthTarget = baseRows.reduce((s, r) => s + (r.target ?? 0), 0);
     const res = computeRevisedWeeklyTargets({

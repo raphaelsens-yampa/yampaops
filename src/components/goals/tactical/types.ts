@@ -82,6 +82,25 @@ export function businessDaysBetween(start: Date, end: Date): number {
 }
 
 /**
+ * Semana vigente cujos dias úteis (seg–sex) já terminaram — caso do sábado/domingo
+ * no corte domingo→sábado. Nesses dias a semana já pode ser tratada como fechada
+ * para o rebalanceamento das semanas seguintes (relatório de diretoria roda no sábado).
+ */
+export function weekBusinessDaysDone(weekStart: Date, weekEnd: Date, today: Date): boolean {
+  const last = new Date(weekEnd);
+  last.setHours(0, 0, 0, 0);
+  const start = new Date(weekStart);
+  start.setHours(0, 0, 0, 0);
+  while (last >= start) {
+    const day = last.getDay();
+    if (day !== 0 && day !== 6) break;
+    last.setDate(last.getDate() - 1);
+  }
+  if (last < start) return true; // semana sem dias úteis
+  return toBRDateKey(last) < toBRDateKey(today);
+}
+
+/**
  * Ritmo diário necessário para fechar o mês na meta (Meta Revisada tática).
  * `realizedBeforeToday` = realizado do mês até o dia anterior.
  */

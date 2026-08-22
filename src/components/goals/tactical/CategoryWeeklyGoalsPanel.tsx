@@ -17,6 +17,7 @@ import {
   formatMetric,
   realizedBetween,
   toBRDateKey,
+  weekBusinessDaysDone,
   weeksOfMonth,
   type DailyDatum,
 } from "./types";
@@ -51,6 +52,8 @@ interface WeekRow {
   realized: number | null;
   isCurrent: boolean;
   isFuture: boolean;
+  /** Semana vigente com todos os dias úteis já concluídos (sáb/dom). */
+  bdDone?: boolean;
   /** Variação entre meta revisada e original (só semanas futuras). */
   targetDelta?: number | null;
 }
@@ -239,6 +242,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
             realized,
             isCurrent,
             isFuture,
+            bdDone: isCurrent && weekBusinessDaysDone(w.start, w.end, today),
           };
         });
 
@@ -261,7 +265,11 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               businessDays: r.businessDays,
               originalTarget: r.target,
               realized: r.realized,
-              status: (r.isFuture ? "future" : r.isCurrent ? "current" : "closed") as WeekStatus,
+              status: (r.isFuture
+                ? "future"
+                : r.isCurrent && !r.bdDone
+                  ? "current"
+                  : "closed") as WeekStatus,
             })),
           });
           unrecovered = res.unrecovered;
