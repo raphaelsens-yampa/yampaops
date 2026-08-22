@@ -989,6 +989,28 @@ export function MetabaseTracking() {
     return map;
   }, [scopedAgg, year]);
 
+  /**
+   * Séries de estoque SEM o 2.0 (apenas yampaFin) + meses que têm dado do 2.0.
+   * Usadas como base de comparação do mês anterior nos KPIs de "% de Crescimento a.m.":
+   * o 2.0 é base em migração, então ele só ACRESCENTA no mês corrente — comparar
+   * 2.0 contra 2.0 entre meses reduziria indevidamente o crescimento.
+   */
+  const baseStockByMonth = useMemo(() => {
+    const mrr = new Array(12).fill(0);
+    const ativos = new Array(12).fill(0);
+    const has20 = new Array(12).fill(false);
+    sourceAgg.forEach((r) => {
+      const d = parseDateBR(r.year_month);
+      if (d.getFullYear() !== year) return;
+      const m = d.getMonth();
+      const v = Number(r.realized_amount || 0);
+      if (r.category_id === BASE_MRR_CAT) mrr[m] += v;
+      else if (r.category_id === BASE_ACTIVE_CAT) ativos[m] += v;
+      else if (r.category_id && YAMPA20_CATEGORY_IDS.has(r.category_id)) has20[m] = true;
+    });
+    return { mrr, ativos, has20 };
+  }, [sourceAgg, year]);
+
 
 
 
