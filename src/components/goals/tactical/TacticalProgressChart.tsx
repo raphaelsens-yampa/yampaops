@@ -150,7 +150,8 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
       const weekly: typeof points = [];
       points.forEach((p, i) => {
         const day = new Date(`${p.dateKey}T00:00:00`).getDay();
-        if (i === 0 || day === 0 || i === points.length - 1) {
+        // semana domingo→sábado: o sábado fecha o ponto semanal
+        if (i === 0 || day === 6 || i === points.length - 1) {
           if (!weekly.some((w) => w.dateKey === p.dateKey)) weekly.push(p);
         }
       });
