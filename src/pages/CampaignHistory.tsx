@@ -378,23 +378,25 @@ export default function CampaignHistory() {
               {kpis.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {kpis.map((k) => {
-                    // Cor da etiqueta conforme atingimento e direção da meta.
-                    // cap (teto): menor é melhor → verde se ≤100%, amarelo se 100–115%, vermelho se >115%.
-                    // base: maior é melhor → verde se ≥100%, amarelo se 85–99%, vermelho se <85%.
+                    // Cor da etiqueta conforme o % exibido (arredondado) e a direção da meta.
+                    // Se o arredondamento mostrar 100%, trata como atingido (verde) por didática.
+                    const rounded = k.attainment == null ? null : Math.round(k.attainment);
                     let badgeClass = "bg-secondary text-secondary-foreground";
-                    if (k.attainment != null) {
+                    if (rounded != null) {
                       if (k.cap) {
+                        // teto: menor é melhor → verde se ≤100%, amarelo se 101–115%, vermelho se >115%.
                         badgeClass =
-                          k.attainment <= 100
+                          rounded <= 100
                             ? "bg-success text-success-foreground"
-                            : k.attainment <= 115
+                            : rounded <= 115
                             ? "bg-warning text-warning-foreground"
                             : "bg-destructive text-destructive-foreground";
                       } else {
+                        // base: maior é melhor → verde se ≥100%, amarelo se 85–99%, vermelho se <85%.
                         badgeClass =
-                          k.attainment >= 100
+                          rounded >= 100
                             ? "bg-success text-success-foreground"
-                            : k.attainment >= 85
+                            : rounded >= 85
                             ? "bg-warning text-warning-foreground"
                             : "bg-destructive text-destructive-foreground";
                       }
