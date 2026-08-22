@@ -184,16 +184,53 @@ export default function CampaignHistory() {
     valuesQ.refetch();
   };
 
+  // KPIs em destaque: ordem fixa, 2 linhas de 4 cards. "Total de Vendas" soma WS + OB.
   const kpis = useMemo(() => {
     if (!selected) return [];
-    return activeMetrics.slice(0, 4).map((m) => {
-      const v = values.get(`${selected.id}|${m.id}`);
+    const bySlug = new Map(activeMetrics.map((m) => [m.slug, m]));
+    const HIGHLIGHT: { label: string; slug: string | string[] }[] = [
+      { label: "Investimento", slug: "investimento" },
+      { label: "CPL", slug: "cpl" },
+      { label: "Total de Leads", slug: "leads_total" },
+      { label: "% Conversão", slug: "conversao" },
+      { label: "Total de Vendas", slug: ["vendas_ws", "vendas_ob"] },
+      { label: "MRR Gerado", slug: "mrr" },
+      { label: "LTV/CAC", slug: "ltv_cac" },
+      { label: "Tempo de ROI", slug: "tempo_roi" },
+    ];
+    return HIGHLIGHT.map((k) => {
+      const slugs = Array.isArray(k.slug) ? k.slug : [k.slug];
+      const metrics = slugs.map((s) => bySlug.get(s)).filter(Boolean) as HistoryMetric[];
+      if (!metrics.length) return null;
+      const unit = metrics.length === 1 ? metrics[0].unit : "number";
+      let target = 0;
+      let actual = 0;
+      let hasVal = false;
+      for (const m of metrics) {
+        const v = values.get(`${selected.id}|${m.id}`);
+        if (v?.target_value != null) {
+          target += Number(v.target_value);
+          hasVal = true;
+        }
+        if (v?.actual_value != null) {
+          actual += Number(v.actual_value);
+          hasVal = true;
+        }
+      }
+      if (!hasVal) {
+        target = actual = 0;
+        return {
+          label: k.label,
+          actual: formatMetricValue(null, unit),
+          pct: formatPct(null),
+        };
+      }
       return {
-        label: m.label,
-        actual: formatMetricValue(v?.actual_value ?? null, m.unit),
-        pct: formatPct(attainmentPct(v?.target_value, v?.actual_value)),
+        label: k.label,
+        actual: formatMetricValue(actual, unit),
+        pct: formatPct(attainmentPct(target, actual)),
       };
-    });
+    }).filter((k): k is NonNullable<typeof k> => Boolean(k));
   }, [selected, activeMetrics, values]);
 
   const exportCsv = () => {
