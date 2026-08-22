@@ -77,3 +77,17 @@ describe("computeRevisedWeeklyTargets", () => {
     expect(res.weeks[1].revisedTarget).toBeNull();
   });
 });
+
+describe("weekBusinessDaysDone", () => {
+  it("semana dom-sáb com dias úteis encerrados no sábado", () => {
+    const start = new Date(2026, 7, 16); // dom 16/08
+    const end = new Date(2026, 7, 22); // sáb 22/08
+    expect(weekBusinessDaysDone(start, end, new Date(2026, 7, 22))).toBe(true);
+    expect(weekBusinessDaysDone(start, end, new Date(2026, 7, 21))).toBe(false);
+    expect(weekBusinessDaysDone(start, end, new Date(2026, 7, 19))).toBe(false);
+  });
+  it("semana só com fim de semana conta como encerrada", () => {
+    const d = new Date(2026, 7, 1); // sáb 01/08
+    expect(weekBusinessDaysDone(d, d, d)).toBe(true);
+  });
+});
