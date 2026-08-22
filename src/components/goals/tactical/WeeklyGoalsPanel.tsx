@@ -274,6 +274,7 @@ export function WeeklyGoalsPanel({
         finRealized,
         isCurrent,
         isFuture,
+        bdDone: isCurrent && weekBusinessDaysDone(w.start, w.end, today),
       };
     });
   }, [weeks, memberIds, daily, goals, teamId, metric, finRealizedMetricId, finGoalMetricId, isLowTouch, lowTouchSales, selected, todayKey, isAll, allCountMetrics, categoryMonthTarget, businessDaysInMonth]);
