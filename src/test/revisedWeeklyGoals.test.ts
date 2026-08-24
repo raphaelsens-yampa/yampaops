@@ -28,7 +28,7 @@ describe("computeRevisedWeeklyTargets", () => {
     expect(res.weeks[2].delta).toBeCloseTo(25);
   });
 
-  it("reduz as semanas futuras quando houve excedente", () => {
+  it("não reduz as semanas futuras quando houve excedente (crescimento)", () => {
     const res = computeRevisedWeeklyTargets({
       monthTarget: 1000,
       weeks: [
@@ -38,9 +38,10 @@ describe("computeRevisedWeeklyTargets", () => {
         w(5, 250, null, "future"),
       ],
     });
-    expect(res.weeks[2].revisedTarget).toBeCloseTo(175);
-    expect(res.weeks[3].delta).toBeCloseTo(-75);
+    expect(res.weeks[2].revisedTarget).toBe(250);
+    expect(res.weeks[3].delta).toBe(0);
   });
+
 
   it("rateia proporcionalmente semanas com dias úteis diferentes", () => {
     const res = computeRevisedWeeklyTargets({
