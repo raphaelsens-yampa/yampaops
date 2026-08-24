@@ -4816,6 +4816,22 @@ export type Database = {
       }
     }
     Views: {
+      metas_ativos_ingest_status: {
+        Row: {
+          ativos: number | null
+          ativos_4blue: number | null
+          ativos_sem_email: number | null
+          ativos_yampa: number | null
+          cancelados: number | null
+          coletado_em: string | null
+          data_execucao: string | null
+          data_snapshot: string | null
+          emails_distintos: number | null
+          mrr_ativos: number | null
+          trials: number | null
+        }
+        Relationships: []
+      }
       metas_daily_delta: {
         Row: {
           area: string | null

@@ -1,14 +1,13 @@
 # Aba Cohort no Histórico de Campanhas
 
-Nova aba **Cohort** para medir, sob demanda, o status de assinatura dos clientes que vieram de cada campanha, cruzando a lista de e-mails de ativação da campanha com a base de clientes.
+Nova aba **Cohort** para medir, sob demanda, o status de assinatura dos clientes que vieram de cada campanha, cruzando a lista de e-mails de ativação da campanha com a base diária de assinantes do Metabase.
 
 ## Situação atual (verificada)
 
-- `campaign_history` não tem nenhuma lista de contatos/e-mails — precisa ser criada.
-- Todas as tabelas alimentadas pelo Metabase hoje (`metabase_daily_raw`, `metas_snapshot_diario`, `metas_price_daily`, `metas_novos_pagantes_daily`, etc.) são **agregadas**, sem e-mail. Então, do jeito que está, não há como cruzar por e-mail com o Metabase.
-- Existe base por cliente com e-mail apenas do Stripe: `stripe_conversions` (e-mail, plano, price, MRR/MRR líquido, data, reativação) e `stripe_churn_events` (cancelamento, MRR perdido, motivo).
-
-Por isso o cohort passa a ter **duas fontes**: a nova base de assinantes por e-mail vinda do Metabase (a ser enviada pela rotina diária) e a base Stripe local como complemento/fallback.
+- `campaign_history` não guarda nenhuma lista de contatos/e-mails — essa lista precisa ser criada.
+- A base por cliente **já existe**: `metas_ativos_pagantes_daily`, alimentada pela Edge Function `ativos-ingest`, com `data_snapshot`, `email`, `company_id`, `status_assinatura` (ativo/cancelado/trial), `plano`, `nome_oferta`, `mrr`, `origem_cliente`, `data_inicio`, `data_cancelamento`, `tipo_churn`. É exatamente a chave que falta para o cruzamento por e-mail.
+- Hoje essa tabela está **vazia**: a rotina de ingest ainda não rodou (falta cadastrar os segredos `METABASE_API_KEY` e `ATIVOS_INGEST_SECRET` e disparar a function). Sem a primeira carga, o cohort mostra "base indisponível" e usa apenas o fallback Stripe.
+- Fallback local por e-mail: `stripe_conversions` (plano, price, MRR/MRR líquido, data) + `stripe_churn_events` (cancelamento, MRR perdido, motivo).
 
 ## Como vai funcionar
 
@@ -16,31 +15,28 @@ Por isso o cohort passa a ter **duas fontes**: a nova base de assinantes por e-m
 Na aba Cohort, para a campanha selecionada:
 - **Importar planilha** (XLSX/CSV) com e-mail e, opcionalmente, nome, oferta e data de ativação, com pré-visualização e relatório de linhas inválidas/duplicadas.
 - **Colar lista de e-mails** em um campo de texto (um por linha, vírgula ou ponto e vírgula).
-- E-mails normalizados (minúsculo, sem espaços) e únicos por campanha; possibilidade de remover linhas e reimportar sem duplicar.
+- E-mails normalizados (minúsculo, sem espaços) e únicos por campanha; possível remover linhas e reimportar sem duplicar.
 
-### 2. Base de assinantes por e-mail (Metabase)
-Nova base por cliente, atualizada pela rotina diária do Metabase, com: e-mail, id do cliente, status da assinatura (ativo/cancelado/trial), plano/oferta, MRR, origem (4blue/yampa), data de início, data de cancelamento e data do snapshot. É idempotente por (data do snapshot + e-mail), no mesmo padrão dos ingests atuais.
+### 2. Cruzamento com a base do Metabase
+Para cada e-mail da lista, busca o registro mais recente em `metas_ativos_pagantes_daily` (último `data_snapshot` disponível) e traz status, plano/oferta, MRR, origem, início e cancelamento. Quem não aparece na base cai para o Stripe local; quem não aparece em nenhuma das duas é marcado como "nunca assinou".
 
-### 3. Cruzamento e visão da aba
-- **Cards de status atual**: total da lista, encontrados na base, ativos, cancelados, nunca assinaram, MRR ativo hoje, MRR perdido e % de retenção.
-- **Curva de cohort**: retenção M0..M12 a partir da data de ativação (clientes ativos e MRR retido por mês), em gráfico e tabela.
-- **Tabela por cliente**: e-mail, nome, plano, MRR, status, data de ativação, data de cancelamento, origem e fonte do dado (Metabase ou Stripe), com busca, filtros por status e exportação CSV/XLSX.
-- Botão **"Recalcular cohort"** que refaz o cruzamento sob demanda e mostra a data/hora do último cálculo.
+### 3. Visão da aba
+- **Cards**: total da lista, encontrados na base, ativos, cancelados, em trial, nunca assinaram, MRR ativo hoje, MRR perdido e % de retenção.
+- **Curva de cohort**: retenção M0..M12 a partir da data de ativação (clientes ativos e MRR retido por mês), em gráfico e tabela — usando o histórico de snapshots diários quando houver.
+- **Tabela por cliente**: e-mail, nome, plano, MRR, status, data de ativação, data de cancelamento, origem e fonte do dado (Metabase ou Stripe), com busca, filtro por status e exportação CSV/XLSX.
+- Botão **"Recalcular cohort"** que refaz o cruzamento sob demanda e mostra a data/hora do último cálculo e o `data_snapshot` usado.
 
 ### 4. Regra de precedência
-Para cada e-mail: usa a base Metabase (snapshot mais recente) quando existir; se não existir, cai para o Stripe local (`stripe_conversions` + `stripe_churn_events`). A tabela indica sempre qual fonte foi usada, para auditoria.
+Metabase (snapshot mais recente) → Stripe local. A tabela sempre indica a fonte usada, para auditoria.
 
 ## Detalhes técnicos
 
 Banco (novas tabelas em `public`, com RLS e GRANTs, acesso admin/tático como no resto da seção):
 - `campaign_cohort_contacts`: `campaign_id` (FK `campaign_history`), `email`, `email_norm`, `name`, `offer`, `activated_at`, `source_import_id`, único por (`campaign_id`, `email_norm`).
 - `campaign_cohort_imports`: log de importações (arquivo, linhas totais/válidas/ignoradas, autor).
-- `metabase_subscriber_base`: base por e-mail do Metabase (`snapshot_date`, `email_norm`, `customer_id`, `status`, `plan_name`, `price_id`, `mrr`, `origem_cliente`, `started_at`, `canceled_at`, `dedupe_key` único).
-- `campaign_cohort_results`: resultado materializado do cruzamento por contato (`status`, `mrr`, `plan_name`, `started_at`, `canceled_at`, `source`, `computed_at`), para leitura rápida da aba.
+- `campaign_cohort_results`: resultado materializado do cruzamento por contato (`status`, `mrr`, `plan_name`, `origem_cliente`, `started_at`, `canceled_at`, `source`, `snapshot_date`, `computed_at`).
 - Função `public.campaign_cohort_refresh(p_campaign_id uuid)` (security definer) que recalcula os resultados aplicando a precedência Metabase → Stripe.
-
-Backend:
-- Nova Edge Function `metabase-subscribers-ingest`, autenticada por `CRON_SECRET` como as demais, recebendo `{ snapshot_date, rows[] }` e fazendo upsert idempotente em `metabase_subscriber_base`.
+- Nenhuma alteração em `metas_ativos_pagantes_daily` nem na function `ativos-ingest`. A tabela contém PII e continua não exposta diretamente ao cliente: a leitura acontece dentro da função security definer, e a aba só lê `campaign_cohort_results` (e-mails que o próprio usuário importou).
 
 Frontend:
 - `src/pages/CampaignHistory.tsx`: nova sub-aba **Cohort**.
@@ -49,8 +45,8 @@ Frontend:
 
 ## Validação
 
-Importar uma lista de e-mails de uma campanha, rodar "Recalcular cohort" e conferir ativos/cancelados e MRR contra a base Stripe; depois, com a primeira carga da base de assinantes do Metabase, confirmar que a fonte muda para Metabase e os números batem com a visão de Metas.
+Importar a lista de uma campanha, rodar "Recalcular cohort" e conferir ativos/cancelados e MRR contra a base Stripe. Depois da primeira carga do `ativos-ingest`, confirmar que a fonte passa a ser Metabase e que os números batem com a visão de Metas.
 
 ## Fora de escopo
 
-Consulta ao vivo na API do Stripe por e-mail (pode ser adicionada depois como refresh pontual).
+Consulta ao vivo na API do Stripe ou do Metabase por e-mail (pode ser adicionada depois como refresh pontual).
