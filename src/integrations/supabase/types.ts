@@ -455,6 +455,182 @@ export type Database = {
           },
         ]
       }
+      campaign_cohort_contacts: {
+        Row: {
+          activated_at: string | null
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          email: string
+          email_norm: string
+          id: string
+          name: string | null
+          offer: string | null
+          source_import_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          email: string
+          email_norm: string
+          id?: string
+          name?: string | null
+          offer?: string | null
+          source_import_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          email_norm?: string
+          id?: string
+          name?: string | null
+          offer?: string | null
+          source_import_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_cohort_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_cohort_contacts_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_cohort_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_cohort_imports: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          id: string
+          skipped_rows: number
+          total_rows: number
+          updated_at: string
+          valid_rows: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          skipped_rows?: number
+          total_rows?: number
+          updated_at?: string
+          valid_rows?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          skipped_rows?: number
+          total_rows?: number
+          updated_at?: string
+          valid_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_cohort_imports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_cohort_results: {
+        Row: {
+          campaign_id: string
+          canceled_at: string | null
+          churn_type: string | null
+          computed_at: string
+          contact_id: string
+          created_at: string
+          email_norm: string
+          id: string
+          mrr: number
+          offer_name: string | null
+          origem_cliente: string | null
+          plan_name: string | null
+          snapshot_date: string | null
+          source: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          canceled_at?: string | null
+          churn_type?: string | null
+          computed_at?: string
+          contact_id: string
+          created_at?: string
+          email_norm: string
+          id?: string
+          mrr?: number
+          offer_name?: string | null
+          origem_cliente?: string | null
+          plan_name?: string | null
+          snapshot_date?: string | null
+          source?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          canceled_at?: string | null
+          churn_type?: string | null
+          computed_at?: string
+          contact_id?: string
+          created_at?: string
+          email_norm?: string
+          id?: string
+          mrr?: number
+          offer_name?: string | null
+          origem_cliente?: string | null
+          plan_name?: string | null
+          snapshot_date?: string | null
+          source?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_cohort_results_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_cohort_results_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "campaign_cohort_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_history: {
         Row: {
           channel: string | null
@@ -4950,6 +5126,18 @@ export type Database = {
           p_plan_type: Database["public"]["Enums"]["discount_plan_type"]
           p_tpv: number
         }
+        Returns: Json
+      }
+      campaign_cohort_curve: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          active_count: number
+          month_offset: number
+          mrr_total: number
+        }[]
+      }
+      campaign_cohort_refresh: {
+        Args: { p_campaign_id: string }
         Returns: Json
       }
       classify_stripe_conversion: {
