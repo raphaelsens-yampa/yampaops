@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileSpreadsheet, RefreshCw, Trash2, Users } from "lucide-react";
+import { Download, FileSpreadsheet, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CollapseToggle } from "@/components/goals/tactical/CollapseToggle";
@@ -226,6 +226,16 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         <Button size="sm" onClick={refreshCohort} disabled={!campaign || refreshing || !rows.length}>
           <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
           {refreshing ? "Recalculando…" : "Recalcular cohort"}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={fillFromStripe}
+          disabled={!campaign || stripeFilling || refreshing || !rows.length}
+          title="Complementa apenas os contatos não identificados (Nunca assinou) buscando na base Stripe"
+        >
+          <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
+          {stripeFilling ? "Pesquisando…" : "Pesquisar na base Stripe"}
         </Button>
       </div>
 
