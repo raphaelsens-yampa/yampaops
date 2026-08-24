@@ -388,7 +388,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         open={churnOpen}
         onOpenChange={setChurnOpen}
         onImported={() => { resultsQ.refetch(); curveQ.refetch(); }}
-      />}
+      />
     </div>
   );
 }
