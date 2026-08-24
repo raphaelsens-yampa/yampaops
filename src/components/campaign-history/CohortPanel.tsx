@@ -240,6 +240,14 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
           {stripeFilling ? "Pesquisando…" : "Pesquisar na base Stripe"}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setChurnOpen(true)}
+          title="Base histórica de cancelamentos usada para datar o churn no cohort"
+        >
+          <History className="h-4 w-4 mr-1" />Base de churn
+        </Button>
       </div>
 
       {!campaign ? (
