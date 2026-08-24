@@ -45,6 +45,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const { toast } = useToast();
   const [listOpen, setListOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [stripeFilling, setStripeFilling] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tableOpen, setTableOpen] = useState(true);
@@ -127,6 +128,24 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       toast({ title: "Erro ao recalcular cohort", description: String((e as Error)?.message ?? e), variant: "destructive" });
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const fillFromStripe = async () => {
+    if (!campaignId) return;
+    setStripeFilling(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("campaign_cohort_stripe_fill", { p_campaign_id: campaignId });
+      if (error) throw error;
+      await Promise.all([resultsQ.refetch(), curveQ.refetch()]);
+      toast({
+        title: "Busca na base Stripe concluída",
+        description: `${(data as any)?.matched ?? 0} de ${(data as any)?.candidates ?? 0} contato(s) não identificados foram encontrados no Stripe.`,
+      });
+    } catch (e) {
+      toast({ title: "Erro na busca Stripe", description: String((e as Error)?.message ?? e), variant: "destructive" });
+    } finally {
+      setStripeFilling(false);
     }
   };
 
