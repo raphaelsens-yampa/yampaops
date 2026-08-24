@@ -241,6 +241,37 @@ try {
       coletado_em: coletadoEm,
     }));
 
+    // ---- Fonte 2b: histórico de churn (últimos 24 meses) ----
+    const churnMonths = Number(body.churn_history_months) > 0
+      ? Math.min(120, Number(body.churn_history_months))
+      : 24;
+    const cutoff = (() => {
+      const [y, m] = dataSnapshot.split('-').map(Number);
+      const d = new Date(Date.UTC(y, m - 1 - churnMonths, 1));
+      return d.toISOString().slice(0, 10);
+    })();
+    const churnHistMap = new Map<string, Row>();
+    for (const r of churnRaw) {
+      const email = lower(r['Email']);
+      const canceledAt = toDate(r['Churn At']);
+      if (!email || !canceledAt || canceledAt < cutoff) continue;
+      const key = `${email}|${canceledAt}`;
+      if (churnHistMap.has(key)) continue;
+      churnHistMap.set(key, {
+        email_norm: email,
+        company_id: txt(r['Company ID']),
+        plano: txt(r['Plano']),
+        nome_oferta: txt(r['Nome Oferta']),
+        gateway: txt(r['Gateway']),
+        mrr: toNum(r['Total Mrr']),
+        data_inicio: toDate(r['Inicio Vigencia Plano']),
+        data_cancelamento: canceledAt,
+        tipo_churn: txt(r['Tipo Churn']),
+        fonte: 'metabase',
+      });
+    }
+    const churnHist = Array.from(churnHistMap.values());
+
     // ---- Fonte 3: trials em curso ----
     const trialsRaw = await metabase('/api/card/267/query/json', apiKey);
     const fimMes = lastDayOfMonth(dataSnapshot);
