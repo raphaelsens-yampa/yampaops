@@ -545,6 +545,10 @@ export default function CampaignHistory() {
               />
             </TabsContent>
 
+            <TabsContent value="cohort" className="pt-4">
+              <CohortPanel campaigns={campaigns} campaign={selected} onChangeCampaign={setSelectedId} />
+            </TabsContent>
+
             <TabsContent value="config" className="pt-4">
               <MetricsConfig metrics={allMetrics} onRefresh={refreshAll} />
             </TabsContent>
