@@ -269,7 +269,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
             ))}
           </div>
 
-          <CohortRetentionChart curve={curveQ.data ?? []} />
+          <CohortRetentionChart curve={curveQ.data ?? []} rows={rows} />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
