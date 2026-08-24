@@ -46,6 +46,7 @@ interface Props {
 export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const { toast } = useToast();
   const [listOpen, setListOpen] = useState(false);
+  const [churnOpen, setChurnOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [stripeFilling, setStripeFilling] = useState(false);
   const [search, setSearch] = useState("");
