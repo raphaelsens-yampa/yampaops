@@ -97,16 +97,36 @@ async function metabase(path: string, apiKey: string, body?: unknown): Promise<R
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
-  try {
+try {
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-    const ingestSecret = Deno.env.get('ATIVOS_INGEST_SECRET');
     const apiKey = Deno.env.get('METABASE_API_KEY');
-    if (!ingestSecret) return json({ error: 'ATIVOS_INGEST_SECRET não configurado' }, 500);
     if (!apiKey) return json({ error: 'METABASE_API_KEY não configurado' }, 500);
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
     const provided = req.headers.get('x-ingest-secret') || '';
-    if (!safeEqual(provided, ingestSecret)) return json({ error: 'Unauthorized' }, 401);
+    if (!provided) return json({ error: 'Unauthorized' }, 401);
+
+    // Validação primária via RPC (lê o segredo do Vault). Fallback para env var se a RPC falhar.
+    const { data: secretOk, error: rpcErr } = await supabase.rpc('ativos_ingest_secret_ok', {
+      p_secret: provided,
+    });
+    if (rpcErr) {
+      const fallbackSecret = Deno.env.get('ATIVOS_INGEST_SECRET');
+      if (!fallbackSecret) {
+        return json({
+          error: 'Nao foi possivel validar o segredo: RPC falhou e ATIVOS_INGEST_SECRET nao esta configurado',
+          detalhe: rpcErr.message,
+        }, 500);
+      }
+      if (!safeEqual(provided, fallbackSecret)) return json({ error: 'Unauthorized' }, 401);
+    } else if (secretOk !== true) {
+      return json({ error: 'Unauthorized' }, 401);
+    }
 
     let body: Row = {};
     try {
