@@ -6,7 +6,7 @@ Nova aba **Cohort** para medir, sob demanda, o status de assinatura dos clientes
 
 - `campaign_history` não guarda nenhuma lista de contatos/e-mails — essa lista precisa ser criada.
 - A base por cliente **já existe**: `metas_ativos_pagantes_daily`, alimentada pela Edge Function `ativos-ingest`, com `data_snapshot`, `email`, `company_id`, `status_assinatura` (ativo/cancelado/trial), `plano`, `nome_oferta`, `mrr`, `origem_cliente`, `data_inicio`, `data_cancelamento`, `tipo_churn`. É exatamente a chave que falta para o cruzamento por e-mail.
-- Hoje essa tabela está **vazia**: a rotina de ingest ainda não rodou (falta cadastrar os segredos `METABASE_API_KEY` e `ATIVOS_INGEST_SECRET` e disparar a function). Sem a primeira carga, o cohort mostra "base indisponível" e usa apenas o fallback Stripe.
+- A tabela **já tem carga**: 2.583 registros, último `data_snapshot` em 23/08/2026 — ou seja, o cruzamento por e-mail pode rodar desde já com dados reais do Metabase.
 - Fallback local por e-mail: `stripe_conversions` (plano, price, MRR/MRR líquido, data) + `stripe_churn_events` (cancelamento, MRR perdido, motivo).
 
 ## Como vai funcionar
