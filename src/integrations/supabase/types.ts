@@ -560,6 +560,7 @@ export type Database = {
         Row: {
           campaign_id: string
           canceled_at: string | null
+          churn_source: string | null
           churn_type: string | null
           computed_at: string
           contact_id: string
@@ -579,6 +580,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           canceled_at?: string | null
+          churn_source?: string | null
           churn_type?: string | null
           computed_at?: string
           contact_id: string
@@ -598,6 +600,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           canceled_at?: string | null
+          churn_source?: string | null
           churn_type?: string | null
           computed_at?: string
           contact_id?: string
@@ -2797,6 +2800,57 @@ export type Database = {
           status_pagamento?: string | null
           stripe_price_id?: string | null
           tipo_churn?: string | null
+        }
+        Relationships: []
+      }
+      metas_churn_historico: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          data_cancelamento: string
+          data_inicio: string | null
+          email_norm: string
+          fonte: string
+          gateway: string | null
+          id: string
+          motivo: string | null
+          mrr: number | null
+          nome_oferta: string | null
+          plano: string | null
+          tipo_churn: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          data_cancelamento: string
+          data_inicio?: string | null
+          email_norm: string
+          fonte?: string
+          gateway?: string | null
+          id?: string
+          motivo?: string | null
+          mrr?: number | null
+          nome_oferta?: string | null
+          plano?: string | null
+          tipo_churn?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          data_cancelamento?: string
+          data_inicio?: string | null
+          email_norm?: string
+          fonte?: string
+          gateway?: string | null
+          id?: string
+          motivo?: string | null
+          mrr?: number | null
+          nome_oferta?: string | null
+          plano?: string | null
+          tipo_churn?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
