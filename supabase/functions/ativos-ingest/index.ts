@@ -1,8 +1,8 @@
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS = {
-  ...corsHeaders,
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'content-type, x-ingest-secret',
 };
 
@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
     let dupAtivos = 0;
     let semEmail = 0;
     for (const r of ativosRaw) {
-      const cid = txt(r['Company ID']);
+      const cid = txt(r['Company ID']) ?? '';
       const key = cid ?? '';
       if (seen.has(key)) { dupAtivos++; continue; }
       seen.add(key);
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
       data_execucao: dataExecucao,
       mes_ref: mesRef,
       status_assinatura: 'cancelado',
-      company_id: txt(r['Company ID']),
+      company_id: txt(r['Company ID']) ?? '',
       email: lower(r['Email']),
       plano: txt(r['Plano']),
       nome_oferta: txt(r['Nome Oferta']),
@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
       data_execucao: dataExecucao,
       mes_ref: mesRef,
       status_assinatura: 'trial',
-      company_id: txt(r['Company ID']),
+      company_id: txt(r['Company ID']) ?? '',
       email: lower(r['Email']),
       plano: txt(r['Plano']),
       nome_oferta: txt(r['Nome Oferta']),
