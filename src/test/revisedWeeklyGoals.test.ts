@@ -43,14 +43,25 @@ describe("computeRevisedWeeklyTargets", () => {
   });
 
 
-  it("rateia proporcionalmente semanas com dias úteis diferentes", () => {
+  it("rateia proporcionalmente semanas com dias úteis diferentes (piso na original)", () => {
     const res = computeRevisedWeeklyTargets({
       monthTarget: 600,
       weeks: [w(5, 500, 500, "closed"), w(5, 50, null, "future"), w(1, 50, null, "future")],
     });
     expect(res.weeks[1].revisedTarget).toBeCloseTo((100 * 5) / 6);
+    // rateio (100/6) fica abaixo da original: mantém 50
+    expect(res.weeks[2].revisedTarget).toBe(50);
+  });
+
+  it("permite alívio quando allowDecrease é explícito", () => {
+    const res = computeRevisedWeeklyTargets({
+      monthTarget: 600,
+      allowDecrease: true,
+      weeks: [w(5, 500, 500, "closed"), w(5, 50, null, "future"), w(1, 50, null, "future")],
+    });
     expect(res.weeks[2].revisedTarget).toBeCloseTo((100 * 1) / 6);
   });
+
 
   it("nunca vai abaixo de zero e marca resíduo sem semana futura", () => {
     const res = computeRevisedWeeklyTargets({
