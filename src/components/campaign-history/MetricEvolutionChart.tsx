@@ -39,7 +39,7 @@ export function MetricEvolutionChart({
   const [metricId2, setMetricId2] = useState<string>(NONE);
   const [chartType, setChartType] = useState<SeriesType>("line");
   const [chartType2, setChartType2] = useState<SeriesType>("bar");
-  const [showTargets, setShowTargets] = useState(true);
+  const [viewMode, setViewMode] = useState<"both" | "real" | "meta">("both");
 
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
   const metric2 = metricId2 === NONE ? undefined : metrics.find((m) => m.id === metricId2);
@@ -163,9 +163,12 @@ export function MetricEvolutionChart({
               </div>
             </div>
           </div>
-          <Button size="sm" variant={showTargets ? "secondary" : "outline"} className="w-fit" onClick={() => setShowTargets((v) => !v)}>
-            {showTargets ? "Ocultar metas" : "Mostrar metas"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">Visualizar:</span>
+            <Button size="sm" variant={viewMode === "both" ? "default" : "outline"} onClick={() => setViewMode("both")}>Ambos</Button>
+            <Button size="sm" variant={viewMode === "real" ? "default" : "outline"} onClick={() => setViewMode("real")}>Realizado</Button>
+            <Button size="sm" variant={viewMode === "meta" ? "default" : "outline"} onClick={() => setViewMode("meta")}>Meta</Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-[320px]">
@@ -188,10 +191,10 @@ export function MetricEvolutionChart({
                   }
                 />
                 <Legend />
-                {showTargets && seriesA("metaA", true)}
-                {seriesA("realA", false)}
-                {metric2 && showTargets && seriesB("metaB", true)}
-                {metric2 && seriesB("realB", false)}
+                {viewMode !== "real" && seriesA("metaA", true)}
+                {viewMode !== "meta" && seriesA("realA", false)}
+                {metric2 && viewMode !== "real" && seriesB("metaB", true)}
+                {metric2 && viewMode !== "meta" && seriesB("realB", false)}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
