@@ -2552,6 +2552,78 @@ export type Database = {
           },
         ]
       }
+      metas_ativos_pagantes_daily: {
+        Row: {
+          classificacao_company: string | null
+          coletado_em: string
+          company_id: string | null
+          data_cancelamento: string | null
+          data_execucao: string
+          data_inicio: string | null
+          data_snapshot: string
+          email: string | null
+          fonte: string
+          gateway: string | null
+          id: number
+          mes_ref: string
+          mrr: number | null
+          nome_oferta: string | null
+          origem_cliente: string | null
+          plano: string | null
+          recorrencia_pagamento: string | null
+          status_assinatura: string
+          status_pagamento: string | null
+          stripe_price_id: string | null
+          tipo_churn: string | null
+        }
+        Insert: {
+          classificacao_company?: string | null
+          coletado_em?: string
+          company_id?: string | null
+          data_cancelamento?: string | null
+          data_execucao: string
+          data_inicio?: string | null
+          data_snapshot: string
+          email?: string | null
+          fonte: string
+          gateway?: string | null
+          id?: number
+          mes_ref: string
+          mrr?: number | null
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          plano?: string | null
+          recorrencia_pagamento?: string | null
+          status_assinatura: string
+          status_pagamento?: string | null
+          stripe_price_id?: string | null
+          tipo_churn?: string | null
+        }
+        Update: {
+          classificacao_company?: string | null
+          coletado_em?: string
+          company_id?: string | null
+          data_cancelamento?: string | null
+          data_execucao?: string
+          data_inicio?: string | null
+          data_snapshot?: string
+          email?: string | null
+          fonte?: string
+          gateway?: string | null
+          id?: number
+          mes_ref?: string
+          mrr?: number | null
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          plano?: string | null
+          recorrencia_pagamento?: string | null
+          status_assinatura?: string
+          status_pagamento?: string | null
+          stripe_price_id?: string | null
+          tipo_churn?: string | null
+        }
+        Relationships: []
+      }
       metas_churn_mensal: {
         Row: {
           churn_mrr_inicio_mes: number | null
