@@ -2556,7 +2556,7 @@ export type Database = {
         Row: {
           classificacao_company: string | null
           coletado_em: string
-          company_id: string | null
+          company_id: string
           data_cancelamento: string | null
           data_execucao: string
           data_inicio: string | null
@@ -2579,7 +2579,7 @@ export type Database = {
         Insert: {
           classificacao_company?: string | null
           coletado_em?: string
-          company_id?: string | null
+          company_id?: string
           data_cancelamento?: string | null
           data_execucao: string
           data_inicio?: string | null
@@ -2602,7 +2602,7 @@ export type Database = {
         Update: {
           classificacao_company?: string | null
           coletado_em?: string
-          company_id?: string | null
+          company_id?: string
           data_cancelamento?: string | null
           data_execucao?: string
           data_inicio?: string | null

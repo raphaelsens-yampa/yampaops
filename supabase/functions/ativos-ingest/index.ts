@@ -1,8 +1,8 @@
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS = {
-  ...corsHeaders,
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'content-type, x-ingest-secret',
 };
 
@@ -158,8 +158,8 @@ Deno.serve(async (req) => {
     let dupAtivos = 0;
     let semEmail = 0;
     for (const r of ativosRaw) {
-      const cid = txt(r['Company ID']);
-      const key = cid ?? '';
+      const cid = txt(r['Company ID']) ?? '';
+      const key = cid;
       if (seen.has(key)) { dupAtivos++; continue; }
       seen.add(key);
       const email = lower(r['Email']);
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
       data_execucao: dataExecucao,
       mes_ref: mesRef,
       status_assinatura: 'cancelado',
-      company_id: txt(r['Company ID']),
+      company_id: txt(r['Company ID']) ?? '',
       email: lower(r['Email']),
       plano: txt(r['Plano']),
       nome_oferta: txt(r['Nome Oferta']),
@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
       data_execucao: dataExecucao,
       mes_ref: mesRef,
       status_assinatura: 'trial',
-      company_id: txt(r['Company ID']),
+      company_id: txt(r['Company ID']) ?? '',
       email: lower(r['Email']),
       plano: txt(r['Plano']),
       nome_oferta: txt(r['Nome Oferta']),
@@ -300,20 +300,11 @@ Deno.serve(async (req) => {
 
     for (const [status, rows] of grupos) {
       if (rows.length === 0) continue;
-      // Idempotência: o índice único é sobre uma expressão (COALESCE(company_id,'')),
-      // que o PostgREST não consegue inferir em ON CONFLICT — limpar o recorte do dia
-      // e reinserir garante o mesmo resultado sem duplicar linhas.
-      const { error: delErr } = await supabase
-        .from('metas_ativos_pagantes_daily')
-        .delete()
-        .eq('data_snapshot', dataSnapshot)
-        .eq('status_assinatura', status);
-      if (delErr) {
-        return json({ ...base, error: `Falha ao limpar ${status}: ${delErr.message}`, gravados }, 500);
-      }
       for (let i = 0; i < rows.length; i += BATCH) {
         const chunk = rows.slice(i, i + BATCH);
-        const { error } = await supabase.from('metas_ativos_pagantes_daily').insert(chunk);
+        const { error } = await supabase
+          .from('metas_ativos_pagantes_daily')
+          .upsert(chunk, { onConflict: 'data_snapshot,company_id,status_assinatura', ignoreDuplicates: false });
         if (error) {
           return json({
             ...base,
