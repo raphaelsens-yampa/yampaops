@@ -268,6 +268,89 @@ export function buildCurve(raw: { month_offset: number; active_count: number; mr
   return out;
 }
 
+/* ===== Matriz de cohort (heatmap triangular) ===== */
+
+export interface CohortMatrixCell {
+  offset: number;
+  active: number;
+  size: number;
+  retention_pct: number;
+  mrr: number;
+}
+
+export interface CohortMatrixRow {
+  key: string;
+  label: string;
+  size: number;
+  cells: CohortMatrixCell[];
+}
+
+const MONTHS_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function monthIndex(iso: string): number {
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7));
+  return y * 12 + (m - 1);
+}
+
+function monthLabel(iso: string): string {
+  const y = iso.slice(2, 4);
+  const m = Number(iso.slice(5, 7));
+  return `${MONTHS_PT[m - 1] ?? "?"}/${y}`;
+}
+
+/**
+ * Constrói a matriz clássica de cohort: cada linha é o mês de ativação,
+ * cada coluna é o mês relativo (M0..M12) com a retenção do grupo.
+ */
+export function buildCohortMatrix(rows: CohortRow[], maxOffset = 12): CohortMatrixRow[] {
+  const today = new Date();
+  const nowIdx = today.getFullYear() * 12 + today.getMonth();
+
+  const groups = new Map<string, { start: number; canceled: number | null; mrr: number }[]>();
+
+  for (const r of rows) {
+    const res = r.result;
+    if (!res || res.status === "never") continue;
+    const startIso = (r.activated_at ?? res.started_at ?? "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
+    const key = startIso.slice(0, 7);
+    const cancelIso = (res.canceled_at ?? "").slice(0, 10);
+    const canceled = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    const list = groups.get(key) ?? [];
+    list.push({ start: monthIndex(startIso), canceled, mrr: Number(res.mrr ?? 0) });
+    groups.set(key, list);
+  }
+
+  const out: CohortMatrixRow[] = [];
+  for (const key of Array.from(groups.keys()).sort()) {
+    const members = groups.get(key)!;
+    const startIdx = monthIndex(`${key}-01`);
+    const available = Math.min(maxOffset, Math.max(0, nowIdx - startIdx));
+    const cells: CohortMatrixCell[] = [];
+    for (let k = 0; k <= available; k++) {
+      let active = 0;
+      let mrr = 0;
+      for (const m of members) {
+        const stillActive = m.canceled == null || m.canceled > m.start + k;
+        if (stillActive) {
+          active++;
+          mrr += m.mrr;
+        }
+      }
+      cells.push({
+        offset: k,
+        active,
+        size: members.length,
+        retention_pct: members.length ? (active / members.length) * 100 : 0,
+        mrr,
+      });
+    }
+    out.push({ key, label: monthLabel(`${key}-01`), size: members.length, cells });
+  }
+  return out;
+}
+
 export function formatBRL(v: number | null | undefined): string {
   const n = Number(v ?? 0);
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
