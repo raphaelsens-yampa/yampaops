@@ -192,10 +192,10 @@ export function MetricEvolutionChart({
                   }
                 />
                 <Legend />
-                {showTargets && seriesA("metaA", true)}
-                {seriesA("realA", false)}
-                {metric2 && showTargets && seriesB("metaB", true)}
-                {metric2 && seriesB("realB", false)}
+                {viewMode !== "real" && seriesA("metaA", true)}
+                {viewMode !== "meta" && seriesA("realA", false)}
+                {metric2 && viewMode !== "real" && seriesB("metaB", true)}
+                {metric2 && viewMode !== "meta" && seriesB("realB", false)}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
