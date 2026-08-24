@@ -349,6 +349,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                             <td className="px-2 py-2 text-xs text-muted-foreground">
                               {res?.source ? SOURCE_LABEL[res.source] ?? res.source : "—"}
                             </td>
+                            <td className="px-2 py-2 text-xs text-muted-foreground">
+                              {res?.churn_source ? CHURN_SOURCE_LABEL[res.churn_source] ?? res.churn_source : "—"}
+                            </td>
                             <td className="px-2 py-2 text-right">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeContact(r.id, r.email_norm)}>
                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
