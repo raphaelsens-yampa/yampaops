@@ -4942,6 +4942,7 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      ativos_ingest_secret_ok: { Args: { p_secret: string }; Returns: boolean }
       calculate_discount: {
         Args: {
           p_base_price: number
