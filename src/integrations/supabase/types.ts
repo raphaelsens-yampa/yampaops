@@ -5140,6 +5140,10 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: Json
       }
+      campaign_cohort_stripe_fill: {
+        Args: { p_campaign_id: string }
+        Returns: Json
+      }
       classify_stripe_conversion: {
         Args: {
           p_customer_id: string

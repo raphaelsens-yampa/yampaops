@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileSpreadsheet, RefreshCw, Trash2, Users } from "lucide-react";
+import { Download, FileSpreadsheet, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CollapseToggle } from "@/components/goals/tactical/CollapseToggle";
@@ -45,6 +45,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const { toast } = useToast();
   const [listOpen, setListOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [stripeFilling, setStripeFilling] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tableOpen, setTableOpen] = useState(true);
@@ -130,6 +131,24 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     }
   };
 
+  const fillFromStripe = async () => {
+    if (!campaignId) return;
+    setStripeFilling(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("campaign_cohort_stripe_fill", { p_campaign_id: campaignId });
+      if (error) throw error;
+      await Promise.all([resultsQ.refetch(), curveQ.refetch()]);
+      toast({
+        title: "Busca na base Stripe concluída",
+        description: `${(data as any)?.matched ?? 0} de ${(data as any)?.candidates ?? 0} contato(s) não identificados foram encontrados no Stripe.`,
+      });
+    } catch (e) {
+      toast({ title: "Erro na busca Stripe", description: String((e as Error)?.message ?? e), variant: "destructive" });
+    } finally {
+      setStripeFilling(false);
+    }
+  };
+
   const removeContact = async (id: string, email: string) => {
     if (!confirm(`Remover ${email} da lista da campanha?`)) return;
     const { error } = await supabase.from("campaign_cohort_contacts").delete().eq("id", id);
@@ -207,6 +226,16 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         <Button size="sm" onClick={refreshCohort} disabled={!campaign || refreshing || !rows.length}>
           <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
           {refreshing ? "Recalculando…" : "Recalcular cohort"}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={fillFromStripe}
+          disabled={!campaign || stripeFilling || refreshing || !rows.length}
+          title="Complementa apenas os contatos não identificados (Nunca assinou) buscando na base Stripe"
+        >
+          <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
+          {stripeFilling ? "Pesquisando…" : "Pesquisar na base Stripe"}
         </Button>
       </div>
 
