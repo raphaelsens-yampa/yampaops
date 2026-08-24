@@ -326,6 +326,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                         <th className="px-2 py-2 text-left">Cancelamento</th>
                         <th className="px-2 py-2 text-left">Origem</th>
                         <th className="px-2 py-2 text-left">Fonte</th>
+                        <th className="px-2 py-2 text-left">Fonte churn</th>
                         <th className="px-2 py-2" />
                       </tr>
                     </thead>
