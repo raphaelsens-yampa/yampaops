@@ -39,7 +39,6 @@ export function MetricEvolutionChart({
   const [metricId2, setMetricId2] = useState<string>(NONE);
   const [chartType, setChartType] = useState<SeriesType>("line");
   const [chartType2, setChartType2] = useState<SeriesType>("bar");
-  const [showTargets, setShowTargets] = useState(true);
   const [viewMode, setViewMode] = useState<"both" | "real" | "meta">("both");
 
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
