@@ -361,7 +361,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                         );
                       })}
                       {!filtered.length && (
-                        <tr><td colSpan={10} className="px-2 py-6 text-center text-sm text-muted-foreground">Nenhum cliente com esses filtros.</td></tr>
+                        <tr><td colSpan={11} className="px-2 py-6 text-center text-sm text-muted-foreground">Nenhum cliente com esses filtros.</td></tr>
                       )}
                     </tbody>
                   </table>
