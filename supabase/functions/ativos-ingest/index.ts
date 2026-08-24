@@ -306,12 +306,7 @@ try {
       return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0 } });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    const gravados = { ativo: 0, cancelado: 0, trial: 0 };
+const gravados = { ativo: 0, cancelado: 0, trial: 0 };
     const grupos: Array<[keyof typeof gravados, Row[]]> = [
       ['ativo', ativos],
       ['cancelado', cancelados],
