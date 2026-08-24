@@ -300,20 +300,11 @@ Deno.serve(async (req) => {
 
     for (const [status, rows] of grupos) {
       if (rows.length === 0) continue;
-      // Idempotência: o índice único é sobre uma expressão (COALESCE(company_id,'')),
-      // que o PostgREST não consegue inferir em ON CONFLICT — limpar o recorte do dia
-      // e reinserir garante o mesmo resultado sem duplicar linhas.
-      const { error: delErr } = await supabase
-        .from('metas_ativos_pagantes_daily')
-        .delete()
-        .eq('data_snapshot', dataSnapshot)
-        .eq('status_assinatura', status);
-      if (delErr) {
-        return json({ ...base, error: `Falha ao limpar ${status}: ${delErr.message}`, gravados }, 500);
-      }
       for (let i = 0; i < rows.length; i += BATCH) {
         const chunk = rows.slice(i, i + BATCH);
-        const { error } = await supabase.from('metas_ativos_pagantes_daily').insert(chunk);
+        const { error } = await supabase
+          .from('metas_ativos_pagantes_daily')
+          .upsert(chunk, { onConflict: 'data_snapshot,company_id,status_assinatura', ignoreDuplicates: false });
         if (error) {
           return json({
             ...base,
