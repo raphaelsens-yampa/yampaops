@@ -241,6 +241,37 @@ try {
       coletado_em: coletadoEm,
     }));
 
+    // ---- Fonte 2b: histórico de churn (últimos 24 meses) ----
+    const churnMonths = Number(body.churn_history_months) > 0
+      ? Math.min(120, Number(body.churn_history_months))
+      : 24;
+    const cutoff = (() => {
+      const [y, m] = dataSnapshot.split('-').map(Number);
+      const d = new Date(Date.UTC(y, m - 1 - churnMonths, 1));
+      return d.toISOString().slice(0, 10);
+    })();
+    const churnHistMap = new Map<string, Row>();
+    for (const r of churnRaw) {
+      const email = lower(r['Email']);
+      const canceledAt = toDate(r['Churn At']);
+      if (!email || !canceledAt || canceledAt < cutoff) continue;
+      const key = `${email}|${canceledAt}`;
+      if (churnHistMap.has(key)) continue;
+      churnHistMap.set(key, {
+        email_norm: email,
+        company_id: txt(r['Company ID']),
+        plano: txt(r['Plano']),
+        nome_oferta: txt(r['Nome Oferta']),
+        gateway: txt(r['Gateway']),
+        mrr: toNum(r['Total Mrr']),
+        data_inicio: toDate(r['Inicio Vigencia Plano']),
+        data_cancelamento: canceledAt,
+        tipo_churn: txt(r['Tipo Churn']),
+        fonte: 'metabase',
+      });
+    }
+    const churnHist = Array.from(churnHistMap.values());
+
     // ---- Fonte 3: trials em curso ----
     const trialsRaw = await metabase('/api/card/267/query/json', apiKey);
     const fimMes = lastDayOfMonth(dataSnapshot);
@@ -299,14 +330,15 @@ try {
       duplicadas_encontradas_churn: dupChurn,
       mrr_total_ativos: Number(mrrAtivos.toFixed(2)),
       ativos_por_origem: porOrigem,
+      churn_historico: { meses: churnMonths, desde: cutoff, lidos: churnHist.length },
       avisos,
     };
 
     if (dryRun) {
-      return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0 } });
+      return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0 } });
     }
 
-const gravados = { ativo: 0, cancelado: 0, trial: 0 };
+    const gravados = { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0 };
     const grupos: Array<[keyof typeof gravados, Row[]]> = [
       ['ativo', ativos],
       ['cancelado', cancelados],
@@ -330,6 +362,19 @@ const gravados = { ativo: 0, cancelado: 0, trial: 0 };
         }
         gravados[status] += chunk.length;
       }
+    }
+
+    // Histórico de churn (idempotente por email + data de cancelamento)
+    for (let i = 0; i < churnHist.length; i += BATCH) {
+      const chunk = churnHist.slice(i, i + BATCH);
+      const { error } = await supabase
+        .from('metas_churn_historico')
+        .upsert(chunk, { onConflict: 'email_norm,data_cancelamento', ignoreDuplicates: false });
+      if (error) {
+        avisos.push(`Falha ao gravar histórico de churn (lote ${i / BATCH + 1}): ${error.message}`);
+        break;
+      }
+      gravados.churn_historico += chunk.length;
     }
 
     return json({ ...base, gravados });

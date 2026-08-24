@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileSpreadsheet, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { Download, FileSpreadsheet, History, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CollapseToggle } from "@/components/goals/tactical/CollapseToggle";
 import { CohortListDialog } from "./CohortListDialog";
+import { ChurnHistoryDialog } from "./ChurnHistoryDialog";
 import { CohortRetentionChart } from "./CohortRetentionChart";
 import {
   buildCurve,
@@ -19,6 +20,7 @@ import {
   formatBRL,
   formatDateBR,
   summarize,
+  CHURN_SOURCE_LABEL,
   SOURCE_LABEL,
   STATUS_LABEL,
   type CohortContact,
@@ -44,6 +46,7 @@ interface Props {
 export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const { toast } = useToast();
   const [listOpen, setListOpen] = useState(false);
+  const [churnOpen, setChurnOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [stripeFilling, setStripeFilling] = useState(false);
   const [search, setSearch] = useState("");
@@ -237,6 +240,14 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
           {stripeFilling ? "Pesquisando…" : "Pesquisar na base Stripe"}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setChurnOpen(true)}
+          title="Base histórica de cancelamentos usada para datar o churn no cohort"
+        >
+          <History className="h-4 w-4 mr-1" />Base de churn
+        </Button>
       </div>
 
       {!campaign ? (
@@ -315,6 +326,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                         <th className="px-2 py-2 text-left">Cancelamento</th>
                         <th className="px-2 py-2 text-left">Origem</th>
                         <th className="px-2 py-2 text-left">Fonte</th>
+                        <th className="px-2 py-2 text-left">Fonte churn</th>
                         <th className="px-2 py-2" />
                       </tr>
                     </thead>
@@ -337,6 +349,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                             <td className="px-2 py-2 text-xs text-muted-foreground">
                               {res?.source ? SOURCE_LABEL[res.source] ?? res.source : "—"}
                             </td>
+                            <td className="px-2 py-2 text-xs text-muted-foreground">
+                              {res?.churn_source ? CHURN_SOURCE_LABEL[res.churn_source] ?? res.churn_source : "—"}
+                            </td>
                             <td className="px-2 py-2 text-right">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeContact(r.id, r.email_norm)}>
                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -346,7 +361,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                         );
                       })}
                       {!filtered.length && (
-                        <tr><td colSpan={10} className="px-2 py-6 text-center text-sm text-muted-foreground">Nenhum cliente com esses filtros.</td></tr>
+                        <tr><td colSpan={11} className="px-2 py-6 text-center text-sm text-muted-foreground">Nenhum cliente com esses filtros.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -368,6 +383,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           }}
         />
       )}
+
+      <ChurnHistoryDialog
+        open={churnOpen}
+        onOpenChange={setChurnOpen}
+        onImported={() => { resultsQ.refetch(); curveQ.refetch(); }}
+      />
     </div>
   );
 }

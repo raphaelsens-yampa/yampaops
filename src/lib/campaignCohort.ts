@@ -30,6 +30,7 @@ export interface CohortResult {
   canceled_at: string | null;
   churn_type: string | null;
   source: string | null;
+  churn_source: string | null;
   snapshot_date: string | null;
   computed_at: string | null;
 }
@@ -48,6 +49,13 @@ export const STATUS_LABEL: Record<string, string> = {
 
 export const SOURCE_LABEL: Record<string, string> = {
   metabase: "Metabase",
+  stripe: "Stripe",
+};
+
+export const CHURN_SOURCE_LABEL: Record<string, string> = {
+  snapshot: "Snapshot diário",
+  metabase: "Histórico Metabase",
+  planilha: "Planilha manual",
   stripe: "Stripe",
 };
 
