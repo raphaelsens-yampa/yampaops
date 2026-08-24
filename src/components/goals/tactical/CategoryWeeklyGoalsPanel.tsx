@@ -261,6 +261,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           const res = computeRevisedWeeklyTargets({
             monthTarget,
             lowerIsBetter: isBetterBelow(cat.goal_direction),
+            allowDecrease: isBetterBelow(cat.goal_direction),
+
             weeks: rows.map((r) => ({
               businessDays: r.businessDays,
               originalTarget: r.target,
