@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileSpreadsheet, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { Download, FileSpreadsheet, History, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CollapseToggle } from "@/components/goals/tactical/CollapseToggle";
 import { CohortListDialog } from "./CohortListDialog";
+import { ChurnHistoryDialog } from "./ChurnHistoryDialog";
 import { CohortRetentionChart } from "./CohortRetentionChart";
 import {
   buildCurve,
@@ -19,6 +20,7 @@ import {
   formatBRL,
   formatDateBR,
   summarize,
+  CHURN_SOURCE_LABEL,
   SOURCE_LABEL,
   STATUS_LABEL,
   type CohortContact,
