@@ -21,6 +21,7 @@ import { CampaignHistoryImportDialog } from "@/components/campaign-history/Campa
 import { MetricEvolutionChart } from "@/components/campaign-history/MetricEvolutionChart";
 import { CampaignCompare } from "@/components/campaign-history/CampaignCompare";
 import { MetricsConfig } from "@/components/campaign-history/MetricsConfig";
+import { CohortPanel } from "@/components/campaign-history/CohortPanel";
 import { buildCampaignHistoryPdf } from "@/lib/campaignHistoryPdf";
 import {
   attainmentPct,
@@ -401,6 +402,7 @@ export default function CampaignHistory() {
               <TabsTrigger value="painel">Painel</TabsTrigger>
               <TabsTrigger value="evolucao">Evolução</TabsTrigger>
               <TabsTrigger value="comparar">Comparar</TabsTrigger>
+              <TabsTrigger value="cohort">Cohort</TabsTrigger>
               <TabsTrigger value="config">Configurações</TabsTrigger>
             </TabsList>
 
@@ -541,6 +543,10 @@ export default function CampaignHistory() {
                 onChangeA={setCompareA}
                 onChangeB={setCompareB}
               />
+            </TabsContent>
+
+            <TabsContent value="cohort" className="pt-4">
+              <CohortPanel campaigns={campaigns} campaign={selected} onChangeCampaign={setSelectedId} />
             </TabsContent>
 
             <TabsContent value="config" className="pt-4">
