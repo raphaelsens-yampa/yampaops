@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
     let semEmail = 0;
     for (const r of ativosRaw) {
       const cid = txt(r['Company ID']) ?? '';
-      const key = cid ?? '';
+      const key = cid;
       if (seen.has(key)) { dupAtivos++; continue; }
       seen.add(key);
       const email = lower(r['Email']);
