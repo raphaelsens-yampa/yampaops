@@ -402,6 +402,7 @@ export default function CampaignHistory() {
               <TabsTrigger value="painel">Painel</TabsTrigger>
               <TabsTrigger value="evolucao">Evolução</TabsTrigger>
               <TabsTrigger value="comparar">Comparar</TabsTrigger>
+              <TabsTrigger value="cohort">Cohort</TabsTrigger>
               <TabsTrigger value="config">Configurações</TabsTrigger>
             </TabsList>
 
