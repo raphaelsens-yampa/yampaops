@@ -383,6 +383,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           }}
         />
       )}
+
+      <ChurnHistoryDialog
+        open={churnOpen}
+        onOpenChange={setChurnOpen}
+        onImported={() => { resultsQ.refetch(); curveQ.refetch(); }}
+      />}
     </div>
   );
 }
