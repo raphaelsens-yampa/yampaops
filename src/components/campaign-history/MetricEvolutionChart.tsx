@@ -164,9 +164,12 @@ export function MetricEvolutionChart({
               </div>
             </div>
           </div>
-          <Button size="sm" variant={showTargets ? "secondary" : "outline"} className="w-fit" onClick={() => setShowTargets((v) => !v)}>
-            {showTargets ? "Ocultar metas" : "Mostrar metas"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">Visualizar:</span>
+            <Button size="sm" variant={viewMode === "both" ? "default" : "outline"} onClick={() => setViewMode("both")}>Ambos</Button>
+            <Button size="sm" variant={viewMode === "real" ? "default" : "outline"} onClick={() => setViewMode("real")}>Realizado</Button>
+            <Button size="sm" variant={viewMode === "meta" ? "default" : "outline"} onClick={() => setViewMode("meta")}>Meta</Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-[320px]">
