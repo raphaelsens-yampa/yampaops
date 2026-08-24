@@ -129,11 +129,19 @@ export function computeRevisedWeeklyTargets({
   weeks,
   monthTarget,
   lowerIsBetter = false,
+  allowDecrease,
 }: {
   weeks: WeeklyRevisionInput[];
   monthTarget: number;
   lowerIsBetter?: boolean;
+  /**
+   * Permite que a meta revisada fique ABAIXO da original (alívio por superávit).
+   * Padrão: só nas categorias "menor é melhor" (teto). Em crescimento, bater a
+   * meta antes do tempo nunca reduz as semanas futuras.
+   */
+  allowDecrease?: boolean;
 }): WeeklyRevisionResult {
+  const canDecrease = allowDecrease ?? lowerIsBetter;
   const keep = (w: WeeklyRevisionInput): WeeklyRevisionOutput => ({
     revisedTarget: w.originalTarget,
     delta: w.originalTarget === null ? null : 0,
@@ -158,7 +166,9 @@ export function computeRevisedWeeklyTargets({
   if (!future.length || totalBD <= 0) {
     return {
       weeks: weeks.map((w) =>
-        w.status === "future" ? { revisedTarget: 0, delta: -(w.originalTarget ?? 0) } : keep(w),
+        w.status === "future" && canDecrease
+          ? { revisedTarget: 0, delta: -(w.originalTarget ?? 0) }
+          : keep(w),
       ),
       unrecovered: Math.max(0, lowerIsBetter ? -saldo : saldo),
     };
@@ -169,9 +179,12 @@ export function computeRevisedWeeklyTargets({
   return {
     weeks: weeks.map((w) => {
       if (w.status !== "future") return keep(w);
-      const revised = (pool * Math.max(0, w.businessDays)) / totalBD;
-      return { revisedTarget: revised, delta: revised - (w.originalTarget ?? 0) };
+      const rateio = (pool * Math.max(0, w.businessDays)) / totalBD;
+      const original = w.originalTarget ?? 0;
+      const revised = canDecrease ? rateio : Math.max(original, rateio);
+      return { revisedTarget: revised, delta: revised - original };
     }),
     unrecovered: 0,
   };
 }
+
