@@ -18,3 +18,6 @@ verify_jwt = false
 [functions.chatwoot-to-ac-sync]
 verify_jwt = false
 
+[functions.ativos-ingest]
+verify_jwt = false
+
