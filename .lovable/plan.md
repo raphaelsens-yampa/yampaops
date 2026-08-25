@@ -19,6 +19,8 @@
 5. **`UnattributedSalesAlert` e `StripeBackupPanel`** (este último dentro de `TacticalSettingsPanel`) operam sempre no total. Para o painel de backup isso é correto por desenho, para o alerta de vendas sem atribuição gera ruído quando o filtro está ativo.
 6. **Filtro não é compartilhado entre abas nem persistido.** Cada aba tem seu próprio estado, sempre iniciando em Visão Geral; ao alternar abas o recorte se perde.
 7. **Estoque sem quebra continua sem quebra.** Total de MRR, Ativos Pagantes e Churn só existem em Visão Geral porque `metas_snapshot_diario` / `metabase_monthly_agg` / `metas_ativos_pagantes_daily` não gravam `origem_cliente`. Isso é limitação de ingestão, não de UI.
+8. **A ingestão parou de marcar origem em 19/08/2026.** Na base, `metas_price_daily` tem `origem_cliente` preenchido apenas entre 07/08 e 19/08; de 20/08 a 24/08 as linhas voltaram a chegar com origem nula (e 14, 15 e 22/08 não têm snapshot algum). Como o share é resolvido "as-of", todo o período recente usa a participação congelada de 19/08 — o recorte parece funcionar, mas está desatualizado. Corrigir a ingestão é pré-requisito para qualquer melhoria de UI.
+
 
 ## Correções propostas
 
