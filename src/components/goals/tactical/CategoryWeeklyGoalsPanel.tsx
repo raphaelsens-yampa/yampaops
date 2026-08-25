@@ -501,7 +501,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
-          {couponFiltered && ` Recorte "${couponLabel(coupon)}": o realizado é rateado pela participação dos cupons de campanha nas conversões da Stripe (churn cruzado por e-mail); as metas seguem as cadastradas.`}
+          {couponFiltered && ` Recorte "${couponLabel(coupon)}": Campanha usa os cupons marcados; Não-campanha é o complemento da visão canônica no recorte de origem atual; as metas seguem as cadastradas.`}
           {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>
