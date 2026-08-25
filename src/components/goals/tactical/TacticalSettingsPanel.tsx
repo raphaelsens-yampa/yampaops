@@ -4,6 +4,7 @@ import { useRecoveryReasons } from "./recoveryChannels";
 import { StripeBackupPanel } from "./StripeBackupPanel";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { RecoveryReasonsConfig } from "./RecoveryReasonsConfig";
+import { CampaignCouponsConfig } from "./CampaignCouponsConfig";
 
 /**
  * Agrupa as configurações do módulo tático (backup do Stripe, metas diárias e
@@ -31,6 +32,8 @@ export function TacticalSettingsPanel() {
       />
 
       <RecoveryReasonsConfig reasons={reasons} onChanged={reloadReasons} />
+
+      <CampaignCouponsConfig />
     </div>
   );
 }
