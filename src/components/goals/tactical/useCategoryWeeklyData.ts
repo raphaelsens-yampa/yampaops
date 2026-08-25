@@ -17,6 +17,7 @@ import {
   applyCouponMode,
   buildCouponShares,
   CATEGORY_SLUG_TO_COUPON_CLASS,
+  couponCampaignValueBetween,
   couponShareBetween,
   EMPTY_COUPON_SHARES,
   fetchCampaignCouponIds,
@@ -293,7 +294,7 @@ export function useCategoryWeeklyData(
           const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : 1));
           let prevRaw: number | null = null;
           let acc = 0;
-          let anyShare = false;
+          let anySplit = false;
           const out: CategorySnapPoint[] = [];
           for (const p of sorted) {
             if (prevRaw === null) {
@@ -304,14 +305,27 @@ export function useCategoryWeeklyData(
             }
             const delta = Math.max(0, p.value - prevRaw);
             prevRaw = p.value;
-            const share = couponShareBetween(couponShares, p.date, p.date, cls, kind);
-            if (share !== null) {
-              anyShare = true;
-              acc += applyCouponMode(delta, share, coupon);
+            const directCampaign =
+              origin === "4blue"
+                ? 0
+                : couponCampaignValueBetween(couponShares, p.date, p.date, cls, kind) ?? 0;
+            const scopedCampaign = Math.min(Math.max(directCampaign, 0), delta);
+            if (coupon === "campaign") {
+              anySplit = true;
+              acc += scopedCampaign;
+            } else if (coupon === "non_campaign") {
+              anySplit = true;
+              acc += Math.max(delta - scopedCampaign, 0);
+            } else {
+              const share = couponShareBetween(couponShares, p.date, p.date, cls, kind);
+              if (share !== null) {
+                anySplit = true;
+                acc += applyCouponMode(delta, share, coupon);
+              }
             }
             out.push({ date: p.date, value: acc });
           }
-          if (!anyShare) {
+          if (!anySplit) {
             unsupported.add(catId);
             s.delete(catId);
             continue;

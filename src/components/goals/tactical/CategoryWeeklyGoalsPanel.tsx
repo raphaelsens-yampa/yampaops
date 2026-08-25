@@ -202,14 +202,22 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           if (value === null || !couponShares) return value;
           const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
           if (!cls) return null;
+          const campaignValue =
+            origin === "4blue"
+              ? 0
+              : couponCampaignValueBetween(
+                  couponShares,
+                  startKey,
+                  cutKey,
+                  cls,
+                  leaf.metric_type === "count" ? "qtd" : "mrr",
+                ) ?? 0;
+          const scopedCampaignValue = Math.min(Math.max(campaignValue, 0), Math.max(value, 0));
           if (coupon === "campaign") {
-            return couponCampaignValueBetween(
-              couponShares,
-              startKey,
-              cutKey,
-              cls,
-              leaf.metric_type === "count" ? "qtd" : "mrr",
-            );
+            return scopedCampaignValue;
+          }
+          if (coupon === "non_campaign") {
+            return Math.max(value - scopedCampaignValue, 0);
           }
           // Participação da JANELA da semana (não do mês acumulado).
           const share = couponShareBetween(
