@@ -132,6 +132,8 @@ export function buildCouponShares(
   conversions: CouponConversionRow[],
   churn: CouponChurnRow[],
   campaignCoupons: Set<string>,
+  /** E-mails de campanha vindos de compras fora do período consultado. */
+  extraCampaignEmails: Set<string> = new Set(),
 ): CouponShares {
   type Acc = { cq: number; cm: number; tq: number; tm: number };
   const daily = new Map<string, Acc>();
@@ -161,6 +163,7 @@ export function buildCouponShares(
   }
 
   const emails = campaignEmailSet(conversions, campaignCoupons);
+  for (const e of extraCampaignEmails) if (e) emails.add(e);
   for (const r of churn) {
     const date = dateKeyOf(r.data_cancelamento);
     if (!date) continue;

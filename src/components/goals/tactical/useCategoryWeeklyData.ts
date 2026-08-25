@@ -21,6 +21,7 @@ import {
   EMPTY_COUPON_SHARES,
   fetchCampaignCouponIds,
   isCouponFiltered,
+  normalizeEmail,
   type CouponFilter,
   type CouponShares,
 } from "./campaignCoupons";
@@ -298,7 +299,7 @@ export function useCategoryWeeklyData(
        *   ao fechamento do mês anterior, exatamente como no Acompanhamento.
        * Sem recorte por origem (a base do 2.0 não tem origem por price ID).
        */
-      if (includeYampa20 && !shares) {
+      if (includeYampa20 && !shares && !couponShares) {
         const mrr20 = new Map<string, number>();
         const act20 = new Map<string, number>();
         for (const row of (snapRes.data as any[]) || []) {
@@ -360,7 +361,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, coupon, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
 
   return { categories, targets, series, noOriginSplit, loading };
 }
