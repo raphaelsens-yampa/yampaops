@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const [churnOpen, setChurnOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [stripeFilling, setStripeFilling] = useState(false);
+  const [stripeProgress, setStripeProgress] = useState<{ done: number; total: number } | null>(null);
+  const stripeCancelRef = useRef(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tableOpen, setTableOpen] = useState(true);
@@ -134,21 +136,44 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     }
   };
 
-  const fillFromStripe = async () => {
+  const fillFromStripe = async (mode: "missing" | "all" = "missing") => {
     if (!campaignId) return;
     setStripeFilling(true);
+    setStripeProgress(null);
+    stripeCancelRef.current = false;
     try {
-      const { data, error } = await (supabase as any).rpc("campaign_cohort_stripe_fill", { p_campaign_id: campaignId });
-      if (error) throw error;
+      let offset = 0;
+      let total = 0;
+      let matched = 0;
+      let safety = 0;
+      const allErrors: string[] = [];
+      while (safety++ < 500) {
+        if (stripeCancelRef.current) break;
+        const { data, error } = await supabase.functions.invoke("cohort-stripe-live", {
+          body: { campaign_id: campaignId, mode, offset, batch_size: 40, time_budget_ms: 60000 },
+        });
+        if (error) throw error;
+        const d = (data ?? {}) as any;
+        total = Number(d.total ?? 0);
+        matched += Number(d.matched ?? 0);
+        if (Array.isArray(d.errors)) allErrors.push(...d.errors);
+        const done = d.done || d.next_offset == null;
+        offset = Number(d.next_offset ?? total);
+        setStripeProgress({ done: Math.min(offset, total), total });
+        if (done) break;
+        if (!Number(d.processed ?? 0)) break;
+      }
       await Promise.all([resultsQ.refetch(), curveQ.refetch()]);
       toast({
-        title: "Busca na base Stripe concluída",
-        description: `${(data as any)?.matched ?? 0} de ${(data as any)?.candidates ?? 0} contato(s) não identificados foram encontrados no Stripe.`,
+        title: stripeCancelRef.current ? "Consulta interrompida" : "Consulta na Stripe concluída",
+        description: `${matched} de ${total} e-mail(s) identificados na Stripe.${allErrors.length ? ` ${allErrors.length} erro(s).` : ""}`,
       });
     } catch (e) {
-      toast({ title: "Erro na busca Stripe", description: String((e as Error)?.message ?? e), variant: "destructive" });
+      toast({ title: "Erro na consulta Stripe", description: String((e as Error)?.message ?? e), variant: "destructive" });
     } finally {
       setStripeFilling(false);
+      setStripeProgress(null);
+      stripeCancelRef.current = false;
     }
   };
 
@@ -233,13 +258,30 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         <Button
           variant="secondary"
           size="sm"
-          onClick={fillFromStripe}
+          onClick={() => fillFromStripe("missing")}
           disabled={!campaign || stripeFilling || refreshing || !rows.length}
-          title="Complementa apenas os contatos não identificados (Nunca assinou) buscando na base Stripe"
+          title="Consulta a API da Stripe em tempo real apenas para os contatos não identificados"
         >
           <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
-          {stripeFilling ? "Pesquisando…" : "Pesquisar na base Stripe"}
+          {stripeFilling
+            ? `Consultando Stripe${stripeProgress ? ` (${stripeProgress.done}/${stripeProgress.total})` : "…"}`
+            : "Consultar Stripe (ao vivo)"}
         </Button>
+        {stripeFilling ? (
+          <Button variant="ghost" size="sm" onClick={() => { stripeCancelRef.current = true; }}>
+            Cancelar
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fillFromStripe("all")}
+            disabled={!campaign || refreshing || !rows.length}
+            title="Reconsulta na Stripe todos os e-mails da lista, sobrescrevendo os resultados"
+          >
+            Reconsultar todos
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
