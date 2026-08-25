@@ -55,7 +55,7 @@ export function CohortRetentionChart({ curve, rows }: { curve: CurvePoint[]; row
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">Retenção de assinantes (M0 a M12)</CardTitle>
+        <CardTitle className="text-base">Retenção de assinantes (M0 em diante)</CardTitle>
         <div className="flex items-center gap-2">
           <Select value={mode} onValueChange={(v) => setMode(v as Mode)}>
             <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger>
