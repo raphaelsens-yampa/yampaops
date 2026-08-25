@@ -253,6 +253,27 @@ export function couponShareBetween(
   return null;
 }
 
+/** Valor bruto de campanha em uma janela, sem rateio sobre outra base. */
+export function couponCampaignValueBetween(
+  shares: CouponShares,
+  startKey: string,
+  endKey: string,
+  cls: CouponClassification | typeof COUPON_SHARE_ANY,
+  kind: "qtd" | "mrr",
+): number | null {
+  if (!shares.dates.length) return null;
+  let value = 0;
+  let hasClass = false;
+  for (const d of shares.dates) {
+    const v = shares.raw.get(`${d}|${cls}`);
+    if (!v) continue;
+    hasClass = true;
+    if (d < startKey || d > endKey) continue;
+    value += kind === "qtd" ? v.cq : v.cm;
+  }
+  return hasClass ? value : null;
+}
+
 /** Participação as-of a data (último dado <= data; antes disso usa o 1º disponível). */
 export function couponShareAsOf(
   shares: CouponShares,
