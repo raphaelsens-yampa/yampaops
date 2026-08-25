@@ -33,6 +33,7 @@ import {
   COUPON_OPTIONS,
   CATEGORY_SLUG_TO_COUPON_CLASS,
   applyCouponMode,
+  couponCampaignValueBetween,
   couponLabel,
   couponShareBetween,
   isCouponFiltered,
@@ -201,6 +202,15 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           if (value === null || !couponShares) return value;
           const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
           if (!cls) return null;
+          if (coupon === "campaign") {
+            return couponCampaignValueBetween(
+              couponShares,
+              startKey,
+              cutKey,
+              cls,
+              leaf.metric_type === "count" ? "qtd" : "mrr",
+            );
+          }
           // Participação da JANELA da semana (não do mês acumulado).
           const share = couponShareBetween(
             couponShares,
