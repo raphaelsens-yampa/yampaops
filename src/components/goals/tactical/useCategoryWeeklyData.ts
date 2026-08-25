@@ -13,6 +13,18 @@ import {
   originShareAsOf,
   type OriginFilter,
 } from "@/lib/origins";
+import {
+  applyCouponMode,
+  buildCouponShares,
+  CATEGORY_SLUG_TO_COUPON_CLASS,
+  couponShareAsOf,
+  EMPTY_COUPON_SHARES,
+  fetchCampaignCouponIds,
+  isCouponFiltered,
+  type CouponFilter,
+  type CouponShares,
+} from "./campaignCoupons";
+
 
 /** Categorias exclusivas da conta yampa 2.0 — nunca viram linha própria aqui. */
 const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
