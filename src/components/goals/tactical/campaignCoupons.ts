@@ -173,11 +173,15 @@ export function buildCouponShares(
   for (const r of conversions) {
     const date = dateKeyOf(r.converted_at);
     if (!date) continue;
-    const cls = conversionClassification(r);
-    const mrr = Math.abs(Number(r.mrr_net ?? r.mrr ?? 0));
     const isCampaign = !!r.coupon_id && campaignCoupons.has(r.coupon_id);
+    // Toda movimentação com cupom de campanha conta como VENDA de campanha
+    // (novos pagantes), inclusive upsell/downgrade feitos sobre a assinatura
+    // criada na campanha — é assim que a apuração manual é feita.
+    const cls = isCampaign ? "novos_pagantes" : conversionClassification(r);
+    const mrr = Math.abs(Number(r.mrr_net ?? r.mrr ?? 0));
     add(date, cls, isCampaign, 1, mrr);
   }
+
 
   const emails = campaignEmailSet(conversions, campaignCoupons);
   for (const e of extraCampaignEmails) if (e) emails.add(e);
