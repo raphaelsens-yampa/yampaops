@@ -155,6 +155,7 @@ export function buildCouponShares(
 ): CouponShares {
   const daily = new Map<string, CouponDayAcc>();
   const dates = new Set<string>();
+  const seenCampaignSales = new Set<string>();
 
   const add = (date: string, cls: string, isCampaign: boolean, qtd: number, mrr: number) => {
     for (const key of [`${date}|${cls}`, `${date}|${COUPON_SHARE_ANY}`]) {
@@ -170,13 +171,21 @@ export function buildCouponShares(
     dates.add(date);
   };
 
-  for (const r of conversions) {
+  const sortedConversions = [...conversions].sort((a, b) => String(a.converted_at ?? "").localeCompare(String(b.converted_at ?? "")));
+  for (const r of sortedConversions) {
     const date = dateKeyOf(r.converted_at);
     if (!date) continue;
     const isCampaign = !!r.coupon_id && campaignCoupons.has(r.coupon_id);
+    if (isCampaign) {
+      const email = normalizeEmail(r.customer_email);
+      const key = `${date.slice(0, 7)}|${email || r.coupon_id}`;
+      if (seenCampaignSales.has(key)) continue;
+      seenCampaignSales.add(key);
+    }
     // Toda movimentação com cupom de campanha conta como VENDA de campanha
     // (novos pagantes), inclusive upsell/downgrade feitos sobre a assinatura
-    // criada na campanha — é assim que a apuração manual é feita.
+    // criada na campanha — mas apenas uma vez por cliente no mês, para bater
+    // com a apuração manual por e-mail/assinatura de campanha.
     const cls = isCampaign ? "novos_pagantes" : conversionClassification(r);
     const mrr = Math.abs(Number(r.mrr_net ?? r.mrr ?? 0));
     add(date, cls, isCampaign, 1, mrr);
