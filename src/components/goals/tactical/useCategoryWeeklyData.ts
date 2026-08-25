@@ -13,6 +13,19 @@ import {
   originShareAsOf,
   type OriginFilter,
 } from "@/lib/origins";
+import {
+  applyCouponMode,
+  buildCouponShares,
+  CATEGORY_SLUG_TO_COUPON_CLASS,
+  couponShareAsOf,
+  EMPTY_COUPON_SHARES,
+  fetchCampaignCouponIds,
+  isCouponFiltered,
+  normalizeEmail,
+  type CouponFilter,
+  type CouponShares,
+} from "./campaignCoupons";
+
 
 /** Categorias exclusivas da conta yampa 2.0 — nunca viram linha própria aqui. */
 const YAMPA20_MRR_CAT = "736013b8-a8d9-4cb7-9853-116278e00a6d";
@@ -94,6 +107,8 @@ export function useCategoryWeeklyData(
   origin: OriginFilter = "all",
   /** Soma a conta yampa 2.0 em MRR/Ativos e a variação do 2.0 no Net MRR. */
   includeYampa20 = false,
+  /** Recorte por cupom de campanha da Stripe. */
+  coupon: CouponFilter = "all",
 ): CategoryWeeklyData {
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
@@ -111,7 +126,8 @@ export function useCategoryWeeklyData(
       const { startKey, endKey, prevEndKey } = monthBounds(refDate);
 
       const originFiltered = isOriginFiltered(origin);
-      const [catRes, goalsRes, snapRes, originRes] = await Promise.all([
+      const couponFiltered = isCouponFiltered(coupon);
+      const [catRes, goalsRes, snapRes, originRes, convRes, churnRes, campaignIds] = await Promise.all([
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase
           .from("goals")
@@ -131,7 +147,23 @@ export function useCategoryWeeklyData(
               .lte("data", endKey)
               .not("origem_cliente", "is", null)
           : Promise.resolve({ data: [] as any[] }),
+        couponFiltered
+          ? supabase
+              .from("stripe_conversions")
+              .select("converted_at, coupon_id, mrr, mrr_net, conversion_type, is_reactivation, customer_email")
+              .gte("converted_at", `${startKey}T00:00:00`)
+              .lte("converted_at", `${endKey}T23:59:59`)
+          : Promise.resolve({ data: [] as any[] }),
+        couponFiltered
+          ? supabase
+              .from("metas_churn_historico")
+              .select("email_norm, data_cancelamento, mrr")
+              .gte("data_cancelamento", startKey)
+              .lte("data_cancelamento", endKey)
+          : Promise.resolve({ data: [] as any[] }),
+        couponFiltered ? fetchCampaignCouponIds() : Promise.resolve(new Set<string>()),
       ]);
+
 
       if (cancelled) return;
 
@@ -166,6 +198,34 @@ export function useCategoryWeeklyData(
       const shares = originFiltered
         ? buildOriginShares(((originRes as any).data as any[]) || [], origin)
         : null;
+
+      // Recorte por cupom: o snapshot também não tem cupom, então usamos a
+      // participação das conversões da Stripe com cupom de campanha (e, para
+      // churn, o cruzamento por e-mail com quem comprou usando esses cupons).
+      let couponShares: CouponShares | null = null;
+      if (couponFiltered) {
+        const conversions = (((convRes as any).data as any[]) || []) as any[];
+        const churnRows = (((churnRes as any).data as any[]) || []) as any[];
+        let extraEmails = new Set<string>();
+        const ids = Array.from(campaignIds as Set<string>);
+        if (ids.length) {
+          // O cancelado pode ter comprado com cupom em qualquer mês anterior.
+          const { data: emailRows } = await supabase
+            .from("stripe_conversions")
+            .select("customer_email")
+            .in("coupon_id", ids);
+          if (cancelled) return;
+          extraEmails = new Set(
+            (((emailRows as any[]) || []) as any[])
+              .map((r) => normalizeEmail(r.customer_email))
+              .filter(Boolean),
+          );
+        }
+        couponShares = ids.length
+          ? buildCouponShares(conversions as any, churnRows as any, campaignIds as Set<string>, extraEmails)
+          : EMPTY_COUPON_SHARES;
+      }
+
       const unsupported = new Set<string>();
 
       const s = new Map<string, CategorySnapPoint[]>();
@@ -193,6 +253,24 @@ export function useCategoryWeeklyData(
           }
           value = value * share;
         }
+        if (couponShares) {
+          const cls = cat ? CATEGORY_SLUG_TO_COUPON_CLASS[cat.slug] : undefined;
+          if (!cls) {
+            unsupported.add(row.category_id as string);
+            continue;
+          }
+          const share = couponShareAsOf(
+            couponShares,
+            row.data as string,
+            cls,
+            cat?.metric_type === "count" ? "qtd" : "mrr",
+          );
+          if (share === null) {
+            unsupported.add(row.category_id as string);
+            continue;
+          }
+          value = applyCouponMode(value, share, coupon);
+        }
         const list = s.get(row.category_id) ?? [];
         list.push({ date: row.data as string, value });
 
@@ -205,6 +283,14 @@ export function useCategoryWeeklyData(
           }
         }
       }
+      if (couponShares) {
+        for (const c of cats) {
+          if (!CATEGORY_SLUG_TO_COUPON_CLASS[c.slug] && !(c.component_category_ids ?? []).length) {
+            unsupported.add(c.id);
+          }
+        }
+      }
+
 
       /**
        * "Incluir 2.0": soma a conta yampa 2.0 na leitura (nada muda no banco).
@@ -213,7 +299,7 @@ export function useCategoryWeeklyData(
        *   ao fechamento do mês anterior, exatamente como no Acompanhamento.
        * Sem recorte por origem (a base do 2.0 não tem origem por price ID).
        */
-      if (includeYampa20 && !shares) {
+      if (includeYampa20 && !shares && !couponShares) {
         const mrr20 = new Map<string, number>();
         const act20 = new Map<string, number>();
         for (const row of (snapRes.data as any[]) || []) {
@@ -275,7 +361,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, coupon, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
 
   return { categories, targets, series, noOriginSplit, loading };
 }

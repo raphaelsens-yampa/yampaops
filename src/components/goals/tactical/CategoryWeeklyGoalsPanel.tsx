@@ -28,10 +28,18 @@ import {
   type CategorySnapPoint,
 } from "./useCategoryWeeklyData";
 import { isOriginFiltered, originLabel, ORIGIN_NO_SPLIT_HINT, type OriginFilter } from "@/lib/origins";
+import {
+  COUPON_NO_SPLIT_HINT,
+  COUPON_OPTIONS,
+  couponLabel,
+  isCouponFiltered,
+  type CouponFilter,
+} from "./campaignCoupons";
 import { computeRevisedWeeklyTargets, type WeekStatus } from "@/lib/revisedGoals";
 
 const STORAGE_KEY = "tactical_category_weekly_v1";
 const REVISED_KEY = "tactical_category_weekly_revised_v1";
+const COUPON_KEY = "tactical_category_weekly_coupon_v1";
 const DEFAULT_SLUGS = ["total_de_mrr_ms3g6o38"];
 
 interface Props {
@@ -80,13 +88,30 @@ function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey?
 export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, origin = "all", includeYampa20 = false }: Props) {
   const [open, setOpen] = useState(false);
 
+  const [coupon, setCoupon] = useState<CouponFilter>(() => {
+    try {
+      const raw = localStorage.getItem(COUPON_KEY) as CouponFilter | null;
+      return raw === "campaign" || raw === "non_campaign" ? raw : "all";
+    } catch {
+      return "all";
+    }
+  });
+  const setCouponPersist = (v: CouponFilter) => {
+    setCoupon(v);
+    try {
+      localStorage.setItem(COUPON_KEY, v);
+    } catch {}
+  };
+
   const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
     origin,
     includeYampa20,
+    coupon,
   );
   const originFiltered = isOriginFiltered(origin);
+  const couponFiltered = isCouponFiltered(coupon);
   const yampa20Applied = includeYampa20 && !originFiltered;
 
   const available = useMemo(
@@ -283,7 +308,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
         }
 
         const partialOrigin =
-          originFiltered &&
+          (originFiltered || couponFiltered) &&
           (isAggregate
             ? componentIds.some((id) => noOriginSplit.has(id))
             : noOriginSplit.has(cat.id));
@@ -299,7 +324,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, noOriginSplit, revised]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, couponFiltered, noOriginSplit, revised]);
 
 
 
@@ -363,6 +388,20 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                 Revisada
               </Button>
             </div>
+            <div className="inline-flex rounded-md border p-0.5">
+              {COUPON_OPTIONS.map((o) => (
+                <Button
+                  key={o.value}
+                  type="button"
+                  size="sm"
+                  variant={coupon === o.value ? "secondary" : "ghost"}
+                  className="h-8 px-2 text-xs"
+                  onClick={() => setCouponPersist(o.value)}
+                >
+                  {o.label}
+                </Button>
+              ))}
+            </div>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-10 md:h-9 md:w-56 justify-between">
@@ -406,6 +445,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
+          {couponFiltered && ` Recorte "${couponLabel(coupon)}": o realizado é rateado pela participação dos cupons de campanha nas conversões da Stripe (churn cruzado por e-mail); as metas seguem as cadastradas.`}
           {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>
@@ -432,11 +472,16 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                   {originFiltered && (
                     <Badge variant="secondary" className="text-[10px]">{originLabel(origin)}</Badge>
                   )}
+                  {couponFiltered && (
+                    <Badge variant="secondary" className="text-[10px]">{couponLabel(coupon)}</Badge>
+                  )}
                   {yampa20Applied && ["total_de_mrr_ms3g6o38", "usuarios_ativos_pagantes_ms8yyce5", "net-mrr"].includes(cat.slug) && (
                     <Badge variant="secondary" className="text-[10px]">+ 2.0</Badge>
                   )}
                   {partialOrigin && (
-                    <span className="text-[10px] text-amber-600">{ORIGIN_NO_SPLIT_HINT}</span>
+                    <span className="text-[10px] text-amber-600">
+                      {couponFiltered ? COUPON_NO_SPLIT_HINT : ORIGIN_NO_SPLIT_HINT}
+                    </span>
                   )}
                 </div>
                 <span className="text-xs">
