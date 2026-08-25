@@ -258,13 +258,30 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         <Button
           variant="secondary"
           size="sm"
-          onClick={fillFromStripe}
+          onClick={() => fillFromStripe("missing")}
           disabled={!campaign || stripeFilling || refreshing || !rows.length}
-          title="Complementa apenas os contatos não identificados (Nunca assinou) buscando na base Stripe"
+          title="Consulta a API da Stripe em tempo real apenas para os contatos não identificados"
         >
           <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
-          {stripeFilling ? "Pesquisando…" : "Pesquisar na base Stripe"}
+          {stripeFilling
+            ? `Consultando Stripe${stripeProgress ? ` (${stripeProgress.done}/${stripeProgress.total})` : "…"}`
+            : "Consultar Stripe (ao vivo)"}
         </Button>
+        {stripeFilling ? (
+          <Button variant="ghost" size="sm" onClick={() => { stripeCancelRef.current = true; }}>
+            Cancelar
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fillFromStripe("all")}
+            disabled={!campaign || refreshing || !rows.length}
+            title="Reconsulta na Stripe todos os e-mails da lista, sobrescrevendo os resultados"
+          >
+            Reconsultar todos
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
