@@ -31,7 +31,10 @@ import { isOriginFiltered, originLabel, ORIGIN_NO_SPLIT_HINT, type OriginFilter 
 import {
   COUPON_NO_SPLIT_HINT,
   COUPON_OPTIONS,
+  CATEGORY_SLUG_TO_COUPON_CLASS,
+  applyCouponMode,
   couponLabel,
+  couponShareAsOf,
   isCouponFiltered,
   type CouponFilter,
 } from "./campaignCoupons";
@@ -103,7 +106,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
     } catch {}
   };
 
-  const { categories, targets, series, noOriginSplit, loading } = useCategoryWeeklyData(
+  const { categories, targets, series, noOriginSplit, couponShares, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
     origin,
@@ -185,6 +188,28 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
         const componentIds = (cat.component_category_ids ?? []).filter(Boolean);
         const isAggregate = componentIds.length > 0;
 
+        /**
+         * Recorte por cupom nos realizados que vêm das métricas táticas
+         * (`daily`) — o rateio do snapshot já é aplicado no hook.
+         */
+        const withCoupon = (
+          value: number | null,
+          leaf: GoalCategory,
+          cutKey: string,
+        ): number | null => {
+          if (value === null || !couponShares) return value;
+          const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
+          if (!cls) return null;
+          const share = couponShareAsOf(
+            couponShares,
+            cutKey,
+            cls,
+            leaf.metric_type === "count" ? "qtd" : "mrr",
+          );
+          if (share === null) return null;
+          return applyCouponMode(value, share, coupon);
+        };
+
         /** Realizado de uma categoria "folha" (com snapshot ou métrica tática) na semana. */
         const leafRealized = (
           leaf: GoalCategory,
@@ -196,7 +221,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           if (leafMetricId) {
             const end = new Date(w.end);
             if (isCurrent) end.setTime(today.getTime());
-            return realizedBetween(daily, leafMetricId, [], w.start, end);
+            return withCoupon(realizedBetween(daily, leafMetricId, [], w.start, end), leaf, cutKey);
           }
           const leafPoints = series.get(leaf.id);
           if (STOCK_CATEGORY_SLUGS.has(leaf.slug)) {
@@ -237,7 +262,11 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
             } else if (tacticalMetricId) {
               const end = new Date(w.end);
               if (isCurrent) end.setTime(today.getTime());
-              realized = realizedBetween(daily, tacticalMetricId, [], w.start, end);
+              realized = withCoupon(
+                realizedBetween(daily, tacticalMetricId, [], w.start, end),
+                cat,
+                cutKey,
+              );
             } else if (isStock) {
               realized = valueAsOf(points, cutKey, monthStartKey);
             } else {
@@ -324,7 +353,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, couponFiltered, noOriginSplit, revised]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, couponFiltered, couponShares, noOriginSplit, revised]);
 
 
 

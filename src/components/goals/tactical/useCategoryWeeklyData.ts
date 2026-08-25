@@ -114,6 +114,7 @@ export function useCategoryWeeklyData(
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
   const [series, setSeries] = useState<Map<string, CategorySnapPoint[]>>(new Map());
   const [noOriginSplit, setNoOriginSplit] = useState<Set<string>>(new Set());
+  const [couponShares, setCouponShares] = useState<CouponShares | null>(null);
   const [loading, setLoading] = useState(true);
   /** Cenário de crescimento simulado (0 = metas cadastradas). */
   const { growthPct: scenarioPct } = useGoalScenario();
@@ -356,6 +357,7 @@ export function useCategoryWeeklyData(
       setTargets(t);
       setSeries(s);
       setNoOriginSplit(unsupported);
+      setCouponShares(couponShares);
       setLoading(false);
     })();
     return () => {
@@ -363,5 +365,5 @@ export function useCategoryWeeklyData(
     };
   }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, coupon, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
 
-  return { categories, targets, series, noOriginSplit, loading };
+  return { categories, targets, series, noOriginSplit, couponShares, loading };
 }
