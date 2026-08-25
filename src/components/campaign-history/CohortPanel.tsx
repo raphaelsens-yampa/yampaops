@@ -49,6 +49,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const [churnOpen, setChurnOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [stripeFilling, setStripeFilling] = useState(false);
+  const [stripeProgress, setStripeProgress] = useState<{ done: number; total: number } | null>(null);
+  const stripeCancelRef = useRef(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tableOpen, setTableOpen] = useState(true);
