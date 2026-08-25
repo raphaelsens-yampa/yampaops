@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
             customer: cust.id,
             status: "all",
             limit: 100,
-            expand: ["data.items.data.price.product"],
+            expand: ["data.items.data.price"],
           })
         );
         for (const sub of subs.data) {
