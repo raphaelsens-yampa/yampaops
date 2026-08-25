@@ -304,6 +304,7 @@ Deno.serve(async (req) => {
   let discountDuration: string | null = null;
   let discountDurationInMonths: number | null = null;
   let stripeInvoiceId: string | null = null;
+  let currentInvoicePaidAt: string | null = null;
   let netAmountSource: "invoice" | "price_fallback" = "price_fallback";
 
   try {
@@ -330,6 +331,8 @@ Deno.serve(async (req) => {
         expand: ["discounts", "lines.data.discounts", "total_discount_amounts.discount"],
       });
       stripeInvoiceId = invoice.id;
+      const currentPaidTs = invoice.status_transitions?.paid_at ?? invoice.created;
+      if (currentPaidTs) currentInvoicePaidAt = new Date(currentPaidTs * 1000).toISOString();
       grossAmount = (invoice.subtotal ?? 0) / 100;
       netAmount = (invoice.amount_paid ?? invoice.total ?? 0) / 100;
       const totalDiscCents = (invoice.total_discount_amounts ?? [])
@@ -432,9 +435,10 @@ Deno.serve(async (req) => {
 
   // ─── Datas oficiais vindas do Stripe ───
   // registered_at = data em que o customer foi criado no Stripe (entrou na base)
-  // converted_at  = data do primeiro pagamento confirmado (earliest paid invoice)
+  // converted_at  = data do pagamento que gerou a conversão atual.
+  // Importante: reativações/campanhas não podem herdar a 1ª compra antiga do cliente.
   let registeredAt: string | null = null;
-  let convertedAt: string | null = null;
+  let convertedAt: string | null = currentInvoicePaidAt;
 
   try {
     if (customerId) {
@@ -442,19 +446,21 @@ Deno.serve(async (req) => {
       if (cust && !(cust as any).deleted && (cust as Stripe.Customer).created) {
         registeredAt = new Date((cust as Stripe.Customer).created * 1000).toISOString();
       }
-      const paid = await stripe.invoices.list({
-        customer: customerId,
-        status: "paid",
-        limit: 100,
-      });
-      if (paid.data.length > 0) {
-        const earliest = paid.data.reduce((min, inv) => {
-          const t = inv.status_transitions?.paid_at ?? inv.created;
-          const mt = min.status_transitions?.paid_at ?? min.created;
-          return t < mt ? inv : min;
+      if (!convertedAt) {
+        const paid = await stripe.invoices.list({
+          customer: customerId,
+          status: "paid",
+          limit: 100,
         });
-        const ts = earliest.status_transitions?.paid_at ?? earliest.created;
-        convertedAt = new Date(ts * 1000).toISOString();
+        if (paid.data.length > 0) {
+          const latest = paid.data.reduce((max, inv) => {
+            const t = inv.status_transitions?.paid_at ?? inv.created;
+            const mt = max.status_transitions?.paid_at ?? max.created;
+            return t > mt ? inv : max;
+          });
+          const ts = latest.status_transitions?.paid_at ?? latest.created;
+          convertedAt = new Date(ts * 1000).toISOString();
+        }
       }
     }
   } catch (err) {
@@ -465,6 +471,11 @@ Deno.serve(async (req) => {
   if (!convertedAt && event.type === "invoice.paid") {
     const obj: any = event.data.object;
     const ts = obj?.status_transitions?.paid_at ?? obj?.created;
+    if (ts) convertedAt = new Date(ts * 1000).toISOString();
+  }
+  if (!convertedAt) {
+    const obj: any = event.data.object;
+    const ts = obj?.created;
     if (ts) convertedAt = new Date(ts * 1000).toISOString();
   }
 
@@ -523,14 +534,9 @@ Deno.serve(async (req) => {
     if (data) { existingRow = data as any; dedupReason = "same_event"; }
   }
 
-
-  // converted_at deve ser STÁVEL: sempre o 1º pagamento (mais antigo).
-  const earliest = (a: string | null, b: string | null): string | null => {
-    if (!a) return b;
-    if (!b) return a;
-    return new Date(a).getTime() <= new Date(b).getTime() ? a : b;
-  };
-  const finalConvertedAt = earliest(existingRow?.converted_at ?? null, convertedAt);
+  // converted_at deve preservar a conversão/evento atual. Mantemos a data antiga
+  // somente quando o próprio evento não trouxe uma data confiável.
+  const finalConvertedAt = convertedAt ?? existingRow?.converted_at ?? null;
   const finalRegisteredAt = existingRow?.registered_at ?? registeredAt ?? null;
 
   // ─── Classificação: new | upsell | downgrade | renewal ───
