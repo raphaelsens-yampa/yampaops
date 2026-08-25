@@ -14,11 +14,9 @@ import {
   type OriginFilter,
 } from "@/lib/origins";
 import {
-  applyCouponMode,
   buildCouponShares,
   CATEGORY_SLUG_TO_COUPON_CLASS,
   couponCampaignValueBetween,
-  couponShareBetween,
   EMPTY_COUPON_SHARES,
   fetchCampaignCouponIds,
   isCouponFiltered,
@@ -305,6 +303,10 @@ export function useCategoryWeeklyData(
             }
             const delta = Math.max(0, p.value - prevRaw);
             prevRaw = p.value;
+            // O filtro "Não-campanha" precisa ser o complemento da visão
+            // canônica já recortada por origem. Assim, em Visão Geral, 4blue e
+            // qualquer valor sem cupom ficam em Não-campanha; no filtro Yampa ou
+            // 4blue, o complemento é calculado só dentro daquela origem.
             const directCampaign =
               origin === "4blue"
                 ? 0
@@ -316,12 +318,6 @@ export function useCategoryWeeklyData(
             } else if (coupon === "non_campaign") {
               anySplit = true;
               acc += Math.max(delta - scopedCampaign, 0);
-            } else {
-              const share = couponShareBetween(couponShares, p.date, p.date, cls, kind);
-              if (share !== null) {
-                anySplit = true;
-                acc += applyCouponMode(delta, share, coupon);
-              }
             }
             out.push({ date: p.date, value: acc });
           }
