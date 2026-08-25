@@ -106,6 +106,8 @@ export function useCategoryWeeklyData(
   origin: OriginFilter = "all",
   /** Soma a conta yampa 2.0 em MRR/Ativos e a variação do 2.0 no Net MRR. */
   includeYampa20 = false,
+  /** Recorte por cupom de campanha da Stripe. */
+  coupon: CouponFilter = "all",
 ): CategoryWeeklyData {
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
@@ -123,7 +125,8 @@ export function useCategoryWeeklyData(
       const { startKey, endKey, prevEndKey } = monthBounds(refDate);
 
       const originFiltered = isOriginFiltered(origin);
-      const [catRes, goalsRes, snapRes, originRes] = await Promise.all([
+      const couponFiltered = isCouponFiltered(coupon);
+      const [catRes, goalsRes, snapRes, originRes, convRes, churnRes, campaignIds] = await Promise.all([
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase
           .from("goals")
@@ -143,7 +146,23 @@ export function useCategoryWeeklyData(
               .lte("data", endKey)
               .not("origem_cliente", "is", null)
           : Promise.resolve({ data: [] as any[] }),
+        couponFiltered
+          ? supabase
+              .from("stripe_conversions")
+              .select("converted_at, coupon_id, mrr, mrr_net, conversion_type, is_reactivation, customer_email")
+              .gte("converted_at", `${startKey}T00:00:00`)
+              .lte("converted_at", `${endKey}T23:59:59`)
+          : Promise.resolve({ data: [] as any[] }),
+        couponFiltered
+          ? supabase
+              .from("metas_churn_historico")
+              .select("email_norm, data_cancelamento, mrr")
+              .gte("data_cancelamento", startKey)
+              .lte("data_cancelamento", endKey)
+          : Promise.resolve({ data: [] as any[] }),
+        couponFiltered ? fetchCampaignCouponIds() : Promise.resolve(new Set<string>()),
       ]);
+
 
       if (cancelled) return;
 
