@@ -17,7 +17,7 @@ import {
   applyCouponMode,
   buildCouponShares,
   CATEGORY_SLUG_TO_COUPON_CLASS,
-  couponShareAsOf,
+  couponShareBetween,
   EMPTY_COUPON_SHARES,
   fetchCampaignCouponIds,
   isCouponFiltered,
@@ -256,24 +256,6 @@ export function useCategoryWeeklyData(
           }
           value = value * share;
         }
-        if (couponShares) {
-          const cls = cat ? CATEGORY_SLUG_TO_COUPON_CLASS[cat.slug] : undefined;
-          if (!cls) {
-            unsupported.add(row.category_id as string);
-            continue;
-          }
-          const share = couponShareAsOf(
-            couponShares,
-            row.data as string,
-            cls,
-            cat?.metric_type === "count" ? "qtd" : "mrr",
-          );
-          if (share === null) {
-            unsupported.add(row.category_id as string);
-            continue;
-          }
-          value = applyCouponMode(value, share, coupon);
-        }
         const list = s.get(row.category_id) ?? [];
         list.push({ date: row.data as string, value });
 
@@ -291,6 +273,50 @@ export function useCategoryWeeklyData(
           if (!CATEGORY_SLUG_TO_COUPON_CLASS[c.slug] && !(c.component_category_ids ?? []).length) {
             unsupported.add(c.id);
           }
+        }
+      }
+
+      // O recorte por cupom é aplicado sobre o FLUXO de cada dia (delta da série
+      // MTD) e depois re-acumulado. Aplicar a participação acumulada do mês
+      // diluiria uma campanha concentrada em poucos dias no denominador de todo
+      // o mês (era o que fazia o realizado de campanha ficar abaixo do real).
+      if (couponShares) {
+        for (const [catId, list] of Array.from(s.entries())) {
+          const cat = byId.get(catId);
+          const cls = cat ? CATEGORY_SLUG_TO_COUPON_CLASS[cat.slug] : undefined;
+          if (!cat || !cls) {
+            unsupported.add(catId);
+            s.delete(catId);
+            continue;
+          }
+          const kind = cat.metric_type === "count" ? "qtd" : "mrr";
+          const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : 1));
+          let prevRaw: number | null = null;
+          let acc = 0;
+          let anyShare = false;
+          const out: CategorySnapPoint[] = [];
+          for (const p of sorted) {
+            if (prevRaw === null) {
+              // 1º ponto = fechamento do mês anterior (base do MTD).
+              prevRaw = p.value;
+              out.push({ date: p.date, value: 0 });
+              continue;
+            }
+            const delta = Math.max(0, p.value - prevRaw);
+            prevRaw = p.value;
+            const share = couponShareBetween(couponShares, p.date, p.date, cls, kind);
+            if (share !== null) {
+              anyShare = true;
+              acc += applyCouponMode(delta, share, coupon);
+            }
+            out.push({ date: p.date, value: acc });
+          }
+          if (!anyShare) {
+            unsupported.add(catId);
+            s.delete(catId);
+            continue;
+          }
+          s.set(catId, out);
         }
       }
 
