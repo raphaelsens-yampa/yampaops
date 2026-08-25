@@ -50,6 +50,7 @@ export const STATUS_LABEL: Record<string, string> = {
 export const SOURCE_LABEL: Record<string, string> = {
   metabase: "Metabase",
   stripe: "Stripe",
+  stripe_live: "Stripe (ao vivo)",
 };
 
 export const CHURN_SOURCE_LABEL: Record<string, string> = {
