@@ -202,14 +202,22 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           if (value === null || !couponShares) return value;
           const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
           if (!cls) return null;
+          const campaignValue =
+            origin === "4blue"
+              ? 0
+              : couponCampaignValueBetween(
+                  couponShares,
+                  startKey,
+                  cutKey,
+                  cls,
+                  leaf.metric_type === "count" ? "qtd" : "mrr",
+                ) ?? 0;
+          const scopedCampaignValue = Math.min(Math.max(campaignValue, 0), Math.max(value, 0));
           if (coupon === "campaign") {
-            return couponCampaignValueBetween(
-              couponShares,
-              startKey,
-              cutKey,
-              cls,
-              leaf.metric_type === "count" ? "qtd" : "mrr",
-            );
+            return scopedCampaignValue;
+          }
+          if (coupon === "non_campaign") {
+            return Math.max(value - scopedCampaignValue, 0);
           }
           // Participação da JANELA da semana (não do mês acumulado).
           const share = couponShareBetween(
@@ -493,7 +501,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
-          {couponFiltered && ` Recorte "${couponLabel(coupon)}": o realizado é rateado pela participação dos cupons de campanha nas conversões da Stripe (churn cruzado por e-mail); as metas seguem as cadastradas.`}
+          {couponFiltered && ` Recorte "${couponLabel(coupon)}": Campanha usa os cupons marcados; Não-campanha é o complemento da visão canônica no recorte de origem atual; as metas seguem as cadastradas.`}
           {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>
