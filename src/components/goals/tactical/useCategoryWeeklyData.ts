@@ -75,6 +75,8 @@ export interface CategoryWeeklyData {
   series: Map<string, CategorySnapPoint[]>;
   /** categorias sem recorte por origem na base (só aparecem na Visão Geral) */
   noOriginSplit: Set<string>;
+  /** participações de campanha por cupom (null quando o filtro está em "Tudo") */
+  couponShares: CouponShares | null;
   loading: boolean;
 }
 
