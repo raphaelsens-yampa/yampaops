@@ -4500,6 +4500,33 @@ export type Database = {
           },
         ]
       }
+      tactical_campaign_coupons: {
+        Row: {
+          coupon_id: string
+          coupon_name: string | null
+          created_at: string
+          id: string
+          is_campaign: boolean
+          updated_at: string
+        }
+        Insert: {
+          coupon_id: string
+          coupon_name?: string | null
+          created_at?: string
+          id?: string
+          is_campaign?: boolean
+          updated_at?: string
+        }
+        Update: {
+          coupon_id?: string
+          coupon_name?: string | null
+          created_at?: string
+          id?: string
+          is_campaign?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tactical_goals: {
         Row: {
           created_at: string
