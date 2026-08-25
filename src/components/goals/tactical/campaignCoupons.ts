@@ -81,7 +81,20 @@ export interface CouponChurnRow {
   mrr: number | null;
 }
 
+export interface CouponDayAcc {
+  /** qtd de campanha */
+  cq: number;
+  /** MRR de campanha */
+  cm: number;
+  /** qtd total */
+  tq: number;
+  /** MRR total */
+  tm: number;
+}
+
 export interface CouponShares {
+  /** `${date}|${cls}` -> valores brutos do dia (não acumulados) */
+  raw: Map<string, CouponDayAcc>;
   /** `${date}|${cls}` -> participação de campanha (0..1) em quantidade */
   qtd: Map<string, number>;
   /** `${date}|${cls}` -> participação de campanha (0..1) em MRR */
@@ -90,7 +103,12 @@ export interface CouponShares {
   dates: string[];
 }
 
-export const EMPTY_COUPON_SHARES: CouponShares = { qtd: new Map(), mrr: new Map(), dates: [] };
+export const EMPTY_COUPON_SHARES: CouponShares = {
+  raw: new Map(),
+  qtd: new Map(),
+  mrr: new Map(),
+  dates: [],
+};
 
 function dateKeyOf(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -135,8 +153,7 @@ export function buildCouponShares(
   /** E-mails de campanha vindos de compras fora do período consultado. */
   extraCampaignEmails: Set<string> = new Set(),
 ): CouponShares {
-  type Acc = { cq: number; cm: number; tq: number; tm: number };
-  const daily = new Map<string, Acc>();
+  const daily = new Map<string, CouponDayAcc>();
   const dates = new Set<string>();
 
   const add = (date: string, cls: string, isCampaign: boolean, qtd: number, mrr: number) => {
@@ -195,7 +212,41 @@ export function buildCouponShares(
     }
   }
 
-  return { qtd, mrr, dates: sortedDates };
+  return { raw: daily, qtd, mrr, dates: sortedDates };
+}
+
+/**
+ * Participação da campanha em uma JANELA de datas (ex.: uma semana ou um dia).
+ *
+ * Necessário porque o realizado semanal é um FLUXO: usar a participação
+ * acumulada do mês diluiria uma campanha concentrada em poucos dias no
+ * denominador de todo o mês. Sem movimento na janela, cai para a participação
+ * do mês inteiro.
+ */
+export function couponShareBetween(
+  shares: CouponShares,
+  startKey: string,
+  endKey: string,
+  cls: CouponClassification | typeof COUPON_SHARE_ANY,
+  kind: "qtd" | "mrr",
+): number | null {
+  if (!shares.dates.length) return null;
+  let c = 0;
+  let t = 0;
+  let mc = 0;
+  let mt = 0;
+  for (const d of shares.dates) {
+    const v = shares.raw.get(`${d}|${cls}`);
+    if (!v) continue;
+    mc += kind === "qtd" ? v.cq : v.cm;
+    mt += kind === "qtd" ? v.tq : v.tm;
+    if (d < startKey || d > endKey) continue;
+    c += kind === "qtd" ? v.cq : v.cm;
+    t += kind === "qtd" ? v.tq : v.tm;
+  }
+  if (t > 0) return Math.min(c / t, 1);
+  if (mt > 0) return Math.min(mc / mt, 1);
+  return null;
 }
 
 /** Participação as-of a data (último dado <= data; antes disso usa o 1º disponível). */
