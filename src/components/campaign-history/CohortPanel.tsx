@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
