@@ -212,12 +212,15 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                   cls,
                   leaf.metric_type === "count" ? "qtd" : "mrr",
                 ) ?? 0;
-          const scopedCampaignValue = Math.min(Math.max(campaignValue, 0), Math.max(value, 0));
+          // Campanha precisa ser o valor bruto apurado pela Stripe/cupom.
+          // Não limitamos pelo snapshot/tático canônico porque há lag e diferenças
+          // de origem entre as bases; limitar aqui cortava vendas válidas da campanha.
+          const campaignRawValue = Math.max(campaignValue, 0);
           if (coupon === "campaign") {
-            return scopedCampaignValue;
+            return campaignRawValue;
           }
           if (coupon === "non_campaign") {
-            return Math.max(value - scopedCampaignValue, 0);
+            return Math.max(value - campaignRawValue, 0);
           }
           // Participação da JANELA da semana (não do mês acumulado).
           const share = couponShareBetween(
