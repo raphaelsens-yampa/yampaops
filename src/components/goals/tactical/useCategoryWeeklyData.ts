@@ -197,6 +197,34 @@ export function useCategoryWeeklyData(
       const shares = originFiltered
         ? buildOriginShares(((originRes as any).data as any[]) || [], origin)
         : null;
+
+      // Recorte por cupom: o snapshot também não tem cupom, então usamos a
+      // participação das conversões da Stripe com cupom de campanha (e, para
+      // churn, o cruzamento por e-mail com quem comprou usando esses cupons).
+      let couponShares: CouponShares | null = null;
+      if (couponFiltered) {
+        const conversions = (((convRes as any).data as any[]) || []) as any[];
+        const churnRows = (((churnRes as any).data as any[]) || []) as any[];
+        let extraEmails = new Set<string>();
+        const ids = Array.from(campaignIds as Set<string>);
+        if (ids.length) {
+          // O cancelado pode ter comprado com cupom em qualquer mês anterior.
+          const { data: emailRows } = await supabase
+            .from("stripe_conversions")
+            .select("customer_email")
+            .in("coupon_id", ids);
+          if (cancelled) return;
+          extraEmails = new Set(
+            (((emailRows as any[]) || []) as any[])
+              .map((r) => normalizeEmail(r.customer_email))
+              .filter(Boolean),
+          );
+        }
+        couponShares = ids.length
+          ? buildCouponShares(conversions as any, churnRows as any, campaignIds as Set<string>, extraEmails)
+          : EMPTY_COUPON_SHARES;
+      }
+
       const unsupported = new Set<string>();
 
       const s = new Map<string, CategorySnapPoint[]>();
@@ -224,6 +252,24 @@ export function useCategoryWeeklyData(
           }
           value = value * share;
         }
+        if (couponShares) {
+          const cls = cat ? CATEGORY_SLUG_TO_COUPON_CLASS[cat.slug] : undefined;
+          if (!cls) {
+            unsupported.add(row.category_id as string);
+            continue;
+          }
+          const share = couponShareAsOf(
+            couponShares,
+            row.data as string,
+            cls,
+            cat?.metric_type === "count" ? "qtd" : "mrr",
+          );
+          if (share === null) {
+            unsupported.add(row.category_id as string);
+            continue;
+          }
+          value = applyCouponMode(value, share, coupon);
+        }
         const list = s.get(row.category_id) ?? [];
         list.push({ date: row.data as string, value });
 
@@ -236,6 +282,14 @@ export function useCategoryWeeklyData(
           }
         }
       }
+      if (couponShares) {
+        for (const c of cats) {
+          if (!CATEGORY_SLUG_TO_COUPON_CLASS[c.slug] && !(c.component_category_ids ?? []).length) {
+            unsupported.add(c.id);
+          }
+        }
+      }
+
 
       /**
        * "Incluir 2.0": soma a conta yampa 2.0 na leitura (nada muda no banco).
