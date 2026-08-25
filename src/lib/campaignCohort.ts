@@ -1,7 +1,7 @@
 /**
  * ===== Cohort de Campanhas =====
  * Helpers para normalização de e-mails, parsing de listas/planilhas,
- * agregação de status e curva de retenção M0..M12.
+ * agregação de status e curva de retenção (M0 em diante, sem limite de meses).
  */
 
 export type CohortStatus = "active" | "canceled" | "trial" | "never" | "unknown";
@@ -258,13 +258,13 @@ export interface CurvePoint {
   retention_pct: number | null;
 }
 
-/** Normaliza a curva vinda do banco preenchendo M0..M12 e calculando retenção relativa a M0. */
+/** Normaliza a curva vinda do banco preenchendo todos os offsets disponíveis e calculando retenção relativa a M0. */
 export function buildCurve(raw: { month_offset: number; active_count: number; mrr_total: number }[]): CurvePoint[] {
   const byOffset = new Map(raw.map((r) => [Number(r.month_offset), r]));
   const m0 = byOffset.get(0)?.active_count ?? 0;
   const maxOffset = raw.length ? Math.max(...raw.map((r) => Number(r.month_offset))) : 0;
   const out: CurvePoint[] = [];
-  for (let i = 0; i <= Math.min(12, Math.max(maxOffset, 0)); i++) {
+  for (let i = 0; i <= Math.max(maxOffset, 0); i++) {
     const r = byOffset.get(i);
     const activeCount = Number(r?.active_count ?? 0);
     out.push({
@@ -310,9 +310,9 @@ function monthLabel(iso: string): string {
 
 /**
  * Constrói a matriz clássica de cohort: cada linha é o mês de ativação,
- * cada coluna é o mês relativo (M0..M12) com a retenção do grupo.
+ * cada coluna é o mês relativo (M0 em diante, sem teto) com a retenção do grupo.
  */
-export function buildCohortMatrix(rows: CohortRow[], maxOffset = 12): CohortMatrixRow[] {
+export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): CohortMatrixRow[] {
   const today = new Date();
   const nowIdx = today.getFullYear() * 12 + today.getMonth();
 
@@ -335,7 +335,8 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset = 12): CohortMatr
   for (const key of Array.from(groups.keys()).sort()) {
     const members = groups.get(key)!;
     const startIdx = monthIndex(`${key}-01`);
-    const available = Math.min(maxOffset, Math.max(0, nowIdx - startIdx));
+    const elapsed = Math.max(0, nowIdx - startIdx);
+    const available = maxOffset == null ? elapsed : Math.min(maxOffset, elapsed);
     const cells: CohortMatrixCell[] = [];
     for (let k = 0; k <= available; k++) {
       let active = 0;
