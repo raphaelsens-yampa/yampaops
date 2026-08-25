@@ -34,7 +34,7 @@ import {
   CATEGORY_SLUG_TO_COUPON_CLASS,
   applyCouponMode,
   couponLabel,
-  couponShareAsOf,
+  couponShareBetween,
   isCouponFiltered,
   type CouponFilter,
 } from "./campaignCoupons";
@@ -195,13 +195,16 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
         const withCoupon = (
           value: number | null,
           leaf: GoalCategory,
+          startKey: string,
           cutKey: string,
         ): number | null => {
           if (value === null || !couponShares) return value;
           const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
           if (!cls) return null;
-          const share = couponShareAsOf(
+          // Participação da JANELA da semana (não do mês acumulado).
+          const share = couponShareBetween(
             couponShares,
+            startKey,
             cutKey,
             cls,
             leaf.metric_type === "count" ? "qtd" : "mrr",
@@ -221,7 +224,12 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           if (leafMetricId) {
             const end = new Date(w.end);
             if (isCurrent) end.setTime(today.getTime());
-            return withCoupon(realizedBetween(daily, leafMetricId, [], w.start, end), leaf, cutKey);
+            return withCoupon(
+              realizedBetween(daily, leafMetricId, [], w.start, end),
+              leaf,
+              toBRDateKey(w.start),
+              cutKey,
+            );
           }
           const leafPoints = series.get(leaf.id);
           if (STOCK_CATEGORY_SLUGS.has(leaf.slug)) {
@@ -265,6 +273,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               realized = withCoupon(
                 realizedBetween(daily, tacticalMetricId, [], w.start, end),
                 cat,
+                startKey,
                 cutKey,
               );
             } else if (isStock) {
