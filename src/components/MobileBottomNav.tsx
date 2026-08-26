@@ -57,7 +57,7 @@ export function MobileBottomNav() {
     {
       label: "Sales", section: "sales",
       items: [
-        { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "sales_campaigns", managerOnly: true },
+        { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "campaign_history", managerOnly: true },
         { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },

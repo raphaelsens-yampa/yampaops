@@ -255,10 +255,10 @@ export function AppSidebar() {
           title: "Campanhas e Lives",
           url: "/sales-campaigns/history",
           icon: Megaphone,
-          area: "sales_campaigns",
+          // agrupador: visibilidade derivada dos filhos
           managerOnly: true,
           children: [
-            { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "sales_campaigns" as CrmAreaKey },
+            { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "campaign_history" as CrmAreaKey },
             { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns" as CrmAreaKey },
           ],
         },
