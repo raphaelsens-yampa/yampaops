@@ -372,14 +372,14 @@ export function AppSidebar() {
             </SidebarMenuButton>
             <button
               type="button"
-              onClick={() => setOpenAuditoria(!openAuditoria)}
+              onClick={() => toggleItem(item)}
               className="p-1 mr-1 rounded hover:bg-sidebar-accent/50 text-sidebar-foreground/70"
-              aria-label={openAuditoria ? "Recolher" : "Expandir"}
+              aria-label={isItemOpen(item) ? "Recolher" : "Expandir"}
             >
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", openAuditoria ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isItemOpen(item) ? "rotate-0" : "-rotate-90")} />
             </button>
           </div>
-          {openAuditoria && (
+          {isItemOpen(item) && (
             <div className="ml-4 border-l border-sidebar-border/60 pl-1 mt-0.5">
               <SidebarMenu>{item.children!.map(renderItem)}</SidebarMenu>
             </div>
