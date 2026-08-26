@@ -242,7 +242,17 @@ export function AppSidebar() {
       defaultOpen: openComercial,
       items: [
         { title: "Funis ActiveCampaign", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", managerOnly: true },
-        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
+        {
+          title: "Campanhas e Lives",
+          url: "/sales-campaigns/history",
+          icon: Megaphone,
+          area: "sales_campaigns",
+          managerOnly: true,
+          children: [
+            { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "sales_campaigns" as CrmAreaKey },
+            { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns" as CrmAreaKey },
+          ],
+        },
 
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },

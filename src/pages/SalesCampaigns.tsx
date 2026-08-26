@@ -295,9 +295,6 @@ export default function SalesCampaigns() {
               <p className="text-sm text-muted-foreground">Gerencie bases, evolução e ROI das campanhas de prospecção.</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => navigate("/sales-campaigns/history")}>
-                <FileBarChart className="h-4 w-4 mr-2" />Histórico de Campanhas
-              </Button>
               <Button variant="outline" onClick={() => navigate("/sales-campaigns/reports")}>
                 <FileBarChart className="h-4 w-4 mr-2" />Relatórios
               </Button>
