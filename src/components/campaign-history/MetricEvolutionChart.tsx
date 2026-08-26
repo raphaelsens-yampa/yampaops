@@ -32,18 +32,24 @@ import {
 } from "@/lib/campaignHistory";
 
 const RETENTION_ID = "cohort_retention";
-const OFFSETS = [0, 1, 3, 6, 12];
 
-/** Retenção ponderada do cohort da campanha no offset informado (só cohorts com o mês disponível). */
-function retentionAtOffset(rows: CohortRow[], offset: number) {
+/** Retenção ponderada do cohort da campanha no mês mais recente disponível. */
+function retentionLatest(rows: CohortRow[]) {
   const matrix = buildCohortMatrix(rows);
+  let maxOffset = -1;
   let active = 0;
   let size = 0;
   for (const r of matrix) {
-    const cell = r.cells[offset];
-    if (!cell) continue;
-    active += cell.active;
-    size += cell.size;
+    for (const c of r.cells) {
+      if (c.offset === maxOffset) {
+        active += c.active;
+        size += c.size;
+      } else if (c.offset > maxOffset) {
+        maxOffset = c.offset;
+        active = c.active;
+        size = c.size;
+      }
+    }
   }
   if (!size) return { pct: null as number | null, active: 0, size: 0 };
   return { pct: (active / size) * 100, active, size };
@@ -66,7 +72,6 @@ export function MetricEvolutionChart({
   const [chartType, setChartType] = useState<SeriesType>("line");
   const [chartType2, setChartType2] = useState<SeriesType>("bar");
   const [viewMode, setViewMode] = useState<"both" | "real" | "meta">("both");
-  const [retentionOffset, setRetentionOffset] = useState(1);
 
   const isRetention = metricId === RETENTION_ID;
   const isRetention2 = metricId2 === RETENTION_ID;
@@ -118,8 +123,8 @@ export function MetricEvolutionChart({
         const v = metric && !isRetention ? values.get(`${c.id}|${metric.id}`) : undefined;
         const v2 = metric2 && !isRetention2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
         const rows = cohortByCampaign.get(c.id) ?? [];
-        const retention = isRetention ? retentionAtOffset(rows, retentionOffset) : null;
-        const retention2 = isRetention2 ? retentionAtOffset(rows, retentionOffset) : null;
+        const retention = isRetention ? retentionLatest(rows) : null;
+        const retention2 = isRetention2 ? retentionLatest(rows) : null;
         return {
           name: campaignLabel(c),
           metaA: isRetention ? null : (v?.target_value ?? null),
@@ -130,7 +135,7 @@ export function MetricEvolutionChart({
           baseB: retention2?.size ?? 0,
         };
       }),
-    [campaigns, metric, metric2, values, isRetention, isRetention2, retentionOffset, cohortByCampaign],
+    [campaigns, metric, metric2, values, isRetention, isRetention2, cohortByCampaign],
   );
 
   if (!metric && !metrics.length) {
@@ -153,15 +158,15 @@ export function MetricEvolutionChart({
   };
   const labelByKey: Record<string, string> = {
     metaA: isRetention ? "" : `Meta — ${metric.label}`,
-    realA: isRetention ? `${metric.label} (M${retentionOffset})` : `Realizado — ${metric.label}`,
+    realA: isRetention ? `${metric.label} (mês mais recente)` : `Realizado — ${metric.label}`,
     metaB: metric2 ? (isRetention2 ? "" : `Meta — ${metric2.label}`) : "",
     realB: metric2
       ? isRetention2
-        ? `${metric2.label} (M${retentionOffset})`
+        ? `${metric2.label} (mês mais recente)`
         : `Realizado — ${metric2.label}`
       : "",
-    baseA: isRetention ? `Base do cohort (M${retentionOffset})` : "",
-    baseB: isRetention2 ? `Base do cohort (M${retentionOffset})` : "",
+    baseA: isRetention ? "Base do cohort (mês mais recente)" : "",
+    baseB: isRetention2 ? "Base do cohort (mês mais recente)" : "",
   };
 
   const paletteA = {
@@ -244,14 +249,6 @@ export function MetricEvolutionChart({
                 <Button size="sm" variant={chartType === "line" ? "default" : "outline"} onClick={() => setChartType("line")}>Linha</Button>
                 <Button size="sm" variant={chartType === "bar" ? "default" : "outline"} onClick={() => setChartType("bar")}>Barra</Button>
               </div>
-              {isRetention && (
-                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
-                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={metricId2} onValueChange={setMetricId2}>
@@ -266,14 +263,6 @@ export function MetricEvolutionChart({
                 <Button size="sm" disabled={!metric2} variant={chartType2 === "line" ? "default" : "outline"} onClick={() => setChartType2("line")}>Linha</Button>
                 <Button size="sm" disabled={!metric2} variant={chartType2 === "bar" ? "default" : "outline"} onClick={() => setChartType2("bar")}>Barra</Button>
               </div>
-              {isRetention2 && (
-                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
-                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1">
