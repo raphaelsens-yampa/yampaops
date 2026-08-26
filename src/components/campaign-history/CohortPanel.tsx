@@ -400,12 +400,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
             ))}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {bottomCards.map((c) => (
-              <Card key={c.label}>
+              <Card key={c.label} className="min-w-0">
                 <CardContent className="p-4">
                   <p className="truncate text-xs text-muted-foreground">{c.label}</p>
-                  <p className="text-xl font-bold tabular-nums">{c.value}</p>
+                  <p className="truncate text-xl font-bold tabular-nums">{c.value}</p>
                   {"sub" in c && c.sub ? (
                     <p className="truncate text-[11px] text-muted-foreground">{c.sub}</p>
                   ) : null}
