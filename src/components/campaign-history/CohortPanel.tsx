@@ -117,10 +117,10 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         supabase
           .from("campaign_history_metrics")
           .select("id, slug")
-          .in("slug", ["cac", "cac_liquido", "investimento"]),
+          .in("slug", ["cac", "cac_liquido", "investimento", "ltv_cac", "tempo_roi"]),
         supabase
           .from("campaign_history_values")
-          .select("metric_id, actual_value")
+          .select("metric_id, actual_value, target_value")
           .eq("campaign_id", campaignId),
       ]);
       if (metricsError) throw metricsError;
@@ -128,12 +128,16 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
       const slugByMetricId = new Map((metrics ?? []).map((metric) => [metric.id, metric.slug]));
       const map = new Map<string, number>();
+      const targetMap = new Map<string, number>();
       for (const row of values ?? []) {
         const slug = slugByMetricId.get(row.metric_id);
-        const value = row.actual_value;
-        if (slug && value != null && isFinite(Number(value))) map.set(slug, Number(value));
+        if (!slug) continue;
+        const value = (row as any).actual_value;
+        const target = (row as any).target_value;
+        if (value != null && isFinite(Number(value))) map.set(slug, Number(value));
+        if (target != null && isFinite(Number(target))) targetMap.set(slug, Number(target));
       }
-      return map;
+      return { actual: map, target: targetMap };
     },
   });
 
