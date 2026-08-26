@@ -182,6 +182,9 @@ export function MetricEvolutionChart({
   };
 
 
+  const labelFormatter = (key: string) => (v: any) =>
+    v == null ? "" : formatMetricValue(v, unitByKey[key]);
+
   const seriesA = (key: "metaA" | "realA", isTarget: boolean) =>
     chartType === "line" ? (
       <Line
@@ -195,7 +198,14 @@ export function MetricEvolutionChart({
         strokeWidth={isTarget ? 2 : 3}
         dot={!isTarget}
         activeDot={{ r: 5 }}
-      />
+      >
+        <LabelList
+          dataKey={key}
+          position="top"
+          formatter={labelFormatter(key)}
+          className="text-[10px] fill-muted-foreground"
+        />
+      </Line>
     ) : (
       <Bar
         key={key}
@@ -204,7 +214,14 @@ export function MetricEvolutionChart({
         name={labelByKey[key]}
         fill={isTarget ? paletteA.light : paletteA.solid}
         radius={[4, 4, 0, 0]}
-      />
+      >
+        <LabelList
+          dataKey={key}
+          position="top"
+          formatter={labelFormatter(key)}
+          className="text-[10px] fill-muted-foreground"
+        />
+      </Bar>
     );
 
   const seriesB = (key: "metaB" | "realB", isTarget: boolean) =>
@@ -220,7 +237,14 @@ export function MetricEvolutionChart({
         strokeWidth={isTarget ? 2 : 3}
         dot={!isTarget}
         activeDot={{ r: 5 }}
-      />
+      >
+        <LabelList
+          dataKey={key}
+          position="top"
+          formatter={labelFormatter(key)}
+          className="text-[10px] fill-muted-foreground"
+        />
+      </Line>
     ) : (
       <Bar
         key={key}
@@ -229,7 +253,14 @@ export function MetricEvolutionChart({
         name={labelByKey[key]}
         fill={isTarget ? paletteB.light : paletteB.solid}
         radius={[4, 4, 0, 0]}
-      />
+      >
+        <LabelList
+          dataKey={key}
+          position="top"
+          formatter={labelFormatter(key)}
+          className="text-[10px] fill-muted-foreground"
+        />
+      </Bar>
     );
 
   return (
