@@ -310,7 +310,7 @@ export function MetricEvolutionChart({
           ) : (
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+              <ComposedChart data={data} margin={{ top: 24, right: 16, bottom: 8, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                 <YAxis
