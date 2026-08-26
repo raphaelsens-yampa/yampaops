@@ -350,8 +350,10 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     ltvSum += revenue;
     monthsSum += months;
     subscribers++;
+    m0Revenue += mrr;
     spans.push({ start: startIdx, end, mrr });
   }
+
 
   const monthly: LifetimeMonthPoint[] = [];
   if (spans.length) {
