@@ -311,6 +311,13 @@ export function summarizeCurve(curve: CurvePoint[], subscribers: number) {
  * LTV de cada cliente = receita acumulada dele ÷ meses ativos (LT);
  * LTV Real = soma dos LTVs ÷ total de clientes da campanha.
  */
+export interface LifetimeMonthPoint {
+  /** Offset em relação ao mês de ativação mais antigo da campanha (M0). */
+  month_index: number;
+  revenue: number;
+  revenue_cum: number;
+}
+
 export function computeLifetimeRevenue(rows: CohortRow[]) {
   const now = new Date();
   const nowIdx = now.getFullYear() * 12 + now.getMonth();
@@ -319,6 +326,8 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
   let ltvSum = 0;
   let subscribers = 0;
   let monthsSum = 0;
+
+  const spans: { start: number; end: number; mrr: number }[] = [];
 
   for (const r of rows) {
     const res = r.result;
@@ -329,12 +338,27 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     const startIdx = monthIndex(startIso);
     const cancelIso = String(res.canceled_at ?? "").slice(0, 10);
     const endIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : nowIdx;
-    const months = Math.max(1, Math.min(endIdx, nowIdx) - startIdx + 1);
+    const end = Math.max(startIdx, Math.min(endIdx, nowIdx));
+    const months = end - startIdx + 1;
     const revenue = mrr * months;
     revenueAccumulated += revenue;
     ltvSum += revenue / months;
     monthsSum += months;
     subscribers++;
+    spans.push({ start: startIdx, end, mrr });
+  }
+
+  const monthly: LifetimeMonthPoint[] = [];
+  if (spans.length) {
+    const base = Math.min(...spans.map((s) => s.start));
+    const last = Math.max(...spans.map((s) => s.end));
+    let cum = 0;
+    for (let m = base; m <= last; m++) {
+      let revenue = 0;
+      for (const s of spans) if (m >= s.start && m <= s.end) revenue += s.mrr;
+      cum += revenue;
+      monthly.push({ month_index: m - base, revenue, revenue_cum: cum });
+    }
   }
 
   const totalClients = rows.length;
@@ -343,8 +367,23 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     ltvReal: totalClients > 0 ? ltvSum / totalClients : null,
     subscribers,
     avgLifetimeMonths: subscribers > 0 ? monthsSum / subscribers : null,
+    monthly,
   };
 }
+
+/** Primeiro mês em que a receita acumulada iguala/supera o investimento realizado. */
+export function paybackMonth(
+  monthly: LifetimeMonthPoint[],
+  investment: number | null | undefined,
+): { offset: number; months: number } | null {
+  const inv = Number(investment ?? 0);
+  if (!isFinite(inv) || inv <= 0) return null;
+  for (const p of monthly) {
+    if (p.revenue_cum >= inv) return { offset: p.month_index, months: p.month_index + 1 };
+  }
+  return null;
+}
+
 
 
 
