@@ -366,7 +366,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {cards.map((c) => (
+            {topCards.map((c) => (
               <Card key={c.label}>
                 <CardContent className="p-4">
                   <p className="truncate text-xs text-muted-foreground">{c.label}</p>
@@ -375,6 +375,18 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
               </Card>
             ))}
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {bottomCards.map((c) => (
+              <Card key={c.label}>
+                <CardContent className="p-4">
+                  <p className="truncate text-xs text-muted-foreground">{c.label}</p>
+                  <p className="text-xl font-bold tabular-nums">{c.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
 
           <CohortRetentionChart curve={curveQ.data ?? []} rows={rows} />
 
