@@ -321,7 +321,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           ? "Sem Tempo de ROI projetado"
           : `Previsto: ${tempoRoiProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${tempoRoiProjetado === 1 ? "mês" : "meses"}`,
     },
-    { label: "ARPA", value: arpaReal == null ? "—" : formatBRL(arpaReal) },
+    {
+      label: "ARPA",
+      value: arpaReal == null ? "—" : formatBRL(arpaReal),
+      sub: `M0 ${formatBRL(lifetime.m0Revenue)} ÷ ${lifetime.subscribers.toLocaleString("pt-BR")} vendas`,
+    },
+
   ];
 
 
