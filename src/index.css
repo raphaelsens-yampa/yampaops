@@ -27,6 +27,11 @@
     --accent: 193 87% 65%;
     --accent-foreground: 205 90% 11%;
 
+    /* Chart: azul do logo Yampa (realizado) e azul claro suave (meta) */
+    --chart-logo: 194 86% 59%;
+    --chart-logo-soft: 191 100% 88%;
+
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
