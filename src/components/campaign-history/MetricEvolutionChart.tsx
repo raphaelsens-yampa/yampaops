@@ -66,27 +66,70 @@ export function MetricEvolutionChart({
   const [chartType, setChartType] = useState<SeriesType>("line");
   const [chartType2, setChartType2] = useState<SeriesType>("bar");
   const [viewMode, setViewMode] = useState<"both" | "real" | "meta">("both");
+  const [retentionOffset, setRetentionOffset] = useState(1);
 
-  const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
-  const metric2 = metricId2 === NONE ? undefined : metrics.find((m) => m.id === metricId2);
+  const isRetention = metricId === RETENTION_ID;
+  const isRetention2 = metricId2 === RETENTION_ID;
+
+  const cohortQ = useQuery({
+    queryKey: ["cohort-evolution-all"],
+    queryFn: async () => {
+      const [contactsRes, resultsRes] = await Promise.all([
+        supabase
+          .from("campaign_cohort_contacts")
+          .select("id, campaign_id, email, email_norm, name, offer, activated_at"),
+        supabase.from("campaign_cohort_results").select("*"),
+      ]);
+      if (contactsRes.error) throw contactsRes.error;
+      if (resultsRes.error) throw resultsRes.error;
+
+      const results = new Map<string, CohortResult>();
+      for (const r of (resultsRes.data ?? []) as unknown as CohortResult[]) results.set(r.contact_id, r);
+
+      const byCampaign = new Map<string, CohortRow[]>();
+      for (const c of (contactsRes.data ?? []) as unknown as CohortContact[]) {
+        const list = byCampaign.get(c.campaign_id) ?? [];
+        list.push({ ...c, result: results.get(c.id) ?? null });
+        byCampaign.set(c.campaign_id, list);
+      }
+      return byCampaign;
+    },
+    enabled: isRetention || isRetention2,
+  });
+
+  const cohortByCampaign = cohortQ.data ?? new Map<string, CohortRow[]>();
+
+  const metric = isRetention
+    ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : metrics.find((m) => m.id === metricId) ?? metrics[0];
+  const metric2 = metricId2 === NONE
+    ? undefined
+    : isRetention2
+    ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : metrics.find((m) => m.id === metricId2);
 
   const data = useMemo(
     () =>
       campaigns.map((c) => {
-        const v = metric ? values.get(`${c.id}|${metric.id}`) : undefined;
-        const v2 = metric2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
+        const v = metric && !isRetention ? values.get(`${c.id}|${metric.id}`) : undefined;
+        const v2 = metric2 && !isRetention2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
+        const rows = cohortByCampaign.get(c.id) ?? [];
+        const retention = isRetention ? retentionAtOffset(rows, retentionOffset) : null;
+        const retention2 = isRetention2 ? retentionAtOffset(rows, retentionOffset) : null;
         return {
           name: campaignLabel(c),
-          metaA: v?.target_value ?? null,
-          realA: v?.actual_value ?? null,
-          metaB: v2?.target_value ?? null,
-          realB: v2?.actual_value ?? null,
+          metaA: isRetention ? null : (v?.target_value ?? null),
+          realA: isRetention ? retention.pct : (v?.actual_value ?? null),
+          metaB: isRetention2 ? null : (v2?.target_value ?? null),
+          realB: isRetention2 ? retention2.pct : (v2?.actual_value ?? null),
+          baseA: retention?.size ?? 0,
+          baseB: retention2?.size ?? 0,
         };
       }),
-    [campaigns, metric, metric2, values],
+    [campaigns, metric, metric2, values, isRetention, isRetention2, retentionOffset, cohortByCampaign],
   );
 
-  if (!metric) {
+  if (!metric && !metrics.length) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-sm text-muted-foreground">
