@@ -117,10 +117,10 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         supabase
           .from("campaign_history_metrics")
           .select("id, slug")
-          .in("slug", ["cac", "cac_liquido", "investimento"]),
+          .in("slug", ["cac", "cac_liquido", "investimento", "ltv_cac", "tempo_roi"]),
         supabase
           .from("campaign_history_values")
-          .select("metric_id, actual_value")
+          .select("metric_id, actual_value, target_value")
           .eq("campaign_id", campaignId),
       ]);
       if (metricsError) throw metricsError;
@@ -128,22 +128,31 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
       const slugByMetricId = new Map((metrics ?? []).map((metric) => [metric.id, metric.slug]));
       const map = new Map<string, number>();
+      const targetMap = new Map<string, number>();
       for (const row of values ?? []) {
         const slug = slugByMetricId.get(row.metric_id);
-        const value = row.actual_value;
-        if (slug && value != null && isFinite(Number(value))) map.set(slug, Number(value));
+        if (!slug) continue;
+        const value = (row as any).actual_value;
+        const target = (row as any).target_value;
+        if (value != null && isFinite(Number(value))) map.set(slug, Number(value));
+        if (target != null && isFinite(Number(target))) targetMap.set(slug, Number(target));
       }
-      return map;
+      return { actual: map, target: targetMap };
     },
   });
 
   // Regra canônica: CAC Líquido quando existir e for > 0; caso contrário, CAC geral.
-  const cacLiquido = campaignValuesQ.data?.get("cac_liquido") ?? null;
-  const cacGeral = campaignValuesQ.data?.get("cac") ?? null;
+  const cacLiquido = campaignValuesQ.data?.actual.get("cac_liquido") ?? null;
+  const cacGeral = campaignValuesQ.data?.actual.get("cac") ?? null;
   const cacSource: "liquido" | "geral" | null =
     cacLiquido != null && cacLiquido > 0 ? "liquido" : cacGeral != null && cacGeral > 0 ? "geral" : null;
   const cacReal = cacSource === "liquido" ? cacLiquido : cacSource === "geral" ? cacGeral : null;
-  const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
+  const investimentoReal = campaignValuesQ.data?.actual.get("investimento") ?? null;
+  // Projetados no cadastro: meta (target), com fallback para realizado.
+  const ltvCacProjetado =
+    campaignValuesQ.data?.target.get("ltv_cac") ?? campaignValuesQ.data?.actual.get("ltv_cac") ?? null;
+  const tempoRoiProjetado =
+    campaignValuesQ.data?.target.get("tempo_roi") ?? campaignValuesQ.data?.actual.get("tempo_roi") ?? null;
   const payback = useMemo(
     () => paybackMonth(lifetime.monthly, investimentoReal),
     [lifetime.monthly, investimentoReal],
@@ -296,9 +305,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       label: "LTV/CAC Real",
       value: ltvCacReal == null ? "—" : `${ltvCacReal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
       sub:
-        cacSource == null
-          ? "Cadastre CAC Líquido ou CAC"
-          : `${cacSource === "liquido" ? "CAC Líquido" : "CAC"} ${formatBRL(cacReal ?? 0)}`,
+        ltvCacProjetado == null
+          ? "Sem LTV/CAC projetado"
+          : `Projetado ${ltvCacProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
     },
     {
       label: "ROI Real (payback)",
@@ -307,7 +316,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           ? "—"
           : payback
             ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
-            : "Campanha ainda não se pagou",
+            : "Não se pagou ainda",
+      smallValue: !(investimentoReal == null || investimentoReal <= 0) && !payback,
+      sub:
+        tempoRoiProjetado == null
+          ? "Sem Tempo de ROI projetado"
+          : `Previsto: ${tempoRoiProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${tempoRoiProjetado === 1 ? "mês" : "meses"}`,
     },
     { label: "ARPA", value: arpaReal == null ? "—" : formatBRL(arpaReal) },
   ];
@@ -405,7 +419,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
               <Card key={c.label} className="min-w-0">
                 <CardContent className="p-4">
                   <p className="truncate text-xs text-muted-foreground">{c.label}</p>
-                  <p className="truncate text-xl font-bold tabular-nums">{c.value}</p>
+                  <p className={`truncate font-bold tabular-nums ${"smallValue" in c && c.smallValue ? "text-sm" : "text-xl"}`}>{c.value}</p>
                   {"sub" in c && c.sub ? (
                     <p className="truncate text-[11px] text-muted-foreground">{c.sub}</p>
                   ) : null}
