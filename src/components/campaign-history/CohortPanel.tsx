@@ -20,6 +20,7 @@ import {
   formatBRL,
   formatDateBR,
   summarize,
+  summarizeCurve,
   CHURN_SOURCE_LABEL,
   SOURCE_LABEL,
   STATUS_LABEL,
