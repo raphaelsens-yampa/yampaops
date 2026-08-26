@@ -72,7 +72,6 @@ export function MetricEvolutionChart({
   const [chartType, setChartType] = useState<SeriesType>("line");
   const [chartType2, setChartType2] = useState<SeriesType>("bar");
   const [viewMode, setViewMode] = useState<"both" | "real" | "meta">("both");
-  const [retentionOffset, setRetentionOffset] = useState(1);
 
   const isRetention = metricId === RETENTION_ID;
   const isRetention2 = metricId2 === RETENTION_ID;
