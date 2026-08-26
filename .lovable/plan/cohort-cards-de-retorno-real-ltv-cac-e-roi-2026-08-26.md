@@ -2,9 +2,9 @@
 
 ## O que muda nos cards
 
-Remover: **Em trial** e **Nunca assinaram**.
+Remover: **Em trial,**  **Encontrados na base** e **Nunca assinaram**.
 
-Linha de cima (esquerda → direita): Total da lista, Encontrados na base, Ativos, Cancelados, % de retenção, **MRR ativo hoje**.
+Linha de cima (esquerda → direita): Total da lista, Ativos, Cancelados, % de retenção, **MRR ativo hoje**.
 
 Linha de baixo: **Receita Acumulada**, **LTV Real**, **LTV/CAC Real**, **ROI Real**.
 
@@ -23,5 +23,5 @@ Linha de baixo: **Receita Acumulada**, **LTV Real**, **LTV/CAC Real**, **ROI Rea
   - Nova função `paybackMonth(monthly, investment)` que devolve `{ offset, months } | null` para o primeiro mês em que `revenue_cum >= investment`.
 - `src/components/campaign-history/CohortPanel.tsx`
   - Nova query aos valores da campanha (`campaign_history_values` + `campaign_history_metrics`) para ler `actual_value` dos slugs `cac` e `investimento` da campanha selecionada.
-  - Ajuste da lista `cards`: remoção de trial/never, reordenação com `MRR ativo hoje` fechando a primeira linha (grid `lg:grid-cols-6` na primeira faixa e `lg:grid-cols-4` na segunda, mantendo responsividade mobile) e inclusão de LTV/CAC Real e ROI Real.
+  - Ajuste da lista `cards`: remoção de trial/never/encontrados na base, reordenação com `MRR ativo hoje` fechando a primeira linha (grid `lg:grid-cols-6` na primeira faixa e `lg:grid-cols-4` na segunda, mantendo responsividade mobile) e inclusão de LTV/CAC Real e ROI Real.
   - Formatações em PT-BR com `formatBRL` e multiplicador com uma casa decimal.

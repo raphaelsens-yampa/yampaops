@@ -20,7 +20,9 @@ import {
   computeLifetimeRevenue,
   formatBRL,
   formatDateBR,
+  paybackMonth,
   summarize,
+
 
   CHURN_SOURCE_LABEL,
   SOURCE_LABEL,
@@ -106,6 +108,42 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const summary = useMemo(() => summarize(rows), [rows]);
 
   const lifetime = useMemo(() => computeLifetimeRevenue(rows), [rows]);
+
+  const campaignValuesQ = useQuery({
+    queryKey: ["cohort-campaign-values", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const [{ data: metrics, error: metricsError }, { data: values, error: valuesError }] = await Promise.all([
+        supabase
+          .from("campaign_history_metrics")
+          .select("id, slug")
+          .in("slug", ["cac", "investimento"]),
+        supabase
+          .from("campaign_history_values")
+          .select("metric_id, actual_value")
+          .eq("campaign_id", campaignId),
+      ]);
+      if (metricsError) throw metricsError;
+      if (valuesError) throw valuesError;
+
+      const slugByMetricId = new Map((metrics ?? []).map((metric) => [metric.id, metric.slug]));
+      const map = new Map<string, number>();
+      for (const row of values ?? []) {
+        const slug = slugByMetricId.get(row.metric_id);
+        const value = row.actual_value;
+        if (slug && value != null && isFinite(Number(value))) map.set(slug, Number(value));
+      }
+      return map;
+    },
+  });
+
+  const cacReal = campaignValuesQ.data?.get("cac") ?? null;
+  const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
+  const payback = useMemo(
+    () => paybackMonth(lifetime.monthly, investimentoReal),
+    [lifetime.monthly, investimentoReal],
+  );
+
 
 
 
@@ -227,22 +265,38 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
 
-  const cards = [
+  const ltvCacReal =
+    lifetime.ltvReal != null && cacReal != null && cacReal > 0 ? lifetime.ltvReal / cacReal : null;
+
+  const topCards = [
     { label: "Total da lista", value: summary.total.toLocaleString("pt-BR") },
-    { label: "Encontrados na base", value: summary.found.toLocaleString("pt-BR") },
     { label: "Ativos", value: summary.active.toLocaleString("pt-BR") },
     { label: "Cancelados", value: summary.canceled.toLocaleString("pt-BR") },
-    { label: "Em trial", value: summary.trial.toLocaleString("pt-BR") },
-    { label: "Nunca assinaram", value: summary.never.toLocaleString("pt-BR") },
-    { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
-    { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
-    { label: "LTV Real", value: lifetime.ltvReal == null ? "—" : formatBRL(lifetime.ltvReal) },
-
     {
       label: "% de retenção",
       value: summary.retentionPct == null ? "—" : `${summary.retentionPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
     },
+    { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
   ];
+
+  const bottomCards = [
+    { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
+    { label: "LTV Real", value: lifetime.ltvReal == null ? "—" : formatBRL(lifetime.ltvReal) },
+    {
+      label: "LTV/CAC Real",
+      value: ltvCacReal == null ? "—" : `${ltvCacReal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
+    },
+    {
+      label: "ROI Real (payback)",
+      value:
+        investimentoReal == null || investimentoReal <= 0
+          ? "—"
+          : payback
+            ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
+            : "Campanha ainda não se pagou",
+    },
+  ];
+
 
 
   return (
@@ -321,7 +375,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {cards.map((c) => (
+            {topCards.map((c) => (
               <Card key={c.label}>
                 <CardContent className="p-4">
                   <p className="truncate text-xs text-muted-foreground">{c.label}</p>
@@ -330,6 +384,18 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
               </Card>
             ))}
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {bottomCards.map((c) => (
+              <Card key={c.label}>
+                <CardContent className="p-4">
+                  <p className="truncate text-xs text-muted-foreground">{c.label}</p>
+                  <p className="text-xl font-bold tabular-nums">{c.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
 
           <CohortRetentionChart curve={curveQ.data ?? []} rows={rows} />
 
