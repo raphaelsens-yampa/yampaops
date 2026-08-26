@@ -20,7 +20,9 @@ import {
   computeLifetimeRevenue,
   formatBRL,
   formatDateBR,
+  paybackMonth,
   summarize,
+
 
   CHURN_SOURCE_LABEL,
   SOURCE_LABEL,
