@@ -148,9 +148,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     cacLiquido != null && cacLiquido > 0 ? "liquido" : cacGeral != null && cacGeral > 0 ? "geral" : null;
   const cacReal = cacSource === "liquido" ? cacLiquido : cacSource === "geral" ? cacGeral : null;
   const investimentoReal = campaignValuesQ.data?.actual.get("investimento") ?? null;
-  // Projetados no cadastro: meta (target), com fallback para realizado.
+  // Projetados no cadastro: realizado (actual) primeiro, com fallback para meta (target).
   const ltvCacProjetado =
-    campaignValuesQ.data?.target.get("ltv_cac") ?? campaignValuesQ.data?.actual.get("ltv_cac") ?? null;
+    campaignValuesQ.data?.actual.get("ltv_cac") ?? campaignValuesQ.data?.target.get("ltv_cac") ?? null;
   const tempoRoiProjetado =
     campaignValuesQ.data?.target.get("tempo_roi") ?? campaignValuesQ.data?.actual.get("tempo_roi") ?? null;
   const payback = useMemo(
