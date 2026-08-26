@@ -318,6 +318,7 @@ export function MetricEvolutionChart({
             </ResponsiveContainer>
           </div>
           )}
+        </CardContent>
       </Card>
 
 
