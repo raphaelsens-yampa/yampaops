@@ -328,14 +328,19 @@ export function AppSidebar() {
           if (!it.area) return true;
           return role === "admin" ? true : canView(it.area);
         })
-        .map((it) => ({
-          ...it,
-          children: it.children?.filter((c) => {
+        .map((it) => {
+          const children = it.children?.filter((c) => {
             if (c.adminOnly && role !== "admin") return false;
             if (!c.area) return true;
             return role === "admin" ? true : canView(c.area);
-          }),
-        })),
+          });
+          // Se o item é apenas um agrupador com filhos, aponta para o primeiro filho visível
+          const url = children && children.length > 0 && !it.area ? children[0].url : it.url;
+          return { ...it, children, url };
+        })
+        // Remove agrupadores sem nenhum filho visível
+        .filter((it) => !(it.children && it.children.length === 0 && !it.area)),
+
     }))
     .filter((g) => g.items.length > 0);
 
