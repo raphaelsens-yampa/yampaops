@@ -181,10 +181,20 @@ export function AppSidebar() {
   const [openDescontos, setOpenDescontos] = useLocalBool("sidebar:group:descontos", true);
   const [openGestao, setOpenGestao] = useLocalBool("sidebar:group:gestao", false);
   const [openIntegr, setOpenIntegr] = useLocalBool("sidebar:group:integracoes", false);
-  const [openAuditoria, setOpenAuditoria] = useLocalBool(
-    "sidebar:item:auditoria",
-    typeof window !== "undefined" && window.location.pathname.startsWith("/atendimentos/auditoria"),
-  );
+  // Estado de expansão por item com submenu (persistido em localStorage)
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(localStorage.getItem("sidebar:openItems") || "{}"); } catch { return {}; }
+  });
+  const isItemOpen = (item: NavItem) =>
+    openItems[item.title] ?? (typeof window !== "undefined" && window.location.pathname.startsWith(item.url));
+  const toggleItem = (item: NavItem) =>
+    setOpenItems((prev) => {
+      const cur = prev[item.title] ?? (typeof window !== "undefined" && window.location.pathname.startsWith(item.url));
+      const next = { ...prev, [item.title]: !cur };
+      try { localStorage.setItem("sidebar:openItems", JSON.stringify(next)); } catch {}
+      return next;
+    });
 
   // Definição declarativa dos grupos
   const groups: Group[] = [
@@ -242,7 +252,17 @@ export function AppSidebar() {
       defaultOpen: openComercial,
       items: [
         { title: "Funis ActiveCampaign", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", managerOnly: true },
-        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
+        {
+          title: "Campanhas e Lives",
+          url: "/sales-campaigns/history",
+          icon: Megaphone,
+          area: "sales_campaigns",
+          managerOnly: true,
+          children: [
+            { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "sales_campaigns" as CrmAreaKey },
+            { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns" as CrmAreaKey },
+          ],
+        },
 
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
@@ -352,14 +372,14 @@ export function AppSidebar() {
             </SidebarMenuButton>
             <button
               type="button"
-              onClick={() => setOpenAuditoria(!openAuditoria)}
+              onClick={() => toggleItem(item)}
               className="p-1 mr-1 rounded hover:bg-sidebar-accent/50 text-sidebar-foreground/70"
-              aria-label={openAuditoria ? "Recolher" : "Expandir"}
+              aria-label={isItemOpen(item) ? "Recolher" : "Expandir"}
             >
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", openAuditoria ? "rotate-0" : "-rotate-90")} />
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isItemOpen(item) ? "rotate-0" : "-rotate-90")} />
             </button>
           </div>
-          {openAuditoria && (
+          {isItemOpen(item) && (
             <div className="ml-4 border-l border-sidebar-border/60 pl-1 mt-0.5">
               <SidebarMenu>{item.children!.map(renderItem)}</SidebarMenu>
             </div>
