@@ -305,9 +305,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       label: "LTV/CAC Real",
       value: ltvCacReal == null ? "—" : `${ltvCacReal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
       sub:
-        cacSource == null
-          ? "Cadastre CAC Líquido ou CAC"
-          : `${cacSource === "liquido" ? "CAC Líquido" : "CAC"} ${formatBRL(cacReal ?? 0)}`,
+        ltvCacProjetado == null
+          ? "Sem LTV/CAC projetado"
+          : `Projetado ${ltvCacProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
     },
     {
       label: "ROI Real (payback)",
@@ -316,7 +316,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           ? "—"
           : payback
             ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
-            : "Campanha ainda não se pagou",
+            : "Não se pagou ainda",
+      smallValue: !(investimentoReal == null || investimentoReal <= 0) && !payback,
+      sub:
+        tempoRoiProjetado == null
+          ? "Sem Tempo de ROI projetado"
+          : `Previsto: ${tempoRoiProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${tempoRoiProjetado === 1 ? "mês" : "meses"}`,
     },
     { label: "ARPA", value: arpaReal == null ? "—" : formatBRL(arpaReal) },
   ];
