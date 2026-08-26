@@ -290,6 +290,10 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     {
       label: "LTV/CAC Real",
       value: ltvCacReal == null ? "—" : `${ltvCacReal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
+      sub:
+        cacSource == null
+          ? "Cadastre CAC Líquido ou CAC"
+          : `${cacSource === "liquido" ? "CAC Líquido" : "CAC"} ${formatBRL(cacReal ?? 0)}`,
     },
     {
       label: "ROI Real (payback)",
