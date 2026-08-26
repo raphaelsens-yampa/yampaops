@@ -113,16 +113,25 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     queryKey: ["cohort-campaign-values", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("campaign_history_values")
-        .select("actual_value, campaign_history_metrics!inner(slug)")
-        .eq("campaign_id", campaignId);
-      if (error) throw error;
+      const [{ data: metrics, error: metricsError }, { data: values, error: valuesError }] = await Promise.all([
+        supabase
+          .from("campaign_history_metrics")
+          .select("id, slug")
+          .in("slug", ["cac", "investimento"]),
+        supabase
+          .from("campaign_history_values")
+          .select("metric_id, actual_value")
+          .eq("campaign_id", campaignId),
+      ]);
+      if (metricsError) throw metricsError;
+      if (valuesError) throw valuesError;
+
+      const slugByMetricId = new Map((metrics ?? []).map((metric) => [metric.id, metric.slug]));
       const map = new Map<string, number>();
-      for (const row of (data ?? []) as any[]) {
-        const slug = row?.campaign_history_metrics?.slug;
-        const v = Number(row?.actual_value);
-        if (slug && isFinite(v)) map.set(slug, v);
+      for (const row of values ?? []) {
+        const slug = slugByMetricId.get(row.metric_id);
+        const value = row.actual_value;
+        if (slug && value != null && isFinite(Number(value))) map.set(slug, Number(value));
       }
       return map;
     },
