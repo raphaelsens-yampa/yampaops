@@ -249,14 +249,6 @@ export function MetricEvolutionChart({
                 <Button size="sm" variant={chartType === "line" ? "default" : "outline"} onClick={() => setChartType("line")}>Linha</Button>
                 <Button size="sm" variant={chartType === "bar" ? "default" : "outline"} onClick={() => setChartType("bar")}>Barra</Button>
               </div>
-              {isRetention && (
-                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
-                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={metricId2} onValueChange={setMetricId2}>
