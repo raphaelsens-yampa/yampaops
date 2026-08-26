@@ -256,22 +256,38 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     XLSX.writeFile(wb, `${baseName}.xlsx`);
   };
 
-  const cards = [
+  const ltvCacReal =
+    lifetime.ltvReal != null && cacReal != null && cacReal > 0 ? lifetime.ltvReal / cacReal : null;
+
+  const topCards = [
     { label: "Total da lista", value: summary.total.toLocaleString("pt-BR") },
-    { label: "Encontrados na base", value: summary.found.toLocaleString("pt-BR") },
     { label: "Ativos", value: summary.active.toLocaleString("pt-BR") },
     { label: "Cancelados", value: summary.canceled.toLocaleString("pt-BR") },
-    { label: "Em trial", value: summary.trial.toLocaleString("pt-BR") },
-    { label: "Nunca assinaram", value: summary.never.toLocaleString("pt-BR") },
-    { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
-    { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
-    { label: "LTV Real", value: lifetime.ltvReal == null ? "—" : formatBRL(lifetime.ltvReal) },
-
     {
       label: "% de retenção",
       value: summary.retentionPct == null ? "—" : `${summary.retentionPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
     },
+    { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
   ];
+
+  const bottomCards = [
+    { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
+    { label: "LTV Real", value: lifetime.ltvReal == null ? "—" : formatBRL(lifetime.ltvReal) },
+    {
+      label: "LTV/CAC Real",
+      value: ltvCacReal == null ? "—" : `${ltvCacReal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
+    },
+    {
+      label: "ROI Real (payback)",
+      value:
+        investimentoReal == null || investimentoReal <= 0
+          ? "—"
+          : payback
+            ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
+            : "Campanha ainda não se pagou",
+    },
+  ];
+
 
 
   return (
