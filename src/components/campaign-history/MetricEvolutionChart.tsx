@@ -32,18 +32,24 @@ import {
 } from "@/lib/campaignHistory";
 
 const RETENTION_ID = "cohort_retention";
-const OFFSETS = [0, 1, 3, 6, 12];
 
-/** Retenção ponderada do cohort da campanha no offset informado (só cohorts com o mês disponível). */
-function retentionAtOffset(rows: CohortRow[], offset: number) {
+/** Retenção ponderada do cohort da campanha no mês mais recente disponível. */
+function retentionLatest(rows: CohortRow[]) {
   const matrix = buildCohortMatrix(rows);
+  let maxOffset = -1;
   let active = 0;
   let size = 0;
   for (const r of matrix) {
-    const cell = r.cells[offset];
-    if (!cell) continue;
-    active += cell.active;
-    size += cell.size;
+    for (const c of r.cells) {
+      if (c.offset === maxOffset) {
+        active += c.active;
+        size += c.size;
+      } else if (c.offset > maxOffset) {
+        maxOffset = c.offset;
+        active = c.active;
+        size = c.size;
+      }
+    }
   }
   if (!size) return { pct: null as number | null, active: 0, size: 0 };
   return { pct: (active / size) * 100, active, size };
