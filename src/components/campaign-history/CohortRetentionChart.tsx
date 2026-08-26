@@ -50,7 +50,6 @@ export function CohortRetentionChart({ curve, rows }: { curve: CurvePoint[]; row
   );
   const cols = Array.from({ length: maxCols }, (_, i) => i);
 
-  const aggregate = curve ?? [];
 
   return (
     <Card>
