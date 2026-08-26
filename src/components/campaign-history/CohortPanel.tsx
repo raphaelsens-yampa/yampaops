@@ -293,10 +293,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
   ];
 
-  const arpaReal =
-    summary.total > 0 && curveQ.data && curveQ.data.length > 0
-      ? (curveQ.data[0].mrr_total ?? 0) / summary.total
-      : null;
+  const arpaReal = lifetime.arpa;
+
 
   const bottomCards = [
     { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
