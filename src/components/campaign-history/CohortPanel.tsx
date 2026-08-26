@@ -284,6 +284,11 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
   ];
 
+  const arpaReal =
+    summary.total > 0 && curveQ.data && curveQ.data.length > 0
+      ? (curveQ.data[0].mrr_total ?? 0) / summary.total
+      : null;
+
   const bottomCards = [
     { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
     { label: "LTV Real", value: lifetime.ltvReal == null ? "—" : formatBRL(lifetime.ltvReal) },
@@ -304,6 +309,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
             ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
             : "Campanha ainda não se pagou",
     },
+    { label: "ARPA", value: arpaReal == null ? "—" : formatBRL(arpaReal) },
   ];
 
 
