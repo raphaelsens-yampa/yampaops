@@ -374,7 +374,11 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     ltvReal: subscribers > 0 ? ltvSum / subscribers : null,
     subscribers,
     avgLifetimeMonths: subscribers > 0 ? monthsSum / subscribers : null,
+    m0Revenue,
+    // ARPA = receita do mês 0 dividida pelas vendas efetivas (clientes pagantes)
+    arpa: subscribers > 0 ? m0Revenue / subscribers : null,
     monthly,
+
   };
 }
 
