@@ -17,10 +17,11 @@ import { CohortRetentionChart } from "./CohortRetentionChart";
 import {
   buildCurve,
   cohortRowsToMatrix,
+  computeLifetimeRevenue,
   formatBRL,
   formatDateBR,
   summarize,
-  summarizeCurve,
+
   CHURN_SOURCE_LABEL,
   SOURCE_LABEL,
   STATUS_LABEL,
@@ -104,11 +105,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
   const summary = useMemo(() => summarize(rows), [rows]);
 
-  const curve = curveQ.data ?? [];
-  const curveTotals = useMemo(
-    () => summarizeCurve(curve, summary.active + summary.canceled),
-    [curve, summary.active, summary.canceled],
-  );
+  const lifetime = useMemo(() => computeLifetimeRevenue(rows), [rows]);
+
 
 
   const filtered = useMemo(() => {
@@ -237,8 +235,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     { label: "Em trial", value: summary.trial.toLocaleString("pt-BR") },
     { label: "Nunca assinaram", value: summary.never.toLocaleString("pt-BR") },
     { label: "MRR ativo hoje", value: formatBRL(summary.mrrActive) },
-    { label: "Receita Acumulada", value: curve.length ? formatBRL(curveTotals.revenueAccumulated) : "—" },
-    { label: "LTV Real", value: curveTotals.ltvReal == null ? "—" : formatBRL(curveTotals.ltvReal) },
+    { label: "Receita Acumulada", value: formatBRL(lifetime.revenueAccumulated) },
+    { label: "LTV Real", value: lifetime.ltvReal == null ? "—" : formatBRL(lifetime.ltvReal) },
+
     {
       label: "% de retenção",
       value: summary.retentionPct == null ? "—" : `${summary.retentionPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
