@@ -43,6 +43,7 @@ export const CRM_SECTIONS = [
     key: "sales",
     label: "Sales",
     areas: [
+      { key: "campaign_history", label: "Histórico de Campanhas" },
       { key: "sales_campaigns", label: "Campanhas de Sales" },
       { key: "commissions", label: "Comissões" },
       { key: "comissionamento", label: "Comissionamento" },
