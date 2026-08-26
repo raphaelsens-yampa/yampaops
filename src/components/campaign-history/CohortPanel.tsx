@@ -107,6 +107,33 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
   const lifetime = useMemo(() => computeLifetimeRevenue(rows), [rows]);
 
+  const campaignValuesQ = useQuery({
+    queryKey: ["cohort-campaign-values", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_history_values")
+        .select("actual_value, campaign_history_metrics!inner(slug)")
+        .eq("campaign_id", campaignId);
+      if (error) throw error;
+      const map = new Map<string, number>();
+      for (const row of (data ?? []) as any[]) {
+        const slug = row?.campaign_history_metrics?.slug;
+        const v = Number(row?.actual_value);
+        if (slug && isFinite(v)) map.set(slug, v);
+      }
+      return map;
+    },
+  });
+
+  const cacReal = campaignValuesQ.data?.get("cac") ?? null;
+  const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
+  const payback = useMemo(
+    () => paybackMonth(lifetime.monthly, investimentoReal),
+    [lifetime.monthly, investimentoReal],
+  );
+
+
 
 
   const filtered = useMemo(() => {
