@@ -274,23 +274,33 @@ export function MetricEvolutionChart({
           </div>
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-xs text-muted-foreground mr-1">Visualizar:</span>
-            <Button size="sm" variant={viewMode === "both" ? "default" : "outline"} onClick={() => setViewMode("both")}>Ambos</Button>
+            <Button size="sm" variant={viewMode === "both" ? "default" : "outline"} onClick={() => setViewMode("both")} disabled={isRetention || isRetention2}>Ambos</Button>
             <Button size="sm" variant={viewMode === "real" ? "default" : "outline"} onClick={() => setViewMode("real")}>Realizado</Button>
-            <Button size="sm" variant={viewMode === "meta" ? "default" : "outline"} onClick={() => setViewMode("meta")}>Meta</Button>
+            <Button size="sm" variant={viewMode === "meta" ? "default" : "outline"} onClick={() => setViewMode("meta")} disabled={isRetention || isRetention2}>Meta</Button>
           </div>
         </CardHeader>
         <CardContent>
+          {cohortQ.isLoading && (isRetention || isRetention2) ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Carregando cohort…</p>
+          ) : (
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={(v) => formatMetricValue(v, metric.unit)} width={80} />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 11 }}
+                  domain={isRetention ? [0, 100] : ["auto", "auto"]}
+                  tickFormatter={(v) => formatMetricValue(v, metric.unit)}
+                  width={80}
+                />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
                   hide={!metric2}
                   tick={{ fontSize: 11 }}
+                  domain={isRetention2 ? [0, 100] : ["auto", "auto"]}
                   tickFormatter={(v) => formatMetricValue(v, metric2?.unit)}
                   width={80}
                 />
@@ -300,14 +310,14 @@ export function MetricEvolutionChart({
                   }
                 />
                 <Legend />
-                {viewMode !== "real" && seriesA("metaA", true)}
+                {viewMode !== "real" && !isRetention && seriesA("metaA", true)}
                 {viewMode !== "meta" && seriesA("realA", false)}
-                {metric2 && viewMode !== "real" && seriesB("metaB", true)}
+                {metric2 && viewMode !== "real" && !isRetention2 && seriesB("metaB", true)}
                 {metric2 && viewMode !== "meta" && seriesB("realB", false)}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </CardContent>
+          )}
       </Card>
 
 
