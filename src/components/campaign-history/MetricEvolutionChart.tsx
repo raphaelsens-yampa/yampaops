@@ -158,15 +158,15 @@ export function MetricEvolutionChart({
   };
   const labelByKey: Record<string, string> = {
     metaA: isRetention ? "" : `Meta — ${metric.label}`,
-    realA: isRetention ? `${metric.label} (M${retentionOffset})` : `Realizado — ${metric.label}`,
+    realA: isRetention ? `${metric.label} (mês mais recente)` : `Realizado — ${metric.label}`,
     metaB: metric2 ? (isRetention2 ? "" : `Meta — ${metric2.label}`) : "",
     realB: metric2
       ? isRetention2
-        ? `${metric2.label} (M${retentionOffset})`
+        ? `${metric2.label} (mês mais recente)`
         : `Realizado — ${metric2.label}`
       : "",
-    baseA: isRetention ? `Base do cohort (M${retentionOffset})` : "",
-    baseB: isRetention2 ? `Base do cohort (M${retentionOffset})` : "",
+    baseA: isRetention ? "Base do cohort (mês mais recente)" : "",
+    baseB: isRetention2 ? "Base do cohort (mês mais recente)" : "",
   };
 
   const paletteA = {
