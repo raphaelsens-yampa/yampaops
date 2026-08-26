@@ -326,6 +326,9 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
   let ltvSum = 0;
   let subscribers = 0;
   let monthsSum = 0;
+  // Receita do "mês 0" de cada cliente pagante (base do ARPA).
+  let m0Revenue = 0;
+
 
   const spans: { start: number; end: number; mrr: number }[] = [];
 
