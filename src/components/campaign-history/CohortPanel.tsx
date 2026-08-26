@@ -137,7 +137,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
-  const cacReal = campaignValuesQ.data?.get("cac_liquido") ?? campaignValuesQ.data?.get("cac") ?? null;
+  // Regra canônica: CAC Líquido quando existir e for > 0; caso contrário, CAC geral.
+  const cacLiquido = campaignValuesQ.data?.get("cac_liquido") ?? null;
+  const cacGeral = campaignValuesQ.data?.get("cac") ?? null;
+  const cacSource: "liquido" | "geral" | null =
+    cacLiquido != null && cacLiquido > 0 ? "liquido" : cacGeral != null && cacGeral > 0 ? "geral" : null;
+  const cacReal = cacSource === "liquido" ? cacLiquido : cacSource === "geral" ? cacGeral : null;
   const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
   const payback = useMemo(
     () => paybackMonth(lifetime.monthly, investimentoReal),
