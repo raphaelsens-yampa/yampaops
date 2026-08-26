@@ -181,10 +181,20 @@ export function AppSidebar() {
   const [openDescontos, setOpenDescontos] = useLocalBool("sidebar:group:descontos", true);
   const [openGestao, setOpenGestao] = useLocalBool("sidebar:group:gestao", false);
   const [openIntegr, setOpenIntegr] = useLocalBool("sidebar:group:integracoes", false);
-  const [openAuditoria, setOpenAuditoria] = useLocalBool(
-    "sidebar:item:auditoria",
-    typeof window !== "undefined" && window.location.pathname.startsWith("/atendimentos/auditoria"),
-  );
+  // Estado de expansão por item com submenu (persistido em localStorage)
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(localStorage.getItem("sidebar:openItems") || "{}"); } catch { return {}; }
+  });
+  const isItemOpen = (item: NavItem) =>
+    openItems[item.title] ?? (typeof window !== "undefined" && window.location.pathname.startsWith(item.url));
+  const toggleItem = (item: NavItem) =>
+    setOpenItems((prev) => {
+      const cur = prev[item.title] ?? (typeof window !== "undefined" && window.location.pathname.startsWith(item.url));
+      const next = { ...prev, [item.title]: !cur };
+      try { localStorage.setItem("sidebar:openItems", JSON.stringify(next)); } catch {}
+      return next;
+    });
 
   // Definição declarativa dos grupos
   const groups: Group[] = [
