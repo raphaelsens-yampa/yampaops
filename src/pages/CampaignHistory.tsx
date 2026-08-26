@@ -529,9 +529,11 @@ export default function CampaignHistory() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="evolucao" className="pt-4">
+            <TabsContent value="evolucao" className="space-y-4 pt-4">
               <MetricEvolutionChart metrics={activeMetrics} campaigns={campaigns} values={values} />
+              <CohortRetentionEvolution campaigns={campaigns} />
             </TabsContent>
+
 
             <TabsContent value="comparar" className="pt-4">
               <CampaignCompare
