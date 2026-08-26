@@ -142,12 +142,17 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   });
 
   // Regra canônica: CAC Líquido quando existir e for > 0; caso contrário, CAC geral.
-  const cacLiquido = campaignValuesQ.data?.get("cac_liquido") ?? null;
-  const cacGeral = campaignValuesQ.data?.get("cac") ?? null;
+  const cacLiquido = campaignValuesQ.data?.actual.get("cac_liquido") ?? null;
+  const cacGeral = campaignValuesQ.data?.actual.get("cac") ?? null;
   const cacSource: "liquido" | "geral" | null =
     cacLiquido != null && cacLiquido > 0 ? "liquido" : cacGeral != null && cacGeral > 0 ? "geral" : null;
   const cacReal = cacSource === "liquido" ? cacLiquido : cacSource === "geral" ? cacGeral : null;
-  const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
+  const investimentoReal = campaignValuesQ.data?.actual.get("investimento") ?? null;
+  // Projetados no cadastro: meta (target), com fallback para realizado.
+  const ltvCacProjetado =
+    campaignValuesQ.data?.target.get("ltv_cac") ?? campaignValuesQ.data?.actual.get("ltv_cac") ?? null;
+  const tempoRoiProjetado =
+    campaignValuesQ.data?.target.get("tempo_roi") ?? campaignValuesQ.data?.actual.get("tempo_roi") ?? null;
   const payback = useMemo(
     () => paybackMonth(lifetime.monthly, investimentoReal),
     [lifetime.monthly, investimentoReal],
