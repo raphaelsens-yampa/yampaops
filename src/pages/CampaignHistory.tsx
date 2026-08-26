@@ -22,6 +22,8 @@ import { MetricEvolutionChart } from "@/components/campaign-history/MetricEvolut
 import { CampaignCompare } from "@/components/campaign-history/CampaignCompare";
 import { MetricsConfig } from "@/components/campaign-history/MetricsConfig";
 import { CohortPanel } from "@/components/campaign-history/CohortPanel";
+import { CohortRetentionEvolution } from "@/components/campaign-history/CohortRetentionEvolution";
+
 import { buildCampaignHistoryPdf } from "@/lib/campaignHistoryPdf";
 import {
   attainmentPct,
