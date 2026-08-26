@@ -311,9 +311,9 @@ export function MetricEvolutionChart({
                 />
                 <Legend />
                 {viewMode !== "real" && !isRetention && seriesA("metaA", true)}
-                {viewMode !== "meta" && seriesA("realA", false)}
+                {((viewMode !== "meta" && !isRetention) || isRetention) && seriesA("realA", false)}
                 {metric2 && viewMode !== "real" && !isRetention2 && seriesB("metaB", true)}
-                {metric2 && viewMode !== "meta" && seriesB("realB", false)}
+                {metric2 && ((viewMode !== "meta" && !isRetention2) || isRetention2) && seriesB("realB", false)}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
