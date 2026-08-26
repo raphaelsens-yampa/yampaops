@@ -123,8 +123,8 @@ export function MetricEvolutionChart({
         const v = metric && !isRetention ? values.get(`${c.id}|${metric.id}`) : undefined;
         const v2 = metric2 && !isRetention2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
         const rows = cohortByCampaign.get(c.id) ?? [];
-        const retention = isRetention ? retentionAtOffset(rows, retentionOffset) : null;
-        const retention2 = isRetention2 ? retentionAtOffset(rows, retentionOffset) : null;
+        const retention = isRetention ? retentionLatest(rows) : null;
+        const retention2 = isRetention2 ? retentionLatest(rows) : null;
         return {
           name: campaignLabel(c),
           metaA: isRetention ? null : (v?.target_value ?? null),
@@ -135,7 +135,7 @@ export function MetricEvolutionChart({
           baseB: retention2?.size ?? 0,
         };
       }),
-    [campaigns, metric, metric2, values, isRetention, isRetention2, retentionOffset, cohortByCampaign],
+    [campaigns, metric, metric2, values, isRetention, isRetention2, cohortByCampaign],
   );
 
   if (!metric && !metrics.length) {
