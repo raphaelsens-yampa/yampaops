@@ -333,6 +333,8 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     const res = r.result;
     if (!res || res.status === "never") continue;
     const mrr = Number(res.mrr ?? 0);
+    // Desconsidera registros sem MRR (0/nulo) para não distorcer a média.
+    if (!isFinite(mrr) || mrr <= 0) continue;
     const startIso = String(r.activated_at ?? res.started_at ?? "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
     const startIdx = monthIndex(startIso);
@@ -342,7 +344,7 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     const months = end - startIdx + 1;
     const revenue = mrr * months;
     revenueAccumulated += revenue;
-    ltvSum += revenue / months;
+    ltvSum += revenue;
     monthsSum += months;
     subscribers++;
     spans.push({ start: startIdx, end, mrr });
@@ -361,15 +363,16 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     }
   }
 
-  const totalClients = rows.length;
   return {
     revenueAccumulated,
-    ltvReal: totalClients > 0 ? ltvSum / totalClients : null,
+    // LTV Real = receita acumulada por cliente pagante (exclui MRR zerado)
+    ltvReal: subscribers > 0 ? ltvSum / subscribers : null,
     subscribers,
     avgLifetimeMonths: subscribers > 0 ? monthsSum / subscribers : null,
     monthly,
   };
 }
+
 
 /** Primeiro mês em que a receita acumulada iguala/supera o investimento realizado. */
 export function paybackMonth(
