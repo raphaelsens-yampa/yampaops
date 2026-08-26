@@ -105,10 +105,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const summary = useMemo(() => summarize(rows), [rows]);
 
   const curve = curveQ.data ?? [];
-  const curveTotals = useMemo(
-    () => summarizeCurve(curve, summary.active + summary.canceled),
-    [curve, summary.active, summary.canceled],
-  );
+  const lifetime = useMemo(() => computeLifetimeRevenue(rows), [rows]);
+
 
 
   const filtered = useMemo(() => {
