@@ -305,6 +305,48 @@ export function summarizeCurve(curve: CurvePoint[], subscribers: number) {
   return { revenueAccumulated, ltvReal };
 }
 
+/**
+ * Receita acumulada e LTV real cliente a cliente:
+ * soma o MRR mês a mês da ativação até hoje (ativos) ou até o cancelamento (cancelados).
+ * LTV de cada cliente = receita acumulada dele ÷ meses ativos (LT);
+ * LTV Real = soma dos LTVs ÷ total de clientes da campanha.
+ */
+export function computeLifetimeRevenue(rows: CohortRow[]) {
+  const now = new Date();
+  const nowIdx = now.getFullYear() * 12 + now.getMonth();
+
+  let revenueAccumulated = 0;
+  let ltvSum = 0;
+  let subscribers = 0;
+  let monthsSum = 0;
+
+  for (const r of rows) {
+    const res = r.result;
+    if (!res || res.status === "never") continue;
+    const mrr = Number(res.mrr ?? 0);
+    const startIso = String(r.activated_at ?? res.started_at ?? "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
+    const startIdx = monthIndex(startIso);
+    const cancelIso = String(res.canceled_at ?? "").slice(0, 10);
+    const endIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : nowIdx;
+    const months = Math.max(1, Math.min(endIdx, nowIdx) - startIdx + 1);
+    const revenue = mrr * months;
+    revenueAccumulated += revenue;
+    ltvSum += revenue / months;
+    monthsSum += months;
+    subscribers++;
+  }
+
+  const totalClients = rows.length;
+  return {
+    revenueAccumulated,
+    ltvReal: totalClients > 0 ? ltvSum / totalClients : null,
+    subscribers,
+    avgLifetimeMonths: subscribers > 0 ? monthsSum / subscribers : null,
+  };
+}
+
+
 
 /* ===== Matriz de cohort (heatmap triangular) ===== */
 
