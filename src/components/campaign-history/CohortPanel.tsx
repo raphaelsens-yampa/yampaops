@@ -315,7 +315,6 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           : payback
             ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
             : "Não se pagou ainda",
-      smallValue: !(investimentoReal == null || investimentoReal <= 0) && !payback,
       sub:
         tempoRoiProjetado == null
           ? "Sem Tempo de ROI projetado"
