@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  buildCohortMatrix,
+  type CohortContact,
+  type CohortResult,
+  type CohortRow,
+} from "@/lib/campaignCohort";
 import {
   campaignLabel,
   formatMetricValue,
@@ -22,6 +30,24 @@ import {
   type HistoryMetric,
   type HistoryValue,
 } from "@/lib/campaignHistory";
+
+const RETENTION_ID = "cohort_retention";
+const OFFSETS = [0, 1, 3, 6, 12];
+
+/** Retenção ponderada do cohort da campanha no offset informado (só cohorts com o mês disponível). */
+function retentionAtOffset(rows: CohortRow[], offset: number) {
+  const matrix = buildCohortMatrix(rows);
+  let active = 0;
+  let size = 0;
+  for (const r of matrix) {
+    const cell = r.cells[offset];
+    if (!cell) continue;
+    active += cell.active;
+    size += cell.size;
+  }
+  if (!size) return { pct: null as number | null, active: 0, size: 0 };
+  return { pct: (active / size) * 100, active, size };
+}
 
 type SeriesType = "line" | "bar";
 const NONE = "__none__";
