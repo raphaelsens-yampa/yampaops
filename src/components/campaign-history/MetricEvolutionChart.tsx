@@ -89,10 +89,11 @@ export function MetricEvolutionChart({
     lineMeta: "hsl(var(--primary) / 0.65)",
   };
   const paletteB = {
-    solid: "hsl(var(--secondary))",
-    light: "hsl(var(--secondary) / 0.45)",
-    lineMeta: "hsl(var(--secondary) / 0.65)",
+    solid: "hsl(var(--chart-logo))",
+    light: "hsl(var(--chart-logo-soft))",
+    lineMeta: "hsl(var(--chart-logo-soft))",
   };
+
 
   const seriesA = (key: "metaA" | "realA", isTarget: boolean) =>
     chartType === "line" ? (
