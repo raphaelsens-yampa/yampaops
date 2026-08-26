@@ -135,28 +135,56 @@ export function CohortRetentionChart({ curve, rows }: { curve: CurvePoint[]; row
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="px-2 py-1.5 text-muted-foreground">Ativos</td>
-                    {aggregate.map((d) => (
-                      <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">{d.active_count}</td>
-                    ))}
-                  </tr>
-                  <tr className="border-b">
-                    <td className="px-2 py-1.5 text-muted-foreground">MRR</td>
-                    {aggregate.map((d) => (
-                      <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">{formatBRL(d.mrr_total)}</td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="px-2 py-1.5 text-muted-foreground">Retenção</td>
-                    {aggregate.map((d) => (
-                      <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">
-                        {d.retention_pct == null ? "—" : pct(d.retention_pct)}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
+                 <tbody>
+                   <tr className="border-b">
+                     <td className="px-2 py-1.5 text-muted-foreground">Ativos</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">{d.active_count}</td>
+                     ))}
+                   </tr>
+                   <tr className="border-b">
+                     <td className="px-2 py-1.5 text-muted-foreground">MRR</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">{formatBRL(d.mrr_total)}</td>
+                     ))}
+                   </tr>
+                   <tr className="border-b">
+                     <td className="px-2 py-1.5 text-muted-foreground">Retenção</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">
+                         {d.retention_pct == null ? "—" : pct(d.retention_pct)}
+                       </td>
+                     ))}
+                   </tr>
+                   <tr className="border-b">
+                     <td className="px-2 py-1.5 font-medium text-muted-foreground">Ativos acumulados</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right font-medium tabular-nums">{d.active_cum}</td>
+                     ))}
+                   </tr>
+                   <tr className="border-b">
+                     <td className="px-2 py-1.5 text-muted-foreground">% ativos acumulados / M0</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">
+                         {d.active_cum_pct == null ? "—" : pct(d.active_cum_pct)}
+                       </td>
+                     ))}
+                   </tr>
+                   <tr className="border-b">
+                     <td className="px-2 py-1.5 font-medium text-muted-foreground">MRR acumulado</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right font-medium tabular-nums">{formatBRL(d.mrr_cum)}</td>
+                     ))}
+                   </tr>
+                   <tr>
+                     <td className="px-2 py-1.5 text-muted-foreground">% MRR acumulado / total</td>
+                     {aggregate.map((d) => (
+                       <td key={d.month_offset} className="px-2 py-1.5 text-right tabular-nums">
+                         {d.mrr_cum_pct == null ? "—" : pct(d.mrr_cum_pct)}
+                       </td>
+                     ))}
+                   </tr>
+                 </tbody>
               </table>
             </div>
           )}
