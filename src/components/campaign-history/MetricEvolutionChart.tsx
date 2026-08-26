@@ -229,16 +229,25 @@ export function MetricEvolutionChart({
           <CardTitle className="text-base">Evolução por campanha</CardTitle>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={metric.id} onValueChange={setMetricId}>
+              <Select value={metricId} onValueChange={setMetricId}>
                 <SelectTrigger className="h-9 flex-1 min-w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex gap-1">
                 <Button size="sm" variant={chartType === "line" ? "default" : "outline"} onClick={() => setChartType("line")}>Linha</Button>
                 <Button size="sm" variant={chartType === "bar" ? "default" : "outline"} onClick={() => setChartType("bar")}>Barra</Button>
               </div>
+              {isRetention && (
+                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
+                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={metricId2} onValueChange={setMetricId2}>
@@ -246,12 +255,21 @@ export function MetricEvolutionChart({
                 <SelectContent>
                   <SelectItem value={NONE}>Sem comparação</SelectItem>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex gap-1">
                 <Button size="sm" disabled={!metric2} variant={chartType2 === "line" ? "default" : "outline"} onClick={() => setChartType2("line")}>Linha</Button>
                 <Button size="sm" disabled={!metric2} variant={chartType2 === "bar" ? "default" : "outline"} onClick={() => setChartType2("bar")}>Barra</Button>
               </div>
+              {isRetention2 && (
+                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
+                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1">
