@@ -326,6 +326,9 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
   let ltvSum = 0;
   let subscribers = 0;
   let monthsSum = 0;
+  // Receita do "mês 0" de cada cliente pagante (base do ARPA).
+  let m0Revenue = 0;
+
 
   const spans: { start: number; end: number; mrr: number }[] = [];
 
@@ -347,8 +350,10 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     ltvSum += revenue;
     monthsSum += months;
     subscribers++;
+    m0Revenue += mrr;
     spans.push({ start: startIdx, end, mrr });
   }
+
 
   const monthly: LifetimeMonthPoint[] = [];
   if (spans.length) {
@@ -369,7 +374,11 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     ltvReal: subscribers > 0 ? ltvSum / subscribers : null,
     subscribers,
     avgLifetimeMonths: subscribers > 0 ? monthsSum / subscribers : null,
+    m0Revenue,
+    // ARPA = receita do mês 0 dividida pelas vendas efetivas (clientes pagantes)
+    arpa: subscribers > 0 ? m0Revenue / subscribers : null,
     monthly,
+
   };
 }
 
