@@ -532,7 +532,6 @@ export default function CampaignHistory() {
 
             <TabsContent value="evolucao" className="space-y-4 pt-4">
               <MetricEvolutionChart metrics={activeMetrics} campaigns={campaigns} values={values} />
-              <CohortRetentionEvolution campaigns={campaigns} />
             </TabsContent>
 
 
