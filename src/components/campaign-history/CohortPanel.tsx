@@ -117,7 +117,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         supabase
           .from("campaign_history_metrics")
           .select("id, slug")
-          .in("slug", ["cac", "investimento"]),
+          .in("slug", ["cac", "cac_liquido", "investimento"]),
         supabase
           .from("campaign_history_values")
           .select("metric_id, actual_value")
@@ -137,7 +137,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
-  const cacReal = campaignValuesQ.data?.get("cac") ?? null;
+  const cacReal = campaignValuesQ.data?.get("cac_liquido") ?? campaignValuesQ.data?.get("cac") ?? null;
   const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
   const payback = useMemo(
     () => paybackMonth(lifetime.monthly, investimentoReal),
