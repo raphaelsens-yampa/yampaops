@@ -137,7 +137,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
-  const cacReal = campaignValuesQ.data?.get("cac_liquido") ?? campaignValuesQ.data?.get("cac") ?? null;
+  // Regra canônica: CAC Líquido quando existir e for > 0; caso contrário, CAC geral.
+  const cacLiquido = campaignValuesQ.data?.get("cac_liquido") ?? null;
+  const cacGeral = campaignValuesQ.data?.get("cac") ?? null;
+  const cacSource: "liquido" | "geral" | null =
+    cacLiquido != null && cacLiquido > 0 ? "liquido" : cacGeral != null && cacGeral > 0 ? "geral" : null;
+  const cacReal = cacSource === "liquido" ? cacLiquido : cacSource === "geral" ? cacGeral : null;
   const investimentoReal = campaignValuesQ.data?.get("investimento") ?? null;
   const payback = useMemo(
     () => paybackMonth(lifetime.monthly, investimentoReal),
@@ -285,6 +290,10 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     {
       label: "LTV/CAC Real",
       value: ltvCacReal == null ? "—" : `${ltvCacReal.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x`,
+      sub:
+        cacSource == null
+          ? "Cadastre CAC Líquido ou CAC"
+          : `${cacSource === "liquido" ? "CAC Líquido" : "CAC"} ${formatBRL(cacReal ?? 0)}`,
     },
     {
       label: "ROI Real (payback)",
@@ -391,6 +400,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                 <CardContent className="p-4">
                   <p className="truncate text-xs text-muted-foreground">{c.label}</p>
                   <p className="text-xl font-bold tabular-nums">{c.value}</p>
+                  {"sub" in c && c.sub ? (
+                    <p className="truncate text-[11px] text-muted-foreground">{c.sub}</p>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}
