@@ -144,12 +144,20 @@ export function MetricEvolutionChart({
     realA: metric.unit,
     metaB: metric2?.unit,
     realB: metric2?.unit,
+    baseA: "number",
+    baseB: "number",
   };
   const labelByKey: Record<string, string> = {
-    metaA: `Meta — ${metric.label}`,
-    realA: `Realizado — ${metric.label}`,
-    metaB: metric2 ? `Meta — ${metric2.label}` : "",
-    realB: metric2 ? `Realizado — ${metric2.label}` : "",
+    metaA: isRetention ? "" : `Meta — ${metric.label}`,
+    realA: isRetention ? `${metric.label} (M${retentionOffset})` : `Realizado — ${metric.label}`,
+    metaB: metric2 ? (isRetention2 ? "" : `Meta — ${metric2.label}`) : "",
+    realB: metric2
+      ? isRetention2
+        ? `${metric2.label} (M${retentionOffset})`
+        : `Realizado — ${metric2.label}`
+      : "",
+    baseA: isRetention ? `Base do cohort (M${retentionOffset})` : "",
+    baseB: isRetention2 ? `Base do cohort (M${retentionOffset})` : "",
   };
 
   const paletteA = {
