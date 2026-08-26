@@ -256,6 +256,14 @@ export interface CurvePoint {
   active_count: number;
   mrr_total: number;
   retention_pct: number | null;
+  /** Ativos acumulados até este offset. */
+  active_cum: number;
+  /** MRR acumulado (receita gerada) até este offset. */
+  mrr_cum: number;
+  /** Ativos acumulados em relação a M0 (%). */
+  active_cum_pct: number | null;
+  /** MRR acumulado em relação ao acumulado final (%). */
+  mrr_cum_pct: number | null;
 }
 
 /** Normaliza a curva vinda do banco preenchendo todos os offsets disponíveis e calculando retenção relativa a M0. */
@@ -264,18 +272,39 @@ export function buildCurve(raw: { month_offset: number; active_count: number; mr
   const m0 = byOffset.get(0)?.active_count ?? 0;
   const maxOffset = raw.length ? Math.max(...raw.map((r) => Number(r.month_offset))) : 0;
   const out: CurvePoint[] = [];
+  let activeCum = 0;
+  let mrrCum = 0;
   for (let i = 0; i <= Math.max(maxOffset, 0); i++) {
     const r = byOffset.get(i);
     const activeCount = Number(r?.active_count ?? 0);
+    const mrrTotal = Number(r?.mrr_total ?? 0);
+    activeCum += activeCount;
+    mrrCum += mrrTotal;
     out.push({
       month_offset: i,
       active_count: activeCount,
-      mrr_total: Number(r?.mrr_total ?? 0),
+      mrr_total: mrrTotal,
       retention_pct: m0 > 0 ? (activeCount / m0) * 100 : null,
+      active_cum: activeCum,
+      mrr_cum: mrrCum,
+      active_cum_pct: m0 > 0 ? (activeCum / m0) * 100 : null,
+      mrr_cum_pct: null,
     });
   }
-  return out;
+  const totalMrr = mrrCum;
+  return out.map((p) => ({
+    ...p,
+    mrr_cum_pct: totalMrr > 0 ? (p.mrr_cum / totalMrr) * 100 : null,
+  }));
 }
+
+/** Consolidado da curva: receita acumulada total e LTV real por assinante. */
+export function summarizeCurve(curve: CurvePoint[], subscribers: number) {
+  const revenueAccumulated = curve.reduce((acc, p) => acc + Number(p.mrr_total ?? 0), 0);
+  const ltvReal = subscribers > 0 ? revenueAccumulated / subscribers : null;
+  return { revenueAccumulated, ltvReal };
+}
+
 
 /* ===== Matriz de cohort (heatmap triangular) ===== */
 
