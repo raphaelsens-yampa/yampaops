@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  buildCohortMatrix,
+  type CohortContact,
+  type CohortResult,
+  type CohortRow,
+} from "@/lib/campaignCohort";
 import {
   campaignLabel,
   formatMetricValue,
@@ -22,6 +30,24 @@ import {
   type HistoryMetric,
   type HistoryValue,
 } from "@/lib/campaignHistory";
+
+const RETENTION_ID = "cohort_retention";
+const OFFSETS = [0, 1, 3, 6, 12];
+
+/** Retenção ponderada do cohort da campanha no offset informado (só cohorts com o mês disponível). */
+function retentionAtOffset(rows: CohortRow[], offset: number) {
+  const matrix = buildCohortMatrix(rows);
+  let active = 0;
+  let size = 0;
+  for (const r of matrix) {
+    const cell = r.cells[offset];
+    if (!cell) continue;
+    active += cell.active;
+    size += cell.size;
+  }
+  if (!size) return { pct: null as number | null, active: 0, size: 0 };
+  return { pct: (active / size) * 100, active, size };
+}
 
 type SeriesType = "line" | "bar";
 const NONE = "__none__";
@@ -40,27 +66,74 @@ export function MetricEvolutionChart({
   const [chartType, setChartType] = useState<SeriesType>("line");
   const [chartType2, setChartType2] = useState<SeriesType>("bar");
   const [viewMode, setViewMode] = useState<"both" | "real" | "meta">("both");
+  const [retentionOffset, setRetentionOffset] = useState(1);
 
-  const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
-  const metric2 = metricId2 === NONE ? undefined : metrics.find((m) => m.id === metricId2);
+  const isRetention = metricId === RETENTION_ID;
+  const isRetention2 = metricId2 === RETENTION_ID;
+
+  useEffect(() => {
+    if (isRetention || isRetention2) setViewMode("real");
+  }, [isRetention, isRetention2]);
+
+  const cohortQ = useQuery({
+    queryKey: ["cohort-evolution-all"],
+    queryFn: async () => {
+      const [contactsRes, resultsRes] = await Promise.all([
+        supabase
+          .from("campaign_cohort_contacts")
+          .select("id, campaign_id, email, email_norm, name, offer, activated_at"),
+        supabase.from("campaign_cohort_results").select("*"),
+      ]);
+      if (contactsRes.error) throw contactsRes.error;
+      if (resultsRes.error) throw resultsRes.error;
+
+      const results = new Map<string, CohortResult>();
+      for (const r of (resultsRes.data ?? []) as unknown as CohortResult[]) results.set(r.contact_id, r);
+
+      const byCampaign = new Map<string, CohortRow[]>();
+      for (const c of (contactsRes.data ?? []) as unknown as CohortContact[]) {
+        const list = byCampaign.get(c.campaign_id) ?? [];
+        list.push({ ...c, result: results.get(c.id) ?? null });
+        byCampaign.set(c.campaign_id, list);
+      }
+      return byCampaign;
+    },
+    enabled: isRetention || isRetention2,
+  });
+
+  const cohortByCampaign = cohortQ.data ?? new Map<string, CohortRow[]>();
+
+  const metric = isRetention
+    ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : metrics.find((m) => m.id === metricId) ?? metrics[0];
+  const metric2 = metricId2 === NONE
+    ? undefined
+    : isRetention2
+    ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : metrics.find((m) => m.id === metricId2);
 
   const data = useMemo(
     () =>
       campaigns.map((c) => {
-        const v = metric ? values.get(`${c.id}|${metric.id}`) : undefined;
-        const v2 = metric2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
+        const v = metric && !isRetention ? values.get(`${c.id}|${metric.id}`) : undefined;
+        const v2 = metric2 && !isRetention2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
+        const rows = cohortByCampaign.get(c.id) ?? [];
+        const retention = isRetention ? retentionAtOffset(rows, retentionOffset) : null;
+        const retention2 = isRetention2 ? retentionAtOffset(rows, retentionOffset) : null;
         return {
           name: campaignLabel(c),
-          metaA: v?.target_value ?? null,
-          realA: v?.actual_value ?? null,
-          metaB: v2?.target_value ?? null,
-          realB: v2?.actual_value ?? null,
+          metaA: isRetention ? null : (v?.target_value ?? null),
+          realA: isRetention ? retention.pct : (v?.actual_value ?? null),
+          metaB: isRetention2 ? null : (v2?.target_value ?? null),
+          realB: isRetention2 ? retention2.pct : (v2?.actual_value ?? null),
+          baseA: retention?.size ?? 0,
+          baseB: retention2?.size ?? 0,
         };
       }),
-    [campaigns, metric, metric2, values],
+    [campaigns, metric, metric2, values, isRetention, isRetention2, retentionOffset, cohortByCampaign],
   );
 
-  if (!metric) {
+  if (!metric && !metrics.length) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -75,12 +148,20 @@ export function MetricEvolutionChart({
     realA: metric.unit,
     metaB: metric2?.unit,
     realB: metric2?.unit,
+    baseA: "number",
+    baseB: "number",
   };
   const labelByKey: Record<string, string> = {
-    metaA: `Meta — ${metric.label}`,
-    realA: `Realizado — ${metric.label}`,
-    metaB: metric2 ? `Meta — ${metric2.label}` : "",
-    realB: metric2 ? `Realizado — ${metric2.label}` : "",
+    metaA: isRetention ? "" : `Meta — ${metric.label}`,
+    realA: isRetention ? `${metric.label} (M${retentionOffset})` : `Realizado — ${metric.label}`,
+    metaB: metric2 ? (isRetention2 ? "" : `Meta — ${metric2.label}`) : "",
+    realB: metric2
+      ? isRetention2
+        ? `${metric2.label} (M${retentionOffset})`
+        : `Realizado — ${metric2.label}`
+      : "",
+    baseA: isRetention ? `Base do cohort (M${retentionOffset})` : "",
+    baseB: isRetention2 ? `Base do cohort (M${retentionOffset})` : "",
   };
 
   const paletteA = {
@@ -152,16 +233,25 @@ export function MetricEvolutionChart({
           <CardTitle className="text-base">Evolução por campanha</CardTitle>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={metric.id} onValueChange={setMetricId}>
+              <Select value={metricId} onValueChange={setMetricId}>
                 <SelectTrigger className="h-9 flex-1 min-w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex gap-1">
                 <Button size="sm" variant={chartType === "line" ? "default" : "outline"} onClick={() => setChartType("line")}>Linha</Button>
                 <Button size="sm" variant={chartType === "bar" ? "default" : "outline"} onClick={() => setChartType("bar")}>Barra</Button>
               </div>
+              {isRetention && (
+                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
+                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={metricId2} onValueChange={setMetricId2}>
@@ -169,33 +259,52 @@ export function MetricEvolutionChart({
                 <SelectContent>
                   <SelectItem value={NONE}>Sem comparação</SelectItem>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex gap-1">
                 <Button size="sm" disabled={!metric2} variant={chartType2 === "line" ? "default" : "outline"} onClick={() => setChartType2("line")}>Linha</Button>
                 <Button size="sm" disabled={!metric2} variant={chartType2 === "bar" ? "default" : "outline"} onClick={() => setChartType2("bar")}>Barra</Button>
               </div>
+              {isRetention2 && (
+                <Select value={String(retentionOffset)} onValueChange={(v) => setRetentionOffset(Number(v))}>
+                  <SelectTrigger className="h-9 w-[90px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OFFSETS.map((o) => <SelectItem key={o} value={String(o)}>M{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-xs text-muted-foreground mr-1">Visualizar:</span>
-            <Button size="sm" variant={viewMode === "both" ? "default" : "outline"} onClick={() => setViewMode("both")}>Ambos</Button>
+            <Button size="sm" variant={viewMode === "both" ? "default" : "outline"} onClick={() => setViewMode("both")} disabled={isRetention || isRetention2}>Ambos</Button>
             <Button size="sm" variant={viewMode === "real" ? "default" : "outline"} onClick={() => setViewMode("real")}>Realizado</Button>
-            <Button size="sm" variant={viewMode === "meta" ? "default" : "outline"} onClick={() => setViewMode("meta")}>Meta</Button>
+            <Button size="sm" variant={viewMode === "meta" ? "default" : "outline"} onClick={() => setViewMode("meta")} disabled={isRetention || isRetention2}>Meta</Button>
           </div>
         </CardHeader>
         <CardContent>
+          {cohortQ.isLoading && (isRetention || isRetention2) ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Carregando cohort…</p>
+          ) : (
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={(v) => formatMetricValue(v, metric.unit)} width={80} />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: 11 }}
+                  domain={isRetention ? [0, 100] : ["auto", "auto"]}
+                  tickFormatter={(v) => formatMetricValue(v, metric.unit)}
+                  width={80}
+                />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
                   hide={!metric2}
                   tick={{ fontSize: 11 }}
+                  domain={isRetention2 ? [0, 100] : ["auto", "auto"]}
                   tickFormatter={(v) => formatMetricValue(v, metric2?.unit)}
                   width={80}
                 />
@@ -205,13 +314,14 @@ export function MetricEvolutionChart({
                   }
                 />
                 <Legend />
-                {viewMode !== "real" && seriesA("metaA", true)}
-                {viewMode !== "meta" && seriesA("realA", false)}
-                {metric2 && viewMode !== "real" && seriesB("metaB", true)}
-                {metric2 && viewMode !== "meta" && seriesB("realB", false)}
+                {viewMode !== "real" && !isRetention && seriesA("metaA", true)}
+                {((viewMode !== "meta" && !isRetention) || isRetention) && seriesA("realA", false)}
+                {metric2 && viewMode !== "real" && !isRetention2 && seriesB("metaB", true)}
+                {metric2 && ((viewMode !== "meta" && !isRetention2) || isRetention2) && seriesB("realB", false)}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+          )}
         </CardContent>
       </Card>
 

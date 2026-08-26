@@ -22,7 +22,6 @@ import { MetricEvolutionChart } from "@/components/campaign-history/MetricEvolut
 import { CampaignCompare } from "@/components/campaign-history/CampaignCompare";
 import { MetricsConfig } from "@/components/campaign-history/MetricsConfig";
 import { CohortPanel } from "@/components/campaign-history/CohortPanel";
-import { CohortRetentionEvolution } from "@/components/campaign-history/CohortRetentionEvolution";
 
 import { buildCampaignHistoryPdf } from "@/lib/campaignHistoryPdf";
 import {
@@ -533,7 +532,6 @@ export default function CampaignHistory() {
 
             <TabsContent value="evolucao" className="space-y-4 pt-4">
               <MetricEvolutionChart metrics={activeMetrics} campaigns={campaigns} values={values} />
-              <CohortRetentionEvolution campaigns={campaigns} />
             </TabsContent>
 
 
