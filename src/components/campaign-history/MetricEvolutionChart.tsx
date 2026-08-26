@@ -83,6 +83,17 @@ export function MetricEvolutionChart({
     realB: metric2 ? `Realizado — ${metric2.label}` : "",
   };
 
+  const paletteA = {
+    solid: "hsl(var(--primary))",
+    light: "hsl(var(--primary) / 0.45)",
+    lineMeta: "hsl(var(--primary) / 0.65)",
+  };
+  const paletteB = {
+    solid: "hsl(var(--secondary))",
+    light: "hsl(var(--secondary) / 0.45)",
+    lineMeta: "hsl(var(--secondary) / 0.65)",
+  };
+
   const seriesA = (key: "metaA" | "realA", isTarget: boolean) =>
     chartType === "line" ? (
       <Line
@@ -91,10 +102,11 @@ export function MetricEvolutionChart({
         type="monotone"
         dataKey={key}
         name={labelByKey[key]}
-        stroke={isTarget ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))"}
-        strokeDasharray={isTarget ? "4 4" : undefined}
-        strokeWidth={isTarget ? 1.5 : 2}
+        stroke={isTarget ? paletteA.lineMeta : paletteA.solid}
+        strokeDasharray={isTarget ? "5 5" : undefined}
+        strokeWidth={isTarget ? 2 : 3}
         dot={!isTarget}
+        activeDot={{ r: 5 }}
       />
     ) : (
       <Bar
@@ -102,7 +114,7 @@ export function MetricEvolutionChart({
         yAxisId="left"
         dataKey={key}
         name={labelByKey[key]}
-        fill={isTarget ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))"}
+        fill={isTarget ? paletteA.light : paletteA.solid}
         radius={[4, 4, 0, 0]}
       />
     );
@@ -115,10 +127,11 @@ export function MetricEvolutionChart({
         type="monotone"
         dataKey={key}
         name={labelByKey[key]}
-        stroke={isTarget ? "hsl(var(--muted-foreground))" : "hsl(var(--secondary))"}
-        strokeDasharray={isTarget ? "4 4" : undefined}
-        strokeWidth={isTarget ? 1.5 : 2}
+        stroke={isTarget ? paletteB.lineMeta : paletteB.solid}
+        strokeDasharray={isTarget ? "5 5" : undefined}
+        strokeWidth={isTarget ? 2 : 3}
         dot={!isTarget}
+        activeDot={{ r: 5 }}
       />
     ) : (
       <Bar
@@ -126,7 +139,7 @@ export function MetricEvolutionChart({
         yAxisId="right"
         dataKey={key}
         name={labelByKey[key]}
-        fill={isTarget ? "hsl(var(--muted-foreground) / 0.5)" : "hsl(var(--secondary))"}
+        fill={isTarget ? paletteB.light : paletteB.solid}
         radius={[4, 4, 0, 0]}
       />
     );
