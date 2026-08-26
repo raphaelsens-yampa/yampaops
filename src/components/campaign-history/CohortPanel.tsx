@@ -419,7 +419,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
               <Card key={c.label} className="min-w-0">
                 <CardContent className="p-4">
                   <p className="truncate text-xs text-muted-foreground">{c.label}</p>
-                  <p className="truncate text-xl font-bold tabular-nums">{c.value}</p>
+                  <p className={`truncate font-bold tabular-nums ${"smallValue" in c && c.smallValue ? "text-sm" : "text-xl"}`}>{c.value}</p>
                   {"sub" in c && c.sub ? (
                     <p className="truncate text-[11px] text-muted-foreground">{c.sub}</p>
                   ) : null}
