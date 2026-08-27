@@ -243,10 +243,9 @@ export default function ChatwootReports() {
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   const today = new Date();
-  const past30 = new Date();
-  past30.setDate(past30.getDate() - 30);
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const [from, setFrom] = useState<string>(isoDate(past30));
+  const [from, setFrom] = useState<string>(isoDate(startOfMonth));
   const [to, setTo] = useState<string>(isoDate(today));
   const [status, setStatus] = useState<string>("all");
   const [agent, setAgent] = useState<string>("all");
@@ -789,13 +788,18 @@ export default function ChatwootReports() {
           </CardContent>
         </Card>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <KpiCard title="Total de atendimentos" value={kpis.total.toLocaleString("pt-BR")} />
-          <KpiCard title="Taxa de resolução" value={`${kpis.resolvedPct.toFixed(1)}%`} />
-          <KpiCard title="TMA (Tempo Médio de Atendimento)" value={fmtDuration(kpis.tma)} />
-          <KpiCard title="TM1R (Tempo Médio de 1ª Resposta)" value={fmtDuration(kpis.tm1r)} />
-          <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
+        {/* Indicadores de Atendimento */}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            🎧 Indicadores de Atendimento
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <KpiCard title="Total de atendimentos" value={kpis.total.toLocaleString("pt-BR")} />
+            <KpiCard title="Taxa de resolução" value={`${kpis.resolvedPct.toFixed(1)}%`} />
+            <KpiCard title="TMA (Tempo Médio de Atendimento)" value={fmtDuration(kpis.tma)} />
+            <KpiCard title="TM1R (Tempo Médio de 1ª Resposta)" value={fmtDuration(kpis.tm1r)} />
+            <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
+          </div>
         </div>
 
         {/* CSAT */}
