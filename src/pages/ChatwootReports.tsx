@@ -243,10 +243,9 @@ export default function ChatwootReports() {
   if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   const today = new Date();
-  const past30 = new Date();
-  past30.setDate(past30.getDate() - 30);
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const [from, setFrom] = useState<string>(isoDate(past30));
+  const [from, setFrom] = useState<string>(isoDate(startOfMonth));
   const [to, setTo] = useState<string>(isoDate(today));
   const [status, setStatus] = useState<string>("all");
   const [agent, setAgent] = useState<string>("all");
