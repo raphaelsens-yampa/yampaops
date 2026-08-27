@@ -157,7 +157,6 @@ export function CsatSection({
   }
 
   const byAgent = useMemo(() => ranking("assignee_name"), [filtered]);
-  const byTeam = useMemo(() => ranking("team_name"), [filtered]);
 
   return (
     <div className="space-y-4">
@@ -223,10 +222,7 @@ export function CsatSection({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RankingTable title="Ranking por Agente" rows={byAgent} label="Agente" />
-        <RankingTable title="Ranking por Time" rows={byTeam} label="Time" />
-      </div>
+      <RankingTable title="Ranking por Agente" rows={byAgent} label="Agente" />
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Respostas e comentários</CardTitle></CardHeader>
