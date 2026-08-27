@@ -894,42 +894,10 @@ export default function ChatwootReports() {
           </ChartCard>
         </div>
 
-        {/* Mensagens por dia */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard
-            title={`Mensagens enviadas por dia${msgLoading ? " (carregando...)" : ""}`}
-            containerRef={refMsgSent}
-            filename="mensagens-enviadas-por-dia.png"
-            height={260}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={msgByDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="enviadas" name="Enviadas" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+        {/* CSAT */}
+        <CsatSection from={from} to={to} agent={agent} team={team} />
 
-          <ChartCard
-            title={`Mensagens recebidas por dia${msgLoading ? " (carregando...)" : ""}`}
-            containerRef={refMsgReceived}
-            filename="mensagens-recebidas-por-dia.png"
-            height={260}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={msgByDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="recebidas" name="Recebidas" fill="hsl(var(--secondary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
+
 
 
 
