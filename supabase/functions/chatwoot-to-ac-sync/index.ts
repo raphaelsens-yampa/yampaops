@@ -201,12 +201,12 @@ async function upsertNoteForConversation(
 
   // Check existing link
   const { data: existing } = await service.from("chatwoot_ac_note_links")
-    .select("id, ac_note_id")
+    .select("id, ac_note_id, updated_at")
     .eq("chatwoot_conversation_id", conversationId)
     .eq("ac_contact_id", acContact.id)
     .maybeSingle();
 
-  if (existing?.ac_note_id) {
+  if (existing?.ac_note_id && existing.ac_note_id !== PENDING) {
     // PUT update
     const r = await acFetch(`/api/3/notes/${existing.ac_note_id}`, {
       method: "PUT",
@@ -220,7 +220,27 @@ async function upsertNoteForConversation(
     await service.from("chatwoot_ac_note_links")
       .update({ last_synced_at: new Date().toISOString(), match_method: matchMethod, match_value: matchValue })
       .eq("id", existing.id);
+    await dedupeNotes(acContact.id, conversationId, existing.ac_note_id);
     return { ok: true, ac_contact_id: acContact.id, ac_note_id: existing.ac_note_id, match_method: matchMethod, match_value: matchValue };
+  }
+
+  if (existing?.ac_note_id === PENDING) {
+    // Another invocation is creating the note right now — avoid duplicating.
+    const age = Date.now() - new Date(existing.updated_at as string).getTime();
+    if (age < 120_000) return { ok: false, reason: "in_flight" };
+  }
+
+  if (!existing) {
+    // Claim the slot first (unique on conversation+contact) so concurrent
+    // webhook events cannot both create a note in ActiveCampaign.
+    const { error: claimErr } = await service.from("chatwoot_ac_note_links").insert({
+      chatwoot_conversation_id: conversationId,
+      ac_contact_id: acContact.id,
+      ac_note_id: PENDING,
+      match_method: matchMethod,
+      match_value: matchValue,
+    });
+    if (claimErr) return { ok: false, reason: "in_flight" };
   }
 
   // POST create
@@ -240,17 +260,20 @@ async function upsertNoteForConversation(
     return { ok: false, reason: "ac_no_id" };
   }
 
-  await service.from("chatwoot_ac_note_links").insert({
+  await service.from("chatwoot_ac_note_links").upsert({
     chatwoot_conversation_id: conversationId,
     ac_contact_id: acContact.id,
     ac_note_id: noteId,
     match_method: matchMethod,
     match_value: matchValue,
     last_synced_at: new Date().toISOString(),
-  });
+  }, { onConflict: "chatwoot_conversation_id,ac_contact_id" });
+
+  await dedupeNotes(acContact.id, conversationId, noteId);
 
   return { ok: true, ac_contact_id: acContact.id, ac_note_id: noteId, match_method: matchMethod, match_value: matchValue };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
