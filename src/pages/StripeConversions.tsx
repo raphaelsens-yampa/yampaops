@@ -884,20 +884,26 @@ export default function StripeConversions() {
                       <TableHead>Produto</TableHead>
                       <TableHead>Área</TableHead>
                       <TableHead className="text-right">Conversões</TableHead>
-                      <TableHead className="text-right">MRR bruto</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {health.missingNetPrices.map(p => (
-                      <TableRow key={p.price_id}>
-                        <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
-                        <TableCell>{p.plan}</TableCell>
-                        <TableCell>{p.product}</TableCell>
-                        <TableCell>{p.area}</TableCell>
-                        <TableCell className="text-right">{p.count}</TableCell>
-                        <TableCell className="text-right">{fmtBRL(p.mrrBruto)}</TableCell>
-                      </TableRow>
-                    ))}
+                       <TableHead className="text-right">MRR bruto</TableHead>
+                       <TableHead className="text-right">Ação</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {health.missingNetPrices.map(p => (
+                       <TableRow key={p.price_id}>
+                         <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
+                         <TableCell>{p.plan}</TableCell>
+                         <TableCell>{p.product}</TableCell>
+                         <TableCell>{p.area}</TableCell>
+                         <TableCell className="text-right">{p.count}</TableCell>
+                         <TableCell className="text-right">{fmtBRL(p.mrrBruto)}</TableCell>
+                         <TableCell className="text-right">
+                           <Button variant="outline" size="sm" onClick={() => openNetEdit(p)}>
+                             <Pencil className="mr-1 h-3.5 w-3.5" /> Editar
+                           </Button>
+                         </TableCell>
+                       </TableRow>
+                     ))}
                   </TableBody>
                 </Table>
               </div>
