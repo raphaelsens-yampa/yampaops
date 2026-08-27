@@ -512,7 +512,7 @@ export default function StripeConversions() {
       cur.mrr += valueOf(r);
       map.set(key, cur);
     }
-    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+    return Array.from(map.values()).sort((a, b) => a.seller_name.localeCompare(b.seller_name) || a.plan.localeCompare(b.plan));
   }, [rows, mrrMode, sellersMap]);
 
   const sellerOptions = useMemo(() => {
