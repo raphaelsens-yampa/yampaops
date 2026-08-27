@@ -140,7 +140,14 @@ export default function StripeConversions() {
   const [couponOnly, setCouponOnly] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [backfillingNet, setBackfillingNet] = useState(false);
+  const [reapplying, setReapplying] = useState(false);
+  const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
+
+  // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
+  const valueOf = (r: Conversion) =>
+    mrrMode === "net" ? Number(r.mrr_net ?? r.mrr ?? 0) : Number(r.mrr ?? 0);
+
 
   function changePreset(p: string) {
     setPeriodPreset(p);
