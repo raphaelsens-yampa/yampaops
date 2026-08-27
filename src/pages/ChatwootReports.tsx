@@ -22,7 +22,7 @@ import type { CsatRow } from "@/components/chatwoot/CsatSection";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
-  ChevronRight, ImageDown, FileText, CalendarIcon,
+  ImageDown, FileText, CalendarIcon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
