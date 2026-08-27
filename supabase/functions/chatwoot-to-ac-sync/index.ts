@@ -79,19 +79,61 @@ function normPhone(p?: string | null): string | null {
   return d.length > 11 ? d.slice(-11) : d;
 }
 
+const PENDING = "pending";
+
+/** Remove notas antigas duplicadas da mesma conversa no contato do AC. */
+async function dedupeNotes(acContactId: string, conversationId: number, keepNoteId: string) {
+  try {
+    const paths = [
+      `/api/3/contacts/${acContactId}/notes?limit=100`,
+      `/api/3/notes?filters%5Brelid%5D=${acContactId}&filters%5Breltype%5D=Subscriber&limit=100`,
+    ];
+    let notes: any[] = [];
+    for (const p of paths) {
+      const r = await acFetch(p);
+      const t = await r.text();
+      if (!r.ok) { console.error("dedupe list failed", p, r.status, t.slice(0, 200)); continue; }
+      let j: any = {};
+      try { j = JSON.parse(t); } catch { /* noop */ }
+      const list = j?.notes || j?.note || [];
+      if (Array.isArray(list) && list.length) { notes = list; break; }
+    }
+    const marker = `[Chatwoot] Conv #${conversationId}`;
+    for (const n of notes) {
+      const id = String(n?.id || "");
+      if (!id || id === String(keepNoteId)) continue;
+      if (String(n?.note || "").includes(marker)) {
+        await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
+      }
+    }
+  } catch (e) {
+    console.error("dedupe error", e instanceof Error ? e.message : String(e));
+  }
+}
+
+
+function fmtSP(value: string | null | undefined): string {
+
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 function buildNoteBody(conv: any, baseUrl: string | null, accountId: number | null): string {
   const link = baseUrl && accountId
     ? `${baseUrl.replace(/\/$/, "")}/app/accounts/${accountId}/conversations/${conv.chatwoot_conversation_id}`
     : `(URL Chatwoot não configurada — conv #${conv.chatwoot_conversation_id})`;
-  const when = conv.last_message_at ? new Date(conv.last_message_at).toLocaleString("pt-BR") : "—";
+  const when = fmtSP(conv.last_message_at);
   const lines = [
-    `[Chatwoot] Conv #${conv.chatwoot_conversation_id} — ${when}`,
+    `[Chatwoot] Conv #${conv.chatwoot_conversation_id} — ${when} (BRT)`,
     link,
     `Status: ${conv.status || "—"}${conv.tabulacao_atendimento ? ` · Tabulação: ${conv.tabulacao_atendimento}` : ""}`,
   ];
   if (conv.assignee_name) lines.push(`Atendente: ${conv.assignee_name}`);
   return lines.join("\n");
 }
+
 
 async function upsertNoteForConversation(
   conversationId: number,
@@ -193,12 +235,12 @@ async function upsertNoteForConversation(
 
   // Check existing link
   const { data: existing } = await service.from("chatwoot_ac_note_links")
-    .select("id, ac_note_id")
+    .select("id, ac_note_id, updated_at")
     .eq("chatwoot_conversation_id", conversationId)
     .eq("ac_contact_id", acContact.id)
     .maybeSingle();
 
-  if (existing?.ac_note_id) {
+  if (existing?.ac_note_id && existing.ac_note_id !== PENDING) {
     // PUT update
     const r = await acFetch(`/api/3/notes/${existing.ac_note_id}`, {
       method: "PUT",
@@ -212,7 +254,27 @@ async function upsertNoteForConversation(
     await service.from("chatwoot_ac_note_links")
       .update({ last_synced_at: new Date().toISOString(), match_method: matchMethod, match_value: matchValue })
       .eq("id", existing.id);
+    await dedupeNotes(acContact.id, conversationId, existing.ac_note_id);
     return { ok: true, ac_contact_id: acContact.id, ac_note_id: existing.ac_note_id, match_method: matchMethod, match_value: matchValue };
+  }
+
+  if (existing?.ac_note_id === PENDING) {
+    // Another invocation is creating the note right now — avoid duplicating.
+    const age = Date.now() - new Date(existing.updated_at as string).getTime();
+    if (age < 120_000) return { ok: false, reason: "in_flight" };
+  }
+
+  if (!existing) {
+    // Claim the slot first (unique on conversation+contact) so concurrent
+    // webhook events cannot both create a note in ActiveCampaign.
+    const { error: claimErr } = await service.from("chatwoot_ac_note_links").insert({
+      chatwoot_conversation_id: conversationId,
+      ac_contact_id: acContact.id,
+      ac_note_id: PENDING,
+      match_method: matchMethod,
+      match_value: matchValue,
+    });
+    if (claimErr) return { ok: false, reason: "in_flight" };
   }
 
   // POST create
@@ -232,17 +294,20 @@ async function upsertNoteForConversation(
     return { ok: false, reason: "ac_no_id" };
   }
 
-  await service.from("chatwoot_ac_note_links").insert({
+  await service.from("chatwoot_ac_note_links").upsert({
     chatwoot_conversation_id: conversationId,
     ac_contact_id: acContact.id,
     ac_note_id: noteId,
     match_method: matchMethod,
     match_value: matchValue,
     last_synced_at: new Date().toISOString(),
-  });
+  }, { onConflict: "chatwoot_conversation_id,ac_contact_id" });
+
+  await dedupeNotes(acContact.id, conversationId, noteId);
 
   return { ok: true, ac_contact_id: acContact.id, ac_note_id: noteId, match_method: matchMethod, match_value: matchValue };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
