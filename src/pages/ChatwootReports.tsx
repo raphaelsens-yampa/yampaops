@@ -871,6 +871,7 @@ export default function ChatwootReports() {
                 title="Por Tabulação"
                 containerRef={refTabulacao}
                 filename="por-tabulacao.png"
+                height={Math.max(320, byTab.length * 28 + 60)}
                 actions={
                   <>
                     <ToggleGroup
@@ -899,8 +900,9 @@ export default function ChatwootReports() {
                   <BarChart
                     data={byTab}
                     layout="vertical"
-                    margin={{ left: 8, right: 20, top: 8, bottom: 8 }}
-                    barCategoryGap="20%"
+                    margin={{ left: 4, right: 16, top: 4, bottom: 4 }}
+                    barCategoryGap={4}
+                    maxBarSize={24}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis
@@ -911,7 +913,7 @@ export default function ChatwootReports() {
                     <YAxis
                       dataKey="name"
                       type="category"
-                      width={150}
+                      width={180}
                       tick={{ fontSize: 10 }}
                       interval={0}
                       tickMargin={4}
