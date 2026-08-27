@@ -335,6 +335,42 @@ export default function StripeConversions() {
     }
   }
 
+  function openNetEdit(p: { price_id: string; plan: string; count: number; mrrBruto: number }) {
+    setNetEdit(p);
+    setNetEditValue(p.count ? (p.mrrBruto / p.count).toFixed(2) : "");
+  }
+
+  async function handleSaveNetMrr() {
+    if (!netEdit) return;
+    const value = Number(netEditValue.replace(",", "."));
+    if (!isFinite(value) || value < 0) {
+      toast({ title: "Valor inválido", description: "Informe o MRR líquido por conversão.", variant: "destructive" });
+      return;
+    }
+    setSavingNet(true);
+    try {
+      let q = supabase
+        .from("stripe_conversions")
+        .update({ mrr_net: value })
+        .is("mrr_net", null)
+        .gte("converted_at", `${period.start}T00:00:00`)
+        .lte("converted_at", `${period.end}T23:59:59`);
+      q = netEdit.price_id === "sem price_id"
+        ? q.is("stripe_price_id", null)
+        : q.eq("stripe_price_id", netEdit.price_id);
+      const { error } = await q;
+      if (error) throw error;
+      toast({ title: "MRR líquido registrado", description: `${netEdit.count} conversão(ões) atualizada(s) com ${fmtBRL(value)}.` });
+      setNetEdit(null);
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setSavingNet(false);
+    }
+  }
+
+
   async function handleReapplyPriceMap() {
     if (!confirm(`Reaplicar o de-para canônico nas conversões de ${period.start} até ${period.end}?\n\nPrimeiro será feita uma prévia das alterações e, em seguida, a atualização será confirmada.`)) return;
     setReapplying(true);
