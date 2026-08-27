@@ -127,11 +127,17 @@ export default function ChatwootIntegration() {
           <TabsList>
             <TabsTrigger value="integracao">Integração</TabsTrigger>
             <TabsTrigger value="tags">Tags</TabsTrigger>
+            <TabsTrigger value="activecampaign">ActiveCampaign</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tags">
             <TagsManagerCard />
           </TabsContent>
+
+          <TabsContent value="activecampaign">
+            <ChatwootAcTab />
+          </TabsContent>
+
 
           <TabsContent value="integracao" className="space-y-6">
         {/* 1. Credenciais */}
