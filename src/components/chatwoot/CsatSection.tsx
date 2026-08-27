@@ -42,7 +42,8 @@ function fmtDateTimeBR(iso: string | null): string {
 export function CsatSection({
   from, to, agent, team,
 }: { from: string; to: string; agent: string; team: string }) {
-  const { isAdmin } = useAuth();
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
   const [rows, setRows] = useState<CsatRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
