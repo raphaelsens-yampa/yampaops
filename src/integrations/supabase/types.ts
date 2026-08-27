@@ -1473,6 +1473,63 @@ export type Database = {
         }
         Relationships: []
       }
+      chatwoot_csat_responses: {
+        Row: {
+          assignee_email: string | null
+          assignee_name: string | null
+          chatwoot_account_id: number | null
+          chatwoot_conversation_id: number
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          csat_id: number | null
+          feedback_message: string | null
+          id: string
+          inbox_name: string | null
+          rating: number | null
+          responded_at: string | null
+          team_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          assignee_email?: string | null
+          assignee_name?: string | null
+          chatwoot_account_id?: number | null
+          chatwoot_conversation_id: number
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          csat_id?: number | null
+          feedback_message?: string | null
+          id?: string
+          inbox_name?: string | null
+          rating?: number | null
+          responded_at?: string | null
+          team_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assignee_email?: string | null
+          assignee_name?: string | null
+          chatwoot_account_id?: number | null
+          chatwoot_conversation_id?: number
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          csat_id?: number | null
+          feedback_message?: string | null
+          id?: string
+          inbox_name?: string | null
+          rating?: number | null
+          responded_at?: string | null
+          team_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chatwoot_messages: {
         Row: {
           chatwoot_account_id: number | null
