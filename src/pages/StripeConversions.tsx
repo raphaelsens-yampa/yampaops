@@ -152,7 +152,7 @@ export default function StripeConversions() {
   const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
-  const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number } | null>(null);
+  const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number; mapId: string | null; mappedMrr: number | null } | null>(null);
   const [netEditValue, setNetEditValue] = useState("");
   const [savingNet, setSavingNet] = useState(false);
 
@@ -512,7 +512,7 @@ export default function StripeConversions() {
       cur.mrr += valueOf(r);
       map.set(key, cur);
     }
-    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+    return Array.from(map.values()).sort((a, b) => a.seller_name.localeCompare(b.seller_name) || a.plan.localeCompare(b.plan));
   }, [rows, mrrMode, sellersMap]);
 
   const sellerOptions = useMemo(() => {
