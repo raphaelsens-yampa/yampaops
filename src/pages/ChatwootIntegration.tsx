@@ -320,7 +320,10 @@ export default function ChatwootIntegration() {
             </CardContent>
           </Card>
         )}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
+
   );
 }
