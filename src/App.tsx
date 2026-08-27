@@ -13,12 +13,11 @@ import Goals from "./pages/Goals";
 
 import Team from "./pages/Team";
 // import Contacts from "./pages/Contacts"; // archived
-import Commissions from "./pages/Commissions";
-import CommissionSettings from "./pages/CommissionSettings";
+// Commissions (legado) archived
 // import Forecast from "./pages/Forecast"; // archived
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
-import Imports from "./pages/Imports";
+// Imports removido
 import LinkBuilder from "./pages/LinkBuilder";
 // ActiveCampaign integration archived — page kept on disk but not routed.
 // import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
@@ -31,7 +30,7 @@ import AcFunnelMetrics from "./pages/AcFunnelMetrics";
 import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
 // import LeadJourney from "./pages/LeadJourney"; // archived (AC-dependent)
-import TagsSettings from "./pages/TagsSettings";
+// TagsSettings movido para a Integração Chatwoot
 import ChatwootReports from "./pages/ChatwootReports";
 import ChatwootAudit from "./pages/ChatwootAudit";
 import ChatwootAuditSettings from "./pages/ChatwootAuditSettings";
@@ -44,9 +43,7 @@ import SalesCampaignDetail from "./pages/SalesCampaignDetail";
 import SalesCampaignReports from "./pages/SalesCampaignReports";
 import CampaignHistory from "./pages/CampaignHistory";
 import AgentActivity from "./pages/AgentActivity";
-import DiscountOverview from "./pages/discounts/Overview";
-import DiscountPortfolio from "./pages/discounts/Portfolio";
-import DiscountRules from "./pages/discounts/Rules";
+// Estratégia Adquirência archived
 import Precificacao from "./pages/Precificacao";
 import Comissionamento from "./pages/Comissionamento";
 import OnePageDiretoria from "./pages/OnePageDiretoria";
