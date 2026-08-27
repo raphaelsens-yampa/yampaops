@@ -117,16 +117,17 @@ function AppRoutes() {
       <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
       <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
       <Route path="/integrations/ac-funnels" element={<RequireArea area="integration_ac_funnels"><AcFunnelMetrics /></RequireArea>} />
-      <Route path="/integrations/chatwoot-ac" element={<RequireArea area="integration_chatwoot"><ChatwootAcIntegration /></RequireArea>} />
+      <Route path="/integrations/chatwoot-ac" element={<RequireArea area="integration_chatwoot_ac"><ChatwootAcIntegration /></RequireArea>} />
       {/* Integration Audit archived */}
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/atendimentos/auditoria" element={<RequireArea area="auditoria_ia"><ChatwootAudit /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/configuracoes" element={<RequireArea area="auditoria_ia"><ChatwootAuditSettings /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/revisao" element={<RequireArea area="auditoria_ia"><ChatwootAuditReview /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/insights" element={<RequireArea area="auditoria_ia"><ChatwootAuditInsights /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia"><ChatwootAuditGoldenSet /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/configuracoes" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditSettings /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/revisao" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditReview /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/insights" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditInsights /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditGoldenSet /></RequireArea>} />
       <Route path="/atendimentos/auditoria/minhas" element={<RequireArea area="auditoria_ia"><ChatwootAuditMine /></RequireArea>} />
-      <Route path="/reports" element={<Reports />} />
+      <Route path="/reports" element={<RequireArea area="reports"><Reports /></RequireArea>} />
+
       <Route path="/insights/conversions" element={<RequireArea area="conversions"><StripeConversions /></RequireArea>} />
       {/* Lead Journey archived (AC-dependent) */}
       <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
@@ -141,8 +142,9 @@ function AppRoutes() {
       <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
       <Route path="/comissionamento" element={<RequireArea area="comissionamento"><Comissionamento /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/one-page-diretoria" element={<OnePageDiretoria />} />
-      <Route path="/relatorio" element={<OnePageDiretoria />} />
+      <Route path="/one-page-diretoria" element={<RequireArea area="one_page_diretoria"><OnePageDiretoria /></RequireArea>} />
+      <Route path="/relatorio" element={<RequireArea area="one_page_diretoria"><OnePageDiretoria /></RequireArea>} />
+
       <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

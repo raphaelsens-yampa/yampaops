@@ -232,9 +232,9 @@ export function AppSidebar() {
           area: "auditoria_ia",
           children: [
             ...(role === "admin" ? [
-              { title: "Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, adminOnly: true },
-              { title: "Insights", url: "/atendimentos/auditoria/insights", icon: Sparkles, adminOnly: true },
-              { title: "Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, adminOnly: true },
+              { title: "Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, area: "auditoria_ia_admin" as CrmAreaKey },
+              { title: "Insights", url: "/atendimentos/auditoria/insights", icon: Sparkles, area: "auditoria_ia_admin" as CrmAreaKey },
+              { title: "Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, area: "auditoria_ia_admin" as CrmAreaKey },
             ] : []),
             ...(role === "seller" ? [
               { title: "Minhas Auditorias", url: "/atendimentos/auditoria/minhas", icon: Sparkles, area: "auditoria_ia" as CrmAreaKey },
@@ -266,6 +266,7 @@ export function AppSidebar() {
 
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
+        { title: "Comissões (legado)", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },
         { title: "Precificação Serviços", url: "/precificacao", icon: Calculator, area: "precificacao" },
       ],
@@ -308,7 +309,7 @@ export function AppSidebar() {
         // ActiveCampaign integration archived
         { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
         { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
-        { title: "Chatwoot → ActiveCampaign", url: "/integrations/chatwoot-ac", icon: Link2, area: "integration_chatwoot", adminOnly: true },
+        { title: "Chatwoot → ActiveCampaign", url: "/integrations/chatwoot-ac", icon: Link2, area: "integration_chatwoot_ac", adminOnly: true },
         
         // Integration Audit archived (AC-centric)
       ],

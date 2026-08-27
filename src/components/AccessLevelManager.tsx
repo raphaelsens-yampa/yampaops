@@ -21,10 +21,9 @@ export const CRM_SECTIONS = [
     label: "Visão Geral",
     areas: [
       { key: "one_page_diretoria", label: "OnePage Diretoria" },
-      // { key: "dashboard", label: "Dashboard" }, // archived
-      // { key: "forecast", label: "Forecast" }, // archived
       { key: "goals", label: "Metas" },
       { key: "conversions", label: "Conversões por Área" },
+      { key: "reports", label: "Relatórios" },
     ],
 
   },
@@ -32,11 +31,10 @@ export const CRM_SECTIONS = [
     key: "operations",
     label: "Operações",
     areas: [
-      { key: "pipeline", label: "Pipeline" },
       { key: "atendimentos", label: "Atendimentos" },
       { key: "agent_activity", label: "Atividade de Agentes" },
       { key: "auditoria_ia", label: "Auditoria IA" },
-      // { key: "lead_journey", label: "Jornada do Lead" }, // archived (AC-dependent)
+      { key: "auditoria_ia_admin", label: "Auditoria IA — Revisão/Insights/Golden Set/Config" },
     ],
   },
   {
@@ -45,10 +43,10 @@ export const CRM_SECTIONS = [
     areas: [
       { key: "campaign_history", label: "Histórico de Campanhas" },
       { key: "sales_campaigns", label: "Campanhas de Sales" },
-      { key: "commissions", label: "Comissões" },
       { key: "comissionamento", label: "Comissionamento" },
       { key: "link_builder", label: "Gerador de Ofertas" },
       { key: "precificacao", label: "Precificação Serviços" },
+      { key: "commissions", label: "Comissões (legado)" },
     ],
   },
   {
@@ -64,7 +62,6 @@ export const CRM_SECTIONS = [
     key: "gestao",
     label: "Gestão",
     areas: [
-      { key: "contacts", label: "Contatos" },
       { key: "team", label: "Equipe" },
       { key: "users", label: "Usuários & Acessos" },
       { key: "import", label: "Importação" },
@@ -75,15 +72,14 @@ export const CRM_SECTIONS = [
     key: "integracoes",
     label: "Integrações",
     areas: [
-      // { key: "integration_ac", label: "ActiveCampaign" }, // archived
       { key: "integration_stripe", label: "Stripe" },
       { key: "integration_chatwoot", label: "Chatwoot" },
+      { key: "integration_chatwoot_ac", label: "Chatwoot → ActiveCampaign" },
       { key: "integration_ac_funnels", label: "Funis ActiveCampaign" },
-      // { key: "integration_audit", label: "Auditoria de Integrações" }, // archived
-
     ],
   },
 ] as const;
+
 
 export type SectionKey = typeof CRM_SECTIONS[number]["key"];
 export type AreaKey = typeof CRM_SECTIONS[number]["areas"][number]["key"];
