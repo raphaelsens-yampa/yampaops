@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS integration_settings_singleton_key ON public.integration_settings ((true));

@@ -79,7 +79,7 @@ export default function ChatwootAcIntegration() {
       supabase.from("integration_sync_errors").select("id, ac_id, error_message, created_at").eq("entity_type", "chatwoot_ac_note").order("created_at", { ascending: false }).limit(20),
       supabase.from("chatwoot_conversations").select("chatwoot_conversation_id", { count: "exact", head: true }),
       supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }),
-      supabase.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").maybeSingle(),
+      supabase.from("integration_settings").select("chatwoot_base_url, chatwoot_account_id").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }).eq("match_method", "email"),
       supabase.from("chatwoot_ac_note_links").select("id", { count: "exact", head: true }).eq("match_method", "phone"),
       supabase.from("integration_sync_errors").select("id", { count: "exact", head: true }).eq("entity_type", "chatwoot_ac_note"),

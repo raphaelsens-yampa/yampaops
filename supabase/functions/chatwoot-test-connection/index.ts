@@ -43,10 +43,12 @@ Deno.serve(async (req) => {
 
     const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Read base_url and account_id from integration_settings (latest)
+    // Read the most recently updated singleton configuration.
     const { data: settings } = await service
       .from("integration_settings")
       .select("id, chatwoot_base_url, chatwoot_account_id")
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     let body: { base_url?: string; account_id?: number } = {};

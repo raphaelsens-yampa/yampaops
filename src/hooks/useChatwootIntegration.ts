@@ -8,6 +8,8 @@ export function useChatwootIntegration() {
       const { data, error } = await supabase
         .from("integration_settings")
         .select("chatwoot_base_url, chatwoot_account_id")
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
