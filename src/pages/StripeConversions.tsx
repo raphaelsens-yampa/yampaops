@@ -660,12 +660,7 @@ export default function StripeConversions() {
           </CardContent>
         </Card>
 
-        {mrrMode === "net" && health.missingNet > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <span>{health.missingNet} conversão(ões) sem valor líquido; o cálculo usa o MRR bruto nessas linhas.</span>
-            {role === "admin" && <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>Buscar valor líquido</Button>}
-          </div>
-        )}
+
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-2">
