@@ -306,31 +306,51 @@ export default function StripeConversions() {
     }
   }
 
+  async function handleReapplyPriceMap() {
+    if (!confirm(`Reaplicar o de-para canônico nas conversões de ${period.start} até ${period.end}?\n\nPrimeiro será feita uma prévia das alterações e, em seguida, a atualização será confirmada.`)) return;
+    setReapplying(true);
+    try {
+      const body = { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, dry_run: true, limit: 20000 };
+      const preview = await supabase.functions.invoke("stripe-reapply-price-map", { body });
+      if (preview.error) throw preview.error;
+      const count = preview.data?.would_change ?? 0;
+      if (!count || !confirm(`${count} conversão(ões) serão corrigidas. Confirmar atualização?`)) return;
+      const { data, error } = await supabase.functions.invoke("stripe-reapply-price-map", {
+        body: { ...body, dry_run: false },
+      });
+      if (error) throw error;
+      toast({ title: "De-para reaplicado", description: `${data?.updated ?? 0} conversão(ões) atualizadas · ${data?.failed ?? 0} erro(s)` });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro ao reaplicar de-para", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReapplying(false);
+    }
+  }
+
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
     for (const r of rows) {
       const cur = map.get(r.area) || { area: r.area, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
-      cur.mrr += Number(r.mrr || 0);
+      cur.mrr += valueOf(r);
       map.set(r.area, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows]);
+  }, [rows, mrrMode]);
 
   const timeSeries = useMemo(() => {
-    // group by month
     const map = new Map<string, Record<string, number> & { mes: string }>();
     for (const r of rows) {
       if (!r.converted_at) continue;
-      const d = new Date(r.converted_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const key = monthKeySP(r.converted_at);
       const cur = map.get(key) || ({ mes: key } as any);
-      cur[r.area] = (cur[r.area] || 0) + Number(r.mrr || 0);
-      cur._total = (cur._total || 0) + Number(r.mrr || 0);
+      cur[r.area] = (cur[r.area] || 0) + valueOf(r);
+      cur._total = (cur._total || 0) + valueOf(r);
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => a.mes.localeCompare(b.mes));
-  }, [rows]);
+  }, [rows, mrrMode]);
 
   const visibleAreas = useMemo(() => {
     const s = new Set<string>();
