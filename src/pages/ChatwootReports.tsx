@@ -798,6 +798,9 @@ export default function ChatwootReports() {
           <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
         </div>
 
+        {/* CSAT */}
+        <CsatSection from={from} to={to} agent={agent} team={team} />
+
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ChartCard title="Por Tabulação" containerRef={refTab} filename="por-tabulacao.png">
@@ -853,9 +856,6 @@ export default function ChatwootReports() {
             </ResponsiveContainer>
           </ChartCard>
         </div>
-
-        {/* CSAT */}
-        <CsatSection from={from} to={to} agent={agent} team={team} />
 
 
 
