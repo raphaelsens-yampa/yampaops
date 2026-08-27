@@ -50,17 +50,19 @@ export function CsatSection({
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("chatwoot_csat_responses")
-      .select("chatwoot_conversation_id, rating, feedback_message, contact_name, assignee_name, team_name, responded_at")
-      .gte("responded_at", `${from}T00:00:00-03:00`)
-      .lte("responded_at", `${to}T23:59:59-03:00`)
+      .select("chatwoot_conversation_id, rating, feedback_message, contact_name, assignee_name, team_name, responded_at");
+    if (from) q = q.gte("responded_at", `${from}T00:00:00-03:00`);
+    if (to) q = q.lte("responded_at", `${to}T23:59:59-03:00`);
+    const { data, error } = await q
       .order("responded_at", { ascending: false })
       .limit(5000);
     if (error) toast({ title: "Erro ao carregar CSAT", description: error.message, variant: "destructive" });
     setRows((data || []) as CsatRow[]);
     setLoading(false);
   }
+
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to]);
 
