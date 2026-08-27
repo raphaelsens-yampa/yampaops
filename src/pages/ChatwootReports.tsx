@@ -266,7 +266,7 @@ export default function ChatwootReports() {
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [showReport, setShowReport] = useState(false);
   const refTab = useRef<HTMLDivElement>(null);
-  const refAgent = useRef<HTMLDivElement>(null);
+  const refTabulacao = useRef<HTMLDivElement>(null);
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
   const refInbox = useRef<HTMLDivElement>(null);
@@ -397,20 +397,6 @@ export default function ChatwootReports() {
       .slice(0, 12);
   }, [filtered]);
 
-  const byAgent = useMemo(() => {
-    const map = new Map<string, { name: string; open: number; resolved: number; pending: number }>();
-    filtered.forEach((r) => {
-      const k = r.assignee_name || "(sem agente)";
-      const cur = map.get(k) || { name: k, open: 0, resolved: 0, pending: 0 };
-      if (r.status === "resolved") cur.resolved++;
-      else if (r.status === "pending") cur.pending++;
-      else cur.open++;
-      map.set(k, cur);
-    });
-    return Array.from(map.values())
-      .sort((a, b) => (b.open + b.resolved + b.pending) - (a.open + a.resolved + a.pending))
-      .slice(0, 12);
-  }, [filtered]);
 
   const byTeam = useMemo(() => {
     const map = new Map<string, number>();
@@ -870,17 +856,14 @@ export default function ChatwootReports() {
                 </CardContent>
               </Card>
 
-              <ChartCard title="Por Agente" containerRef={refAgent} filename="por-agente.png">
+              <ChartCard title="Por Tabulação" containerRef={refTabulacao} filename="por-tabulacao.png">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={byAgent}>
+                  <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                    <YAxis />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Legend />
-                    <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
-                    <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
-                    <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
+                    <Bar dataKey="value" name="Atendimentos" fill="hsl(var(--primary))" />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
