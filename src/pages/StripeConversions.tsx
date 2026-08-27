@@ -39,6 +39,12 @@ const AREA_COLORS: Record<string, string> = {
   desconhecida: "hsl(220 10% 60%)",
 };
 
+const planColor = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h} 70% 55%)`;
+};
+
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtDate = (s: string | null) => s ? format(new Date(s), "dd/MM/yyyy", { locale: ptBR }) : "—";
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
