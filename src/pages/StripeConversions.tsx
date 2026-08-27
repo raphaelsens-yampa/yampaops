@@ -1098,6 +1098,35 @@ export default function StripeConversions() {
           conversion={editing}
           onSaved={() => refetch()}
         />
+
+        <Dialog open={!!netEdit} onOpenChange={(open) => { if (!open && !savingNet) setNetEdit(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Registrar MRR líquido</DialogTitle>
+              <DialogDescription>
+                Informe o valor líquido mensal por conversão para o price <span className="font-mono text-xs">{netEdit?.price_id}</span>.
+                Esse valor será aplicado somente às conversões sem MRR líquido no período filtrado.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="net-mrr-value">MRR líquido por conversão (R$)</Label>
+              <Input
+                id="net-mrr-value"
+                type="number"
+                min="0"
+                step="0.01"
+                value={netEditValue}
+                onChange={(e) => setNetEditValue(e.target.value)}
+                autoFocus
+              />
+              {netEdit && <p className="text-xs text-muted-foreground">{netEdit.count} conversão(ões) · valor bruto total {fmtBRL(netEdit.mrrBruto)}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setNetEdit(null)} disabled={savingNet}>Cancelar</Button>
+              <Button onClick={handleSaveNetMrr} disabled={savingNet}>{savingNet ? "Salvando..." : "Salvar MRR líquido"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
