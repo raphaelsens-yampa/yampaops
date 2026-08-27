@@ -143,6 +143,7 @@ export default function StripeConversions() {
   const [backfillingNet, setBackfillingNet] = useState(false);
   const [reapplying, setReapplying] = useState(false);
   const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
+  const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
 
   // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
