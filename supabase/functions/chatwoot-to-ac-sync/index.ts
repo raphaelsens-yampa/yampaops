@@ -92,11 +92,11 @@ async function dedupeNotes(acContactId: string, conversationId: number, keepNote
     for (const p of paths) {
       const r = await acFetch(p);
       const t = await r.text();
-      if (!r.ok) { console.log("dedupe list failed", p, r.status, t.slice(0, 200)); continue; }
+      if (!r.ok) { console.error("dedupe list failed", p, r.status, t.slice(0, 200)); continue; }
       let j: any = {};
       try { j = JSON.parse(t); } catch { /* noop */ }
       const list = j?.notes || j?.note || [];
-      console.log("dedupe list", p, Array.isArray(list) ? list.length : typeof list, Object.keys(j || {}).join(","));
+      console.error("dedupe list", p, Array.isArray(list) ? list.length : typeof list, Object.keys(j || {}).join(","));
       if (Array.isArray(list) && list.length) { notes = list; break; }
     }
     const marker = `[Chatwoot] Conv #${conversationId}`;
@@ -105,11 +105,11 @@ async function dedupeNotes(acContactId: string, conversationId: number, keepNote
       if (!id || id === String(keepNoteId)) continue;
       if (String(n?.note || "").includes(marker)) {
         const d = await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
-        console.log("dedupe delete", id, d.status);
+        console.error("dedupe delete", id, d.status);
       }
     }
   } catch (e) {
-    console.log("dedupe error", e instanceof Error ? e.message : String(e));
+    console.error("dedupe error", e instanceof Error ? e.message : String(e));
   }
 }
 
