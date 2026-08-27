@@ -841,12 +841,13 @@ export default function ChatwootReports() {
                         <TableRow>
                           <TableHead className="text-xs">Tabulação</TableHead>
                           <TableHead className="text-right text-xs">Atendimentos</TableHead>
+                          <TableHead className="text-right text-xs">% do total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {byTab.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground py-6">
+                            <TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">
                               Sem dados para o período selecionado.
                             </TableCell>
                           </TableRow>
@@ -855,6 +856,7 @@ export default function ChatwootReports() {
                           <TableRow key={b.name}>
                             <TableCell className="text-xs py-2">{b.name}</TableCell>
                             <TableCell className="text-right text-xs py-2">{b.value.toLocaleString("pt-BR")}</TableCell>
+                            <TableCell className="text-right text-xs py-2">{b.pct.toFixed(1)}%</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -863,17 +865,56 @@ export default function ChatwootReports() {
                 </CardContent>
               </Card>
 
-              <ChartCard title="Por Tabulação" containerRef={refTabulacao} filename="por-tabulacao.png">
+              <ChartCard
+                title="Por Tabulação"
+                containerRef={refTabulacao}
+                filename="por-tabulacao.png"
+                actions={
+                  <>
+                    <ToggleGroup
+                      type="single"
+                      size="sm"
+                      value={tabMode}
+                      onValueChange={(v) => v && setTabMode(v as "abs" | "pct")}
+                    >
+                      <ToggleGroupItem value="abs" className="h-7 px-2 text-xs">Nº</ToggleGroupItem>
+                      <ToggleGroupItem value="pct" className="h-7 px-2 text-xs">%</ToggleGroupItem>
+                    </ToggleGroup>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={exportTabulacaoCsv}
+                      disabled={!byTab.length}
+                      title="Exportar CSV"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </>
+                }
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(v) => (tabMode === "pct" ? `${Number(v).toFixed(0)}%` : String(v))}
+                    />
                     <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar dataKey="value" name="Atendimentos" fill="hsl(var(--primary))" />
+                    <Tooltip
+                      formatter={(v: any) =>
+                        tabMode === "pct" ? `${Number(v).toFixed(1)}%` : Number(v).toLocaleString("pt-BR")
+                      }
+                    />
+                    <Bar
+                      dataKey={tabMode === "pct" ? "pct" : "value"}
+                      name={tabMode === "pct" ? "% do total" : "Atendimentos"}
+                      fill="hsl(var(--primary))"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
+
 
               <ChartCard title="Por Time" containerRef={refTeam} filename="por-time.png" height={240}>
                 <ResponsiveContainer width="100%" height="100%">
