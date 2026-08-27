@@ -14,6 +14,9 @@ import {
   Loader2, RefreshCw, Copy, CheckCircle2, XCircle, AlertCircle, MessageCircle, ExternalLink,
 } from "lucide-react";
 import { ChatwootContactsCard } from "@/components/chatwoot/ChatwootContactsCard";
+import { TagsManagerCard } from "@/components/chatwoot/TagsManagerCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/chatwoot-webhook`;
