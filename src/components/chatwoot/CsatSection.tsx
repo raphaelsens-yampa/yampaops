@@ -230,47 +230,6 @@ export function CsatSection({
       </div>
 
       <RankingTable title="Ranking por Agente" rows={byAgent} label="Agente" />
-
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Respostas e comentários</CardTitle></CardHeader>
-        <CardContent>
-          <div className="overflow-auto max-h-[420px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Data</TableHead>
-                  <TableHead className="text-xs">Nota</TableHead>
-                  <TableHead className="text-xs">Cliente</TableHead>
-                  <TableHead className="text-xs">Agente</TableHead>
-                  <TableHead className="text-xs">Comentário</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.slice(0, 200).map((r) => (
-                  <TableRow key={r.chatwoot_conversation_id}>
-                    <TableCell className="text-xs whitespace-nowrap">{fmtDateTimeBR(r.responded_at)}</TableCell>
-                    <TableCell>
-                      <Badge variant={r.rating != null && r.rating >= 4 ? "default" : r.rating != null && r.rating <= 2 ? "destructive" : "secondary"}>
-                        {r.rating ?? "—"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">{r.contact_name || "—"}</TableCell>
-                    <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
-                    <TableCell className="text-xs max-w-[420px]">{(r.feedback_message || "").trim() || "—"}</TableCell>
-                  </TableRow>
-                ))}
-                {!filtered.length && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
-                      Nenhuma resposta de CSAT no período.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
