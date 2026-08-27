@@ -870,17 +870,14 @@ export default function ChatwootReports() {
                 </CardContent>
               </Card>
 
-              <ChartCard title="Por Agente" containerRef={refAgent} filename="por-agente.png">
+              <ChartCard title="Por Tabulação" containerRef={refTabulacao} filename="por-tabulacao.png">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={byAgent}>
+                  <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                    <YAxis />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Legend />
-                    <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
-                    <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
-                    <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
+                    <Bar dataKey="value" name="Atendimentos" fill="hsl(var(--primary))" />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
