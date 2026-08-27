@@ -15,6 +15,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CsatSection } from "@/components/chatwoot/CsatSection";
@@ -267,6 +268,7 @@ export default function ChatwootReports() {
   const [showReport, setShowReport] = useState(false);
   const refTab = useRef<HTMLDivElement>(null);
   const refTabulacao = useRef<HTMLDivElement>(null);
+  const [tabMode, setTabMode] = useState<"abs" | "pct">("abs");
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
   const refInbox = useRef<HTMLDivElement>(null);
@@ -391,11 +393,13 @@ export default function ChatwootReports() {
       const k = r.tabulacao_atendimento || "(sem tabulação)";
       map.set(k, (map.get(k) || 0) + 1);
     });
+    const total = filtered.length || 1;
     return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value, pct: (value / total) * 100 }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12);
   }, [filtered]);
+
 
 
   const byTeam = useMemo(() => {
@@ -492,10 +496,14 @@ export default function ChatwootReports() {
   }
 
   function exportTabulacaoCsv() {
-    const header = ["Tabulação", "Atendimentos"];
+    const header = ["Tabulação", "Atendimentos", "% do total"];
     const lines = byTab.map((r) => {
       const s = (r.name ?? "").toString().replace(/"/g, '""');
-      return [/[",;\n]/.test(s) ? `"${s}"` : s, r.value].join(";");
+      return [
+        /[",;\n]/.test(s) ? `"${s}"` : s,
+        r.value,
+        r.pct.toFixed(1).replace(".", ","),
+      ].join(";");
     });
     const csv = "\uFEFF" + [header.join(";"), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -506,6 +514,7 @@ export default function ChatwootReports() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
 
   const [msgExporting, setMsgExporting] = useState(false);
   async function exportMessagesCsv() {
@@ -834,12 +843,13 @@ export default function ChatwootReports() {
                         <TableRow>
                           <TableHead className="text-xs">Tabulação</TableHead>
                           <TableHead className="text-right text-xs">Atendimentos</TableHead>
+                          <TableHead className="text-right text-xs">% do total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {byTab.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground py-6">
+                            <TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">
                               Sem dados para o período selecionado.
                             </TableCell>
                           </TableRow>
@@ -848,6 +858,7 @@ export default function ChatwootReports() {
                           <TableRow key={b.name}>
                             <TableCell className="text-xs py-2">{b.name}</TableCell>
                             <TableCell className="text-right text-xs py-2">{b.value.toLocaleString("pt-BR")}</TableCell>
+                            <TableCell className="text-right text-xs py-2">{b.pct.toFixed(1)}%</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -856,17 +867,56 @@ export default function ChatwootReports() {
                 </CardContent>
               </Card>
 
-              <ChartCard title="Por Tabulação" containerRef={refTabulacao} filename="por-tabulacao.png">
+              <ChartCard
+                title="Por Tabulação"
+                containerRef={refTabulacao}
+                filename="por-tabulacao.png"
+                actions={
+                  <>
+                    <ToggleGroup
+                      type="single"
+                      size="sm"
+                      value={tabMode}
+                      onValueChange={(v) => v && setTabMode(v as "abs" | "pct")}
+                    >
+                      <ToggleGroupItem value="abs" className="h-7 px-2 text-xs">Nº</ToggleGroupItem>
+                      <ToggleGroupItem value="pct" className="h-7 px-2 text-xs">%</ToggleGroupItem>
+                    </ToggleGroup>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={exportTabulacaoCsv}
+                      disabled={!byTab.length}
+                      title="Exportar CSV"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </>
+                }
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(v) => (tabMode === "pct" ? `${Number(v).toFixed(0)}%` : String(v))}
+                    />
                     <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar dataKey="value" name="Atendimentos" fill="hsl(var(--primary))" />
+                    <Tooltip
+                      formatter={(v: any) =>
+                        tabMode === "pct" ? `${Number(v).toFixed(1)}%` : Number(v).toLocaleString("pt-BR")
+                      }
+                    />
+                    <Bar
+                      dataKey={tabMode === "pct" ? "pct" : "value"}
+                      name={tabMode === "pct" ? "% do total" : "Atendimentos"}
+                      fill="hsl(var(--primary))"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
+
 
               <ChartCard title="Por Time" containerRef={refTeam} filename="por-time.png" height={240}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -1218,18 +1268,21 @@ function TabulacaoFilter({
 }
 
 function ChartCard({
-  title, children, containerRef, filename, height = 280,
+  title, children, containerRef, filename, height = 280, actions,
 }: {
   title: string;
   children: React.ReactNode;
   containerRef: React.RefObject<HTMLDivElement>;
   filename: string;
   height?: number;
+  actions?: React.ReactNode;
 }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">{title}</CardTitle>
+        <div className="flex items-center gap-1">
+        {actions}
         <Button
           variant="ghost"
           size="sm"
@@ -1239,6 +1292,7 @@ function ChartCard({
         >
           <ImageDown className="h-4 w-4" />
         </Button>
+        </div>
       </CardHeader>
       <CardContent style={{ height }}>
         <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
