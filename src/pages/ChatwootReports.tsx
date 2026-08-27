@@ -267,6 +267,7 @@ export default function ChatwootReports() {
   const [showReport, setShowReport] = useState(false);
   const refTab = useRef<HTMLDivElement>(null);
   const refTabulacao = useRef<HTMLDivElement>(null);
+  const [tabMode, setTabMode] = useState<"abs" | "pct">("abs");
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
   const refInbox = useRef<HTMLDivElement>(null);
@@ -1266,18 +1267,21 @@ function TabulacaoFilter({
 }
 
 function ChartCard({
-  title, children, containerRef, filename, height = 280,
+  title, children, containerRef, filename, height = 280, actions,
 }: {
   title: string;
   children: React.ReactNode;
   containerRef: React.RefObject<HTMLDivElement>;
   filename: string;
   height?: number;
+  actions?: React.ReactNode;
 }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">{title}</CardTitle>
+        <div className="flex items-center gap-1">
+        {actions}
         <Button
           variant="ghost"
           size="sm"
@@ -1287,6 +1291,7 @@ function ChartCard({
         >
           <ImageDown className="h-4 w-4" />
         </Button>
+        </div>
       </CardHeader>
       <CardContent style={{ height }}>
         <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
