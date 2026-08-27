@@ -108,11 +108,11 @@ function AppRoutes() {
       <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
       <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
       {/* Contatos archived */}
-      <Route path="/commissions" element={<RequireArea area="commissions"><Commissions /></RequireArea>} />
-      <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
+      {/* Comissões (legado) archived */}
       <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
-      <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
+      {/* Importação removida */}
       <Route path="/link-builder" element={<RequireArea area="link_builder"><LinkBuilder /></RequireArea>} />
+
       {/* ActiveCampaign integration archived */}
       <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
       <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
