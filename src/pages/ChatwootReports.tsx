@@ -14,13 +14,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CsatSection } from "@/components/chatwoot/CsatSection";
+import type { CsatRow } from "@/components/chatwoot/CsatSection";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
-  ChevronRight, ImageDown, FileText, CalendarIcon,
+  ImageDown, FileText, CalendarIcon,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
@@ -255,6 +257,8 @@ export default function ChatwootReports() {
   const [inbox, setInbox] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [businessHoursOnly, setBusinessHoursOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState("visao-geral");
+  const [csatRows, setCsatRows] = useState<CsatRow[]>([]);
 
   const [rows, setRows] = useState<Conv[]>([]);
   const [loading, setLoading] = useState(false);
@@ -497,6 +501,22 @@ export default function ChatwootReports() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `atendimentos_${from}_${to}${businessHoursOnly ? "_horario-comercial" : ""}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportTabulacaoCsv() {
+    const header = ["Tabulação", "Atendimentos"];
+    const lines = byTab.map((r) => {
+      const s = (r.name ?? "").toString().replace(/"/g, '""');
+      return [/[",;\n]/.test(s) ? `"${s}"` : s, r.value].join(";");
+    });
+    const csv = "\uFEFF" + [header.join(";"), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ranking_tabulacao_${from}_${to}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -788,245 +808,310 @@ export default function ChatwootReports() {
           </CardContent>
         </Card>
 
-        {/* Indicadores de Atendimento */}
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            🎧 Indicadores de Atendimento
-          </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <KpiCard title="Total de atendimentos" value={kpis.total.toLocaleString("pt-BR")} />
-            <KpiCard title="Taxa de resolução" value={`${kpis.resolvedPct.toFixed(1)}%`} />
-            <KpiCard title="TMA (Tempo Médio de Atendimento)" value={fmtDuration(kpis.tma)} />
-            <KpiCard title="TM1R (Tempo Médio de 1ª Resposta)" value={fmtDuration(kpis.tm1r)} />
-            <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
-          </div>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList>
+            <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
+            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          </TabsList>
 
-        {/* CSAT */}
-        <CsatSection from={from} to={to} agent={agent} team={team} />
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Por Tabulação" containerRef={refTab} filename="por-tabulacao.png">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Por Agente" containerRef={refAgent} filename="por-agente.png">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byAgent}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
-                <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
-                <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Por Time" containerRef={refTeam} filename="por-time.png" height={240}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byTeam}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(var(--secondary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Volume diário" containerRef={refDay} filename="volume-diario.png" height={240}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={byDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
-                <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-
-
-
-
-
-        {/* Caixa de Entrada: gráfico + tabela TMA/TM1R lado a lado */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Por Caixa de Entrada" containerRef={refInbox} filename="por-caixa-entrada.png" height={360}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byInbox} layout="vertical" margin={{ left: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="total" name="Atendimentos" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">TMA e TM1R por Caixa de Entrada</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-auto max-h-[360px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Caixa de Entrada</TableHead>
-                      <TableHead className="text-right text-xs">Atend.</TableHead>
-                      <TableHead className="text-right text-xs">TMA</TableHead>
-                      <TableHead className="text-right text-xs">TM1R</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {byInbox.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
-                          Sem dados para o período selecionado.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {byInbox.map((b) => (
-                      <TableRow key={b.name}>
-                        <TableCell className="text-xs py-2">{b.name}</TableCell>
-                        <TableCell className="text-right text-xs py-2">{b.total.toLocaleString("pt-BR")}</TableCell>
-                        <TableCell className="text-right text-xs py-2">{fmtDuration(b.tma)}</TableCell>
-                        <TableCell className="text-right text-xs py-2">{fmtDuration(b.tm1r)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+          <TabsContent value="visao-geral" className="space-y-6">
+            {/* Indicadores de Atendimento */}
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                🎧 Indicadores de Atendimento
+              </h2>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <KpiCard title="Total de atendimentos" value={kpis.total.toLocaleString("pt-BR")} />
+                <KpiCard title="Taxa de resolução" value={`${kpis.resolvedPct.toFixed(1)}%`} />
+                <KpiCard title="TMA (Tempo Médio de Atendimento)" value={fmtDuration(kpis.tma)} />
+                <KpiCard title="TM1R (Tempo Médio de 1ª Resposta)" value={fmtDuration(kpis.tm1r)} />
+                <KpiCard title="Com tabulação" value={`${kpis.tabPct.toFixed(1)}%`} />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabela */}
-        <Card>
-          <CardHeader>
-            <button
-              type="button"
-              onClick={() => setShowReport((v) => !v)}
-              className="flex items-center justify-between w-full text-left"
-            >
-              <CardTitle className="text-base flex items-center gap-2">
-                {showReport ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <BarChart3 className="h-4 w-4" />
-                Relatório ({filtered.length.toLocaleString("pt-BR")})
-              </CardTitle>
-              <span className="text-xs text-muted-foreground">
-                {showReport ? "Ocultar" : "Expandir"}
-              </span>
-            </button>
-          </CardHeader>
-          {showReport && (
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead>Ticket</TableHead>
-                    <TableHead>Caixa de Entrada</TableHead>
-                    <TableHead>Aberto em</TableHead>
-                    <TableHead>Fechado em</TableHead>
-                    <TableHead>1ª Resposta</TableHead>
-                    <TableHead>Agente</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Tabulação</TableHead>
-                    <TableHead>Etiquetas</TableHead>
-                    <TableHead>TMA</TableHead>
-                    <TableHead>TM1R</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pageRows.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={15} className="text-center text-sm text-muted-foreground py-8">
-                        Nenhum atendimento encontrado para os filtros selecionados.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {pageRows.map((r) => {
-                    const url = ticketUrl(r);
-                    return (
-                      <TableRow key={r.chatwoot_conversation_id}>
-                        <TableCell className="text-sm">
-                          <div className="flex items-center gap-1.5">
-                            <span>{r.contact_name || "—"}</span>
-                            {r.opportunity_id && <Badge variant="outline" className="text-[10px] h-4 px-1">deal</Badge>}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs">{r.contact_email || "—"}</TableCell>
-                        <TableCell className="text-xs">{r.contact_phone || "—"}</TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {url ? (
-                            <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                              #{r.chatwoot_conversation_id} <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : `#${r.chatwoot_conversation_id}`}
-                        </TableCell>
-                        <TableCell className="text-xs">{r.inbox_name || "—"}</TableCell>
-                        <TableCell className="text-xs">{fmtDateTime(r.opened_at)}</TableCell>
-                        <TableCell className="text-xs">{fmtDateTime(r.conversation_closed_at)}</TableCell>
-                        <TableCell className="text-xs">{fmtDateTime(r.first_response_at)}</TableCell>
-                        <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
-                        <TableCell className="text-xs">{r.team_name || "—"}</TableCell>
-                        <TableCell className="text-xs">
-                          {r.tabulacao_atendimento ? (
-                            <Badge variant="secondary" className="text-[10px]">{r.tabulacao_atendimento}</Badge>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {r.labels && r.labels.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {r.labels.map((l) => (
-                                <Badge key={l} variant="outline" className="text-[10px]">{l}</Badge>
-                              ))}
-                            </div>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
-                        <TableCell className="text-xs">{fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at))}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
             </div>
 
-            {pageCount > 1 && (
-              <div className="flex items-center justify-between pt-3">
-                <span className="text-xs text-muted-foreground">
-                  Página {page + 1} de {pageCount}
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-                  <Button variant="outline" size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+            {/* CSAT */}
+            <CsatSection from={from} to={to} agent={agent} team={team} onFilteredRowsChange={setCsatRows} />
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base">Ranking de Tabulação</CardTitle>
+                  <Button variant="outline" size="sm" onClick={exportTabulacaoCsv} disabled={!byTab.length}>
+                    <Download className="h-4 w-4 mr-1.5" /> Exportar
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-auto max-h-[360px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Tabulação</TableHead>
+                          <TableHead className="text-right text-xs">Atendimentos</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {byTab.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground py-6">
+                              Sem dados para o período selecionado.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {byTab.map((b) => (
+                          <TableRow key={b.name}>
+                            <TableCell className="text-xs py-2">{b.name}</TableCell>
+                            <TableCell className="text-right text-xs py-2">{b.value.toLocaleString("pt-BR")}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <ChartCard title="Por Agente" containerRef={refAgent} filename="por-agente.png">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byAgent}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="open" stackId="a" name="Aberto" fill="hsl(var(--primary))" />
+                    <Bar dataKey="pending" stackId="a" name="Pendente" fill="hsl(var(--muted-foreground))" />
+                    <Bar dataKey="resolved" stackId="a" name="Resolvido" fill="hsl(var(--secondary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard title="Por Time" containerRef={refTeam} filename="por-time.png" height={240}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byTeam}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="hsl(var(--secondary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard title="Volume diário" containerRef={refDay} filename="volume-diario.png" height={240}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={byDay}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
+                    <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+
+            {/* Caixa de Entrada: gráfico + tabela TMA/TM1R lado a lado */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ChartCard title="Por Caixa de Entrada" containerRef={refInbox} filename="por-caixa-entrada.png" height={360}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byInbox} layout="vertical" margin={{ left: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="total" name="Atendimentos" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">TMA e TM1R por Caixa de Entrada</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-auto max-h-[360px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Caixa de Entrada</TableHead>
+                          <TableHead className="text-right text-xs">Atend.</TableHead>
+                          <TableHead className="text-right text-xs">TMA</TableHead>
+                          <TableHead className="text-right text-xs">TM1R</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {byInbox.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                              Sem dados para o período selecionado.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {byInbox.map((b) => (
+                          <TableRow key={b.name}>
+                            <TableCell className="text-xs py-2">{b.name}</TableCell>
+                            <TableCell className="text-right text-xs py-2">{b.total.toLocaleString("pt-BR")}</TableCell>
+                            <TableCell className="text-right text-xs py-2">{fmtDuration(b.tma)}</TableCell>
+                            <TableCell className="text-right text-xs py-2">{fmtDuration(b.tm1r)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="relatorios" className="space-y-6">
+            {/* Relatório Analítico dos Atendimentos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Relatório Analítico dos Atendimentos ({filtered.length.toLocaleString("pt-BR")})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Ticket</TableHead>
+                        <TableHead>Caixa de Entrada</TableHead>
+                        <TableHead>Aberto em</TableHead>
+                        <TableHead>Fechado em</TableHead>
+                        <TableHead>1ª Resposta</TableHead>
+                        <TableHead>Agente</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Tabulação</TableHead>
+                        <TableHead>Etiquetas</TableHead>
+                        <TableHead>TMA</TableHead>
+                        <TableHead>TM1R</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pageRows.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={15} className="text-center text-sm text-muted-foreground py-8">
+                            Nenhum atendimento encontrado para os filtros selecionados.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {pageRows.map((r) => {
+                        const url = ticketUrl(r);
+                        return (
+                          <TableRow key={r.chatwoot_conversation_id}>
+                            <TableCell className="text-sm">
+                              <div className="flex items-center gap-1.5">
+                                <span>{r.contact_name || "—"}</span>
+                                {r.opportunity_id && <Badge variant="outline" className="text-[10px] h-4 px-1">deal</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs">{r.contact_email || "—"}</TableCell>
+                            <TableCell className="text-xs">{r.contact_phone || "—"}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {url ? (
+                                <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                  #{r.chatwoot_conversation_id} <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ) : `#${r.chatwoot_conversation_id}`}
+                            </TableCell>
+                            <TableCell className="text-xs">{r.inbox_name || "—"}</TableCell>
+                            <TableCell className="text-xs">{fmtDateTime(r.opened_at)}</TableCell>
+                            <TableCell className="text-xs">{fmtDateTime(r.conversation_closed_at)}</TableCell>
+                            <TableCell className="text-xs">{fmtDateTime(r.first_response_at)}</TableCell>
+                            <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
+                            <TableCell className="text-xs">{r.team_name || "—"}</TableCell>
+                            <TableCell className="text-xs">
+                              {r.tabulacao_atendimento ? (
+                                <Badge variant="secondary" className="text-[10px]">{r.tabulacao_atendimento}</Badge>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {r.labels && r.labels.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {r.labels.map((l) => (
+                                    <Badge key={l} variant="outline" className="text-[10px]">{l}</Badge>
+                                  ))}
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs">{fmtDuration(diffMinutes(r.opened_at, r.conversation_closed_at))}</TableCell>
+                            <TableCell className="text-xs">{fmtDuration(diffMinutes(r.first_contact_message_at, r.first_response_at))}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
-              </div>
-            )}
-          </CardContent>
-          )}
-        </Card>
+
+                {pageCount > 1 && (
+                  <div className="flex items-center justify-between pt-3">
+                    <span className="text-xs text-muted-foreground">
+                      Página {page + 1} de {pageCount}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+                      <Button variant="outline" size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Relatório Respostas e Comentários CSAT */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Relatório Respostas e Comentários CSAT</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-auto max-h-[420px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Data</TableHead>
+                        <TableHead className="text-xs">Nota</TableHead>
+                        <TableHead className="text-xs">Cliente</TableHead>
+                        <TableHead className="text-xs">Agente</TableHead>
+                        <TableHead className="text-xs">Comentário</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {csatRows.slice(0, 200).map((r) => (
+                        <TableRow key={r.chatwoot_conversation_id}>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {r.responded_at ? new Date(r.responded_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={r.rating != null && r.rating >= 4 ? "default" : r.rating != null && r.rating <= 2 ? "destructive" : "secondary"}>
+                              {r.rating ?? "—"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">{r.contact_name || "—"}</TableCell>
+                          <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[420px]">{(r.feedback_message || "").trim() || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                      {!csatRows.length && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
+                            Nenhuma resposta de CSAT no período.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

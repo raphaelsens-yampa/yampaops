@@ -14,7 +14,7 @@ import {
   LineChart, Line, Legend, LabelList,
 } from "recharts";
 
-type CsatRow = {
+export type CsatRow = {
   chatwoot_conversation_id: number;
   rating: number | null;
   feedback_message: string | null;
@@ -40,8 +40,8 @@ function fmtDateTimeBR(iso: string | null): string {
 }
 
 export function CsatSection({
-  from, to, agent, team,
-}: { from: string; to: string; agent: string; team: string }) {
+  from, to, agent, team, onFilteredRowsChange,
+}: { from: string; to: string; agent: string; team: string; onFilteredRowsChange?: (rows: CsatRow[]) => void }) {
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const [rows, setRows] = useState<CsatRow[]>([]);
@@ -101,6 +101,11 @@ export function CsatSection({
     if (team !== "all" && (r.team_name || "—") !== team) return false;
     return true;
   }), [rows, agent, team]);
+
+  useEffect(() => {
+    onFilteredRowsChange?.(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]);
 
   const kpis = useMemo(() => {
     const rated = filtered.filter((r) => r.rating != null) as (CsatRow & { rating: number })[];
@@ -225,47 +230,6 @@ export function CsatSection({
       </div>
 
       <RankingTable title="Ranking por Agente" rows={byAgent} label="Agente" />
-
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Respostas e comentários</CardTitle></CardHeader>
-        <CardContent>
-          <div className="overflow-auto max-h-[420px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Data</TableHead>
-                  <TableHead className="text-xs">Nota</TableHead>
-                  <TableHead className="text-xs">Cliente</TableHead>
-                  <TableHead className="text-xs">Agente</TableHead>
-                  <TableHead className="text-xs">Comentário</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.slice(0, 200).map((r) => (
-                  <TableRow key={r.chatwoot_conversation_id}>
-                    <TableCell className="text-xs whitespace-nowrap">{fmtDateTimeBR(r.responded_at)}</TableCell>
-                    <TableCell>
-                      <Badge variant={r.rating != null && r.rating >= 4 ? "default" : r.rating != null && r.rating <= 2 ? "destructive" : "secondary"}>
-                        {r.rating ?? "—"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">{r.contact_name || "—"}</TableCell>
-                    <TableCell className="text-xs">{r.assignee_name || "—"}</TableCell>
-                    <TableCell className="text-xs max-w-[420px]">{(r.feedback_message || "").trim() || "—"}</TableCell>
-                  </TableRow>
-                ))}
-                {!filtered.length && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">
-                      Nenhuma resposta de CSAT no período.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
