@@ -1,32 +1,48 @@
-# Funis ActiveCampaign — por que aparecem Keila Suelen (perdidos) e Emanuelle Santos (tarefas)
+# Revisão da Gestão de Níveis de Acesso
 
-## O que eu verifiquei nos dados do funil 103 "[Sales] Time Financeiro (Novo)"
+Auditoria comparando as rotas reais (`src/App.tsx`), o menu (`AppSidebar` / `MobileBottomNav`) e as chaves da tela de Níveis de Acesso (`CRM_SECTIONS` em `AccessLevelManager.tsx`).
 
-**1) Keila Suelen em Perdidos — não é erro de leitura, é 1 negócio real que o ActiveCampaign esconde do quadro.**
-Existe exatamente 1 negócio perdido com proprietária Keila no funil 103:
+## O que está obsoleto
 
-```text
-negócio 232115 · contato np_gas@hotmail.com · etapa "Triagem Backlog"
-proprietário id 49 (Keila Suelen) · status perdido · fechado em 26/08/2026 18:00
-```
+| Chave | Situação |
+|---|---|
+| `pipeline` ("Pipeline", em Operações) | A página Pipeline foi arquivada e a rota não existe mais. A chave não controla nada — o Kanban do vendedor fica na rota `/` sem checagem de área. |
+| `contacts` ("Contatos", em Gestão) | Página e rota arquivadas. Chave sem efeito. |
+| `commissions` ("Comissões", em Sales) | As rotas `/commissions` e `/commissions/settings` existem e estão protegidas, mas não há nenhum link no sidebar nem no menu mobile — tela órfã, hoje substituída por "Comissionamento". |
 
-Ele foi capturado na sincronização de hoje, ou seja é o estado atual no ActiveCampaign. A diferença é de visualização: no quadro do ActiveCampaign os negócios perdidos não aparecem nas colunas (só os abertos), e o filtro de proprietário só oferece os usuários vinculados ao funil — então esse registro fica invisível por lá. Nosso painel lê o retrato completo, inclusive perdidos, por isso a proprietária aparece na lista.
+## O que está faltando
 
-**2) Emanuelle Santos em Tarefas — a tela está agrupando pelo responsável da tarefa, não pelo dono do negócio.**
-São 15 tarefas ("Mandar mensagem para cliente desengajado"), todas com responsável id 69 (Emanuelle), em negócios cujos donos são Leticia Calor e Ferramentas yampa. No ActiveCampaign, quando você filtra o funil por proprietário, ele filtra o **negócio** — e Emanuelle não é dona de nenhum negócio do 103, então ela não aparece. No painel, o agrupamento de tarefas usa o responsável da tarefa e cai para o dono do negócio só quando a tarefa não tem responsável.
+1. **Rotas sem controle de acesso** (qualquer usuário logado acessa digitando a URL):
+   - `/reports` (Relatórios) — não tem chave de permissão nem item de menu.
+   - `/one-page-diretoria` e `/relatorio` — atalhos duplicados do OnePage sem o guard `one_page_diretoria`, então um vendedor consegue abrir a OnePage por essas URLs.
+2. **Telas sem chave própria** (hoje herdam a permissão de outra área, sem granularidade):
+   - `Chatwoot → ActiveCampaign` usa `integration_chatwoot`.
+   - Subtelas da Auditoria IA (Fila de Revisão, Insights, Golden Set, Configurações) usam todas `auditoria_ia`.
+3. **Divergência de rótulo**: em Operações não existe mais "Pipeline"; o que existe é "Meu Pipeline" (visão do vendedor na home).
 
-Conclusão: não há dado inventado; são duas diferenças de critério (perdidos ocultos no quadro do AC, e tarefa por responsável vs. negócio por proprietário).
+## Mudanças propostas
 
-## O que eu proponho ajustar
+**1. Limpar chaves obsoletas** (`AccessLevelManager.tsx`)
+- Remover `pipeline` e `contacts` das seções (mantendo compatibilidade: níveis salvos com essas chaves simplesmente deixam de ser exibidos).
+- Ajustar os defaults por papel em `useAuth.tsx` (remover `pipeline`/`contacts`).
 
-1. **Tarefas — escolher o critério de proprietário.** Adicionar um seletor na visão de Tarefas: "Responsável da tarefa" (comportamento atual) ou "Proprietário do negócio" (igual ao ActiveCampaign), com o segundo como padrão para bater com o que você vê lá. O rótulo da coluna passa a dizer qual critério está ativo.
-2. **Filtro de proprietário coerente.** Quando o critério for "Proprietário do negócio", o filtro de proprietário do topo deixa de listar pessoas que só têm tarefas, evitando nomes que não existem no funil do AC.
-3. **Perdidos — deixar explícito o que o AC esconde.** No bloco de Perdidos, mostrar a etapa em que o negócio foi perdido e um aviso curto de que o quadro do ActiveCampaign não exibe perdidos, para que a divergência fique auto-explicada. Nenhuma mudança de cálculo.
-4. **Sem alteração de sincronização nem de banco.** Os dados estão corretos; o ajuste é de apresentação e de critério de agrupamento.
+**2. Resolver "Comissões"**
+- Manter a chave, mas mover para o final da seção Sales com rótulo "Comissões (legado)" e adicionar o item no sidebar apenas para quem tiver a permissão, para deixar de ser tela órfã.
+
+**3. Fechar as rotas sem guard** (`App.tsx`)
+- `/reports` → nova chave `reports` ("Relatórios") na seção Visão Geral, com `RequireArea`.
+- `/one-page-diretoria` e `/relatorio` → envolver em `RequireArea area="one_page_diretoria"`.
+
+**4. Novas chaves de granularidade**
+- `integration_chatwoot_ac` ("Chatwoot → ActiveCampaign") na seção Integrações, aplicada na rota e no item de sidebar.
+- `auditoria_ia_admin` ("Auditoria IA — Revisão/Insights/Golden Set/Config") na seção Operações, aplicada nas 4 rotas administrativas da auditoria.
+- Defaults: admin = tudo; tático = leitura; vendedor = sem acesso (ajustável por nível).
+
+**5. Rótulos**
+- Renomear a exibição de itens para casar com o sidebar atual (ex.: "Precificação Serviços", "Gerador de Ofertas" já batem; ajustar textos residuais).
 
 ## Detalhes técnicos
 
-- `src/pages/AcFunnelMetrics.tsx`: hoje a dimensão de tarefas resolve `t.owner_name ?? d.owner_name`; passa a respeitar um estado novo (`taskOwnerBasis: "task" | "deal"`), aplicado tanto no agrupamento quanto no filtro `matchOwner` das tarefas.
-- A lista de proprietários (`ownerOptions`) passa a considerar tarefas apenas no modo "Responsável da tarefa".
-- Bloco de perdidos: incluir `stageMap[d.ac_stage_id]` na tabela e uma nota de rodapé.
-- `supabase/functions/ac-funnel-sync/index.ts` fica intacto.
+- As chaves vivem em `CRM_SECTIONS` (`src/components/AccessLevelManager.tsx`); `useAuth.tsx` deriva tipos e defaults por papel a partir dela, então cada chave nova/removida exige ajuste em `defaultsForRole`.
+- `mergePermissions` já garante retrocompatibilidade: chaves ausentes no nível salvo herdam o default do papel, portanto nenhuma migração de banco é necessária.
+- Nenhuma alteração de tabela ou política é necessária — `access_levels.permissions` é JSON.
