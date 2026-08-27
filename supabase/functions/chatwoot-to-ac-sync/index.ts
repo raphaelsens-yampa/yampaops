@@ -96,7 +96,6 @@ async function dedupeNotes(acContactId: string, conversationId: number, keepNote
       let j: any = {};
       try { j = JSON.parse(t); } catch { /* noop */ }
       const list = j?.notes || j?.note || [];
-      console.error("dedupe list", p, Array.isArray(list) ? list.length : typeof list, Object.keys(j || {}).join(","));
       if (Array.isArray(list) && list.length) { notes = list; break; }
     }
     const marker = `[Chatwoot] Conv #${conversationId}`;
@@ -104,8 +103,7 @@ async function dedupeNotes(acContactId: string, conversationId: number, keepNote
       const id = String(n?.id || "");
       if (!id || id === String(keepNoteId)) continue;
       if (String(n?.note || "").includes(marker)) {
-        const d = await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
-        console.error("dedupe delete", id, d.status);
+        await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
       }
     }
   } catch (e) {
