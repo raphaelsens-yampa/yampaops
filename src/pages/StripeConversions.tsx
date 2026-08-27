@@ -39,6 +39,12 @@ const AREA_COLORS: Record<string, string> = {
   desconhecida: "hsl(220 10% 60%)",
 };
 
+const planColor = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h} 70% 55%)`;
+};
+
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtDate = (s: string | null) => s ? format(new Date(s), "dd/MM/yyyy", { locale: ptBR }) : "—";
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
@@ -377,6 +383,38 @@ export default function StripeConversions() {
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
   }, [rows, mrrMode, sellersMap]);
 
+  const byPlan = useMemo(() => {
+    const map = new Map<string, { plan: string; conversoes: number; mrr: number }>();
+    for (const r of rows) {
+      const plan = r.plan_name?.trim() || "Sem plano";
+      const cur = map.get(plan) || { plan, conversoes: 0, mrr: 0 };
+      cur.conversoes += 1;
+      cur.mrr += valueOf(r);
+      map.set(plan, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+  }, [rows, mrrMode]);
+
+  const sellerPlanSales = useMemo(() => {
+    const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
+    for (const r of rows) {
+      if (r.conversion_type !== "new" || !r.assigned_seller_id) continue;
+      const plan = r.plan_name?.trim() || "Sem plano";
+      const key = `${r.assigned_seller_id}-${plan}`;
+      const cur = map.get(key) || {
+        seller_id: r.assigned_seller_id,
+        seller_name: sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8),
+        plan,
+        quantidade: 0,
+        mrr: 0,
+      };
+      cur.quantidade += 1;
+      cur.mrr += valueOf(r);
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+  }, [rows, mrrMode, sellersMap]);
+
   const sellerOptions = useMemo(() => {
     return Object.entries(sellersMap)
       .map(([id, name]) => ({ id, name }))
@@ -697,6 +735,75 @@ export default function StripeConversions() {
                 </BarChart>
               </ResponsiveContainer>
             )}
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Conversões por Plano (quantidade)</CardTitle></CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={byPlan}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="plan" tick={{ fontSize: 11 }} interval={0} angle={-30} height={70} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip formatter={(v: any) => [`${v} conversões`, "Quantidade"]} />
+                  <Bar dataKey="conversoes" radius={[6,6,0,0]}>
+                    {byPlan.map((e) => <Cell key={e.plan} fill={planColor(e.plan)} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">MRR por Plano</CardTitle></CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={byPlan}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="plan" tick={{ fontSize: 11 }} interval={0} angle={-30} height={70} />
+                  <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                  <Bar dataKey="mrr" radius={[6,6,0,0]}>
+                    {byPlan.map((e) => <Cell key={e.plan} fill={planColor(e.plan)} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Vendas por Vendedor por Plano</CardTitle>
+            <CardDescription>Após novas vendas ({sellerPlanSales.length} combinações)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead className="text-right">Quantidade</TableHead>
+                    <TableHead className="text-right">MRR considerado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sellerPlanSales.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhuma venda nova no período selecionado.</TableCell></TableRow>
+                  )}
+                  {sellerPlanSales.map(s => (
+                    <TableRow key={`${s.seller_id}-${s.plan}`}>
+                      <TableCell>{s.seller_name}</TableCell>
+                      <TableCell>{s.plan}</TableCell>
+                      <TableCell className="text-right">{s.quantidade}</TableCell>
+                      <TableCell className="text-right">{fmtBRL(s.mrr)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </TabsContent>
