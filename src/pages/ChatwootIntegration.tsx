@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ChatwootContactsCard } from "@/components/chatwoot/ChatwootContactsCard";
 import { TagsManagerCard } from "@/components/chatwoot/TagsManagerCard";
+import { ChatwootAcTab } from "@/components/chatwoot/ChatwootAcTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
