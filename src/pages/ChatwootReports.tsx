@@ -505,6 +505,22 @@ export default function ChatwootReports() {
     URL.revokeObjectURL(url);
   }
 
+  function exportTabulacaoCsv() {
+    const header = ["Tabulação", "Atendimentos"];
+    const lines = byTab.map((r) => {
+      const s = (r.name ?? "").toString().replace(/"/g, '""');
+      return [/[",;\n]/.test(s) ? `"${s}"` : s, r.value].join(";");
+    });
+    const csv = "\uFEFF" + [header.join(";"), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ranking_tabulacao_${from}_${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const [msgExporting, setMsgExporting] = useState(false);
   async function exportMessagesCsv() {
     if (!filtered.length) return;
