@@ -63,7 +63,6 @@ export const CRM_SECTIONS = [
     areas: [
       { key: "integration_stripe", label: "Stripe" },
       { key: "integration_chatwoot", label: "Chatwoot" },
-      { key: "integration_chatwoot_ac", label: "Chatwoot → ActiveCampaign" },
       { key: "integration_ac_funnels", label: "Funis ActiveCampaign" },
     ],
   },

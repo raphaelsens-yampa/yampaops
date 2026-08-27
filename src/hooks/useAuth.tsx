@@ -59,7 +59,7 @@ function defaultsForRole(role: AppRole): Permissions {
       sales: ro, sales_campaigns: ro, campaign_history: ro, link_builder: ro, precificacao: ro,
       gestao: ro, team: ro, users: none,
       integracoes: none, integration_stripe: none, integration_chatwoot: none,
-      integration_chatwoot_ac: none, integration_ac_funnels: none,
+      integration_ac_funnels: none,
 
     };
   }
@@ -73,7 +73,7 @@ function defaultsForRole(role: AppRole): Permissions {
     gestao: none, team: none, users: none,
 
     integracoes: none, integration_stripe: none, integration_chatwoot: none,
-    integration_chatwoot_ac: none, integration_ac_funnels: none,
+    integration_ac_funnels: none,
 
   };
 }
