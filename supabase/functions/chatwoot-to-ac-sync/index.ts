@@ -79,7 +79,28 @@ function normPhone(p?: string | null): string | null {
   return d.length > 11 ? d.slice(-11) : d;
 }
 
+const PENDING = "pending";
+
+/** Remove notas antigas duplicadas da mesma conversa no contato do AC. */
+async function dedupeNotes(acContactId: string, conversationId: number, keepNoteId: string) {
+  try {
+    const r = await acFetch(`/api/3/contacts/${acContactId}/notes?limit=100`);
+    if (!r.ok) return;
+    const j = await r.json();
+    const notes: any[] = j?.notes || [];
+    const marker = `[Chatwoot] Conv #${conversationId}`;
+    for (const n of notes) {
+      const id = String(n?.id || "");
+      if (!id || id === String(keepNoteId)) continue;
+      if (String(n?.note || "").startsWith(marker)) {
+        await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
+      }
+    }
+  } catch { /* best effort */ }
+}
+
 function fmtSP(value: string | null | undefined): string {
+
   if (!value) return "—";
   const d = new Date(value);
   if (isNaN(d.getTime())) return "—";
