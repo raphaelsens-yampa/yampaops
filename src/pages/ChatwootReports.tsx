@@ -928,7 +928,16 @@ export default function ChatwootReports() {
                       name={tabMode === "pct" ? "% do total" : "Atendimentos"}
                       fill="hsl(var(--primary))"
                       radius={[0, 4, 4, 0]}
-                    />
+                    >
+                      <LabelList
+                        dataKey={tabMode === "pct" ? "pct" : "value"}
+                        position="right"
+                        formatter={(v: any) =>
+                          tabMode === "pct" ? `${Number(v).toFixed(1)}%` : Number(v).toLocaleString("pt-BR")
+                        }
+                        style={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
