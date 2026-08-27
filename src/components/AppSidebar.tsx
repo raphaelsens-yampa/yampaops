@@ -134,6 +134,8 @@ function ChatwootStatusDot() {
       const { data } = await supabase
         .from("integration_settings")
         .select("chatwoot_last_event_at, chatwoot_base_url")
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       return data;
     },

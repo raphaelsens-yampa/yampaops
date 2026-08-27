@@ -62,7 +62,7 @@ export default function ChatwootIntegration() {
 
   async function loadAll() {
     const [s, c, e] = await Promise.all([
-      supabase.from("integration_settings").select("id, chatwoot_base_url, chatwoot_account_id, chatwoot_last_event_at").maybeSingle(),
+      supabase.from("integration_settings").select("id, chatwoot_base_url, chatwoot_account_id, chatwoot_last_event_at").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("chatwoot_conversations").select("*").order("last_message_at", { ascending: false, nullsFirst: false }).limit(20),
       supabase.from("integration_sync_errors").select("*").like("entity_type", "chatwoot_%").order("created_at", { ascending: false }).limit(10),
     ]);
