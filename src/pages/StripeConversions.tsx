@@ -462,6 +462,10 @@ export default function StripeConversions() {
                   {backfillingNet ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                   Buscar valor líquido
                 </Button>
+                <Button variant="outline" size="sm" onClick={handleReapplyPriceMap} disabled={reapplying}>
+                  {reapplying ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                  Reaplicar de-para
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
                   {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
                   Reprocessar reativações
