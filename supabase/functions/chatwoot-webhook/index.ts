@@ -532,18 +532,25 @@ async function applyTagForEvent(opportunityId: string | null, virtualEvent: stri
 }
 
 async function bumpLastEvent() {
-  const { data: settings } = await service
+  const ts = new Date().toISOString();
+  const { data: settings, error: readError } = await service
     .from("integration_settings")
     .select("id")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
-  const ts = new Date().toISOString();
+
+  if (readError) {
+    console.error("Failed to read integration settings", readError);
+    return;
+  }
+
   if (settings?.id) {
-    await service
+    const { error } = await service
       .from("integration_settings")
       .update({ chatwoot_last_event_at: ts })
       .eq("id", settings.id);
-  } else {
-    await service.from("integration_settings").insert({ chatwoot_last_event_at: ts });
+    if (error) console.error("Failed to update Chatwoot last event", error);
   }
 }
 
