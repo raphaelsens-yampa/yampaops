@@ -218,14 +218,20 @@ export default function StripeConversions() {
   });
 
   // De-para canônico (commission_price_map) para o painel de saúde
-  const { data: priceMap = {} } = useQuery({
+  const { data: priceMap = {}, refetch: refetchPriceMap } = useQuery({
     queryKey: ["price-map-canonical"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("commission_price_map")
-        .select("price_id, area, offer_name, plan_name");
+        .select("id, price_id, area, offer_name, plan_name, mrr_override");
       if (error) throw error;
-      const m: Record<string, { area: string | null; offer_name: string | null; plan_name: string | null }> = {};
+      const m: Record<string, {
+        id: string;
+        area: string | null;
+        offer_name: string | null;
+        plan_name: string | null;
+        mrr_override: number | null;
+      }> = {};
       (data || []).forEach((r: any) => { if (r.price_id) m[r.price_id] = r; });
       return m;
     },
@@ -263,18 +269,30 @@ export default function StripeConversions() {
   const health = useMemo(() => {
     let missingMap = 0, divergent = 0, missingNet = 0;
     const divergentSamples: Array<{ price_id: string; from: string; to: string }> = [];
-    const netGaps = new Map<string, { price_id: string; plan: string; product: string; area: string; count: number; mrrBruto: number }>();
+    const netGaps = new Map<string, {
+      price_id: string;
+      plan: string;
+      product: string;
+      area: string;
+      count: number;
+      mrrBruto: number;
+      mapId: string | null;
+      mappedMrr: number | null;
+    }>();
     for (const r of rows) {
       if (r.mrr_net == null) {
         missingNet++;
         const pid = r.stripe_price_id || "sem price_id";
+        const canonical = pid === "sem price_id" ? null : priceMap[pid];
         const cur = netGaps.get(pid) || {
           price_id: pid,
-          plan: r.plan_name?.trim() || "Sem plano",
-          product: r.product_name?.trim() || "—",
-          area: r.area || "—",
+          plan: r.plan_name?.trim() || canonical?.plan_name?.trim() || "Sem plano",
+          product: r.product_name?.trim() || canonical?.offer_name?.trim() || "—",
+          area: r.area || canonical?.area || "—",
           count: 0,
           mrrBruto: 0,
+          mapId: canonical?.id ?? null,
+          mappedMrr: canonical?.mrr_override ?? null,
         };
         cur.count += 1;
         cur.mrrBruto += Number(r.mrr || 0);
@@ -336,9 +354,22 @@ export default function StripeConversions() {
     }
   }
 
-  function openNetEdit(p: { price_id: string; plan: string; count: number; mrrBruto: number }) {
+  function openNetEdit(p: {
+    price_id: string;
+    plan: string;
+    count: number;
+    mrrBruto: number;
+    mapId: string | null;
+    mappedMrr: number | null;
+  }) {
     setNetEdit(p);
-    setNetEditValue(p.count ? (p.mrrBruto / p.count).toFixed(2) : "");
+    setNetEditValue(
+      p.mappedMrr != null
+        ? p.mappedMrr.toFixed(2)
+        : p.count
+          ? (p.mrrBruto / p.count).toFixed(2)
+          : "",
+    );
   }
 
   async function handleSaveNetMrr() {
@@ -350,6 +381,14 @@ export default function StripeConversions() {
     }
     setSavingNet(true);
     try {
+      if (netEdit.mapId) {
+        const { error: mapError } = await supabase
+          .from("commission_price_map")
+          .update({ mrr_override: value })
+          .eq("id", netEdit.mapId);
+        if (mapError) throw mapError;
+      }
+
       let q = supabase
         .from("stripe_conversions")
         .update({ mrr_net: value })
@@ -361,9 +400,12 @@ export default function StripeConversions() {
         : q.eq("stripe_price_id", netEdit.price_id);
       const { error } = await q;
       if (error) throw error;
-      toast({ title: "MRR líquido registrado", description: `${netEdit.count} conversão(ões) atualizada(s) com ${fmtBRL(value)}.` });
+      toast({
+        title: "Cadastro do price atualizado",
+        description: `${netEdit.count} conversão(ões) pendente(s) receberam ${fmtBRL(value)} de MRR líquido.`,
+      });
       setNetEdit(null);
-      refetch();
+      await Promise.all([refetch(), refetchPriceMap()]);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -899,9 +941,11 @@ export default function StripeConversions() {
                          <TableCell className="text-right">{p.count}</TableCell>
                          <TableCell className="text-right">{fmtBRL(p.mrrBruto)}</TableCell>
                          <TableCell className="text-right">
-                           <Button variant="outline" size="sm" onClick={() => openNetEdit(p)}>
-                             <Pencil className="mr-1 h-3.5 w-3.5" /> Editar
-                           </Button>
+                           {role === "admin" && (
+                             <Button variant="outline" size="sm" onClick={() => openNetEdit(p)}>
+                               <Pencil className="mr-1 h-3.5 w-3.5" /> Editar cadastro
+                             </Button>
+                           )}
                          </TableCell>
                        </TableRow>
                      ))}
@@ -1123,7 +1167,7 @@ export default function StripeConversions() {
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setNetEdit(null)} disabled={savingNet}>Cancelar</Button>
-              <Button onClick={handleSaveNetMrr} disabled={savingNet}>{savingNet ? "Salvando..." : "Salvar MRR líquido"}</Button>
+              <Button onClick={handleSaveNetMrr} disabled={savingNet}>{savingNet ? "Salvando..." : "Salvar no cadastro"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
