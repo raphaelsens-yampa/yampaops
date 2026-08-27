@@ -118,7 +118,10 @@ async function upsertNoteForConversation(
   }
 
   const { data: settings } = await service.from("integration_settings")
-    .select("chatwoot_base_url, chatwoot_account_id").maybeSingle();
+    .select("chatwoot_base_url, chatwoot_account_id")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   // Primary email/phone come from the conversation row (Chatwoot sender).
   const primaryEmail = conv.contact_email ? String(conv.contact_email).toLowerCase() : null;
