@@ -858,6 +858,8 @@ export default function StripeConversions() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
 
         <EditConversionDialog
           open={!!editing}
