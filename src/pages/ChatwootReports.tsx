@@ -397,20 +397,6 @@ export default function ChatwootReports() {
       .slice(0, 12);
   }, [filtered]);
 
-  const byAgent = useMemo(() => {
-    const map = new Map<string, { name: string; open: number; resolved: number; pending: number }>();
-    filtered.forEach((r) => {
-      const k = r.assignee_name || "(sem agente)";
-      const cur = map.get(k) || { name: k, open: 0, resolved: 0, pending: 0 };
-      if (r.status === "resolved") cur.resolved++;
-      else if (r.status === "pending") cur.pending++;
-      else cur.open++;
-      map.set(k, cur);
-    });
-    return Array.from(map.values())
-      .sort((a, b) => (b.open + b.resolved + b.pending) - (a.open + a.resolved + a.pending))
-      .slice(0, 12);
-  }, [filtered]);
 
   const byTeam = useMemo(() => {
     const map = new Map<string, number>();
