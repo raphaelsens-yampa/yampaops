@@ -32,7 +32,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, Legend,
+  LineChart, Line, Legend, LabelList,
 } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -928,7 +928,16 @@ export default function ChatwootReports() {
                       name={tabMode === "pct" ? "% do total" : "Atendimentos"}
                       fill="hsl(var(--primary))"
                       radius={[0, 4, 4, 0]}
-                    />
+                    >
+                      <LabelList
+                        dataKey={tabMode === "pct" ? "pct" : "value"}
+                        position="right"
+                        formatter={(v: any) =>
+                          tabMode === "pct" ? `${Number(v).toFixed(1)}%` : Number(v).toLocaleString("pt-BR")
+                        }
+                        style={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -941,7 +950,9 @@ export default function ChatwootReports() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" fill="hsl(var(--secondary))" />
+                    <Bar dataKey="value" fill="hsl(var(--secondary))">
+                      <LabelList dataKey="value" position="top" style={{ fill: "hsl(var(--foreground))", fontSize: 10 }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -954,8 +965,12 @@ export default function ChatwootReports() {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))" />
-                    <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))" />
+                    <Line type="monotone" dataKey="abertos" name="Abertos" stroke="hsl(var(--primary))">
+                      <LabelList dataKey="abertos" position="top" style={{ fill: "hsl(var(--primary))", fontSize: 9 }} />
+                    </Line>
+                    <Line type="monotone" dataKey="fechados" name="Fechados" stroke="hsl(var(--secondary))">
+                      <LabelList dataKey="fechados" position="bottom" style={{ fill: "hsl(var(--secondary))", fontSize: 9 }} />
+                    </Line>
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -970,7 +985,9 @@ export default function ChatwootReports() {
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="total" name="Atendimentos" fill="hsl(var(--primary))" />
+                    <Bar dataKey="total" name="Atendimentos" fill="hsl(var(--primary))">
+                      <LabelList dataKey="total" position="right" style={{ fill: "hsl(var(--foreground))", fontSize: 10 }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
