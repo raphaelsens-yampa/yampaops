@@ -383,6 +383,38 @@ export default function StripeConversions() {
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
   }, [rows, mrrMode, sellersMap]);
 
+  const byPlan = useMemo(() => {
+    const map = new Map<string, { plan: string; conversoes: number; mrr: number }>();
+    for (const r of rows) {
+      const plan = r.plan_name?.trim() || "Sem plano";
+      const cur = map.get(plan) || { plan, conversoes: 0, mrr: 0 };
+      cur.conversoes += 1;
+      cur.mrr += valueOf(r);
+      map.set(plan, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+  }, [rows, mrrMode]);
+
+  const sellerPlanSales = useMemo(() => {
+    const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
+    for (const r of rows) {
+      if (r.conversion_type !== "new" || !r.assigned_seller_id) continue;
+      const plan = r.plan_name?.trim() || "Sem plano";
+      const key = `${r.assigned_seller_id}-${plan}`;
+      const cur = map.get(key) || {
+        seller_id: r.assigned_seller_id,
+        seller_name: sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8),
+        plan,
+        quantidade: 0,
+        mrr: 0,
+      };
+      cur.quantidade += 1;
+      cur.mrr += valueOf(r);
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+  }, [rows, mrrMode, sellersMap]);
+
   const sellerOptions = useMemo(() => {
     return Object.entries(sellersMap)
       .map(([id, name]) => ({ id, name }))
