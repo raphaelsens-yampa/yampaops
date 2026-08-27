@@ -40,55 +40,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const limit = Math.min(Math.max(Number(body?.limit) || 100, 1), 1000);
-    const offset = Math.max(Number(body?.offset) || 0, 0);
-    const useEmail = body?.use_email !== false;
-    const usePhone = body?.use_phone !== false;
-    const primaryEmailOnly = !!body?.primary_email_only;
-
-    const { count: totalCount } = await service.from("chatwoot_conversations")
-      .select("chatwoot_conversation_id", { count: "exact", head: true });
-
-    const { data: convs } = await service.from("chatwoot_conversations")
-      .select("chatwoot_conversation_id")
-      .order("last_message_at", { ascending: false, nullsFirst: false })
-      .range(offset, offset + limit - 1);
-
-    const ids = (convs || []).map((c: any) => Number(c.chatwoot_conversation_id));
-    let matched = 0;
-    let matchedByEmail = 0;
-    let matchedByPhone = 0;
-    let noMatch = 0;
-    let failed = 0;
-    const projectUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    for (const id of ids) {
-      try {
-        const r = await fetch(`${projectUrl}/functions/v1/chatwoot-to-ac-sync`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ conversation_id: id, use_email: useEmail, use_phone: usePhone, primary_email_only: primaryEmailOnly }),
-        });
-        const j = await r.json().catch(() => ({}));
-        if (j?.ok) {
-          matched++;
-          if (j.match_method === "email") matchedByEmail++;
-          else if (j.match_method === "phone") matchedByPhone++;
-        } else if (j?.reason === "no_match") noMatch++;
-        else failed++;
-      } catch {
-        failed++;
-      }
-      // throttle (~5 req/s)
-      await new Promise((res) => setTimeout(res, 220));
-    }
-
-
-    return new Response(JSON.stringify({ ok: true, processed: ids.length, offset, total: totalCount || 0, matched, matched_by_email: matchedByEmail, matched_by_phone: matchedByPhone, no_match: noMatch, failed }), {
+    return new Response(JSON.stringify({ ok: false, error: "Rotina de vínculo com ActiveCampaign arquivada" }), {
+      status: 410,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+/*
+
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+*/
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return new Response(JSON.stringify({ error: msg }), {
@@ -96,3 +56,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+
