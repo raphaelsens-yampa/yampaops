@@ -151,6 +151,10 @@ export default function StripeConversions() {
   const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
+  const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number } | null>(null);
+  const [netEditValue, setNetEditValue] = useState("");
+  const [savingNet, setSavingNet] = useState(false);
+
 
   // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
   const valueOf = (r: Conversion) =>
