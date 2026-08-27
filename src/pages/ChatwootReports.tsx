@@ -32,7 +32,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, Legend,
+  LineChart, Line, Legend, LabelList,
 } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
