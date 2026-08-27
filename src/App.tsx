@@ -24,7 +24,6 @@ import LinkBuilder from "./pages/LinkBuilder";
 
 import StripeIntegration from "./pages/StripeIntegration";
 import ChatwootIntegration from "./pages/ChatwootIntegration";
-import ChatwootAcIntegration from "./pages/ChatwootAcIntegration";
 import AcFunnelMetrics from "./pages/AcFunnelMetrics";
 // import IntegrationAudit from "./pages/IntegrationAudit"; // archived
 import Reports from "./pages/Reports";
@@ -114,7 +113,6 @@ function AppRoutes() {
       <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
       <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
       <Route path="/integrations/ac-funnels" element={<RequireArea area="integration_ac_funnels"><AcFunnelMetrics /></RequireArea>} />
-      <Route path="/integrations/chatwoot-ac" element={<RequireArea area="integration_chatwoot_ac"><ChatwootAcIntegration /></RequireArea>} />
       {/* Integration Audit archived */}
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/atendimentos/auditoria" element={<RequireArea area="auditoria_ia"><ChatwootAudit /></RequireArea>} />
