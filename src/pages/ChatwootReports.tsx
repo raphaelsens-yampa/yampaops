@@ -896,13 +896,26 @@ export default function ChatwootReports() {
                 }
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={byTab} layout="vertical" margin={{ left: 40 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                  <BarChart
+                    data={byTab}
+                    layout="vertical"
+                    margin={{ left: 8, right: 20, top: 8, bottom: 8 }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis
                       type="number"
+                      tick={{ fontSize: 11 }}
                       tickFormatter={(v) => (tabMode === "pct" ? `${Number(v).toFixed(0)}%` : String(v))}
                     />
-                    <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={150}
+                      tick={{ fontSize: 10 }}
+                      interval={0}
+                      tickMargin={4}
+                    />
                     <Tooltip
                       formatter={(v: any) =>
                         tabMode === "pct" ? `${Number(v).toFixed(1)}%` : Number(v).toLocaleString("pt-BR")
@@ -912,6 +925,7 @@ export default function ChatwootReports() {
                       dataKey={tabMode === "pct" ? "pct" : "value"}
                       name={tabMode === "pct" ? "% do total" : "Atendimentos"}
                       fill="hsl(var(--primary))"
+                      radius={[0, 4, 4, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
