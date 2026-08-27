@@ -258,8 +258,23 @@ export default function StripeConversions() {
   const health = useMemo(() => {
     let missingMap = 0, divergent = 0, missingNet = 0;
     const divergentSamples: Array<{ price_id: string; from: string; to: string }> = [];
+    const netGaps = new Map<string, { price_id: string; plan: string; product: string; area: string; count: number; mrrBruto: number }>();
     for (const r of rows) {
-      if (r.mrr_net == null) missingNet++;
+      if (r.mrr_net == null) {
+        missingNet++;
+        const pid = r.stripe_price_id || "sem price_id";
+        const cur = netGaps.get(pid) || {
+          price_id: pid,
+          plan: r.plan_name?.trim() || "Sem plano",
+          product: r.product_name?.trim() || "—",
+          area: r.area || "—",
+          count: 0,
+          mrrBruto: 0,
+        };
+        cur.count += 1;
+        cur.mrrBruto += Number(r.mrr || 0);
+        netGaps.set(pid, cur);
+      }
       if (!r.stripe_price_id) continue;
       const m = priceMap[r.stripe_price_id];
       if (!m) { missingMap++; continue; }
@@ -270,8 +285,10 @@ export default function StripeConversions() {
         }
       }
     }
-    return { missingMap, divergent, missingNet, divergentSamples };
+    const missingNetPrices = Array.from(netGaps.values()).sort((a, b) => b.count - a.count);
+    return { missingMap, divergent, missingNet, divergentSamples, missingNetPrices };
   }, [rows, priceMap]);
+
 
 
   async function handleReprocessReactivations() {
