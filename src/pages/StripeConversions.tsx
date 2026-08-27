@@ -821,7 +821,52 @@ export default function StripeConversions() {
       </TabsContent>
 
       <TabsContent value="detail" className="space-y-4">
-<Card>
+        {health.missingNet > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <span>{health.missingNet} conversão(ões) sem valor líquido; o cálculo usa o MRR bruto nessas linhas.</span>
+            {role === "admin" && <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>Buscar valor líquido</Button>}
+          </div>
+        )}
+
+        {health.missingNetPrices.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Prices sem MRR líquido</CardTitle>
+              <CardDescription>{health.missingNetPrices.length} price(s) para revisar cadastro e registrar o valor líquido</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto max-h-[360px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Price ID</TableHead>
+                      <TableHead>Plano</TableHead>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Área</TableHead>
+                      <TableHead className="text-right">Conversões</TableHead>
+                      <TableHead className="text-right">MRR bruto</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {health.missingNetPrices.map(p => (
+                      <TableRow key={p.price_id}>
+                        <TableCell className="font-mono text-xs">{p.price_id}</TableCell>
+                        <TableCell>{p.plan}</TableCell>
+                        <TableCell>{p.product}</TableCell>
+                        <TableCell>{p.area}</TableCell>
+                        <TableCell className="text-right">{p.count}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(p.mrrBruto)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+
               <CardHeader className="pb-3"><CardTitle className="text-base">Saúde do de-para canônico</CardTitle><CardDescription>Verificações no período selecionado</CardDescription></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Prices sem mapeamento</p><p className="text-xl font-semibold">{health.missingMap}</p></div>
