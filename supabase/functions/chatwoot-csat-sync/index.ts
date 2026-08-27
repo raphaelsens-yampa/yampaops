@@ -111,10 +111,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Enriquece time/caixa de entrada a partir das conversas já sincronizadas.
+    const { data: pending } = await service.from("chatwoot_csat_responses")
+      .select("chatwoot_conversation_id")
+      .is("team_name", null)
+      .limit(2000);
+    const pendingIds = (pending || []).map((r: any) => Number(r.chatwoot_conversation_id));
+    let enriched = 0;
+    for (let i = 0; i < pendingIds.length; i += 200) {
+      const slice = pendingIds.slice(i, i + 200);
+      const { data: convs } = await service.from("chatwoot_conversations")
+        .select("chatwoot_conversation_id, team_name, inbox_name")
+        .in("chatwoot_conversation_id", slice);
+      for (const c of convs || []) {
+        if (!c?.team_name && !c?.inbox_name) continue;
+        const { error } = await service.from("chatwoot_csat_responses")
+          .update({ team_name: c.team_name ?? null, inbox_name: c.inbox_name ?? null })
+          .eq("chatwoot_conversation_id", c.chatwoot_conversation_id);
+        if (!error) enriched++;
+      }
+    }
+
     const { count } = await service.from("chatwoot_csat_responses")
       .select("id", { count: "exact", head: true });
 
-    return json({ ok: true, pages, upserted, last_page: lastPage, done, total_in_db: count || 0 });
+    return json({ ok: true, pages, upserted, enriched, last_page: lastPage, done, total_in_db: count || 0 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("csat sync error", msg);
