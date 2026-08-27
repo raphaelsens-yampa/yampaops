@@ -85,7 +85,7 @@ const PENDING = "pending";
 async function dedupeNotes(acContactId: string, conversationId: number, keepNoteId: string) {
   try {
     const r = await acFetch(`/api/3/contacts/${acContactId}/notes?limit=100`);
-    if (!r.ok) return;
+    if (!r.ok) { console.log("dedupe list failed", r.status); return; }
     const j = await r.json();
     const notes: any[] = j?.notes || [];
     const marker = `[Chatwoot] Conv #${conversationId}`;
@@ -93,7 +93,8 @@ async function dedupeNotes(acContactId: string, conversationId: number, keepNote
       const id = String(n?.id || "");
       if (!id || id === String(keepNoteId)) continue;
       if (String(n?.note || "").startsWith(marker)) {
-        await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
+        const d = await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
+        console.log("dedupe delete", id, d.status);
       }
     }
   } catch { /* best effort */ }
