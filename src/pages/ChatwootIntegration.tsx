@@ -120,7 +120,19 @@ export default function ChatwootIntegration() {
           </div>
         </div>
 
+        <Tabs defaultValue="integracao" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="integracao">Integração</TabsTrigger>
+            <TabsTrigger value="tags">Tags</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tags">
+            <TagsManagerCard />
+          </TabsContent>
+
+          <TabsContent value="integracao" className="space-y-6">
         {/* 1. Credenciais */}
+
         <Card>
           <CardHeader>
             <CardTitle>1. Credenciais</CardTitle>
