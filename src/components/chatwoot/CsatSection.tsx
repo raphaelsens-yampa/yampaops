@@ -102,6 +102,11 @@ export function CsatSection({
     return true;
   }), [rows, agent, team]);
 
+  useEffect(() => {
+    onFilteredRowsChange?.(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]);
+
   const kpis = useMemo(() => {
     const rated = filtered.filter((r) => r.rating != null) as (CsatRow & { rating: number })[];
     const total = rated.length;
