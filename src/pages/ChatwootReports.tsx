@@ -391,11 +391,13 @@ export default function ChatwootReports() {
       const k = r.tabulacao_atendimento || "(sem tabulação)";
       map.set(k, (map.get(k) || 0) + 1);
     });
+    const total = filtered.length || 1;
     return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value, pct: (value / total) * 100 }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12);
   }, [filtered]);
+
 
 
   const byTeam = useMemo(() => {
