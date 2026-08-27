@@ -362,11 +362,16 @@ export default function StripeConversions() {
     const data = rows.map(r => ({
       Primeiro_Pagamento: fmtDate(r.converted_at),
       Cliente_Desde: fmtDate(r.registered_at),
+      Tipo: TYPE_LABEL[r.conversion_type] || r.conversion_type,
       Area: r.area,
       Produto: r.product_name || "",
       Plano: r.plan_name || "",
       Email: r.customer_email || "",
-      MRR: r.mrr,
+      MRR_Bruto: Number(r.mrr || 0),
+      MRR_Liquido: r.mrr_net == null ? "" : Number(r.mrr_net),
+      MRR_Considerado: valueOf(r),
+      Delta_MRR: Number(r.delta_mrr || 0),
+      Reativacao: r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -379,32 +384,45 @@ export default function StripeConversions() {
     const data = rows.map(r => ({
       "1º Pagamento": fmtDate(r.converted_at),
       "Cliente desde": fmtDate(r.registered_at),
+      "Tipo": TYPE_LABEL[r.conversion_type] || r.conversion_type,
       "Área": r.area,
       "Produto": r.product_name || "",
       "Plano": r.plan_name || "",
       "Email": r.customer_email || "",
-      "MRR (R$)": r.mrr,
+      "MRR bruto (R$)": Number(r.mrr || 0),
+      "MRR líquido (R$)": r.mrr_net == null ? "" : Number(r.mrr_net),
+      "MRR considerado (R$)": valueOf(r),
+      "Δ MRR (R$)": Number(r.delta_mrr || 0),
+      "Reativação": r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conversões");
-    const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, "MRR (R$)": a.mrr }));
+    const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, [`MRR ${mrrMode === "net" ? "líquido" : "bruto"} (R$)`]: a.mrr }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo por Área");
+    const tipos = [
+      { Tipo: "Nova venda", MRR: stats.newMrr, Quantidade: stats.newCount },
+      { Tipo: "Expansão", MRR: stats.expansionMrr, Quantidade: stats.upsellCount },
+      { Tipo: "Contração", MRR: stats.contractionMrr, Quantidade: stats.downgradeCount },
+      { Tipo: "Renovação", MRR: stats.renewalMrr, Quantidade: stats.renewalCount },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tipos), "Resumo por Tipo");
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(new Blob([buf], { type: "application/octet-stream" }), `conversoes_stripe_${period.start}_${period.end}.xlsx`);
   }
 
   function exportPDF() {
     const doc = new jsPDF({ orientation: "landscape" });
+    const metricLabel = mrrMode === "net" ? "MRR líquido" : "MRR bruto";
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
     doc.text(`Período: ${period.start} → ${period.end}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
-    doc.text(`Total: ${stats.total} conversões | MRR: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
+    doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
       startY: 36,
-      head: [["Área", "Conversões", "MRR (R$)"]],
+      head: [["Área", "Conversões", `${metricLabel} (R$)`]],
       body: byArea.map(a => [a.area, a.conversoes, fmtBRL(a.mrr)]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [5, 32, 51] },
@@ -413,11 +431,10 @@ export default function StripeConversions() {
     const startY = (doc as any).lastAutoTable?.finalY + 8 || 80;
     autoTable(doc, {
       startY,
-      head: [["1º Pagamento", "Cliente desde", "Área", "Produto", "Plano", "Email", "MRR"]],
+      head: [["1º Pagamento", "Cliente desde", "Tipo", "Área", "Produto", "Plano", "Email", "MRR considerado"]],
       body: rows.map(r => [
-        fmtDate(r.converted_at), fmtDate(r.registered_at), r.area,
-        r.product_name || "", r.plan_name || "", r.customer_email || "",
-        fmtBRL(Number(r.mrr || 0)),
+        fmtDate(r.converted_at), fmtDate(r.registered_at), TYPE_LABEL[r.conversion_type] || r.conversion_type, r.area,
+        r.product_name || "", r.plan_name || "", r.customer_email || "", fmtBRL(valueOf(r)),
       ]),
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [5, 32, 51] },
@@ -425,6 +442,7 @@ export default function StripeConversions() {
 
     doc.save(`conversoes_stripe_${period.start}_${period.end}.pdf`);
   }
+
 
   return (
     <Layout>
