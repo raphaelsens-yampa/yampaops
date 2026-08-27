@@ -112,7 +112,7 @@ function AppRoutes() {
       {/* ActiveCampaign integration archived */}
       <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
       <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
-      <Route path="/integrations/ac-funnels" element={<RequireArea area="integration_ac_funnels"><AcFunnelMetrics /></RequireArea>} /></RequireArea>} />
+      <Route path="/integrations/ac-funnels" element={<RequireArea area="integration_ac_funnels"><AcFunnelMetrics /></RequireArea>} />
       {/* Integration Audit archived */}
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/atendimentos/auditoria" element={<RequireArea area="auditoria_ia"><ChatwootAudit /></RequireArea>} />
