@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { CsatSection } from "@/components/chatwoot/CsatSection";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
@@ -266,11 +267,8 @@ export default function ChatwootReports() {
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
   const refInbox = useRef<HTMLDivElement>(null);
-  const refMsgSent = useRef<HTMLDivElement>(null);
-  const refMsgReceived = useRef<HTMLDivElement>(null);
 
-  const [msgByDay, setMsgByDay] = useState<{ date: string; enviadas: number; recebidas: number }[]>([]);
-  const [msgLoading, setMsgLoading] = useState(false);
+
 
   useEffect(() => {
     supabase
@@ -463,46 +461,8 @@ export default function ChatwootReports() {
       .sort((a, b) => b.total - a.total);
   }, [filtered]);
 
-  // Mensagens enviadas/recebidas por dia (conforme conversas filtradas)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!filtered.length) { setMsgByDay([]); return; }
-      setMsgLoading(true);
-      const ids = filtered.map((r) => r.chatwoot_conversation_id);
-      const CHUNK = 300;
-      const map = new Map<string, { date: string; enviadas: number; recebidas: number }>();
-      try {
-        for (let i = 0; i < ids.length; i += CHUNK) {
-          const slice = ids.slice(i, i + CHUNK);
-          let q = supabase
-            .from("chatwoot_messages")
-            .select("message_created_at,message_type,is_private")
-            .in("chatwoot_conversation_id", slice)
-            .eq("is_private", false)
-            .in("message_type", [0, 1]);
-          if (from) q = q.gte("message_created_at", `${from}T00:00:00`);
-          if (to) q = q.lte("message_created_at", `${to}T23:59:59`);
-          const { data, error } = await q;
-          if (error) break;
-          (data || []).forEach((m: any) => {
-            if (businessHoursOnly && !isBusinessHours(m.message_created_at)) return;
-            const d = String(m.message_created_at).slice(0, 10);
-            const cur = map.get(d) || { date: d, enviadas: 0, recebidas: 0 };
-            if (m.message_type === 1) cur.enviadas++;
-            else if (m.message_type === 0) cur.recebidas++;
-            map.set(d, cur);
-          });
-        }
-        if (!cancelled) {
-          setMsgByDay(Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date)));
-        }
-      } finally {
-        if (!cancelled) setMsgLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [filtered, from, to, businessHoursOnly]);
+
+
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -894,42 +854,10 @@ export default function ChatwootReports() {
           </ChartCard>
         </div>
 
-        {/* Mensagens por dia */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard
-            title={`Mensagens enviadas por dia${msgLoading ? " (carregando...)" : ""}`}
-            containerRef={refMsgSent}
-            filename="mensagens-enviadas-por-dia.png"
-            height={260}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={msgByDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="enviadas" name="Enviadas" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+        {/* CSAT */}
+        <CsatSection from={from} to={to} agent={agent} team={team} />
 
-          <ChartCard
-            title={`Mensagens recebidas por dia${msgLoading ? " (carregando...)" : ""}`}
-            containerRef={refMsgReceived}
-            filename="mensagens-recebidas-por-dia.png"
-            height={260}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={msgByDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="recebidas" name="Recebidas" fill="hsl(var(--secondary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
+
 
 
 
