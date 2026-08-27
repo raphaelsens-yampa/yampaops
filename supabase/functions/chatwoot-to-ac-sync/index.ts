@@ -84,21 +84,35 @@ const PENDING = "pending";
 /** Remove notas antigas duplicadas da mesma conversa no contato do AC. */
 async function dedupeNotes(acContactId: string, conversationId: number, keepNoteId: string) {
   try {
-    const r = await acFetch(`/api/3/contacts/${acContactId}/notes?limit=100`);
-    if (!r.ok) { console.log("dedupe list failed", r.status); return; }
-    const j = await r.json();
-    const notes: any[] = j?.notes || [];
+    const paths = [
+      `/api/3/contacts/${acContactId}/notes?limit=100`,
+      `/api/3/notes?filters%5Brelid%5D=${acContactId}&filters%5Breltype%5D=Subscriber&limit=100`,
+    ];
+    let notes: any[] = [];
+    for (const p of paths) {
+      const r = await acFetch(p);
+      const t = await r.text();
+      if (!r.ok) { console.log("dedupe list failed", p, r.status, t.slice(0, 200)); continue; }
+      let j: any = {};
+      try { j = JSON.parse(t); } catch { /* noop */ }
+      const list = j?.notes || j?.note || [];
+      console.log("dedupe list", p, Array.isArray(list) ? list.length : typeof list, Object.keys(j || {}).join(","));
+      if (Array.isArray(list) && list.length) { notes = list; break; }
+    }
     const marker = `[Chatwoot] Conv #${conversationId}`;
     for (const n of notes) {
       const id = String(n?.id || "");
       if (!id || id === String(keepNoteId)) continue;
-      if (String(n?.note || "").startsWith(marker)) {
+      if (String(n?.note || "").includes(marker)) {
         const d = await acFetch(`/api/3/notes/${id}`, { method: "DELETE" });
         console.log("dedupe delete", id, d.status);
       }
     }
-  } catch { /* best effort */ }
+  } catch (e) {
+    console.log("dedupe error", e instanceof Error ? e.message : String(e));
+  }
 }
+
 
 function fmtSP(value: string | null | undefined): string {
 
