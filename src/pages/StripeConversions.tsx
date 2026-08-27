@@ -560,6 +560,12 @@ export default function StripeConversions() {
                 </Label>
               </div>
               <div className="space-y-1">
+                <Label className="text-xs flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={couponOnly} onChange={e => setCouponOnly(e.target.checked)} />
+                  Somente com cupom
+                </Label>
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">Métrica de MRR</Label>
                 <Select value={mrrMode} onValueChange={(v) => setMrrMode(v as "net" | "gross")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -633,9 +639,9 @@ export default function StripeConversions() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Evolução do MRR no tempo (por área)</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
+         <Card>
+           <CardHeader><CardTitle className="text-base">Evolução do {mrrMode === "net" ? "MRR líquido" : "MRR bruto"} no tempo (por área)</CardTitle></CardHeader>
+           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeSeries}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

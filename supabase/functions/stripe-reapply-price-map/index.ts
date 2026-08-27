@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
   // De-para canônico
   const { data: mapRows, error: mapErr } = await supabase
     .from("commission_price_map")
-    .select("price_id, area, offer_name, plan_name, price_name");
+    .select("price_id, area, offer_name, plan_name");
   if (mapErr) return ok({ error: mapErr.message }, 500);
 
   const priceMap = new Map<string, { area: string | null; offer_name: string | null; plan_name: string | null }>();
