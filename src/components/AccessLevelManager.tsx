@@ -46,16 +46,6 @@ export const CRM_SECTIONS = [
       { key: "comissionamento", label: "Comissionamento" },
       { key: "link_builder", label: "Gerador de Ofertas" },
       { key: "precificacao", label: "Precificação Serviços" },
-      { key: "commissions", label: "Comissões (legado)" },
-    ],
-  },
-  {
-    key: "discounts",
-    label: "Estratégia Adquirência",
-    areas: [
-      { key: "discounts_overview", label: "Visão Geral" },
-      { key: "discounts_portfolio", label: "Minha Carteira" },
-      { key: "discounts_rules", label: "Configurar Faixas" },
     ],
   },
   {
@@ -64,9 +54,8 @@ export const CRM_SECTIONS = [
     areas: [
       { key: "team", label: "Equipe" },
       { key: "users", label: "Usuários & Acessos" },
-      { key: "import", label: "Importação" },
-      { key: "tags", label: "Tags" },
     ],
+
   },
   {
     key: "integracoes",

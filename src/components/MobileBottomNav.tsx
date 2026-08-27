@@ -65,22 +65,13 @@ export function MobileBottomNav() {
       ],
     },
     {
-      label: "Estratégia Adquirência", section: "discounts",
-      items: [
-        { title: "Visão Geral", url: "/discounts/overview", icon: Percent, area: "discounts_overview", managerOnly: true },
-        { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase, area: "discounts_portfolio" },
-        { title: "Configurar Faixas", url: "/discounts/rules", icon: Settings2, area: "discounts_rules", adminOnly: true },
-      ],
-    },
-    {
       label: "Gestão", section: "gestao", adminOnly: true,
       items: [
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
-        { title: "Importação", url: "/imports", icon: Upload, area: "import" },
-        { title: "Tags", url: "/settings/tags", icon: Tag, area: "tags", adminOnly: true },
       ],
     },
+
     {
       label: "Integrações", section: "integracoes", adminOnly: true,
       items: [

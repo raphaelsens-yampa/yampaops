@@ -13,12 +13,11 @@ import Goals from "./pages/Goals";
 
 import Team from "./pages/Team";
 // import Contacts from "./pages/Contacts"; // archived
-import Commissions from "./pages/Commissions";
-import CommissionSettings from "./pages/CommissionSettings";
+// Commissions (legado) archived
 // import Forecast from "./pages/Forecast"; // archived
 import UsersPage from "./pages/Users";
 import ProfilePage from "./pages/Profile";
-import Imports from "./pages/Imports";
+// Imports removido
 import LinkBuilder from "./pages/LinkBuilder";
 // ActiveCampaign integration archived — page kept on disk but not routed.
 // import ActiveCampaignIntegration from "./pages/ActiveCampaignIntegration";
@@ -31,7 +30,7 @@ import AcFunnelMetrics from "./pages/AcFunnelMetrics";
 import Reports from "./pages/Reports";
 import StripeConversions from "./pages/StripeConversions";
 // import LeadJourney from "./pages/LeadJourney"; // archived (AC-dependent)
-import TagsSettings from "./pages/TagsSettings";
+// TagsSettings movido para a Integração Chatwoot
 import ChatwootReports from "./pages/ChatwootReports";
 import ChatwootAudit from "./pages/ChatwootAudit";
 import ChatwootAuditSettings from "./pages/ChatwootAuditSettings";
@@ -44,9 +43,7 @@ import SalesCampaignDetail from "./pages/SalesCampaignDetail";
 import SalesCampaignReports from "./pages/SalesCampaignReports";
 import CampaignHistory from "./pages/CampaignHistory";
 import AgentActivity from "./pages/AgentActivity";
-import DiscountOverview from "./pages/discounts/Overview";
-import DiscountPortfolio from "./pages/discounts/Portfolio";
-import DiscountRules from "./pages/discounts/Rules";
+// Estratégia Adquirência archived
 import Precificacao from "./pages/Precificacao";
 import Comissionamento from "./pages/Comissionamento";
 import OnePageDiretoria from "./pages/OnePageDiretoria";
@@ -108,11 +105,11 @@ function AppRoutes() {
       <Route path="/goals" element={<RequireArea area="goals"><Goals /></RequireArea>} />
       <Route path="/team" element={<RequireArea area="team"><Team /></RequireArea>} />
       {/* Contatos archived */}
-      <Route path="/commissions" element={<RequireArea area="commissions"><Commissions /></RequireArea>} />
-      <Route path="/commissions/settings" element={<RequireArea area="commissions"><CommissionSettings /></RequireArea>} />
+      {/* Comissões (legado) archived */}
       <Route path="/users" element={<RequireArea area="users"><UsersPage /></RequireArea>} />
-      <Route path="/imports" element={<RequireArea area="import"><Imports /></RequireArea>} />
+      {/* Importação removida */}
       <Route path="/link-builder" element={<RequireArea area="link_builder"><LinkBuilder /></RequireArea>} />
+
       {/* ActiveCampaign integration archived */}
       <Route path="/integrations/stripe" element={<RequireArea area="integration_stripe"><StripeIntegration /></RequireArea>} />
       <Route path="/integrations/chatwoot" element={<RequireArea area="integration_chatwoot"><ChatwootIntegration /></RequireArea>} />
@@ -130,15 +127,14 @@ function AppRoutes() {
 
       <Route path="/insights/conversions" element={<RequireArea area="conversions"><StripeConversions /></RequireArea>} />
       {/* Lead Journey archived (AC-dependent) */}
-      <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
+      {/* Tags agora vivem dentro da Integração Chatwoot */}
       <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
       <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />
       <Route path="/sales-campaigns/history" element={<RequireArea area="campaign_history"><CampaignHistory /></RequireArea>} />
       <Route path="/sales-campaigns/:id" element={<RequireArea area="sales_campaigns"><SalesCampaignDetail /></RequireArea>} />
       <Route path="/atividade-agentes" element={<RequireArea area="agent_activity"><AgentActivity /></RequireArea>} />
-      <Route path="/discounts/overview" element={<RequireArea area="discounts_overview"><DiscountOverview /></RequireArea>} />
-      <Route path="/discounts/portfolio" element={<RequireArea area="discounts_portfolio"><DiscountPortfolio /></RequireArea>} />
-      <Route path="/discounts/rules" element={<RequireArea area="discounts_rules"><DiscountRules /></RequireArea>} />
+      {/* Estratégia Adquirência archived */}
+
       <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
       <Route path="/comissionamento" element={<RequireArea area="comissionamento"><Comissionamento /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />

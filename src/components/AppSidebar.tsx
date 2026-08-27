@@ -266,23 +266,11 @@ export function AppSidebar() {
 
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
-        { title: "Comissões (legado)", url: "/commissions", icon: DollarSign, area: "commissions" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },
         { title: "Precificação Serviços", url: "/precificacao", icon: Calculator, area: "precificacao" },
       ],
     },
-    {
-      key: "descontos",
-      label: "Estratégia Adquirência",
-      section: "discounts",
-      collapsible: true,
-      defaultOpen: openDescontos,
-      items: [
-        { title: "Visão Geral", url: "/discounts/overview", icon: Percent, area: "discounts_overview", managerOnly: true },
-        { title: "Minha Carteira", url: "/discounts/portfolio", icon: Briefcase, area: "discounts_portfolio" },
-        { title: "Configurar Faixas", url: "/discounts/rules", icon: Settings2, area: "discounts_rules", adminOnly: true },
-      ],
-    },
+    // "Estratégia Adquirência" archived
     {
       key: "gestao",
       label: "Gestão",
@@ -294,9 +282,9 @@ export function AppSidebar() {
         // { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" }, // archived
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
-        { title: "Importação", url: "/imports", icon: Upload, area: "import" },
-        { title: "Tags", url: "/settings/tags", icon: Tag, area: "tags", adminOnly: true },
+        // Importação removida; Tags movidas para dentro da Integração Chatwoot
       ],
+
     },
     {
       key: "integracoes",
