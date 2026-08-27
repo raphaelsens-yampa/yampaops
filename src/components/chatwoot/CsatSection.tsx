@@ -14,7 +14,7 @@ import {
   LineChart, Line, Legend, LabelList,
 } from "recharts";
 
-type CsatRow = {
+export type CsatRow = {
   chatwoot_conversation_id: number;
   rating: number | null;
   feedback_message: string | null;
@@ -40,8 +40,8 @@ function fmtDateTimeBR(iso: string | null): string {
 }
 
 export function CsatSection({
-  from, to, agent, team,
-}: { from: string; to: string; agent: string; team: string }) {
+  from, to, agent, team, onFilteredRowsChange,
+}: { from: string; to: string; agent: string; team: string; onFilteredRowsChange?: (rows: CsatRow[]) => void }) {
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const [rows, setRows] = useState<CsatRow[]>([]);
