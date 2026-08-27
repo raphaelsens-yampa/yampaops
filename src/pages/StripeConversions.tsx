@@ -360,6 +360,29 @@ export default function StripeConversions() {
     return Array.from(s);
   }, [rows]);
 
+  const bySeller = useMemo(() => {
+    const map = new Map<string, { seller_id: string; name: string; conversoes: number; mrr: number }>();
+    for (const r of rows) {
+      if (!r.assigned_seller_id) continue;
+      const cur = map.get(r.assigned_seller_id) || {
+        seller_id: r.assigned_seller_id,
+        name: sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8),
+        conversoes: 0,
+        mrr: 0,
+      };
+      cur.conversoes += 1;
+      cur.mrr += valueOf(r);
+      map.set(r.assigned_seller_id, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
+  }, [rows, mrrMode, sellersMap]);
+
+  const sellerOptions = useMemo(() => {
+    return Object.entries(sellersMap)
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [sellersMap]);
+
   function exportCSV() {
     const data = rows.map(r => ({
       Primeiro_Pagamento: fmtDate(r.converted_at),
