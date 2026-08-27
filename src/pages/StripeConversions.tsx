@@ -42,6 +42,18 @@ const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", cur
 const fmtDate = (s: string | null) => s ? format(new Date(s), "dd/MM/yyyy", { locale: ptBR }) : "—";
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
 
+// Mês (YYYY-MM) sempre no fuso America/Sao_Paulo
+const SP_MONTH_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit",
+});
+const monthKeySP = (iso: string) => {
+  const parts = SP_MONTH_FMT.formatToParts(new Date(iso));
+  const y = parts.find(p => p.type === "year")?.value ?? "";
+  const m = parts.find(p => p.type === "month")?.value ?? "";
+  return `${y}-${m}`;
+};
+
+
 interface Conversion {
   id: string;
   customer_email: string | null;
@@ -128,7 +140,14 @@ export default function StripeConversions() {
   const [couponOnly, setCouponOnly] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [backfillingNet, setBackfillingNet] = useState(false);
+  const [reapplying, setReapplying] = useState(false);
+  const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
+
+  // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
+  const valueOf = (r: Conversion) =>
+    mrrMode === "net" ? Number(r.mrr_net ?? r.mrr ?? 0) : Number(r.mrr ?? 0);
+
 
   function changePreset(p: string) {
     setPeriodPreset(p);
@@ -185,18 +204,67 @@ export default function StripeConversions() {
     },
   });
 
+  // De-para canônico (commission_price_map) para o painel de saúde
+  const { data: priceMap = {} } = useQuery({
+    queryKey: ["price-map-canonical"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_price_map")
+        .select("price_id, area, offer_name, plan_name");
+      if (error) throw error;
+      const m: Record<string, { area: string | null; offer_name: string | null; plan_name: string | null }> = {};
+      (data || []).forEach((r: any) => { if (r.price_id) m[r.price_id] = r; });
+      return m;
+    },
+  });
+
   const stats = useMemo(() => {
     const total = rows.length;
-    const totalMrr = rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
+    const totalMrr = rows.reduce((s, r) => s + valueOf(r), 0);
     const areasCount = new Set(rows.map(r => r.area)).size;
+    const newMrr = rows
+      .filter(r => r.conversion_type === "new")
+      .reduce((s, r) => s + valueOf(r), 0);
+    const newCount = rows.filter(r => r.conversion_type === "new").length;
     const expansionMrr = rows
       .filter(r => r.conversion_type === "upsell")
       .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
+    const contractionMrr = rows
+      .filter(r => r.conversion_type === "downgrade")
+      .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
+    const renewalMrr = rows
+      .filter(r => r.conversion_type === "renewal")
+      .reduce((s, r) => s + valueOf(r), 0);
+    const renewalCount = rows.filter(r => r.conversion_type === "renewal").length;
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
+    const downgradeCount = rows.filter(r => r.conversion_type === "downgrade").length;
     const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
     const reactivationCount = rows.filter(r => r.is_reactivation).length;
-    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount, reactivationCount };
-  }, [rows]);
+    return {
+      total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0,
+      newMrr, newCount, expansionMrr, upsellCount, contractionMrr, downgradeCount,
+      renewalMrr, renewalCount, noSellerCount, reactivationCount,
+    };
+  }, [rows, mrrMode]);
+
+  const health = useMemo(() => {
+    let missingMap = 0, divergent = 0, missingNet = 0;
+    const divergentSamples: Array<{ price_id: string; from: string; to: string }> = [];
+    for (const r of rows) {
+      if (r.mrr_net == null) missingNet++;
+      if (!r.stripe_price_id) continue;
+      const m = priceMap[r.stripe_price_id];
+      if (!m) { missingMap++; continue; }
+      if (m.area && m.area !== r.area) {
+        divergent++;
+        if (divergentSamples.length < 5 && !divergentSamples.some(d => d.price_id === r.stripe_price_id)) {
+          divergentSamples.push({ price_id: r.stripe_price_id, from: r.area, to: m.area });
+        }
+      }
+    }
+    return { missingMap, divergent, missingNet, divergentSamples };
+  }, [rows, priceMap]);
+
 
   async function handleReprocessReactivations() {
     if (!confirm(`Reprocessar reativações no período ${period.start} → ${period.end}?`)) return;
@@ -238,31 +306,51 @@ export default function StripeConversions() {
     }
   }
 
+  async function handleReapplyPriceMap() {
+    if (!confirm(`Reaplicar o de-para canônico nas conversões de ${period.start} até ${period.end}?\n\nPrimeiro será feita uma prévia das alterações e, em seguida, a atualização será confirmada.`)) return;
+    setReapplying(true);
+    try {
+      const body = { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, dry_run: true, limit: 20000 };
+      const preview = await supabase.functions.invoke("stripe-reapply-price-map", { body });
+      if (preview.error) throw preview.error;
+      const count = preview.data?.would_change ?? 0;
+      if (!count || !confirm(`${count} conversão(ões) serão corrigidas. Confirmar atualização?`)) return;
+      const { data, error } = await supabase.functions.invoke("stripe-reapply-price-map", {
+        body: { ...body, dry_run: false },
+      });
+      if (error) throw error;
+      toast({ title: "De-para reaplicado", description: `${data?.updated ?? 0} conversão(ões) atualizadas · ${data?.failed ?? 0} erro(s)` });
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Erro ao reaplicar de-para", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReapplying(false);
+    }
+  }
+
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
     for (const r of rows) {
       const cur = map.get(r.area) || { area: r.area, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
-      cur.mrr += Number(r.mrr || 0);
+      cur.mrr += valueOf(r);
       map.set(r.area, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows]);
+  }, [rows, mrrMode]);
 
   const timeSeries = useMemo(() => {
-    // group by month
     const map = new Map<string, Record<string, number> & { mes: string }>();
     for (const r of rows) {
       if (!r.converted_at) continue;
-      const d = new Date(r.converted_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const key = monthKeySP(r.converted_at);
       const cur = map.get(key) || ({ mes: key } as any);
-      cur[r.area] = (cur[r.area] || 0) + Number(r.mrr || 0);
-      cur._total = (cur._total || 0) + Number(r.mrr || 0);
+      cur[r.area] = (cur[r.area] || 0) + valueOf(r);
+      cur._total = (cur._total || 0) + valueOf(r);
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => a.mes.localeCompare(b.mes));
-  }, [rows]);
+  }, [rows, mrrMode]);
 
   const visibleAreas = useMemo(() => {
     const s = new Set<string>();
@@ -274,11 +362,16 @@ export default function StripeConversions() {
     const data = rows.map(r => ({
       Primeiro_Pagamento: fmtDate(r.converted_at),
       Cliente_Desde: fmtDate(r.registered_at),
+      Tipo: TYPE_LABEL[r.conversion_type] || r.conversion_type,
       Area: r.area,
       Produto: r.product_name || "",
       Plano: r.plan_name || "",
       Email: r.customer_email || "",
-      MRR: r.mrr,
+      MRR_Bruto: Number(r.mrr || 0),
+      MRR_Liquido: r.mrr_net == null ? "" : Number(r.mrr_net),
+      MRR_Considerado: valueOf(r),
+      Delta_MRR: Number(r.delta_mrr || 0),
+      Reativacao: r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -291,32 +384,45 @@ export default function StripeConversions() {
     const data = rows.map(r => ({
       "1º Pagamento": fmtDate(r.converted_at),
       "Cliente desde": fmtDate(r.registered_at),
+      "Tipo": TYPE_LABEL[r.conversion_type] || r.conversion_type,
       "Área": r.area,
       "Produto": r.product_name || "",
       "Plano": r.plan_name || "",
       "Email": r.customer_email || "",
-      "MRR (R$)": r.mrr,
+      "MRR bruto (R$)": Number(r.mrr || 0),
+      "MRR líquido (R$)": r.mrr_net == null ? "" : Number(r.mrr_net),
+      "MRR considerado (R$)": valueOf(r),
+      "Δ MRR (R$)": Number(r.delta_mrr || 0),
+      "Reativação": r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conversões");
-    const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, "MRR (R$)": a.mrr }));
+    const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, [`MRR ${mrrMode === "net" ? "líquido" : "bruto"} (R$)`]: a.mrr }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo por Área");
+    const tipos = [
+      { Tipo: "Nova venda", MRR: stats.newMrr, Quantidade: stats.newCount },
+      { Tipo: "Expansão", MRR: stats.expansionMrr, Quantidade: stats.upsellCount },
+      { Tipo: "Contração", MRR: stats.contractionMrr, Quantidade: stats.downgradeCount },
+      { Tipo: "Renovação", MRR: stats.renewalMrr, Quantidade: stats.renewalCount },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tipos), "Resumo por Tipo");
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(new Blob([buf], { type: "application/octet-stream" }), `conversoes_stripe_${period.start}_${period.end}.xlsx`);
   }
 
   function exportPDF() {
     const doc = new jsPDF({ orientation: "landscape" });
+    const metricLabel = mrrMode === "net" ? "MRR líquido" : "MRR bruto";
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
     doc.text(`Período: ${period.start} → ${period.end}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
-    doc.text(`Total: ${stats.total} conversões | MRR: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
+    doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
       startY: 36,
-      head: [["Área", "Conversões", "MRR (R$)"]],
+      head: [["Área", "Conversões", `${metricLabel} (R$)`]],
       body: byArea.map(a => [a.area, a.conversoes, fmtBRL(a.mrr)]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [5, 32, 51] },
@@ -325,11 +431,10 @@ export default function StripeConversions() {
     const startY = (doc as any).lastAutoTable?.finalY + 8 || 80;
     autoTable(doc, {
       startY,
-      head: [["1º Pagamento", "Cliente desde", "Área", "Produto", "Plano", "Email", "MRR"]],
+      head: [["1º Pagamento", "Cliente desde", "Tipo", "Área", "Produto", "Plano", "Email", "MRR considerado"]],
       body: rows.map(r => [
-        fmtDate(r.converted_at), fmtDate(r.registered_at), r.area,
-        r.product_name || "", r.plan_name || "", r.customer_email || "",
-        fmtBRL(Number(r.mrr || 0)),
+        fmtDate(r.converted_at), fmtDate(r.registered_at), TYPE_LABEL[r.conversion_type] || r.conversion_type, r.area,
+        r.product_name || "", r.plan_name || "", r.customer_email || "", fmtBRL(valueOf(r)),
       ]),
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [5, 32, 51] },
@@ -337,6 +442,7 @@ export default function StripeConversions() {
 
     doc.save(`conversoes_stripe_${period.start}_${period.end}.pdf`);
   }
+
 
   return (
     <Layout>
@@ -355,6 +461,10 @@ export default function StripeConversions() {
                 <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>
                   {backfillingNet ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                   Buscar valor líquido
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleReapplyPriceMap} disabled={reapplying}>
+                  {reapplying ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                  Reaplicar de-para
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
                   {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
@@ -455,18 +565,44 @@ export default function StripeConversions() {
                   Somente com cupom
                 </Label>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Métrica de MRR</Label>
+                <Select value={mrrMode} onValueChange={(v) => setMrrMode(v as "net" | "gross")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="net">Líquido (fallback bruto)</SelectItem>
+                    <SelectItem value="gross">Bruto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {mrrMode === "net" && health.missingNet > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <span>{health.missingNet} conversão(ões) sem valor líquido; o cálculo usa o MRR bruto nessas linhas.</span>
+            {role === "admin" && <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>Buscar valor líquido</Button>}
+          </div>
+        )}
+
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Saúde do de-para canônico</CardTitle><CardDescription>Verificações no período selecionado</CardDescription></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Prices sem mapeamento</p><p className="text-xl font-semibold">{health.missingMap}</p></div>
+            <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Área divergente do de-para</p><p className="text-xl font-semibold">{health.divergent}</p>{health.divergentSamples.length > 0 && <p className="mt-1 text-[10px] text-muted-foreground">{health.divergentSamples.map(d => `${d.from} → ${d.to}`).join(" · ")}</p>}</div>
+            <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Sem MRR líquido</p><p className="text-xl font-semibold">{health.missingNet}</p></div>
           </CardContent>
         </Card>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">MRR Total</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold">{fmtBRL(stats.ticketMedio)}</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansion MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Reativações</p><p className="text-2xl font-bold">{stats.reactivationCount}</p><p className="text-[10px] text-muted-foreground">clientes que voltaram</p></CardContent></Card>
-          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Sem vendedor</p><p className="text-2xl font-bold">{stats.noSellerCount}</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{mrrMode === "net" ? "MRR Líquido" : "MRR Bruto"}</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
+          <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Renovações</p><p className="text-2xl font-bold">{fmtBRL(stats.renewalMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.renewalCount} renovação(ões)</p></CardContent></Card>
         </div>
 
         {/* Gráficos */}
@@ -493,19 +629,19 @@ export default function StripeConversions() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="area" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                  <Bar dataKey="mrr" radius={[6,6,0,0]}>
-                    {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
-                  </Bar>
+                   <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                   <Bar dataKey="mrr" radius={[6,6,0,0]}>
+                     {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
+                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Evolução do MRR no tempo (por área)</CardTitle></CardHeader>
-          <CardContent className="h-[300px]">
+         <Card>
+           <CardHeader><CardTitle className="text-base">Evolução do {mrrMode === "net" ? "MRR líquido" : "MRR bruto"} no tempo (por área)</CardTitle></CardHeader>
+           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeSeries}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -594,7 +730,7 @@ export default function StripeConversions() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        <div>{fmtBRL(Number(r.mrr || 0))}</div>
+                        <div>{fmtBRL(valueOf(r))}</div>
                         {r.conversion_type === "upsell" && (
                           <div className="text-[10px] text-emerald-600">+{fmtBRL(Number(r.delta_mrr || 0))}</div>
                         )}
