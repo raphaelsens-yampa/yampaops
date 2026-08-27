@@ -130,15 +130,14 @@ function AppRoutes() {
 
       <Route path="/insights/conversions" element={<RequireArea area="conversions"><StripeConversions /></RequireArea>} />
       {/* Lead Journey archived (AC-dependent) */}
-      <Route path="/settings/tags" element={<RequireArea area="tags"><TagsSettings /></RequireArea>} />
+      {/* Tags agora vivem dentro da Integração Chatwoot */}
       <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
       <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />
       <Route path="/sales-campaigns/history" element={<RequireArea area="campaign_history"><CampaignHistory /></RequireArea>} />
       <Route path="/sales-campaigns/:id" element={<RequireArea area="sales_campaigns"><SalesCampaignDetail /></RequireArea>} />
       <Route path="/atividade-agentes" element={<RequireArea area="agent_activity"><AgentActivity /></RequireArea>} />
-      <Route path="/discounts/overview" element={<RequireArea area="discounts_overview"><DiscountOverview /></RequireArea>} />
-      <Route path="/discounts/portfolio" element={<RequireArea area="discounts_portfolio"><DiscountPortfolio /></RequireArea>} />
-      <Route path="/discounts/rules" element={<RequireArea area="discounts_rules"><DiscountRules /></RequireArea>} />
+      {/* Estratégia Adquirência archived */}
+
       <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
       <Route path="/comissionamento" element={<RequireArea area="comissionamento"><Comissionamento /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
