@@ -42,6 +42,18 @@ const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", cur
 const fmtDate = (s: string | null) => s ? format(new Date(s), "dd/MM/yyyy", { locale: ptBR }) : "—";
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
 
+// Mês (YYYY-MM) sempre no fuso America/Sao_Paulo
+const SP_MONTH_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit",
+});
+const monthKeySP = (iso: string) => {
+  const parts = SP_MONTH_FMT.formatToParts(new Date(iso));
+  const y = parts.find(p => p.type === "year")?.value ?? "";
+  const m = parts.find(p => p.type === "month")?.value ?? "";
+  return `${y}-${m}`;
+};
+
+
 interface Conversion {
   id: string;
   customer_email: string | null;
