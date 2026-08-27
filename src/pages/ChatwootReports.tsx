@@ -266,7 +266,7 @@ export default function ChatwootReports() {
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [showReport, setShowReport] = useState(false);
   const refTab = useRef<HTMLDivElement>(null);
-  const refAgent = useRef<HTMLDivElement>(null);
+  const refTabulacao = useRef<HTMLDivElement>(null);
   const refTeam = useRef<HTMLDivElement>(null);
   const refDay = useRef<HTMLDivElement>(null);
   const refInbox = useRef<HTMLDivElement>(null);
