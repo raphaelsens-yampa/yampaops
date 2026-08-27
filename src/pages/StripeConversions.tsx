@@ -612,8 +612,15 @@ export default function StripeConversions() {
           </div>
         )}
 
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Saúde do de-para canônico</CardTitle><CardDescription>Verificações no período selecionado</CardDescription></CardHeader>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-2">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="detail">Detalhamento</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="detail" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Saúde do de-para canônico</CardTitle><CardDescription>Verificações no período selecionado</CardDescription></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Prices sem mapeamento</p><p className="text-xl font-semibold">{health.missingMap}</p></div>
             <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Área divergente do de-para</p><p className="text-xl font-semibold">{health.divergent}</p>{health.divergentSamples.length > 0 && <p className="mt-1 text-[10px] text-muted-foreground">{health.divergentSamples.map(d => `${d.from} → ${d.to}`).join(" · ")}</p>}</div>
