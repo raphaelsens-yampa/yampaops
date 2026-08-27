@@ -14,9 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CsatSection } from "@/components/chatwoot/CsatSection";
+import type { CsatRow } from "@/components/chatwoot/CsatSection";
 import { Navigate } from "react-router-dom";
 import {
   BarChart3, Download, ExternalLink, MessageCircle, Loader2, Search, ChevronDown,
