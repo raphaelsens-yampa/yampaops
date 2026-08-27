@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ChatwootContactsCard } from "@/components/chatwoot/ChatwootContactsCard";
 import { TagsManagerCard } from "@/components/chatwoot/TagsManagerCard";
+import { ChatwootAcTab } from "@/components/chatwoot/ChatwootAcTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -127,11 +128,17 @@ export default function ChatwootIntegration() {
           <TabsList>
             <TabsTrigger value="integracao">Integração</TabsTrigger>
             <TabsTrigger value="tags">Tags</TabsTrigger>
+            <TabsTrigger value="activecampaign">ActiveCampaign</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tags">
             <TagsManagerCard />
           </TabsContent>
+
+          <TabsContent value="activecampaign">
+            <ChatwootAcTab />
+          </TabsContent>
+
 
           <TabsContent value="integracao" className="space-y-6">
         {/* 1. Credenciais */}
