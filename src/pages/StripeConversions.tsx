@@ -575,6 +575,7 @@ export default function StripeConversions() {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="none">Sem vendedor atribuído</SelectItem>
+                    {sellerOptions.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
