@@ -204,18 +204,67 @@ export default function StripeConversions() {
     },
   });
 
+  // De-para canônico (commission_price_map) para o painel de saúde
+  const { data: priceMap = {} } = useQuery({
+    queryKey: ["price-map-canonical"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commission_price_map")
+        .select("price_id, area, offer_name, plan_name");
+      if (error) throw error;
+      const m: Record<string, { area: string | null; offer_name: string | null; plan_name: string | null }> = {};
+      (data || []).forEach((r: any) => { if (r.price_id) m[r.price_id] = r; });
+      return m;
+    },
+  });
+
   const stats = useMemo(() => {
     const total = rows.length;
-    const totalMrr = rows.reduce((s, r) => s + Number(r.mrr || 0), 0);
+    const totalMrr = rows.reduce((s, r) => s + valueOf(r), 0);
     const areasCount = new Set(rows.map(r => r.area)).size;
+    const newMrr = rows
+      .filter(r => r.conversion_type === "new")
+      .reduce((s, r) => s + valueOf(r), 0);
+    const newCount = rows.filter(r => r.conversion_type === "new").length;
     const expansionMrr = rows
       .filter(r => r.conversion_type === "upsell")
       .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
+    const contractionMrr = rows
+      .filter(r => r.conversion_type === "downgrade")
+      .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
+    const renewalMrr = rows
+      .filter(r => r.conversion_type === "renewal")
+      .reduce((s, r) => s + valueOf(r), 0);
+    const renewalCount = rows.filter(r => r.conversion_type === "renewal").length;
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
+    const downgradeCount = rows.filter(r => r.conversion_type === "downgrade").length;
     const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
     const reactivationCount = rows.filter(r => r.is_reactivation).length;
-    return { total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0, expansionMrr, upsellCount, noSellerCount, reactivationCount };
-  }, [rows]);
+    return {
+      total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0,
+      newMrr, newCount, expansionMrr, upsellCount, contractionMrr, downgradeCount,
+      renewalMrr, renewalCount, noSellerCount, reactivationCount,
+    };
+  }, [rows, mrrMode]);
+
+  const health = useMemo(() => {
+    let missingMap = 0, divergent = 0, missingNet = 0;
+    const divergentSamples: Array<{ price_id: string; from: string; to: string }> = [];
+    for (const r of rows) {
+      if (r.mrr_net == null) missingNet++;
+      if (!r.stripe_price_id) continue;
+      const m = priceMap[r.stripe_price_id];
+      if (!m) { missingMap++; continue; }
+      if (m.area && m.area !== r.area) {
+        divergent++;
+        if (divergentSamples.length < 5 && !divergentSamples.some(d => d.price_id === r.stripe_price_id)) {
+          divergentSamples.push({ price_id: r.stripe_price_id, from: r.area, to: m.area });
+        }
+      }
+    }
+    return { missingMap, divergent, missingNet, divergentSamples };
+  }, [rows, priceMap]);
+
 
   async function handleReprocessReactivations() {
     if (!confirm(`Reprocessar reativações no período ${period.start} → ${period.end}?`)) return;
