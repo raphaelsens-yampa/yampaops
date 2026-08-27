@@ -79,19 +79,27 @@ function normPhone(p?: string | null): string | null {
   return d.length > 11 ? d.slice(-11) : d;
 }
 
+function fmtSP(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 function buildNoteBody(conv: any, baseUrl: string | null, accountId: number | null): string {
   const link = baseUrl && accountId
     ? `${baseUrl.replace(/\/$/, "")}/app/accounts/${accountId}/conversations/${conv.chatwoot_conversation_id}`
     : `(URL Chatwoot não configurada — conv #${conv.chatwoot_conversation_id})`;
-  const when = conv.last_message_at ? new Date(conv.last_message_at).toLocaleString("pt-BR") : "—";
+  const when = fmtSP(conv.last_message_at);
   const lines = [
-    `[Chatwoot] Conv #${conv.chatwoot_conversation_id} — ${when}`,
+    `[Chatwoot] Conv #${conv.chatwoot_conversation_id} — ${when} (BRT)`,
     link,
     `Status: ${conv.status || "—"}${conv.tabulacao_atendimento ? ` · Tabulação: ${conv.tabulacao_atendimento}` : ""}`,
   ];
   if (conv.assignee_name) lines.push(`Atendente: ${conv.assignee_name}`);
   return lines.join("\n");
 }
+
 
 async function upsertNoteForConversation(
   conversationId: number,
