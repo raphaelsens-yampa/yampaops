@@ -246,7 +246,80 @@ function mapChurnDaily(r: Row, dataExecucao: string, coletadoEm: string): Row | 
 
 
 
+/** Últimos dias dos meses fechados de 2026 disponíveis no card 103. */
+const CLOSED_MONTH_SNAPSHOTS = [
+  '2026-01-31',
+  '2026-02-28',
+  '2026-03-31',
+  '2026-04-30',
+  '2026-05-31',
+  '2026-06-30',
+  '2026-07-31',
+];
+
+/** database_id do card 103 (cacheado por invocação). */
+let card103DatabaseId: number | null = null;
+async function getCard103DatabaseId(apiKey: string): Promise<number> {
+  if (card103DatabaseId != null) return card103DatabaseId;
+  const res = await fetch(`${METABASE_BASE}/api/card/103`, {
+    method: 'GET',
+    headers: { 'x-api-key': apiKey },
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw Object.assign(new Error(`Metabase /api/card/103 falhou [${res.status}]: ${detail.slice(0, 300)}`), {
+      status: res.status >= 500 ? 502 : res.status,
+    });
+  }
+  const card = await res.json();
+  const dbId = card?.database_id ?? card?.dataset_query?.database;
+  if (typeof dbId !== 'number') {
+    throw Object.assign(new Error('Não foi possível determinar o database_id do card 103'), { status: 502 });
+  }
+  card103DatabaseId = dbId;
+  return dbId;
+}
+
+/**
+ * Consulta o card 103 como source-table via /api/dataset, filtrando
+ * data_ref_analise no servidor. Retorna linhas como objetos nomeados pelas
+ * colunas de data.cols[].name.
+ */
+async function metabaseDatasetCard103(apiKey: string, from: string, to: string): Promise<Row[]> {
+  const database = await getCard103DatabaseId(apiKey);
+  const res = await fetch(`${METABASE_BASE}/api/dataset`, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      database,
+      type: 'query',
+      query: {
+        'source-table': 'card__103',
+        filter: ['between', ['field', 'data_ref_analise', { 'base-type': 'type/Date' }], from, to],
+      },
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw Object.assign(new Error(`Metabase /api/dataset falhou [${res.status}]: ${detail.slice(0, 500)}`), {
+      status: res.status >= 500 ? 502 : res.status,
+    });
+  }
+  const payload = await res.json();
+  const cols: string[] = (payload?.data?.cols ?? []).map((c: Row) => String(c?.name ?? ''));
+  const dataRows: unknown[][] = payload?.data?.rows ?? [];
+  if (!Array.isArray(dataRows) || cols.length === 0) {
+    throw Object.assign(new Error('Metabase /api/dataset retornou formato inesperado'), { status: 502 });
+  }
+  return dataRows.map((values) => {
+    const obj: Row = {};
+    for (let i = 0; i < cols.length; i++) obj[cols[i]] = values[i];
+    return obj;
+  });
+}
+
 async function metabase(path: string, apiKey: string, body?: unknown): Promise<Row[]> {
+
   const res = await fetch(`${METABASE_BASE}${path}`, {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
