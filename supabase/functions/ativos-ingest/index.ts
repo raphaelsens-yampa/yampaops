@@ -320,6 +320,99 @@ try {
     const coletadoEm = new Date().toISOString();
     const avisos: string[] = [];
 
+    // =====================================================================
+    // MODO backfill_mensal: fotografia do último dia de cada mês FECHADO,
+    // lida do card 103 SEM o filtro do dashboard. A guarda de data 409 do
+    // fluxo diário não se aplica aqui — validamos por grupo.
+    // =====================================================================
+    if (body.backfill_mensal === true) {
+      const raw = await metabase('/api/card/103/query/json', apiKey);
+      const mesAtualInicio = firstDayOfMonthISO(spDateISO());
+      const grupos = new Map<string, Row[]>();
+      let semData = 0;
+      let foraDoCorte = 0;
+      for (const r of raw) {
+        const d = toDate(pick(r, DATA_REF_KEYS));
+        if (!d) { semData++; continue; }
+        if (d < '2026-01-01') { foraDoCorte++; continue; }
+        // Só meses fechados: descarta o corte corrente (D-1) para não colidir
+        // com a linha tipo_snapshot='diario' do dia.
+        if (d !== lastDayOfMonth(d) || d >= mesAtualInicio) { foraDoCorte++; continue; }
+        const arr = grupos.get(d) ?? [];
+        arr.push(r);
+        grupos.set(d, arr);
+      }
+
+      const porSnapshot: Record<string, { lidos: number; duplicadas_removidas: number; ativos: number; mrr_total: number; gravados: number; erro?: string }> = {};
+      let totalGravados = 0;
+      let totalLidos = 0;
+      let totalDup = 0;
+
+      for (const [snap, rows] of Array.from(grupos.entries()).sort()) {
+        totalLidos += rows.length;
+        // Validação por grupo: todas as linhas com o mesmo Data Ref Analise.
+        const divergente = rows.some((r) => toDate(pick(r, DATA_REF_KEYS)) !== snap);
+        if (divergente) {
+          porSnapshot[snap] = { lidos: rows.length, duplicadas_removidas: 0, ativos: 0, mrr_total: 0, gravados: 0, erro: 'Data Ref Analise divergente no grupo — grupo abortado' };
+          avisos.push(`Grupo ${snap} abortado: Data Ref Analise divergente.`);
+          continue;
+        }
+
+        const vistos = new Set<string>();
+        const linhas: Row[] = [];
+        let dup = 0;
+        for (const r of rows) {
+          const cid = txt(pick(r, COMPANY_ID_KEYS)) ?? '';
+          if (vistos.has(cid)) { dup++; continue; }
+          vistos.add(cid);
+          linhas.push(mapAtivo(r, {
+            dataSnapshot: snap,
+            mesRef: mesRefFromISO(snap),
+            tipoSnapshot: 'fechamento_mensal',
+            dataExecucao,
+            coletadoEm,
+            fonte: 'Dash 3 card 103 fechamento mensal (edge function)',
+          }));
+        }
+        totalDup += dup;
+        const mrrTotal = Number(linhas.reduce((s, r) => s + (Number(r.mrr) || 0), 0).toFixed(2));
+        const info = { lidos: rows.length, duplicadas_removidas: dup, ativos: linhas.length, mrr_total: mrrTotal, gravados: 0 };
+        porSnapshot[snap] = info;
+
+        if (dryRun) continue;
+
+        for (let i = 0; i < linhas.length; i += BATCH) {
+          const chunk = linhas.slice(i, i + BATCH);
+          const { error } = await supabase
+            .from('metas_ativos_pagantes_daily')
+            .upsert(chunk, { onConflict: 'data_snapshot,company_id,status_assinatura', ignoreDuplicates: false });
+          if (error) {
+            info.erro = `lote ${i / BATCH + 1}: ${error.message}`;
+            avisos.push(`Falha ao gravar snapshot ${snap}: ${error.message}`);
+            break;
+          }
+          info.gravados += chunk.length;
+          totalGravados += chunk.length;
+        }
+      }
+
+      return json({
+        modo: 'backfill_mensal',
+        dry_run: dryRun,
+        linhas_lidas_card: raw.length,
+        linhas_sem_data_ref: semData,
+        linhas_fora_do_corte: foraDoCorte,
+        snapshots: Object.keys(porSnapshot).length,
+        lidos_nos_snapshots: totalLidos,
+        duplicadas_removidas: totalDup,
+        gravados: totalGravados,
+        por_snapshot: porSnapshot,
+        avisos,
+      });
+    }
+
+
+
     // ---- Fonte 1: ativos ----
     const ativosRaw = await metabase(
       '/api/dashboard/3/dashcard/110/card/103/query/json',
