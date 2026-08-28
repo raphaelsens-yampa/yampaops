@@ -91,12 +91,8 @@ export function CommissionRulesPanel() {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          <h1 className="font-heading text-2xl font-bold">Configurações de Comissão</h1>
-        </div>
+    <div className="space-y-6 pt-4">
+
 
         <Card>
           <CardHeader>
