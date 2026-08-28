@@ -2968,6 +2968,7 @@ export type Database = {
           status_pagamento: string | null
           stripe_price_id: string | null
           tipo_churn: string | null
+          tipo_snapshot: string | null
         }
         Insert: {
           classificacao_company?: string | null
@@ -2993,6 +2994,7 @@ export type Database = {
           status_pagamento?: string | null
           stripe_price_id?: string | null
           tipo_churn?: string | null
+          tipo_snapshot?: string | null
         }
         Update: {
           classificacao_company?: string | null
@@ -3018,6 +3020,7 @@ export type Database = {
           status_pagamento?: string | null
           stripe_price_id?: string | null
           tipo_churn?: string | null
+          tipo_snapshot?: string | null
         }
         Relationships: []
       }
@@ -3105,6 +3108,156 @@ export type Database = {
           stripe_price_id?: string | null
           tipo_churn?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      metas_churn_daily: {
+        Row: {
+          activation_date: string | null
+          cd_promo: string | null
+          cell_phone: string | null
+          churn_at: string | null
+          coletado_em: string
+          company_id: string
+          cupom_aplicado: string | null
+          data_extracao: string
+          data_pagamento: string | null
+          data_pedido_cancelamento: string | null
+          data_ref_analise: string | null
+          data_ref_churn: string | null
+          email: string | null
+          final_vigencia_plano: string | null
+          fonte: string
+          gateway: string | null
+          id: number
+          id_oferta: string | null
+          inicio_vigencia_plano: string | null
+          intervalo_cobranca_stripe: string | null
+          is_4blue_customer: boolean | null
+          is_bonus: boolean | null
+          is_freetrial: boolean | null
+          is_illuminist: boolean | null
+          is_paying: boolean | null
+          is_perpetual: boolean | null
+          is_refund: boolean | null
+          is_trial: boolean | null
+          mes_ref: string
+          mes_ref_data: string
+          nome_oferta: string | null
+          origem_cliente: string | null
+          owner_id: string | null
+          plano: string | null
+          preco_stripe: number | null
+          reason: string | null
+          recorrencia_pagamento: number | null
+          sck: string | null
+          segmento: string | null
+          status_transacao: string | null
+          status_vitalicio: string | null
+          stripe_price_name: string | null
+          tipo_churn: string | null
+          total_mrr: number | null
+          valor_pago: number | null
+          vigencia: number | null
+          visto_primeira_vez_em: string
+        }
+        Insert: {
+          activation_date?: string | null
+          cd_promo?: string | null
+          cell_phone?: string | null
+          churn_at?: string | null
+          coletado_em?: string
+          company_id: string
+          cupom_aplicado?: string | null
+          data_extracao: string
+          data_pagamento?: string | null
+          data_pedido_cancelamento?: string | null
+          data_ref_analise?: string | null
+          data_ref_churn?: string | null
+          email?: string | null
+          final_vigencia_plano?: string | null
+          fonte: string
+          gateway?: string | null
+          id?: never
+          id_oferta?: string | null
+          inicio_vigencia_plano?: string | null
+          intervalo_cobranca_stripe?: string | null
+          is_4blue_customer?: boolean | null
+          is_bonus?: boolean | null
+          is_freetrial?: boolean | null
+          is_illuminist?: boolean | null
+          is_paying?: boolean | null
+          is_perpetual?: boolean | null
+          is_refund?: boolean | null
+          is_trial?: boolean | null
+          mes_ref: string
+          mes_ref_data: string
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          owner_id?: string | null
+          plano?: string | null
+          preco_stripe?: number | null
+          reason?: string | null
+          recorrencia_pagamento?: number | null
+          sck?: string | null
+          segmento?: string | null
+          status_transacao?: string | null
+          status_vitalicio?: string | null
+          stripe_price_name?: string | null
+          tipo_churn?: string | null
+          total_mrr?: number | null
+          valor_pago?: number | null
+          vigencia?: number | null
+          visto_primeira_vez_em: string
+        }
+        Update: {
+          activation_date?: string | null
+          cd_promo?: string | null
+          cell_phone?: string | null
+          churn_at?: string | null
+          coletado_em?: string
+          company_id?: string
+          cupom_aplicado?: string | null
+          data_extracao?: string
+          data_pagamento?: string | null
+          data_pedido_cancelamento?: string | null
+          data_ref_analise?: string | null
+          data_ref_churn?: string | null
+          email?: string | null
+          final_vigencia_plano?: string | null
+          fonte?: string
+          gateway?: string | null
+          id?: never
+          id_oferta?: string | null
+          inicio_vigencia_plano?: string | null
+          intervalo_cobranca_stripe?: string | null
+          is_4blue_customer?: boolean | null
+          is_bonus?: boolean | null
+          is_freetrial?: boolean | null
+          is_illuminist?: boolean | null
+          is_paying?: boolean | null
+          is_perpetual?: boolean | null
+          is_refund?: boolean | null
+          is_trial?: boolean | null
+          mes_ref?: string
+          mes_ref_data?: string
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          owner_id?: string | null
+          plano?: string | null
+          preco_stripe?: number | null
+          reason?: string | null
+          recorrencia_pagamento?: number | null
+          sck?: string | null
+          segmento?: string | null
+          status_transacao?: string | null
+          status_vitalicio?: string | null
+          stripe_price_name?: string | null
+          tipo_churn?: string | null
+          total_mrr?: number | null
+          valor_pago?: number | null
+          vigencia?: number | null
+          visto_primeira_vez_em?: string
         }
         Relationships: []
       }
@@ -5391,6 +5544,24 @@ export type Database = {
           emails_distintos: number | null
           mrr_ativos: number | null
           trials: number | null
+        }
+        Relationships: []
+      }
+      metas_churn_status: {
+        Row: {
+          churns: number | null
+          com_reason: number | null
+          inadimplencia: number | null
+          mes_ref: string | null
+          mes_ref_data: string | null
+          mrr_4blue: number | null
+          mrr_total: number | null
+          mrr_yampa: number | null
+          qtd_4blue: number | null
+          qtd_yampa: number | null
+          sem_email: number | null
+          ultima_extracao: string | null
+          voluntario: number | null
         }
         Relationships: []
       }
