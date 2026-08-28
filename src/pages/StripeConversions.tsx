@@ -237,10 +237,16 @@ export default function StripeConversions() {
     },
   });
 
+  // Renovação e Downgrade não são conversões: entram só nos KPIs próprios, nunca nos totais/áreas.
+  const convRows = useMemo(
+    () => rows.filter(r => r.conversion_type === "new" || r.conversion_type === "upsell"),
+    [rows],
+  );
+
   const stats = useMemo(() => {
-    const total = rows.length;
-    const totalMrr = rows.reduce((s, r) => s + valueOf(r), 0);
-    const areasCount = new Set(rows.map(r => r.area)).size;
+    const total = convRows.length;
+    const totalMrr = convRows.reduce((s, r) => s + valueOf(r), 0);
+    const areasCount = new Set(convRows.map(r => r.area)).size;
     const newMrr = rows
       .filter(r => r.conversion_type === "new")
       .reduce((s, r) => s + valueOf(r), 0);
@@ -257,14 +263,15 @@ export default function StripeConversions() {
     const renewalCount = rows.filter(r => r.conversion_type === "renewal").length;
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
     const downgradeCount = rows.filter(r => r.conversion_type === "downgrade").length;
-    const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
-    const reactivationCount = rows.filter(r => r.is_reactivation).length;
+    const noSellerCount = convRows.filter(r => !r.assigned_seller_id).length;
+    const reactivationCount = convRows.filter(r => r.is_reactivation).length;
     return {
       total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0,
       newMrr, newCount, expansionMrr, upsellCount, contractionMrr, downgradeCount,
       renewalMrr, renewalCount, noSellerCount, reactivationCount,
     };
-  }, [rows, mrrMode]);
+  }, [rows, convRows, mrrMode]);
+
 
   const health = useMemo(() => {
     let missingMap = 0, divergent = 0, missingNet = 0;
@@ -438,18 +445,18 @@ export default function StripeConversions() {
 
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       const cur = map.get(r.area) || { area: r.area, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
       cur.mrr += valueOf(r);
       map.set(r.area, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows, mrrMode]);
+  }, [convRows, mrrMode]);
 
   const timeSeries = useMemo(() => {
     const map = new Map<string, Record<string, number> & { mes: string }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       if (!r.converted_at) continue;
       const key = monthKeySP(r.converted_at);
       const cur = map.get(key) || ({ mes: key } as any);
@@ -458,17 +465,17 @@ export default function StripeConversions() {
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => a.mes.localeCompare(b.mes));
-  }, [rows, mrrMode]);
+  }, [convRows, mrrMode]);
 
   const visibleAreas = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach(r => s.add(r.area));
+    convRows.forEach(r => s.add(r.area));
     return Array.from(s);
-  }, [rows]);
+  }, [convRows]);
 
   const bySeller = useMemo(() => {
     const map = new Map<string, { seller_id: string; name: string; conversoes: number; mrr: number }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       if (!r.assigned_seller_id) continue;
       const cur = map.get(r.assigned_seller_id) || {
         seller_id: r.assigned_seller_id,
@@ -481,11 +488,11 @@ export default function StripeConversions() {
       map.set(r.assigned_seller_id, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows, mrrMode, sellersMap]);
+  }, [convRows, mrrMode, sellersMap]);
 
   const byPlan = useMemo(() => {
     const map = new Map<string, { plan: string; conversoes: number; mrr: number }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       const plan = r.plan_name?.trim() || "Sem plano";
       const cur = map.get(plan) || { plan, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
@@ -493,7 +500,7 @@ export default function StripeConversions() {
       map.set(plan, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows, mrrMode]);
+  }, [convRows, mrrMode]);
 
   const sellerPlanSales = useMemo(() => {
     const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
@@ -754,8 +761,9 @@ export default function StripeConversions() {
           <TabsContent value="overview" className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{mrrMode === "net" ? "MRR Líquido" : "MRR Bruto"}</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p><p className="text-[10px] text-muted-foreground">Nova venda + upsell (exclui renovação/downgrade)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{mrrMode === "net" ? "MRR Líquido" : "MRR Bruto"}</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Somente conversões</p></CardContent></Card>
+
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
