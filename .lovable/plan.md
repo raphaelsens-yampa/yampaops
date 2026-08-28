@@ -39,12 +39,13 @@ Não será criada tabela nova de conversões: a ingestão diária que já existe
 
 ## 5. Fechamento mensal da fotografia
 
-- Rotina diária: ao virar o mês, marca a fotografia do último dia do mês anterior como `fechado`, que passa a ser a referência para consultas históricas.
+- Rotina diária: ao virar o mês, copia/marca a fotografia do último dia do mês anterior de `metas_ativos_pagantes_daily` como referência fechada daquele mês, usada nas consultas históricas.
 - Botão manual de admin na aba para forçar/refazer o fechamento de um mês.
 
 ## Detalhes técnicos
 
-- Migração: nova tabela detalhada (`metas_conversoes_daily`) com GRANTs, RLS (leitura para autenticados, escrita via service role), índices por data/mês/classificação e chave de deduplicação; nova coluna de origem `metabase` nas linhas de comissão; função `apply_commissions_from_metabase(p_month)`; função de fechamento de snapshot.
-- Edge function `metabase-snapshot-ingest`: incluir a nova tabela em `ALLOWED_TABLES`.
+- Migração: tabela de snapshot mensal fechado (`metas_ativos_pagantes_monthly`, mesma estrutura da diária + `mes_fechado`) com GRANTs e RLS (leitura autenticada, escrita service role); origem `metabase` nas linhas de comissão; funções `apply_commissions_from_metabase(p_month)` e de fechamento de snapshot; índices por `data_snapshot`, `classificacao_company` e `company_id`.
+- Sem alteração na edge function de ingestão: a tabela já é alimentada hoje.
 - Frontend: novo componente `ComissionamentoMetabaseBase.tsx`, remoção do trigger/aba `stripe` em `src/pages/Comissionamento.tsx`.
-- Ao final, documentar o formato do payload detalhado esperado do Claude/Metabase.
+- Resolução de vendedor reaproveita `resolve_stripe_seller` e `ac_owner_seller_map`, com atribuição manual persistida.
+
