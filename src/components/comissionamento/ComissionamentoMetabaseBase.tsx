@@ -36,6 +36,7 @@ interface Props { priceMap: PriceMapEntry[]; onChanged: () => void; }
 
 const currentMonthSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date());
 const brDate = (value: string | null | undefined) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+const inMonth = (value: string | null | undefined, month: string) => Boolean(value && value.slice(0, 7) === month);
 const classificationLabel = (value: string | null) => {
   const normalized = (value || "").trim().toLowerCase();
   return normalized ? normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Sem classificação";
@@ -47,6 +48,8 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   const { toast } = useToast();
   const [month, setMonth] = useState(currentMonthSP());
   const [rows, setRows] = useState<BaseRow[]>([]);
+  const [snapshotRowsCount, setSnapshotRowsCount] = useState(0);
+  const [missingPaymentDates, setMissingPaymentDates] = useState(0);
   const [source, setSource] = useState<SnapshotSource>("daily");
   const [snapshotDate, setSnapshotDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +73,10 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
       return;
     }
     if (monthly.data && monthly.data.length > 0) {
-      setRows((monthly.data as BaseRow[]) || []);
+      const snapshotRows = monthly.data as BaseRow[];
+      setSnapshotRowsCount(snapshotRows.length);
+      setMissingPaymentDates(snapshotRows.filter((row) => !row.data_pagamento).length);
+      setRows(snapshotRows.filter((row) => inMonth(row.data_pagamento, month)));
       setSource("monthly");
       setSnapshotDate(monthly.data[0].data_snapshot);
       setLoading(false);
@@ -79,6 +85,8 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
 
     if (month !== currentMonthSP()) {
       setRows([]);
+      setSnapshotRowsCount(0);
+      setMissingPaymentDates(0);
       setSource("daily");
       setSnapshotDate(null);
       setLoading(false);
@@ -92,8 +100,10 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
       return;
     }
     const latest = daily.data?.[0]?.data_snapshot || null;
-    const latestRows = (daily.data || []).filter((row) => row.data_snapshot === latest) as BaseRow[];
-    setRows(latestRows);
+    const snapshotRows = (daily.data || []).filter((row) => row.data_snapshot === latest) as BaseRow[];
+    setSnapshotRowsCount(snapshotRows.length);
+    setMissingPaymentDates(snapshotRows.filter((row) => !row.data_pagamento).length);
+    setRows(snapshotRows.filter((row) => inMonth(row.data_pagamento, month)));
     setSource("daily");
     setSnapshotDate(latest);
     setLoading(false);
@@ -217,8 +227,10 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
         <Badge variant={source === "monthly" ? "default" : "secondary"}>{sourceLabel}</Badge>
         <span>Snapshot: {brDate(snapshotDate)}</span>
         <span>·</span><span>Fuso: São Paulo (UTC−3)</span>
+        <span>·</span><span>{rows.length} de {snapshotRowsCount} linhas no mês</span>
       </div>
 
+      {missingPaymentDates > 0 && <Alert><AlertTriangle className="h-4 w-4" /><AlertTitle>Data de pagamento ausente</AlertTitle><AlertDescription>{missingPaymentDates} linha(s) da fotografia não têm Data Pagamento e ficam fora do recorte mensal. Recarregue a ingestão Metabase para preenchê-la.</AlertDescription></Alert>}
       {relevantMissingMrr > 0 && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Upsells sem Previous MRR</AlertTitle><AlertDescription>{relevantMissingMrr} linha(s) não podem gerar comissão de delta até a base Metabase ser recarregada com o MRR anterior.</AlertDescription></Alert>}
       {missingMap.length > 0 && <Alert><AlertTriangle className="h-4 w-4" /><AlertTitle>Price IDs sem de-para</AlertTitle><AlertDescription>{missingMap.length} Price ID(s) não estão no mapa de preços e aparecerão em “Sem vendedor” até a atribuição/correção do cadastro.</AlertDescription></Alert>}
 
@@ -231,7 +243,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
         </div>
 
         <Card>
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-sm"><CalendarCheck className="h-4 w-4" /> Operações da fotografia</CardTitle><CardDescription>Feche a referência do mês ou reprocese as comissões usando exclusivamente a base Metabase.</CardDescription></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => runAction("close")} disabled={running !== null || source === "monthly"}>{running === "close" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />} Fechar fotografia</Button><Button onClick={() => runAction("reprocess")} disabled={running !== null || payableRows.length === 0}>{running === "reprocess" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Recalcular comissões</Button></div></CardHeader>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-sm"><CalendarCheck className="h-4 w-4" /> Operações da fotografia</CardTitle><CardDescription>Feche ou refaça a referência do mês e reprocese as comissões usando exclusivamente a base Metabase.</CardDescription></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => runAction("close")} disabled={running !== null}>{running === "close" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />} {source === "monthly" ? "Refazer fotografia" : "Fechar fotografia"}</Button><Button onClick={() => runAction("reprocess")} disabled={running !== null || payableRows.length === 0}>{running === "reprocess" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Recalcular comissões</Button></div></CardHeader>
           <CardContent><div className="grid gap-3 text-sm md:grid-cols-3"><div className="rounded-md border p-3"><div className="text-muted-foreground">Linhas na fotografia</div><div className="text-xl font-semibold">{rows.length}</div></div><div className="rounded-md border p-3"><div className="text-muted-foreground">Linhas comissionáveis</div><div className="text-xl font-semibold">{payableRows.length}</div></div><div className="rounded-md border p-3"><div className="text-muted-foreground">MRR comissionável informado</div><div className="text-xl font-semibold">{BRL(payableRows.reduce((sum, row) => sum + Number(row.mrr || 0), 0))}</div></div></div></CardContent>
         </Card>
 

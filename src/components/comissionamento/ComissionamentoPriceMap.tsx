@@ -154,9 +154,15 @@ export function ComissionamentoPriceMap({ priceMap, reference, profiles, onChang
       toast({ title: "Erro", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Salvo" });
-    setEditing(null);
-    onChanged();
+     const currentMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date());
+     const { error: reprocessError } = await supabase.rpc("apply_commissions_from_metabase", { p_month: `${currentMonth}-01` });
+     toast({
+       title: "Salvo",
+       description: reprocessError ? "O mapa foi salvo, mas o reprocessamento Metabase precisará ser executado manualmente." : "As pendências do mês vigente foram reprocessadas.",
+       variant: reprocessError ? "destructive" : "default",
+     });
+     setEditing(null);
+     onChanged();
   };
 
   const handleDelete = async (id: string) => {
