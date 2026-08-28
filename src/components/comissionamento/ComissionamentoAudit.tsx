@@ -157,7 +157,8 @@ export function ComissionamentoAudit({ priceMap }: Props) {
 
     // Fotografia COMPLETA do mês (sem filtros) — a auditoria precisa dos ignorados também.
     const paged = await fetchAllPaged<AuditRow>(() => {
-      let q = (supabase.from(table) as never as ReturnType<typeof supabase.from>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q: any = (supabase.from(table) as any)
         .select(
           "id, data_snapshot, company_id, email, plano, nome_oferta, stripe_price_id, mrr, previous_mrr, data_pagamento, classificacao_company, origem_cliente, status_assinatura",
         )
@@ -165,8 +166,9 @@ export function ComissionamentoAudit({ priceMap }: Props) {
         .order("data_pagamento", { ascending: false, nullsFirst: false })
         .order("id");
       if (table === "metas_ativos_pagantes_monthly") q = q.eq("mes_fechado", monthStart);
-      return q as never;
+      return q;
     });
+
     if (paged.error) return fail(paged.error);
 
     setRows(paged.data);
