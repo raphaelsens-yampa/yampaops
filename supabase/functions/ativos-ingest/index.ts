@@ -349,37 +349,21 @@ try {
     let dupAtivos = 0;
     let semEmail = 0;
     for (const r of ativosRaw) {
-      const cid = txt(r['Company ID']) ?? '';
-      const key = cid;
-      if (seen.has(key)) { dupAtivos++; continue; }
-      seen.add(key);
-      const email = lower(r['Email']);
-      if (!email) semEmail++;
-      ativos.push({
-        data_snapshot: dataSnapshot,
-        data_execucao: dataExecucao,
-        mes_ref: mesRef,
-        status_assinatura: 'ativo',
-        company_id: cid,
-        email,
-        plano: txt(r['Plano Atual']),
-        nome_oferta: txt(r['Nome Oferta']),
-        stripe_price_id: txt(r['Stripe Price ID']),
-        mrr: toNum(r['New Mrr']),
-        previous_mrr: toNum(pick(r, PREVIOUS_MRR_KEYS)),
-        data_pagamento: toDate(pick(r, PAYMENT_DATE_KEYS)),
-        origem_cliente: lower(r['Origem Cliente']),
-        data_inicio: toDate(r['Inicio Vigencia Plano']),
-        data_cancelamento: null,
-        classificacao_company: txt(r['Classificacao Company']),
-        status_pagamento: txt(r['Status_pagamento']),
-        gateway: txt(r['Gateway']),
-        recorrencia_pagamento: txt(r['Recorrencia Pagamento']),
-        tipo_churn: null,
+      const cid = txt(pick(r, COMPANY_ID_KEYS)) ?? '';
+      if (seen.has(cid)) { dupAtivos++; continue; }
+      seen.add(cid);
+      const linha = mapAtivo(r, {
+        dataSnapshot,
+        mesRef,
+        tipoSnapshot: 'diario',
+        dataExecucao,
+        coletadoEm,
         fonte: 'Dash 3 card 103 (edge function)',
-        coletado_em: coletadoEm,
       });
+      if (!linha.email) semEmail++;
+      ativos.push(linha);
     }
+
 
     // ---- Fonte 2: cancelados do mês ----
     const churnRaw = await metabase('/api/card/181/query/json', apiKey);
