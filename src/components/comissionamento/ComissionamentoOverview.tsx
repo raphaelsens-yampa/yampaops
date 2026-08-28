@@ -202,35 +202,47 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
 
 
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Comissão</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              {mode === "payment" ? "Total Comissão a Pagar" : "Total Comissão Gerada"}
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{BRL(totalComissao)}</div>
-            <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {mode === "payment" ? `Pagamento em ${formatMonthLabel(month)}` : `Gerada em ${formatMonthLabel(month)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium">MRR Total</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              {mode === "payment" ? "MRR das Vendas (M-2)" : "MRR Gerado"}
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{BRL(totalMrr)}</div>
-            <p className="text-xs text-muted-foreground">{count} conversões</p>
+            <p className="text-xs text-muted-foreground">
+              {mode === "payment" ? `Vendas de ${formatMonthLabel(saleRefMonth)}` : `Vendas de ${formatMonthLabel(month)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Vendas</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              {mode === "payment" ? "Vendas do M-2" : "Total Vendas"}
+            </CardTitle>
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{count}</div>
-            <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
+            <p className="text-xs text-muted-foreground">
+              {mode === "payment" ? formatMonthLabel(saleRefMonth) : formatMonthLabel(month)}
+            </p>
           </CardContent>
         </Card>
       </div>
