@@ -104,13 +104,15 @@ export default function Comissionamento() {
         </div>
 
         <Tabs defaultValue="overview">
-          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-6 sm:inline-flex">
+          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-8 sm:inline-flex">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="conversions">Conversões</TabsTrigger>
             {isAdmin && <TabsTrigger value="stripe">Stripe</TabsTrigger>}
             {isAdmin && <TabsTrigger value="import">Importar</TabsTrigger>}
             {isAdmin && <TabsTrigger value="reference">Referência</TabsTrigger>}
             {isAdmin && <TabsTrigger value="pricemap">Mapa de Preços</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="clawbacks">Estornos</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="closing">Fechamento</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="overview">
