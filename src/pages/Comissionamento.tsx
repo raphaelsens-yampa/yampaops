@@ -16,6 +16,7 @@ import { CommissionClosingPanel } from "@/components/comissionamento/CommissionC
 import { CommissionRulesPanel } from "@/components/comissionamento/CommissionRulesPanel";
 import { UnassignedCommissionsPanel } from "@/components/comissionamento/UnassignedCommissionsPanel";
 import { ComissionamentoMetabaseBase } from "@/components/comissionamento/ComissionamentoMetabaseBase";
+import { ComissionamentoAudit } from "@/components/comissionamento/ComissionamentoAudit";
 
 export type ConversionSource = "stripe" | "manual" | "import" | "metabase";
 
@@ -95,12 +96,13 @@ export default function Comissionamento() {
           <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger><TabsTrigger value="conversions">Conversões</TabsTrigger>
             {isAdmin && <TabsTrigger value="unassigned">Sem vendedor {unassigned.length > 0 && `(${unassigned.length})`}</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="metabase">Base Metabase</TabsTrigger>}{isAdmin && <TabsTrigger value="import">Importar</TabsTrigger>}{isAdmin && <TabsTrigger value="rules">Regras</TabsTrigger>}{isAdmin && <TabsTrigger value="reference">Referência</TabsTrigger>}{isAdmin && <TabsTrigger value="pricemap">Mapa de Preços</TabsTrigger>}{isAdmin && <TabsTrigger value="clawbacks">Estornos</TabsTrigger>}{isAdmin && <TabsTrigger value="closing">Fechamento</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="metabase">Base Metabase</TabsTrigger>}{isAdmin && <TabsTrigger value="audit">Auditoria</TabsTrigger>}{isAdmin && <TabsTrigger value="import">Importar</TabsTrigger>}{isAdmin && <TabsTrigger value="rules">Regras</TabsTrigger>}{isAdmin && <TabsTrigger value="reference">Referência</TabsTrigger>}{isAdmin && <TabsTrigger value="pricemap">Mapa de Preços</TabsTrigger>}{isAdmin && <TabsTrigger value="clawbacks">Estornos</TabsTrigger>}{isAdmin && <TabsTrigger value="closing">Fechamento</TabsTrigger>}
           </TabsList>
           <TabsContent value="overview"><ComissionamentoOverview conversions={filteredConversions} profiles={profiles} priceMap={priceMap} isAdmin={isAdmin} loading={loading} /></TabsContent>
           <TabsContent value="conversions"><ComissionamentoConversions conversions={filteredConversions} profiles={profiles} priceMap={priceMap} reference={reference} isAdmin={isAdmin} onChanged={fetchAll} /></TabsContent>
           {isAdmin && <TabsContent value="unassigned"><UnassignedCommissionsPanel conversions={conversions} profiles={profiles} onChanged={fetchAll} /></TabsContent>}
           {isAdmin && <TabsContent value="metabase"><ComissionamentoMetabaseBase priceMap={priceMap} onChanged={fetchAll} /></TabsContent>}
+          {isAdmin && <TabsContent value="audit"><ComissionamentoAudit priceMap={priceMap} /></TabsContent>}
           {isAdmin && <TabsContent value="import"><ComissionamentoImport priceMap={priceMap} reference={reference} onImported={fetchAll} /></TabsContent>}
           {isAdmin && <TabsContent value="rules"><CommissionRulesPanel /></TabsContent>}
           {isAdmin && <TabsContent value="reference"><ComissionamentoReference reference={reference} onChanged={fetchAll} /></TabsContent>}
