@@ -173,8 +173,8 @@ export function CommissionRulesPanel() {
         <CommissionTriggersTable />
 
         <ProductPricingTable />
-      </div>
-    </Layout>
+    </div>
+
   );
 }
 
