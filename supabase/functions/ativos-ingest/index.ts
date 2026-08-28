@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type, x-ingest-secret',
+  'Access-Control-Allow-Headers': 'content-type, x-ingest-secret, authorization, apikey, x-client-info',
 };
 
 const METABASE_BASE = 'https://metabase.yampa.app';
@@ -362,24 +362,39 @@ try {
     );
 
     const provided = req.headers.get('x-ingest-secret') || '';
-    if (!provided) return json({ error: 'Unauthorized' }, 401);
+    const authHeader = req.headers.get('authorization') || '';
 
-    // Validação primária via RPC (lê o segredo do Vault). Fallback para env var se a RPC falhar.
-    const { data: secretOk, error: rpcErr } = await supabase.rpc('ativos_ingest_secret_ok', {
-      p_secret: provided,
-    });
-    if (rpcErr) {
-      const fallbackSecret = Deno.env.get('ATIVOS_INGEST_SECRET');
-      if (!fallbackSecret) {
-        return json({
-          error: 'Nao foi possivel validar o segredo: RPC falhou e ATIVOS_INGEST_SECRET nao esta configurado',
-          detalhe: rpcErr.message,
-        }, 500);
+    if (provided) {
+      // Validação primária via RPC (lê o segredo do Vault). Fallback para env var se a RPC falhar.
+      const { data: secretOk, error: rpcErr } = await supabase.rpc('ativos_ingest_secret_ok', {
+        p_secret: provided,
+      });
+      if (rpcErr) {
+        const fallbackSecret = Deno.env.get('ATIVOS_INGEST_SECRET');
+        if (!fallbackSecret) {
+          return json({
+            error: 'Nao foi possivel validar o segredo: RPC falhou e ATIVOS_INGEST_SECRET nao esta configurado',
+            detalhe: rpcErr.message,
+          }, 500);
+        }
+        if (!safeEqual(provided, fallbackSecret)) return json({ error: 'Unauthorized' }, 401);
+      } else if (secretOk !== true) {
+        return json({ error: 'Unauthorized' }, 401);
       }
-      if (!safeEqual(provided, fallbackSecret)) return json({ error: 'Unauthorized' }, 401);
-    } else if (secretOk !== true) {
+    } else if (authHeader.toLowerCase().startsWith('bearer ')) {
+      // Caminho alternativo: admin autenticado no app pode disparar a ingestão.
+      const token = authHeader.slice(7).trim();
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) return json({ error: 'Unauthorized' }, 401);
+      const { data: isAdmin, error: roleErr } = await supabase.rpc('has_role', {
+        _user_id: userData.user.id,
+        _role: 'admin',
+      });
+      if (roleErr || isAdmin !== true) return json({ error: 'Forbidden' }, 403);
+    } else {
       return json({ error: 'Unauthorized' }, 401);
     }
+
 
     let body: Row = {};
     try {
