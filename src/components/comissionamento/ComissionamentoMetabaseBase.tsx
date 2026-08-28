@@ -55,6 +55,9 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<"close" | "reprocess" | null>(null);
   const [reloading, setReloading] = useState(false);
+  const [detailFilter, setDetailFilter] = useState<string>("todos");
+  const [search, setSearch] = useState("");
+
 
 
   const priceById = useMemo(() => {
@@ -188,7 +191,16 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
   }, [payableRows]);
 
+  const detailRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return payableRows
+      .filter((row) => detailFilter === "todos" || classificationKey(row.classificacao_company) === detailFilter)
+      .filter((row) => !term || [row.company_id, row.email, row.plano, row.nome_oferta, row.stripe_price_id].some((value) => (value || "").toLowerCase().includes(term)))
+      .sort((a, b) => (b.data_pagamento || "").localeCompare(a.data_pagamento || ""));
+  }, [payableRows, detailFilter, search]);
+
   const exportBase = (kind: "csv" | "xlsx") => {
+
     const data = rows.map((row) => ({
       "Data fotografia": row.data_snapshot,
       "Mês fechado": row.mes_fechado || "",
