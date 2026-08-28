@@ -12,8 +12,8 @@ import {
 import { BRL, PAYMENT_TYPE_LABEL, formatMonthLabel, type PaymentType, type PriceMapEntry } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
-import { TrendingUp, DollarSign, Users, Calendar, Filter, ShoppingBag, Building2 } from "lucide-react";
-import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
+import { TrendingUp, DollarSign, Users, Filter, ShoppingBag, Building2 } from "lucide-react";
+import { parseDateBR } from "@/lib/dateBR";
 
 interface Props {
   conversions: ConversionRow[];
@@ -80,19 +80,6 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
     });
   }, [sellerFiltered, month, dateField]);
 
-
-  const monthM1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const monthM2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-  const sumByPaymentMonth = (target: Date) =>
-    sellerFiltered
-      .filter((c) => {
-        const d = parseDateBR(c.payment_month);
-        return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth();
-      })
-      .reduce((s, c) => s + Number(c.commission_amount || 0), 0);
-
-  const provM1 = sumByPaymentMonth(monthM1);
-  const provM2 = sumByPaymentMonth(monthM2);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
   const totalMrr = filtered.reduce((s, c) => s + Number(c.mrr || 0), 0);
@@ -175,6 +162,11 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   if (loading) return <div className="py-12 text-center text-muted-foreground">Carregando...</div>;
 
   const modeLabel = mode === "payment" ? "Mês de Pagamento" : "Mês da Venda";
+  const saleRefMonth = new Date(month.getFullYear(), month.getMonth() - 2, 1);
+  const modeHint =
+    mode === "payment"
+      ? `Comissão paga em ${formatMonthLabel(month)} · vendas de ${formatMonthLabel(saleRefMonth)} (M-2)`
+      : `Vendas realizadas em ${formatMonthLabel(month)} · pagamento em ${formatMonthLabel(new Date(month.getFullYear(), month.getMonth() + 2, 1))} (M+2)`;
 
   return (
     <div className="space-y-4 sm:space-y-6 mt-4 w-full max-w-full overflow-x-hidden">
@@ -206,61 +198,53 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <p className="text-xs text-muted-foreground capitalize">{modeHint}</p>
+
+
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Comissão</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              {mode === "payment" ? "Total Comissão a Pagar" : "Total Comissão Gerada"}
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{BRL(totalComissao)}</div>
-            <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {mode === "payment" ? `Pagamento em ${formatMonthLabel(month)}` : `Gerada em ${formatMonthLabel(month)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium">MRR Total</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              {mode === "payment" ? "MRR das Vendas (M-2)" : "MRR Gerado"}
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{BRL(totalMrr)}</div>
-            <p className="text-xs text-muted-foreground">{count} conversões</p>
+            <p className="text-xs text-muted-foreground">
+              {mode === "payment" ? `Vendas de ${formatMonthLabel(saleRefMonth)}` : `Vendas de ${formatMonthLabel(month)}`}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Vendas</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">
+              {mode === "payment" ? "Vendas do M-2" : "Total Vendas"}
+            </CardTitle>
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{count}</div>
-            <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
+            <p className="text-xs text-muted-foreground">
+              {mode === "payment" ? formatMonthLabel(saleRefMonth) : formatMonthLabel(month)}
+            </p>
           </CardContent>
         </Card>
-        {isAdmin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-xs sm:text-sm font-medium">A pagar (M+1)</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-2xl font-bold">{BRL(provM1)}</div>
-              <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(monthM1)}</p>
-            </CardContent>
-          </Card>
-        )}
-        {isAdmin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-xs sm:text-sm font-medium">A pagar (M+2)</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-2xl font-bold">{BRL(provM2)}</div>
-              <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(monthM2)}</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <Card>
