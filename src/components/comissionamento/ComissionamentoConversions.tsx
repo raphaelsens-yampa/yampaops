@@ -33,6 +33,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [originFilter, setOriginFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
   const [saleMonthFilter, setSaleMonthFilter] = useState<string>("all"); // YYYY-MM
   const [payMonthFilter, setPayMonthFilter] = useState<string>("all"); // YYYY-MM
@@ -63,26 +64,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       payMonths: Array.from(p).sort(sortDesc),
     };
   }, [conversions]);
-  const duplicateCount = useMemo(() => {
-    const stripeKeys = new Set<string>();
-    for (const c of conversions) {
-      if ((c.source || "manual") !== "stripe") continue;
-      const email = (c.customer_email || "").trim().toLowerCase();
-      const dt = parseDateOnly(c.sale_month);
-      if (!email || !dt) continue;
-      stripeKeys.add(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`);
-    }
-    let n = 0;
-    for (const c of conversions) {
-      const src = c.source || "manual";
-      if (src === "stripe") continue;
-      const email = (c.customer_email || "").trim().toLowerCase();
-      const dt = parseDateOnly(c.sale_month);
-      if (!email || !dt) continue;
-      if (stripeKeys.has(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`)) n++;
-    }
-    return n;
-  }, [conversions]);
+  const duplicateCount = useMemo(() => 0, []);
 
 
   const sellers = useMemo(() => {
@@ -101,6 +83,8 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     return conversions.filter((c) => {
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
       if (sourceFilter !== "all" && (c.source || "manual") !== sourceFilter) return false;
+      const origin = (c.origem_cliente || "").trim().toLowerCase();
+      if (originFilter !== "all" && origin !== originFilter) return false;
       if (reviewFilter === "locked" && !c.manually_reviewed) return false;
       if (reviewFilter === "auto" && c.manually_reviewed) return false;
       if (sellerStatusFilter === "missing" && (c.resolved_seller_user_id || c.resolved_seller_label)) return false;
@@ -123,7 +107,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       }
       return true;
     });
-  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter, sellerStatusFilter, saleMonthFilter, payMonthFilter]);
+  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, originFilter, reviewFilter, sellerStatusFilter, saleMonthFilter, payMonthFilter]);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
@@ -150,14 +134,13 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   };
 
   const sourceBadge = (src: ConversionRow["source"]) => {
-    if (src === "stripe") return <Badge variant="default" className="gap-1"><Zap className="h-3 w-3" />Stripe</Badge>;
     if (src === "metabase") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Metabase</Badge>;
     if (src === "import") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Import</Badge>;
     return <Badge variant="outline" className="gap-1"><User className="h-3 w-3" />Manual</Badge>;
   };
 
   const unlockReview = async (c: ConversionRow) => {
-    if (!confirm("Destravar recálculo automático desta comissão? Os valores serão recalculados a partir do Stripe no próximo processamento.")) return;
+    if (!confirm("Destravar o recálculo automático desta comissão? Os valores serão recalculados a partir da Base Metabase no próximo processamento.")) return;
     const { error } = await supabase
       .from("commission_conversions")
       .update({ manually_reviewed: false, override_fields: [], reviewed_by: null, reviewed_at: null })
@@ -215,7 +198,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     <Card className="mt-4">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">Conversões {conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label).length > 0 && <Badge variant="destructive">{conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label).length} sem vendedor</Badge>}</CardTitle>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">Conversões {conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label && c.commissionable !== false).length > 0 && <Badge variant="destructive">{conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label && c.commissionable !== false).length} sem vendedor</Badge>}</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
             {filtered.length} linhas · Total: <span className="font-medium text-foreground">{BRL(totalComissao)}</span>
           </p>
@@ -236,16 +219,23 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               <SelectItem value="ignored">Ignorado</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-               <SelectItem value="all">Todas origens</SelectItem>
-               <SelectItem value="metabase">Metabase</SelectItem>
-               <SelectItem value="stripe">Stripe (histórico)</SelectItem>
-               <SelectItem value="import">Importado</SelectItem>
-               <SelectItem value="manual">Manual</SelectItem>
-            </SelectContent>
-          </Select>
+           <Select value={sourceFilter} onValueChange={setSourceFilter}>
+             <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+             <SelectContent>
+                <SelectItem value="all">Todas origens</SelectItem>
+                <SelectItem value="metabase">Metabase</SelectItem>
+                <SelectItem value="import">Importado</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+             </SelectContent>
+           </Select>
+           <Select value={originFilter} onValueChange={setOriginFilter}>
+             <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Todas origens cliente</SelectItem>
+               <SelectItem value="yampa">Yampa</SelectItem>
+               <SelectItem value="4blue">4blue (ignorado)</SelectItem>
+             </SelectContent>
+           </Select>
           <Select value={reviewFilter} onValueChange={setReviewFilter}>
             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -360,12 +350,13 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                 </TableCell>
               </TableRow>
             )}
-            {filtered.slice(0, 500).map((c) => (
-              <TableRow key={c.id} className={c.manually_reviewed ? "bg-amber-50/50 dark:bg-amber-950/10" : undefined}>
-                <TableCell className="text-left">
-                  <div className="flex items-center gap-1">
-                    {sourceBadge(c.source || "manual")}
-                    {c.manually_reviewed && (
+             {filtered.slice(0, 500).map((c) => (
+               <TableRow key={c.id} className={c.manually_reviewed ? "bg-amber-50/50 dark:bg-amber-950/10" : undefined}>
+                 <TableCell className="text-left">
+                   <div className="flex items-center gap-1">
+                     {sourceBadge(c.source || "manual")}
+                     {c.commissionable === false && <Badge variant="outline">Não comissionável</Badge>}
+                     {c.manually_reviewed && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -425,7 +416,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    {isAdmin && c.manually_reviewed && c.source === "stripe" && (
+                    {isAdmin && c.manually_reviewed && (
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => unlockReview(c)} title="Destravar recálculo">
                         <Unlock className="h-3.5 w-3.5" />
                       </Button>

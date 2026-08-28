@@ -1737,6 +1737,7 @@ export type Database = {
           base_kind: string | null
           commission_amount: number
           commission_pct: number
+          commissionable: boolean
           company_id: string | null
           conversion_type: string | null
           created_at: string
@@ -1773,6 +1774,7 @@ export type Database = {
           base_kind?: string | null
           commission_amount?: number
           commission_pct?: number
+          commissionable?: boolean
           company_id?: string | null
           conversion_type?: string | null
           created_at?: string
@@ -1809,6 +1811,7 @@ export type Database = {
           base_kind?: string | null
           commission_amount?: number
           commission_pct?: number
+          commissionable?: boolean
           company_id?: string | null
           conversion_type?: string | null
           created_at?: string

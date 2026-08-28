@@ -50,6 +50,8 @@ const classificationKey = (value: string | null) => (value || "").trim().toLower
 const COMMISSIONABLE_CLASSIFICATIONS = ["novo pagante", "recuperado", "upsell"] as const;
 const sellerLabel = (map: PriceMapEntry | undefined) => map?.seller_label || map?.seller_user_id || "Sem vendedor";
 
+
+
 export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   const { toast } = useToast();
   const [month, setMonth] = useState(currentMonthSP());
@@ -135,26 +137,25 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
         .select("*")
         .eq("data_snapshot", snap)
         .eq("status_assinatura", "ativo")
+        .eq("origem_cliente", "yampa")
         .in("classificacao_company", [...COMMISSIONABLE_CLASSIFICATIONS]);
       if (table === "metas_ativos_pagantes_monthly") q = q.eq("mes_fechado", monthStart);
       return q;
     };
 
     // Total da base comissionável no mês (contagem no servidor, sem trazer linhas)
-    const totalCount = await (supabase.from(table) as any)
+    const totalCount = await scoped()
       .select("id", { count: "exact", head: true })
-      .eq("data_snapshot", snap)
-      .eq("status_assinatura", "ativo")
-      .in("classificacao_company", [...COMMISSIONABLE_CLASSIFICATIONS])
       .gte("data_pagamento", monthStart)
-      .lt("data_pagamento", monthEnd)
-      .then((r: any) => r);
+      .lt("data_pagamento", monthEnd);
     if (totalCount.error) return fail(totalCount.error.message);
 
     const missingCount = await scoped()
       .select("id", { count: "exact", head: true })
       .is("data_pagamento", null);
     if (missingCount.error) return fail(missingCount.error.message);
+
+
 
     // Linhas do mês, paginadas (o Data API limita cada página a 1000 linhas)
     const pageSize = 1000;
