@@ -370,12 +370,13 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                 </TableCell>
               </TableRow>
             )}
-            {filtered.slice(0, 500).map((c) => (
-              <TableRow key={c.id} className={c.manually_reviewed ? "bg-amber-50/50 dark:bg-amber-950/10" : undefined}>
-                <TableCell className="text-left">
-                  <div className="flex items-center gap-1">
-                    {sourceBadge(c.source || "manual")}
-                    {c.manually_reviewed && (
+             {filtered.slice(0, 500).map((c) => (
+               <TableRow key={c.id} className={c.manually_reviewed ? "bg-amber-50/50 dark:bg-amber-950/10" : undefined}>
+                 <TableCell className="text-left">
+                   <div className="flex items-center gap-1">
+                     {sourceBadge(c.source || "manual")}
+                     {c.commissionable === false && <Badge variant="outline">Não comissionável</Badge>}
+                     {c.manually_reviewed && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
