@@ -761,8 +761,9 @@ export default function StripeConversions() {
           <TabsContent value="overview" className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{mrrMode === "net" ? "MRR Líquido" : "MRR Bruto"}</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p><p className="text-[10px] text-muted-foreground">Nova venda + upsell (exclui renovação/downgrade)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{mrrMode === "net" ? "MRR Líquido" : "MRR Bruto"}</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Somente conversões</p></CardContent></Card>
+
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
