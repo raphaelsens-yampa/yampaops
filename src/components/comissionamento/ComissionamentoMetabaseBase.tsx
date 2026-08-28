@@ -76,58 +76,91 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const monthly = await supabase.from("metas_ativos_pagantes_monthly").select("*").eq("mes_fechado", `${month}-01`).eq("status_assinatura", "ativo").order("data_snapshot", { ascending: false }).limit(5000);
-    if (monthly.error) {
-      toast({ title: "Erro ao carregar a Base Metabase", description: monthly.error.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-    if (monthly.data && monthly.data.length > 0) {
-      const snapshotRows = monthly.data as BaseRow[];
+    const isCurrent = month === currentMonthSP();
+    const monthStart = `${month}-01`;
+    const monthEnd = nextMonthStart(month);
+
+    const applySnapshot = (snapshotRows: BaseRow[], snapDate: string | null, src: SnapshotSource) => {
       setSnapshotRowsCount(snapshotRows.length);
       setMissingPaymentDates(snapshotRows.filter((row) => !row.data_pagamento).length);
       setRows(snapshotRows.filter((row) => inMonth(row.data_pagamento, month)));
-      setSource("monthly");
-      setSnapshotDate(monthly.data[0].data_snapshot);
+      setSource(src);
+      setSnapshotDate(snapDate);
       setLoading(false);
-      return;
+    };
+
+    const fail = (message: string) => {
+      toast({ title: "Erro ao carregar a Base Metabase", description: message, variant: "destructive" });
+      setLoading(false);
+    };
+
+    // 1) Fotografia oficial do mês fechado
+    const monthlyDate = await supabase
+      .from("metas_ativos_pagantes_monthly")
+      .select("data_snapshot")
+      .eq("mes_fechado", monthStart)
+      .order("data_snapshot", { ascending: false })
+      .limit(1);
+    if (monthlyDate.error) return fail(monthlyDate.error.message);
+
+    const monthlySnap = monthlyDate.data?.[0]?.data_snapshot || null;
+    if (monthlySnap) {
+      const monthly = await supabase
+        .from("metas_ativos_pagantes_monthly")
+        .select("*")
+        .eq("mes_fechado", monthStart)
+        .eq("data_snapshot", monthlySnap)
+        .eq("status_assinatura", "ativo")
+        .limit(10000);
+      if (monthly.error) return fail(monthly.error.message);
+      return applySnapshot((monthly.data || []) as BaseRow[], monthlySnap, "monthly");
     }
 
-    if (month !== currentMonthSP()) {
-      // Fotografia de mês fechado gravada pelo backfill mensal fica em metas_ativos_pagantes_daily.
-      const closed = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").gte("data_snapshot", `${month}-01`).lt("data_snapshot", nextMonthStart(month)).order("data_snapshot", { ascending: false }).limit(5000);
-      if (closed.error) {
-        toast({ title: "Erro ao carregar a Base Metabase", description: closed.error.message, variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-      const latestClosed = closed.data?.[0]?.data_snapshot || null;
-      const closedRows = (closed.data || []).filter((row) => row.data_snapshot === latestClosed) as BaseRow[];
-      setSnapshotRowsCount(closedRows.length);
-      setMissingPaymentDates(closedRows.filter((row) => !row.data_pagamento).length);
-      setRows(closedRows.filter((row) => inMonth(row.data_pagamento, month)));
-      setSource("daily");
-      setSnapshotDate(latestClosed);
-      setLoading(false);
-      return;
+    // 2) Mês fechado sem fotografia oficial: usa a última fotografia diária DENTRO do mês
+    if (!isCurrent) {
+      const closedDate = await supabase
+        .from("metas_ativos_pagantes_daily")
+        .select("data_snapshot")
+        .gte("data_snapshot", monthStart)
+        .lt("data_snapshot", monthEnd)
+        .order("data_snapshot", { ascending: false })
+        .limit(1);
+      if (closedDate.error) return fail(closedDate.error.message);
+
+      const closedSnap = closedDate.data?.[0]?.data_snapshot || null;
+      if (!closedSnap) return applySnapshot([], null, "daily");
+
+      const closed = await supabase
+        .from("metas_ativos_pagantes_daily")
+        .select("*")
+        .eq("data_snapshot", closedSnap)
+        .eq("status_assinatura", "ativo")
+        .limit(10000);
+      if (closed.error) return fail(closed.error.message);
+      return applySnapshot((closed.data || []) as BaseRow[], closedSnap, "daily");
     }
 
+    // 3) Mês vigente: fotografia diária mais recente
+    const latestDate = await supabase
+      .from("metas_ativos_pagantes_daily")
+      .select("data_snapshot")
+      .order("data_snapshot", { ascending: false })
+      .limit(1);
+    if (latestDate.error) return fail(latestDate.error.message);
 
-    const daily = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").order("data_snapshot", { ascending: false }).limit(5000);
-    if (daily.error) {
-      toast({ title: "Erro ao carregar a Base Metabase", description: daily.error.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-    const latest = daily.data?.[0]?.data_snapshot || null;
-    const snapshotRows = (daily.data || []).filter((row) => row.data_snapshot === latest) as BaseRow[];
-    setSnapshotRowsCount(snapshotRows.length);
-    setMissingPaymentDates(snapshotRows.filter((row) => !row.data_pagamento).length);
-    setRows(snapshotRows.filter((row) => inMonth(row.data_pagamento, month)));
-    setSource("daily");
-    setSnapshotDate(latest);
-    setLoading(false);
+    const latest = latestDate.data?.[0]?.data_snapshot || null;
+    if (!latest) return applySnapshot([], null, "daily");
+
+    const daily = await supabase
+      .from("metas_ativos_pagantes_daily")
+      .select("*")
+      .eq("data_snapshot", latest)
+      .eq("status_assinatura", "ativo")
+      .limit(10000);
+    if (daily.error) return fail(daily.error.message);
+    applySnapshot((daily.data || []) as BaseRow[], latest, "daily");
   }, [month, toast]);
+
 
   useEffect(() => { load(); }, [load]);
 
