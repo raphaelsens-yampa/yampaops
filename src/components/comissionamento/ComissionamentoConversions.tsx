@@ -239,16 +239,23 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               <SelectItem value="ignored">Ignorado</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-               <SelectItem value="all">Todas origens</SelectItem>
-               <SelectItem value="metabase">Metabase</SelectItem>
-               <SelectItem value="stripe">Stripe (histórico)</SelectItem>
-               <SelectItem value="import">Importado</SelectItem>
-               <SelectItem value="manual">Manual</SelectItem>
-            </SelectContent>
-          </Select>
+           <Select value={sourceFilter} onValueChange={setSourceFilter}>
+             <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+             <SelectContent>
+                <SelectItem value="all">Todas origens</SelectItem>
+                <SelectItem value="metabase">Metabase</SelectItem>
+                <SelectItem value="import">Importado</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+             </SelectContent>
+           </Select>
+           <Select value={originFilter} onValueChange={setOriginFilter}>
+             <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Todas origens cliente</SelectItem>
+               <SelectItem value="yampa">Yampa</SelectItem>
+               <SelectItem value="4blue">4blue (ignorado)</SelectItem>
+             </SelectContent>
+           </Select>
           <Select value={reviewFilter} onValueChange={setReviewFilter}>
             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
