@@ -54,6 +54,8 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   const [snapshotDate, setSnapshotDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<"close" | "reprocess" | null>(null);
+  const [reloading, setReloading] = useState(false);
+
 
   const priceById = useMemo(() => {
     const map = new Map<string, PriceMapEntry>();
@@ -66,7 +68,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const monthly = await supabase.from("metas_ativos_pagantes_monthly").select("*").eq("mes_fechado", `${month}-01`).order("data_snapshot", { ascending: false }).limit(5000);
+    const monthly = await supabase.from("metas_ativos_pagantes_monthly").select("*").eq("mes_fechado", `${month}-01`).eq("status_assinatura", "ativo").order("data_snapshot", { ascending: false }).limit(5000);
     if (monthly.error) {
       toast({ title: "Erro ao carregar a Base Metabase", description: monthly.error.message, variant: "destructive" });
       setLoading(false);
@@ -93,7 +95,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
       return;
     }
 
-    const daily = await supabase.from("metas_ativos_pagantes_daily").select("*").order("data_snapshot", { ascending: false }).limit(5000);
+    const daily = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").order("data_snapshot", { ascending: false }).limit(5000);
     if (daily.error) {
       toast({ title: "Erro ao carregar a Base Metabase", description: daily.error.message, variant: "destructive" });
       setLoading(false);
@@ -110,6 +112,30 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   }, [month, toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  const reloadMetabase = useCallback(async () => {
+    setReloading(true);
+    const isCurrent = month === currentMonthSP();
+    const body = isCurrent ? {} : { backfill_mensal: true, mes: month };
+    const { data, error } = await supabase.functions.invoke("ativos-ingest", { body });
+    setReloading(false);
+    if (error) {
+      toast({ title: "Erro ao recarregar do Metabase", description: error.message, variant: "destructive" });
+      return;
+    }
+    const result = data as { erro?: string; ativos?: number; gravados?: number; linhas_lidas?: number } | null;
+    if (result?.erro) {
+      toast({ title: "Ingestão retornou erro", description: result.erro, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: isCurrent ? "Ingestão diária executada" : `Fotografia de ${month} recarregada`,
+      description: result?.gravados != null ? `${result.gravados} linha(s) gravada(s).` : "Ingestão concluída.",
+    });
+    await load();
+    onChanged();
+  }, [month, toast, load, onChanged]);
+
 
   const summary = useMemo(() => {
     const result = new Map<string, { count: number; mrr: number }>();
