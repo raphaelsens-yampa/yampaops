@@ -18,6 +18,8 @@ import { PieChart as PieChartIcon, Download, Pencil, RefreshCw, RotateCcw } from
 import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
+import { fetchAllPaged } from "@/lib/supabasePaged";
+
 
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
@@ -170,27 +172,32 @@ export default function StripeConversions() {
   const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly],
     queryFn: async () => {
-      let q = supabase
-        .from("stripe_conversions")
-        .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id")
-        .gte("converted_at", `${period.start}T00:00:00`)
-        .lte("converted_at", `${period.end}T23:59:59`)
-        // Só conversões com valor > R$ 0 (líquido quando disponível)
-        .or("mrr_net.gt.0,and(mrr_net.is.null,mrr.gt.0)")
-        .order("converted_at", { ascending: false });
+      const build = () => {
+        let q = supabase
+          .from("stripe_conversions")
+          .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id")
+          .gte("converted_at", `${period.start}T00:00:00`)
+          .lte("converted_at", `${period.end}T23:59:59`)
+          // Só conversões com valor > R$ 0 (líquido quando disponível)
+          .or("mrr_net.gt.0,and(mrr_net.is.null,mrr.gt.0)")
+          .order("converted_at", { ascending: false })
+          .order("id");
 
-      if (safraEnabled) {
-        q = q.gte("registered_at", `${safra.start}T00:00:00`).lte("registered_at", `${safra.end}T23:59:59`);
-      }
-      if (areaFilter !== "all") q = q.eq("area", areaFilter);
-      if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
-      if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
-      if (reactivationOnly) q = q.eq("is_reactivation", true);
-      if (couponOnly) q = q.not("coupon_id", "is", null);
-      const { data, error } = await q.limit(5000);
-      if (error) throw error;
-      return (data || []) as Conversion[];
+        if (safraEnabled) {
+          q = q.gte("registered_at", `${safra.start}T00:00:00`).lte("registered_at", `${safra.end}T23:59:59`);
+        }
+        if (areaFilter !== "all") q = q.eq("area", areaFilter);
+        if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
+        if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
+        if (reactivationOnly) q = q.eq("is_reactivation", true);
+        if (couponOnly) q = q.not("coupon_id", "is", null);
+        return q;
+      };
+      const { data, error } = await fetchAllPaged<Conversion>(build as never);
+      if (error) throw new Error(error);
+      return data;
     },
+
   });
 
   const { data: areaOptions = [] } = useQuery({
