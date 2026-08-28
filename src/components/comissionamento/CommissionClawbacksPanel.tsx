@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { ProfileLite } from "@/pages/Comissionamento";
@@ -52,15 +53,17 @@ export function CommissionClawbacksPanel({ profiles, onChanged }: Props) {
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("commission_clawbacks").select("*").gte("canceled_at", firstDay(month)).lte("canceled_at", lastDay(month)).order("canceled_at", { ascending: false });
-    if (status !== "all") query = query.eq("status", status);
-    const { data, error } = await query;
+    const { data, error } = await fetchAllPaged<ClawbackRow>(() => {
+      let query = supabase.from("commission_clawbacks").select("*").gte("canceled_at", firstDay(month)).lte("canceled_at", lastDay(month)).order("canceled_at", { ascending: false }).order("id");
+      if (status !== "all") query = query.eq("status", status);
+      return query as never;
+    });
     setLoading(false);
     if (error) {
-      toast({ title: "Erro ao carregar estornos", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao carregar estornos", description: error, variant: "destructive" });
       return;
     }
-    setRows((data as ClawbackRow[]) || []);
+    setRows(data);
   }, [month, status, toast]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
