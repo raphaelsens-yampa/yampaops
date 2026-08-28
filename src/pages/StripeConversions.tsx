@@ -237,10 +237,16 @@ export default function StripeConversions() {
     },
   });
 
+  // Renovação e Downgrade não são conversões: entram só nos KPIs próprios, nunca nos totais/áreas.
+  const convRows = useMemo(
+    () => rows.filter(r => r.conversion_type === "new" || r.conversion_type === "upsell"),
+    [rows],
+  );
+
   const stats = useMemo(() => {
-    const total = rows.length;
-    const totalMrr = rows.reduce((s, r) => s + valueOf(r), 0);
-    const areasCount = new Set(rows.map(r => r.area)).size;
+    const total = convRows.length;
+    const totalMrr = convRows.reduce((s, r) => s + valueOf(r), 0);
+    const areasCount = new Set(convRows.map(r => r.area)).size;
     const newMrr = rows
       .filter(r => r.conversion_type === "new")
       .reduce((s, r) => s + valueOf(r), 0);
@@ -257,14 +263,15 @@ export default function StripeConversions() {
     const renewalCount = rows.filter(r => r.conversion_type === "renewal").length;
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
     const downgradeCount = rows.filter(r => r.conversion_type === "downgrade").length;
-    const noSellerCount = rows.filter(r => !r.assigned_seller_id).length;
-    const reactivationCount = rows.filter(r => r.is_reactivation).length;
+    const noSellerCount = convRows.filter(r => !r.assigned_seller_id).length;
+    const reactivationCount = convRows.filter(r => r.is_reactivation).length;
     return {
       total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0,
       newMrr, newCount, expansionMrr, upsellCount, contractionMrr, downgradeCount,
       renewalMrr, renewalCount, noSellerCount, reactivationCount,
     };
-  }, [rows, mrrMode]);
+  }, [rows, convRows, mrrMode]);
+
 
   const health = useMemo(() => {
     let missingMap = 0, divergent = 0, missingNet = 0;
