@@ -74,10 +74,12 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
     return sellerFiltered.filter((c) => {
       const v = c[dateField] as string | null;
       if (!v) return false;
-      const d = new Date(v);
+      const d = parseDateBR(v);
+      if (isNaN(d.getTime())) return false;
       return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
     });
   }, [sellerFiltered, month, dateField]);
+
 
   const monthM1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const monthM2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
