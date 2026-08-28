@@ -35,6 +35,7 @@ export interface ConversionRow {
   offer_name: string | null;
   mrr: number;
   origem_cliente: string | null;
+  commissionable?: boolean;
   resolved_plan: string | null;
   resolved_payment_type: string | null;
   resolved_seller_user_id: string | null;
