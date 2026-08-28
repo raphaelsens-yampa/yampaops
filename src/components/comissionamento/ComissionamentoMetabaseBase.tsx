@@ -292,6 +292,61 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
           <Card><CardHeader><CardTitle className="flex items-center gap-2 text-sm"><Wallet className="h-4 w-4" /> Por plano e Price ID</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Plano</TableHead><TableHead>Price ID</TableHead><TableHead className="text-right">Qtd.</TableHead><TableHead className="text-right">MRR</TableHead></TableRow></TableHeader><TableBody>{planRows.map((row) => <TableRow key={`${row.plan}-${row.priceId}`}><TableCell>{row.plan}</TableCell><TableCell className="max-w-48 truncate text-xs">{row.priceId}</TableCell><TableCell className="text-right">{row.count}</TableCell><TableCell className="text-right tabular-nums">{BRL(row.mrr)}</TableCell></TableRow>)}{planRows.length === 0 && <TableRow><TableCell colSpan={4} className="py-6 text-center text-muted-foreground">Nenhuma conversão no período.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </div>
 
+        <Card>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <CardTitle className="text-sm">Clientes do mês (linha a linha)</CardTitle>
+              <CardDescription>Novos Pagantes, Recuperados e Upsell com Data Pagamento em {month}.</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="flex flex-wrap gap-1">
+                {(["todos", "novo pagante", "recuperado", "upsell"] as const).map((key) => (
+                  <Button key={key} size="sm" variant={detailFilter === key ? "default" : "outline"} onClick={() => setDetailFilter(key)}>
+                    {key === "todos" ? "Todos" : classificationLabel(key)}
+                  </Button>
+                ))}
+              </div>
+              <Input placeholder="Buscar empresa, e-mail, plano ou Price ID" value={search} onChange={(event) => setSearch(event.target.value)} className="w-full sm:w-72" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data Pagto</TableHead><TableHead>Empresa</TableHead><TableHead>E-mail</TableHead><TableHead>Classificação</TableHead><TableHead>Plano / Oferta</TableHead><TableHead>Price ID</TableHead><TableHead>Vendedor</TableHead><TableHead className="text-right">MRR anterior</TableHead><TableHead className="text-right">MRR</TableHead><TableHead className="text-right">Comissionável</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detailRows.map((row) => {
+                    const kind = classificationKey(row.classificacao_company);
+                    const mrr = Number(row.mrr || 0);
+                    const previous = row.previous_mrr == null ? null : Number(row.previous_mrr);
+                    const base = kind === "upsell" ? (previous == null ? null : mrr - previous) : mrr;
+                    return (
+                      <TableRow key={`${row.id}-${row.company_id}`}>
+                        <TableCell className="whitespace-nowrap tabular-nums">{brDate(row.data_pagamento)}</TableCell>
+                        <TableCell className="font-mono text-xs">{row.company_id || "—"}</TableCell>
+                        <TableCell className="max-w-56 truncate text-xs">{row.email || "—"}</TableCell>
+                        <TableCell><Badge variant={kind === "upsell" ? "outline" : "secondary"}>{classificationLabel(row.classificacao_company)}</Badge></TableCell>
+                        <TableCell className="max-w-48 truncate">{row.plano || row.nome_oferta || "—"}</TableCell>
+                        <TableCell className="max-w-40 truncate font-mono text-xs">{row.stripe_price_id || "—"}</TableCell>
+                        <TableCell>{sellerLabel(row.stripe_price_id ? priceById.get(row.stripe_price_id.trim().toLowerCase()) : undefined)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{previous == null ? "—" : BRL(previous)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{BRL(mrr)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">{base == null ? "—" : BRL(base)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {detailRows.length === 0 && <TableRow><TableCell colSpan={10} className="py-6 text-center text-muted-foreground">Nenhum cliente no recorte.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">{detailRows.length} linha(s) exibida(s).</p>
+          </CardContent>
+        </Card>
+
+
         {missingMap.length > 0 && <Card><CardHeader><CardTitle className="text-sm">Price IDs sem de-para</CardTitle><CardDescription>Cadastre o Price ID no Mapa de Preços para resolver vendedor, plano e regra de comissão.</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Price ID</TableHead><TableHead>Plano</TableHead><TableHead className="text-right">Qtd.</TableHead><TableHead className="text-right">MRR</TableHead></TableRow></TableHeader><TableBody>{missingMap.map((row) => <TableRow key={row.priceId}><TableCell className="font-mono text-xs">{row.priceId}</TableCell><TableCell>{row.plan}</TableCell><TableCell className="text-right">{row.count}</TableCell><TableCell className="text-right tabular-nums">{BRL(row.mrr)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>}
       </>}
     </div>
