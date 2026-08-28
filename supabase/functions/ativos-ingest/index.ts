@@ -89,15 +89,161 @@ function pick(row: Row, names: string[]): unknown {
   return null;
 }
 
-const PREVIOUS_MRR_KEYS = ['Previous Mrr', 'Previous MRR', 'Mrr Anterior', 'Old Mrr'];
+function toInt(v: unknown): number | null {
+  const n = toNum(v);
+  return n == null ? null : Math.trunc(n);
+}
+
+function toBool(v: unknown): boolean | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'boolean') return v;
+  const s = String(v).trim().toLowerCase();
+  if (['true', 't', '1', 'sim', 'yes', 'y'].includes(s)) return true;
+  if (['false', 'f', '0', 'nao', 'não', 'no', 'n'].includes(s)) return false;
+  return null;
+}
+
+/** Texto de identificador numérico sem sufixo ".0" (ex.: "1234.0" -> "1234"). */
+function idTxt(v: unknown): string | null {
+  const s = txt(v);
+  if (!s) return null;
+  return s.replace(/\.0+$/, '');
+}
+
+/** 'MM/YYYY' a partir de uma data ISO. */
+function mesRefFromISO(iso: string): string {
+  const [y, m] = iso.split('-');
+  return `${m}/${y}`;
+}
+
+function firstDayOfMonthISO(iso: string): string {
+  const [y, m] = iso.split('-');
+  return `${y}-${m}-01`;
+}
+
+const PREVIOUS_MRR_KEYS = ['Previous Mrr', 'Previous MRR', 'previous_mrr', 'Mrr Anterior', 'Old Mrr'];
 const PAYMENT_DATE_KEYS = [
   'Data Pagamento',
+  'data_pagamento',
   'Data de Pagamento',
   'Data Pagto',
   'Payment Date',
   'Paid At',
   'Data Pagamento Assinatura',
 ];
+const NEW_MRR_KEYS = ['New Mrr', 'new_mrr', 'Mrr', 'mrr'];
+const COMPANY_ID_KEYS = ['Company ID', 'company_id'];
+const EMAIL_KEYS = ['Email', 'email'];
+const PLANO_ATUAL_KEYS = ['Plano Atual', 'plano_atual', 'Plano', 'plano'];
+const NOME_OFERTA_KEYS = ['Nome Oferta', 'nome_oferta'];
+const PRICE_ID_KEYS = ['Stripe Price ID', 'stripe_price_id'];
+const ORIGEM_KEYS = ['Origem Cliente', 'origem_cliente'];
+const INICIO_VIGENCIA_KEYS = ['Inicio Vigencia Plano', 'inicio_vigencia_plano'];
+const CLASSIFICACAO_KEYS = ['Classificacao Company', 'classificacao_company'];
+const STATUS_PAGAMENTO_KEYS = ['Status_pagamento', 'status_pagamento', 'Status Pagamento'];
+const GATEWAY_KEYS = ['Gateway', 'gateway'];
+const RECORRENCIA_KEYS = ['Recorrencia Pagamento', 'recorrencia_pagamento'];
+const DATA_REF_KEYS = ['Data Ref Analise', 'data_ref_analise'];
+
+/** Linha de ativo pagante para metas_ativos_pagantes_daily. */
+function mapAtivo(
+  r: Row,
+  opts: {
+    dataSnapshot: string;
+    mesRef: string;
+    tipoSnapshot: string;
+    dataExecucao: string;
+    coletadoEm: string;
+    fonte: string;
+  },
+): Row {
+  return {
+    data_snapshot: opts.dataSnapshot,
+    data_execucao: opts.dataExecucao,
+    mes_ref: opts.mesRef,
+    status_assinatura: 'ativo',
+    tipo_snapshot: opts.tipoSnapshot,
+    company_id: txt(pick(r, COMPANY_ID_KEYS)) ?? '',
+    email: lower(pick(r, EMAIL_KEYS)),
+    plano: txt(pick(r, PLANO_ATUAL_KEYS)),
+    nome_oferta: txt(pick(r, NOME_OFERTA_KEYS)),
+    stripe_price_id: txt(pick(r, PRICE_ID_KEYS)),
+    mrr: toNum(pick(r, NEW_MRR_KEYS)),
+    previous_mrr: toNum(pick(r, PREVIOUS_MRR_KEYS)),
+    data_pagamento: toDate(pick(r, PAYMENT_DATE_KEYS)),
+    origem_cliente: lower(pick(r, ORIGEM_KEYS)),
+    data_inicio: toDate(pick(r, INICIO_VIGENCIA_KEYS)),
+    data_cancelamento: null,
+    classificacao_company: txt(pick(r, CLASSIFICACAO_KEYS)),
+    status_pagamento: txt(pick(r, STATUS_PAGAMENTO_KEYS)),
+    gateway: txt(pick(r, GATEWAY_KEYS)),
+    recorrencia_pagamento: txt(pick(r, RECORRENCIA_KEYS)),
+    tipo_churn: null,
+    fonte: opts.fonte,
+    coletado_em: opts.coletadoEm,
+  };
+}
+
+const CHURN_DAILY_FONTE = 'Dash 11 card 181 churn_analitico via API';
+
+/**
+ * Linha analítica de churn para metas_churn_daily.
+ * Colunas ignoradas de propósito: Description, Is Trail (duplicata com typo de
+ * Is Trial), a 2ª coluna "Tipo Churn" do card e Import Date.
+ */
+function mapChurnDaily(r: Row, dataExecucao: string, coletadoEm: string): Row | null {
+  const mesRefAnalise = toDate(r['Mes Ref Analise']);
+  const companyId = txt(r['Company ID']);
+  if (!mesRefAnalise || !companyId) return null;
+  return {
+    mes_ref: mesRefFromISO(mesRefAnalise),
+    mes_ref_data: firstDayOfMonthISO(mesRefAnalise),
+    company_id: companyId,
+    email: lower(r['Email']),
+    cell_phone: txt(r['Cell Phone']),
+    segmento: txt(r['Segmento']),
+    plano: txt(r['Plano']),
+    origem_cliente: lower(r['Origem Cliente']),
+    gateway: txt(r['Gateway']),
+    sck: txt(r['Sck']),
+    owner_id: idTxt(r['Owner ID']),
+    tipo_churn: txt(r['Tipo Churn']),
+    reason: txt(r['Reason']),
+    churn_at: toDate(r['Churn At']),
+    data_ref_churn: toDate(r['Data Ref Churn']),
+    data_pedido_cancelamento: toDate(r['Data Pedido Cancelamento']),
+    activation_date: toDate(r['Activation Date']),
+    data_pagamento: toDate(r['Data Pagamento']),
+    inicio_vigencia_plano: toDate(r['Inicio Vigencia Plano']),
+    final_vigencia_plano: toDate(r['Final Vigencia Plano']),
+    vigencia: toInt(r['Vigencia']),
+    recorrencia_pagamento: toInt(r['Recorrencia Pagamento']),
+    intervalo_cobranca_stripe: txt(r['Intervalo Combranca Stripe']),
+    id_oferta: idTxt(r['ID Oferta']),
+    nome_oferta: txt(r['Nome Oferta']),
+    stripe_price_name: txt(r['Stripe Price Name']),
+    preco_stripe: toNum(r['Preco Stripe']),
+    valor_pago: toNum(r['Valor Pago']),
+    total_mrr: toNum(r['Total Mrr']),
+    cupom_aplicado: txt(r['Cupom Aplicado']),
+    cd_promo: txt(r['Cd Promo']),
+    status_transacao: txt(r['Status Transacao']),
+    status_vitalicio: txt(r['Status Vitalicio']),
+    is_4blue_customer: toBool(r['Is 4blue Costumer']),
+    is_illuminist: toBool(r['Is Illuminist']),
+    is_freetrial: toBool(r['Is Freetrial']),
+    is_trial: toBool(r['Is Trial']),
+    is_perpetual: toBool(r['Is Perpetual']),
+    is_paying: toBool(r['Is Paying']),
+    is_bonus: toBool(r['Is Bonus']),
+    is_refund: toBool(r['Is Refund']),
+    data_ref_analise: toDate(r['Data Ref Analise']),
+    data_extracao: dataExecucao,
+    fonte: CHURN_DAILY_FONTE,
+    coletado_em: coletadoEm,
+  };
+}
+
 
 
 async function metabase(path: string, apiKey: string, body?: unknown): Promise<Row[]> {
@@ -174,6 +320,99 @@ try {
     const coletadoEm = new Date().toISOString();
     const avisos: string[] = [];
 
+    // =====================================================================
+    // MODO backfill_mensal: fotografia do último dia de cada mês FECHADO,
+    // lida do card 103 SEM o filtro do dashboard. A guarda de data 409 do
+    // fluxo diário não se aplica aqui — validamos por grupo.
+    // =====================================================================
+    if (body.backfill_mensal === true) {
+      const raw = await metabase('/api/card/103/query/json', apiKey);
+      const mesAtualInicio = firstDayOfMonthISO(spDateISO());
+      const grupos = new Map<string, Row[]>();
+      let semData = 0;
+      let foraDoCorte = 0;
+      for (const r of raw) {
+        const d = toDate(pick(r, DATA_REF_KEYS));
+        if (!d) { semData++; continue; }
+        if (d < '2026-01-01') { foraDoCorte++; continue; }
+        // Só meses fechados: descarta o corte corrente (D-1) para não colidir
+        // com a linha tipo_snapshot='diario' do dia.
+        if (d !== lastDayOfMonth(d) || d >= mesAtualInicio) { foraDoCorte++; continue; }
+        const arr = grupos.get(d) ?? [];
+        arr.push(r);
+        grupos.set(d, arr);
+      }
+
+      const porSnapshot: Record<string, { lidos: number; duplicadas_removidas: number; ativos: number; mrr_total: number; gravados: number; erro?: string }> = {};
+      let totalGravados = 0;
+      let totalLidos = 0;
+      let totalDup = 0;
+
+      for (const [snap, rows] of Array.from(grupos.entries()).sort()) {
+        totalLidos += rows.length;
+        // Validação por grupo: todas as linhas com o mesmo Data Ref Analise.
+        const divergente = rows.some((r) => toDate(pick(r, DATA_REF_KEYS)) !== snap);
+        if (divergente) {
+          porSnapshot[snap] = { lidos: rows.length, duplicadas_removidas: 0, ativos: 0, mrr_total: 0, gravados: 0, erro: 'Data Ref Analise divergente no grupo — grupo abortado' };
+          avisos.push(`Grupo ${snap} abortado: Data Ref Analise divergente.`);
+          continue;
+        }
+
+        const vistos = new Set<string>();
+        const linhas: Row[] = [];
+        let dup = 0;
+        for (const r of rows) {
+          const cid = txt(pick(r, COMPANY_ID_KEYS)) ?? '';
+          if (vistos.has(cid)) { dup++; continue; }
+          vistos.add(cid);
+          linhas.push(mapAtivo(r, {
+            dataSnapshot: snap,
+            mesRef: mesRefFromISO(snap),
+            tipoSnapshot: 'fechamento_mensal',
+            dataExecucao,
+            coletadoEm,
+            fonte: 'Dash 3 card 103 fechamento mensal (edge function)',
+          }));
+        }
+        totalDup += dup;
+        const mrrTotal = Number(linhas.reduce((s, r) => s + (Number(r.mrr) || 0), 0).toFixed(2));
+        const info = { lidos: rows.length, duplicadas_removidas: dup, ativos: linhas.length, mrr_total: mrrTotal, gravados: 0 };
+        porSnapshot[snap] = info;
+
+        if (dryRun) continue;
+
+        for (let i = 0; i < linhas.length; i += BATCH) {
+          const chunk = linhas.slice(i, i + BATCH);
+          const { error } = await supabase
+            .from('metas_ativos_pagantes_daily')
+            .upsert(chunk, { onConflict: 'data_snapshot,company_id,status_assinatura', ignoreDuplicates: false });
+          if (error) {
+            info.erro = `lote ${i / BATCH + 1}: ${error.message}`;
+            avisos.push(`Falha ao gravar snapshot ${snap}: ${error.message}`);
+            break;
+          }
+          info.gravados += chunk.length;
+          totalGravados += chunk.length;
+        }
+      }
+
+      return json({
+        modo: 'backfill_mensal',
+        dry_run: dryRun,
+        linhas_lidas_card: raw.length,
+        linhas_sem_data_ref: semData,
+        linhas_fora_do_corte: foraDoCorte,
+        snapshots: Object.keys(porSnapshot).length,
+        lidos_nos_snapshots: totalLidos,
+        duplicadas_removidas: totalDup,
+        gravados: totalGravados,
+        por_snapshot: porSnapshot,
+        avisos,
+      });
+    }
+
+
+
     // ---- Fonte 1: ativos ----
     const ativosRaw = await metabase(
       '/api/dashboard/3/dashcard/110/card/103/query/json',
@@ -203,41 +442,64 @@ try {
     let dupAtivos = 0;
     let semEmail = 0;
     for (const r of ativosRaw) {
-      const cid = txt(r['Company ID']) ?? '';
-      const key = cid;
-      if (seen.has(key)) { dupAtivos++; continue; }
-      seen.add(key);
-      const email = lower(r['Email']);
-      if (!email) semEmail++;
-      ativos.push({
-        data_snapshot: dataSnapshot,
-        data_execucao: dataExecucao,
-        mes_ref: mesRef,
-        status_assinatura: 'ativo',
-        company_id: cid,
-        email,
-        plano: txt(r['Plano Atual']),
-        nome_oferta: txt(r['Nome Oferta']),
-        stripe_price_id: txt(r['Stripe Price ID']),
-        mrr: toNum(r['New Mrr']),
-        previous_mrr: toNum(pick(r, PREVIOUS_MRR_KEYS)),
-        data_pagamento: toDate(pick(r, PAYMENT_DATE_KEYS)),
-        origem_cliente: lower(r['Origem Cliente']),
-        data_inicio: toDate(r['Inicio Vigencia Plano']),
-        data_cancelamento: null,
-        classificacao_company: txt(r['Classificacao Company']),
-        status_pagamento: txt(r['Status_pagamento']),
-        gateway: txt(r['Gateway']),
-        recorrencia_pagamento: txt(r['Recorrencia Pagamento']),
-        tipo_churn: null,
+      const cid = txt(pick(r, COMPANY_ID_KEYS)) ?? '';
+      if (seen.has(cid)) { dupAtivos++; continue; }
+      seen.add(cid);
+      const linha = mapAtivo(r, {
+        dataSnapshot,
+        mesRef,
+        tipoSnapshot: 'diario',
+        dataExecucao,
+        coletadoEm,
         fonte: 'Dash 3 card 103 (edge function)',
-        coletado_em: coletadoEm,
       });
+      if (!linha.email) semEmail++;
+      ativos.push(linha);
     }
+
 
     // ---- Fonte 2: cancelados do mês ----
     const churnRaw = await metabase('/api/card/181/query/json', apiKey);
     const churnMes = churnRaw.filter((r) => String(r['Mes Ref Analise'] ?? '').startsWith(yearMonth));
+
+    // ---- Fonte 2c: analítico de churn (metas_churn_daily) — reaproveita o card 181 ----
+    const churnDailyBackfill = body.backfill === true;
+    const churnDailyFonte = churnDailyBackfill
+      ? churnRaw
+      : churnRaw.filter((r) => String(r['Mes Ref Analise'] ?? '').startsWith(yearMonth));
+    const churnDailyRows: Row[] = [];
+    const churnDailyKeys = new Set<string>();
+    let churnDailyDup = 0;
+    let churnDailyInvalidas = 0;
+    for (const r of churnDailyFonte) {
+      const mapped = mapChurnDaily(r, dataExecucao, coletadoEm);
+      if (!mapped) { churnDailyInvalidas++; continue; }
+      const key = `${mapped.mes_ref}|${mapped.company_id}`;
+      if (churnDailyKeys.has(key)) {
+        // Não deduplicamos por regra; apenas reportamos e mantemos a última ocorrência.
+        churnDailyDup++;
+        const idx = churnDailyRows.findIndex((x) => `${x.mes_ref}|${x.company_id}` === key);
+        if (idx >= 0) churnDailyRows[idx] = mapped;
+        continue;
+      }
+      churnDailyKeys.add(key);
+      churnDailyRows.push(mapped);
+    }
+    if (churnDailyDup > 0) {
+      avisos.push(`${churnDailyDup} linha(s) duplicada(s) de (mes_ref, company_id) no analítico de churn (esperado 0).`);
+    }
+    if (churnDailyInvalidas > 0) {
+      avisos.push(`${churnDailyInvalidas} linha(s) do analítico de churn sem Mes Ref Analise/Company ID foram ignoradas.`);
+    }
+    const churnDailyPorMes: Record<string, { linhas: number; mrr: number }> = {};
+    for (const r of churnDailyRows) {
+      const k = String(r.mes_ref);
+      const acc = churnDailyPorMes[k] ?? { linhas: 0, mrr: 0 };
+      acc.linhas++;
+      acc.mrr = Number((acc.mrr + (Number(r.total_mrr) || 0)).toFixed(2));
+      churnDailyPorMes[k] = acc;
+    }
+
     const churnIds = new Set<string>();
     let dupChurn = 0;
     for (const r of churnMes) {
@@ -358,14 +620,22 @@ try {
       mrr_total_ativos: Number(mrrAtivos.toFixed(2)),
       ativos_por_origem: porOrigem,
       churn_historico: { meses: churnMonths, desde: cutoff, lidos: churnHist.length },
+      churn_daily: {
+        backfill: churnDailyBackfill,
+        lidos: churnDailyFonte.length,
+        linhas: churnDailyRows.length,
+        duplicadas_encontradas: churnDailyDup,
+        ignoradas_sem_chave: churnDailyInvalidas,
+        por_mes: churnDailyPorMes,
+      },
       avisos,
     };
 
     if (dryRun) {
-      return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0 } });
+      return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0, churn_daily: 0 } });
     }
 
-    const gravados = { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0 };
+    const gravados = { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0, churn_daily: 0 };
     const grupos: Array<[keyof typeof gravados, Row[]]> = [
       ['ativo', ativos],
       ['cancelado', cancelados],
@@ -404,7 +674,46 @@ try {
       gravados.churn_historico += chunk.length;
     }
 
+    // Analítico de churn (metas_churn_daily). visto_primeira_vez_em é gravado
+    // apenas na inserção — nunca sobrescrito em update.
+    if (churnDailyRows.length > 0) {
+      const existentes = new Set<string>();
+      const meses = Array.from(new Set(churnDailyRows.map((r) => String(r.mes_ref))));
+      for (let i = 0; i < meses.length; i += 50) {
+        const fatia = meses.slice(i, i + 50);
+        const { data, error } = await supabase
+          .from('metas_churn_daily')
+          .select('mes_ref, company_id')
+          .in('mes_ref', fatia);
+        if (error) {
+          avisos.push(`Falha ao ler chaves existentes de metas_churn_daily: ${error.message}`);
+          break;
+        }
+        for (const row of data ?? []) existentes.add(`${row.mes_ref}|${row.company_id}`);
+      }
+
+      const novas = churnDailyRows
+        .filter((r) => !existentes.has(`${r.mes_ref}|${r.company_id}`))
+        .map((r) => ({ ...r, visto_primeira_vez_em: dataExecucao }));
+      const atualizadas = churnDailyRows.filter((r) => existentes.has(`${r.mes_ref}|${r.company_id}`));
+
+      for (const conjunto of [novas, atualizadas]) {
+        for (let i = 0; i < conjunto.length; i += BATCH) {
+          const chunk = conjunto.slice(i, i + BATCH);
+          const { error } = await supabase
+            .from('metas_churn_daily')
+            .upsert(chunk, { onConflict: 'mes_ref,company_id', ignoreDuplicates: false });
+          if (error) {
+            avisos.push(`Falha ao gravar analítico de churn (lote ${i / BATCH + 1}): ${error.message}`);
+            break;
+          }
+          gravados.churn_daily += chunk.length;
+        }
+      }
+    }
+
     return json({ ...base, gravados });
+
   } catch (e) {
     const status = (e as { status?: number })?.status ?? 500;
     return json({ error: (e as Error)?.message ?? String(e) }, status);
