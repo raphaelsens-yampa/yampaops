@@ -37,6 +37,11 @@ interface Props { priceMap: PriceMapEntry[]; onChanged: () => void; }
 const currentMonthSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date());
 const brDate = (value: string | null | undefined) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 const inMonth = (value: string | null | undefined, month: string) => Boolean(value && value.slice(0, 7) === month);
+const nextMonthStart = (month: string) => {
+  const [year, mon] = month.split("-").map(Number);
+  return mon === 12 ? `${year + 1}-01-01` : `${year}-${String(mon + 1).padStart(2, "0")}-01`;
+};
+
 const classificationLabel = (value: string | null) => {
   const normalized = (value || "").trim().toLowerCase();
   return normalized ? normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Sem classificação";
@@ -89,14 +94,24 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     }
 
     if (month !== currentMonthSP()) {
-      setRows([]);
-      setSnapshotRowsCount(0);
-      setMissingPaymentDates(0);
+      // Fotografia de mês fechado gravada pelo backfill mensal fica em metas_ativos_pagantes_daily.
+      const closed = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").gte("data_snapshot", `${month}-01`).lt("data_snapshot", nextMonthStart(month)).order("data_snapshot", { ascending: false }).limit(5000);
+      if (closed.error) {
+        toast({ title: "Erro ao carregar a Base Metabase", description: closed.error.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      const latestClosed = closed.data?.[0]?.data_snapshot || null;
+      const closedRows = (closed.data || []).filter((row) => row.data_snapshot === latestClosed) as BaseRow[];
+      setSnapshotRowsCount(closedRows.length);
+      setMissingPaymentDates(closedRows.filter((row) => !row.data_pagamento).length);
+      setRows(closedRows.filter((row) => inMonth(row.data_pagamento, month)));
       setSource("daily");
-      setSnapshotDate(null);
+      setSnapshotDate(latestClosed);
       setLoading(false);
       return;
     }
+
 
     const daily = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").order("data_snapshot", { ascending: false }).limit(5000);
     if (daily.error) {
