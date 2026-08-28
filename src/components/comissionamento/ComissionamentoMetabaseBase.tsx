@@ -89,14 +89,24 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     }
 
     if (month !== currentMonthSP()) {
-      setRows([]);
-      setSnapshotRowsCount(0);
-      setMissingPaymentDates(0);
+      // Fotografia de mês fechado gravada pelo backfill mensal fica em metas_ativos_pagantes_daily.
+      const closed = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").gte("data_snapshot", `${month}-01`).lt("data_snapshot", nextMonthStart(month)).order("data_snapshot", { ascending: false }).limit(5000);
+      if (closed.error) {
+        toast({ title: "Erro ao carregar a Base Metabase", description: closed.error.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      const latestClosed = closed.data?.[0]?.data_snapshot || null;
+      const closedRows = (closed.data || []).filter((row) => row.data_snapshot === latestClosed) as BaseRow[];
+      setSnapshotRowsCount(closedRows.length);
+      setMissingPaymentDates(closedRows.filter((row) => !row.data_pagamento).length);
+      setRows(closedRows.filter((row) => inMonth(row.data_pagamento, month)));
       setSource("daily");
-      setSnapshotDate(null);
+      setSnapshotDate(latestClosed);
       setLoading(false);
       return;
     }
+
 
     const daily = await supabase.from("metas_ativos_pagantes_daily").select("*").eq("status_assinatura", "ativo").order("data_snapshot", { ascending: false }).limit(5000);
     if (daily.error) {
