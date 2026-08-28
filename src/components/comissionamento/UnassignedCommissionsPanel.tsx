@@ -15,6 +15,14 @@ interface Props { conversions: ConversionRow[]; profiles: ProfileLite[]; onChang
 
 const brl = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dateBR = (value: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+const saleDateBR = (row: ConversionRow) => {
+  const raw = row.sale_at?.converted_at;
+  if (raw) {
+    const dt = new Date(raw);
+    if (!isNaN(dt.getTime())) return dt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  }
+  return "—";
+};
 
 export function UnassignedCommissionsPanel({ conversions, profiles, onChanged }: Props) {
   const { session } = useAuth();
@@ -75,12 +83,13 @@ export function UnassignedCommissionsPanel({ conversions, profiles, onChanged }:
       </CardHeader>
       <CardContent>
         <Table>
-          <TableHeader><TableRow><TableHead className="w-10"><Checkbox checked={rows.length > 0 && selected.length === rows.length} onCheckedChange={(value) => toggleAll(value === true)} aria-label="Selecionar todas" /></TableHead><TableHead>Cliente</TableHead><TableHead>Mês da venda</TableHead><TableHead>Plano</TableHead><TableHead className="text-right">MRR</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="w-10"><Checkbox checked={rows.length > 0 && selected.length === rows.length} onCheckedChange={(value) => toggleAll(value === true)} aria-label="Selecionar todas" /></TableHead><TableHead>Cliente</TableHead><TableHead>Data da venda</TableHead><TableHead>Mês da venda</TableHead><TableHead>Plano</TableHead><TableHead className="text-right">MRR</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Todas as conversões têm vendedor atribuído.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Todas as conversões têm vendedor atribuído.</TableCell></TableRow>}
             {rows.slice(0, 1000).map((row) => <TableRow key={row.id} data-state={selected.includes(row.id) ? "selected" : undefined}>
               <TableCell><Checkbox checked={selected.includes(row.id)} onCheckedChange={(value) => toggleRow(row.id, value === true)} aria-label={`Selecionar ${row.customer_name || row.customer_email || "conversão"}`} /></TableCell>
               <TableCell><div className="font-medium">{row.customer_name || "—"}</div><div className="text-xs text-muted-foreground">{row.customer_email || ""}</div></TableCell>
+              <TableCell className="tabular-nums">{saleDateBR(row)}</TableCell>
               <TableCell>{dateBR(row.sale_month)}</TableCell>
               <TableCell>{row.resolved_plan || row.offer_name || row.price_id || "Não mapeado"}</TableCell>
               <TableCell className="text-right tabular-nums">{brl(Number(row.mrr || 0))}</TableCell>
