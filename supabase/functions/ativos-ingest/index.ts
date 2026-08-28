@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type, x-ingest-secret',
+  'Access-Control-Allow-Headers': 'content-type, x-ingest-secret, authorization, apikey, x-client-info',
 };
 
 const METABASE_BASE = 'https://metabase.yampa.app';
