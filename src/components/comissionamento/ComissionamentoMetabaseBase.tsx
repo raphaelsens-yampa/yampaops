@@ -48,9 +48,9 @@ const classificationLabel = (value: string | null) => {
 };
 const classificationKey = (value: string | null) => (value || "").trim().toLowerCase();
 const COMMISSIONABLE_CLASSIFICATIONS = ["novo pagante", "recuperado", "upsell"] as const;
-const ORIGIN_COLUMN = "origem_cliente";
 const EXCLUDED_ORIGIN = "4blue";
 const sellerLabel = (map: PriceMapEntry | undefined) => map?.seller_label || map?.seller_user_id || "Sem vendedor";
+
 
 
 export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
@@ -138,8 +138,8 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
         .select("*")
         .eq("data_snapshot", snap)
         .eq("status_assinatura", "ativo")
-        .in("classificacao_company", [...COMMISSIONABLE_CLASSIFICATIONS])
-        .or(`${ORIGIN_COLUMN}.is.null,${ORIGIN_COLUMN}.neq.${EXCLUDED_ORIGIN}`);
+        .eq("origem_cliente", "yampa")
+        .in("classificacao_company", [...COMMISSIONABLE_CLASSIFICATIONS]);
       if (table === "metas_ativos_pagantes_monthly") q = q.eq("mes_fechado", monthStart);
       return q;
     };
@@ -155,6 +155,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
       .select("id", { count: "exact", head: true })
       .is("data_pagamento", null);
     if (missingCount.error) return fail(missingCount.error.message);
+
 
 
     // Linhas do mês, paginadas (o Data API limita cada página a 1000 linhas)
