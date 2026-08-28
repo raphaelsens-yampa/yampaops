@@ -321,95 +321,107 @@ try {
     const avisos: string[] = [];
 
     // =====================================================================
-    // MODO backfill_mensal: fotografia do último dia de cada mês FECHADO,
-    // lida do card 103 SEM o filtro do dashboard. A guarda de data 409 do
-    // fluxo diário não se aplica aqui — validamos por grupo.
+    // MODO backfill_mensal: fotografia do último dia de UM mês FECHADO.
+    // Não executa nenhum passo do fluxo diário (cards 181/267 e ingest do dia).
+    // Consulta via /api/dataset com filtro no servidor (card__103), para não
+    // trazer o card inteiro. A guarda de data 409 não se aplica — validamos
+    // por grupo.
     // =====================================================================
     if (body.backfill_mensal === true) {
-      const raw = await metabase('/api/card/103/query/json', apiKey);
       const mesAtualInicio = firstDayOfMonthISO(spDateISO());
-      const grupos = new Map<string, Row[]>();
-      let semData = 0;
-      let foraDoCorte = 0;
-      for (const r of raw) {
-        const d = toDate(pick(r, DATA_REF_KEYS));
-        if (!d) { semData++; continue; }
-        if (d < '2026-01-01') { foraDoCorte++; continue; }
-        // Só meses fechados: descarta o corte corrente (D-1) para não colidir
-        // com a linha tipo_snapshot='diario' do dia.
-        if (d !== lastDayOfMonth(d) || d >= mesAtualInicio) { foraDoCorte++; continue; }
-        const arr = grupos.get(d) ?? [];
-        arr.push(r);
-        grupos.set(d, arr);
+      const mesesFechados = CLOSED_MONTH_SNAPSHOTS.filter((d) => d < mesAtualInicio);
+
+      const mesPedido = typeof body.mes === 'string' ? body.mes.trim() : '';
+      if (!/^\d{4}-\d{2}$/.test(mesPedido)) {
+        return json({
+          error: 'Informe "mes" no formato YYYY-MM. Processamos um mês por invocação.',
+          meses_disponiveis: mesesFechados.map((d) => d.slice(0, 7)),
+        }, 400);
+      }
+      const snapEsperado = mesesFechados.find((d) => d.startsWith(mesPedido));
+      if (!snapEsperado) {
+        return json({
+          error: `Mês ${mesPedido} não é um mês fechado disponível.`,
+          meses_disponiveis: mesesFechados.map((d) => d.slice(0, 7)),
+        }, 400);
       }
 
-      const porSnapshot: Record<string, { lidos: number; duplicadas_removidas: number; ativos: number; mrr_total: number; gravados: number; erro?: string }> = {};
-      let totalGravados = 0;
-      let totalLidos = 0;
-      let totalDup = 0;
+      const inicioMes = `${mesPedido}-01`;
+      const raw = await metabaseDatasetCard103(apiKey, inicioMes, snapEsperado);
 
-      for (const [snap, rows] of Array.from(grupos.entries()).sort()) {
-        totalLidos += rows.length;
-        // Validação por grupo: todas as linhas com o mesmo Data Ref Analise.
-        const divergente = rows.some((r) => toDate(pick(r, DATA_REF_KEYS)) !== snap);
-        if (divergente) {
-          porSnapshot[snap] = { lidos: rows.length, duplicadas_removidas: 0, ativos: 0, mrr_total: 0, gravados: 0, erro: 'Data Ref Analise divergente no grupo — grupo abortado' };
-          avisos.push(`Grupo ${snap} abortado: Data Ref Analise divergente.`);
-          continue;
-        }
+      const semData = raw.filter((r) => !toDate(pick(r, DATA_REF_KEYS))).length;
+      const rows = raw.filter((r) => toDate(pick(r, DATA_REF_KEYS)) === snapEsperado);
+      const foraDoCorte = raw.length - rows.length - semData;
 
-        const vistos = new Set<string>();
-        const linhas: Row[] = [];
-        let dup = 0;
-        for (const r of rows) {
-          const cid = txt(pick(r, COMPANY_ID_KEYS)) ?? '';
-          if (vistos.has(cid)) { dup++; continue; }
-          vistos.add(cid);
-          linhas.push(mapAtivo(r, {
-            dataSnapshot: snap,
-            mesRef: mesRefFromISO(snap),
-            tipoSnapshot: 'fechamento_mensal',
-            dataExecucao,
-            coletadoEm,
-            fonte: 'Dash 3 card 103 fechamento mensal (edge function)',
-          }));
-        }
-        totalDup += dup;
-        const mrrTotal = Number(linhas.reduce((s, r) => s + (Number(r.mrr) || 0), 0).toFixed(2));
-        const info = { lidos: rows.length, duplicadas_removidas: dup, ativos: linhas.length, mrr_total: mrrTotal, gravados: 0 };
-        porSnapshot[snap] = info;
+      if (foraDoCorte > 0) {
+        avisos.push(`${foraDoCorte} linha(s) com data_ref_analise diferente de ${snapEsperado} foram descartadas.`);
+      }
+      if (rows.length === 0) {
+        return json({
+          modo: 'backfill_mensal',
+          mes: mesPedido,
+          data_snapshot: snapEsperado,
+          dry_run: dryRun,
+          erro: `Nenhuma linha com data_ref_analise = ${snapEsperado} retornada pelo Metabase.`,
+          linhas_lidas: raw.length,
+          avisos,
+        }, 200);
+      }
 
-        if (dryRun) continue;
+      const vistos = new Set<string>();
+      const linhas: Row[] = [];
+      let dup = 0;
+      for (const r of rows) {
+        const cid = txt(pick(r, COMPANY_ID_KEYS)) ?? '';
+        if (vistos.has(cid)) { dup++; continue; }
+        vistos.add(cid);
+        linhas.push(mapAtivo(r, {
+          dataSnapshot: snapEsperado,
+          mesRef: mesRefFromISO(snapEsperado),
+          tipoSnapshot: 'fechamento_mensal',
+          dataExecucao,
+          coletadoEm,
+          fonte: 'Dash 3 card 103 fechamento mensal (edge function)',
+        }));
+      }
 
+      const mrrTotal = Number(linhas.reduce((s, r) => s + (Number(r.mrr) || 0), 0).toFixed(2));
+      let gravados = 0;
+      let erro: string | undefined;
+
+      if (!dryRun) {
         for (let i = 0; i < linhas.length; i += BATCH) {
           const chunk = linhas.slice(i, i + BATCH);
           const { error } = await supabase
             .from('metas_ativos_pagantes_daily')
             .upsert(chunk, { onConflict: 'data_snapshot,company_id,status_assinatura', ignoreDuplicates: false });
           if (error) {
-            info.erro = `lote ${i / BATCH + 1}: ${error.message}`;
-            avisos.push(`Falha ao gravar snapshot ${snap}: ${error.message}`);
+            erro = `lote ${i / BATCH + 1}: ${error.message}`;
+            avisos.push(`Falha ao gravar snapshot ${snapEsperado}: ${error.message}`);
             break;
           }
-          info.gravados += chunk.length;
-          totalGravados += chunk.length;
+          gravados += chunk.length;
         }
       }
 
       return json({
         modo: 'backfill_mensal',
+        mes: mesPedido,
+        data_snapshot: snapEsperado,
         dry_run: dryRun,
-        linhas_lidas_card: raw.length,
+        linhas_lidas: raw.length,
         linhas_sem_data_ref: semData,
         linhas_fora_do_corte: foraDoCorte,
-        snapshots: Object.keys(porSnapshot).length,
-        lidos_nos_snapshots: totalLidos,
-        duplicadas_removidas: totalDup,
-        gravados: totalGravados,
-        por_snapshot: porSnapshot,
+        duplicadas_removidas: dup,
+        ativos: linhas.length,
+        mrr_total: mrrTotal,
+        gravados,
+        erro,
+        meses_disponiveis: mesesFechados.map((d) => d.slice(0, 7)),
         avisos,
       });
     }
+
 
 
 
