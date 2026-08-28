@@ -70,6 +70,14 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
       return;
     }
 
+    if (month !== currentMonthSP()) {
+      setRows([]);
+      setSource("daily");
+      setSnapshotDate(null);
+      setLoading(false);
+      return;
+    }
+
     const daily = await supabase.from("metas_ativos_pagantes_daily").select("*").order("data_snapshot", { ascending: false }).limit(5000);
     if (daily.error) {
       toast({ title: "Erro ao carregar a Base Metabase", description: daily.error.message, variant: "destructive" });

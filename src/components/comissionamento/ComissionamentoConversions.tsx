@@ -151,6 +151,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
 
   const sourceBadge = (src: ConversionRow["source"]) => {
     if (src === "stripe") return <Badge variant="default" className="gap-1"><Zap className="h-3 w-3" />Stripe</Badge>;
+    if (src === "metabase") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Metabase</Badge>;
     if (src === "import") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Import</Badge>;
     return <Badge variant="outline" className="gap-1"><User className="h-3 w-3" />Manual</Badge>;
   };
@@ -238,10 +239,11 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           <Select value={sourceFilter} onValueChange={setSourceFilter}>
             <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas origens</SelectItem>
-              <SelectItem value="stripe">Stripe</SelectItem>
-              <SelectItem value="import">Importado</SelectItem>
-              <SelectItem value="manual">Manual</SelectItem>
+               <SelectItem value="all">Todas origens</SelectItem>
+               <SelectItem value="metabase">Metabase</SelectItem>
+               <SelectItem value="stripe">Stripe (histórico)</SelectItem>
+               <SelectItem value="import">Importado</SelectItem>
+               <SelectItem value="manual">Manual</SelectItem>
             </SelectContent>
           </Select>
           <Select value={reviewFilter} onValueChange={setReviewFilter}>
