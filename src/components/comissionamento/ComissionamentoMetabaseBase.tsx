@@ -52,7 +52,14 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<"close" | "reprocess" | null>(null);
 
-  const priceById = useMemo(() => new Map(priceMap.filter((item) => item.price_id).map((item) => [item.price_id!.trim().toLowerCase(), item])), [priceMap]);
+  const priceById = useMemo(() => {
+    const map = new Map<string, PriceMapEntry>();
+    for (const item of priceMap) {
+      const priceId = item.price_id?.trim().toLowerCase();
+      if (priceId) map.set(priceId, item);
+    }
+    return map;
+  }, [priceMap]);
 
   const load = useCallback(async () => {
     setLoading(true);
