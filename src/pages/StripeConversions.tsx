@@ -445,18 +445,18 @@ export default function StripeConversions() {
 
   const byArea = useMemo(() => {
     const map = new Map<string, { area: string; conversoes: number; mrr: number }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       const cur = map.get(r.area) || { area: r.area, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
       cur.mrr += valueOf(r);
       map.set(r.area, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows, mrrMode]);
+  }, [convRows, mrrMode]);
 
   const timeSeries = useMemo(() => {
     const map = new Map<string, Record<string, number> & { mes: string }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       if (!r.converted_at) continue;
       const key = monthKeySP(r.converted_at);
       const cur = map.get(key) || ({ mes: key } as any);
@@ -465,17 +465,17 @@ export default function StripeConversions() {
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => a.mes.localeCompare(b.mes));
-  }, [rows, mrrMode]);
+  }, [convRows, mrrMode]);
 
   const visibleAreas = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach(r => s.add(r.area));
+    convRows.forEach(r => s.add(r.area));
     return Array.from(s);
-  }, [rows]);
+  }, [convRows]);
 
   const bySeller = useMemo(() => {
     const map = new Map<string, { seller_id: string; name: string; conversoes: number; mrr: number }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       if (!r.assigned_seller_id) continue;
       const cur = map.get(r.assigned_seller_id) || {
         seller_id: r.assigned_seller_id,
@@ -488,11 +488,11 @@ export default function StripeConversions() {
       map.set(r.assigned_seller_id, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows, mrrMode, sellersMap]);
+  }, [convRows, mrrMode, sellersMap]);
 
   const byPlan = useMemo(() => {
     const map = new Map<string, { plan: string; conversoes: number; mrr: number }>();
-    for (const r of rows) {
+    for (const r of convRows) {
       const plan = r.plan_name?.trim() || "Sem plano";
       const cur = map.get(plan) || { plan, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
@@ -500,7 +500,7 @@ export default function StripeConversions() {
       map.set(plan, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
-  }, [rows, mrrMode]);
+  }, [convRows, mrrMode]);
 
   const sellerPlanSales = useMemo(() => {
     const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
