@@ -160,7 +160,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   };
 
   const unlockReview = async (c: ConversionRow) => {
-    if (!confirm("Destravar recálculo automático desta comissão? Os valores serão recalculados a partir do Stripe no próximo processamento.")) return;
+    if (!confirm("Destravar o recálculo automático desta comissão? Os valores serão recalculados a partir da Base Metabase no próximo processamento.")) return;
     const { error } = await supabase
       .from("commission_conversions")
       .update({ manually_reviewed: false, override_fields: [], reviewed_by: null, reviewed_at: null })

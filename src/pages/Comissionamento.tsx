@@ -83,7 +83,7 @@ export default function Comissionamento() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const filteredConversions = useMemo(() => isAdmin ? conversions : conversions.filter((conversion) => conversion.resolved_seller_user_id === userId), [conversions, isAdmin, userId]);
-  const unassigned = useMemo(() => conversions.filter((conversion) => !conversion.resolved_seller_user_id && !conversion.resolved_seller_label), [conversions]);
+  const unassigned = useMemo(() => conversions.filter((conversion) => conversion.commissionable !== false && (conversion.origem_cliente || "").trim().toLowerCase() !== "4blue" && !conversion.resolved_seller_user_id && !conversion.resolved_seller_label), [conversions]);
 
   return (
     <Layout>

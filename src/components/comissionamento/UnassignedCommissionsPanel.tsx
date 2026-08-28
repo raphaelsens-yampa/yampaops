@@ -31,7 +31,7 @@ export function UnassignedCommissionsPanel({ conversions, profiles, onChanged }:
   const [sellerId, setSellerId] = useState("none");
   const [saving, setSaving] = useState(false);
 
-  const rows = useMemo(() => conversions.filter((row) => !row.resolved_seller_user_id && !row.resolved_seller_label), [conversions]);
+  const rows = useMemo(() => conversions.filter((row) => row.commissionable !== false && (row.origem_cliente || "").trim().toLowerCase() !== "4blue" && !row.resolved_seller_user_id && !row.resolved_seller_label), [conversions]);
   const selectedRows = rows.filter((row) => selected.includes(row.id));
 
   const toggleAll = (checked: boolean) => setSelected(checked ? rows.map((row) => row.id) : []);
@@ -68,7 +68,7 @@ export function UnassignedCommissionsPanel({ conversions, profiles, onChanged }:
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-sm font-medium"><UserRound className="h-4 w-4" /> Conversões sem vendedor <Badge variant={rows.length ? "destructive" : "secondary"}>{rows.length}</Badge></CardTitle>
-          <CardDescription className="mt-1 text-xs">Atribuição manual auditável. A origem será registrada como “manual” e o recálculo automático ficará travado nessas linhas.</CardDescription>
+          <CardDescription className="mt-1 text-xs">Atribuição manual auditável. A origem será registrada como “manual” e o recálculo pela Base Metabase ficará travado nessas linhas.</CardDescription>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <Select value={sellerId} onValueChange={setSellerId}>
