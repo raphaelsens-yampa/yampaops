@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { DollarSign } from "lucide-react";
 import type { CommissionReference, PriceMapEntry } from "@/lib/commissioning";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { ComissionamentoOverview } from "@/components/comissionamento/ComissionamentoOverview";
 import { ComissionamentoConversions } from "@/components/comissionamento/ComissionamentoConversions";
 import { ComissionamentoImport } from "@/components/comissionamento/ComissionamentoImport";
