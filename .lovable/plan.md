@@ -4,22 +4,25 @@ Passar a origem oficial das conversões de comissão para a importação diária
 
 ## 1. Fonte: `metas_ativos_pagantes_daily` (já alimentada hoje)
 
-Confirmado na base: a tabela existe, tem snapshot diário (últimos dias até 27/08) e é detalhada por cliente, com `company_id`, `email`, `plano`, `nome_oferta`, `stripe_price_id`, `mrr`, `origem_cliente`, `data_inicio`, `recorrencia_pagamento` e `classificacao_company`. As classificações presentes são `novo pagante`, `recuperado`, `upsell`, `downsell` e `regular`. No snapshot de 27/08 há 127 novos pagantes (R$ 18,3 mil), 40 recuperados (R$ 6,5 mil) e 8 upsells (R$ 1,5 mil). Dá certo por este caminho — com três ajustes obrigatórios:
+Confirmado na base: a tabela existe, tem snapshot diário (até 27/08) e é detalhada por cliente, com `company_id`, `email`, `plano`, `nome_oferta`, `stripe_price_id`, `mrr`, `origem_cliente`, `data_inicio`, `recorrencia_pagamento` e `classificacao_company`. As classificações presentes são `novo pagante`, `recuperado`, `upsell`, `downsell` e `regular`. No snapshot de 27/08: 127 novos pagantes (R$ 18,3 mil), 40 recuperados (R$ 6,5 mil) e 8 upsells (R$ 1,5 mil). O caminho funciona.
 
-1. **Não tem coluna de vendedor.** O caminho é resolver o vendedor por cascata a partir de `email`/`company_id`: mapa de vendedor por price ID, `ac_owner_seller_map`, oportunidade ganha do contato, histórico de `stripe_conversions`/comissões do mesmo cliente. Sem match, a linha cai na aba "Sem vendedor" para atribuição manual (e a atribuição fica gravada para o próximo reprocesso).
-2. **A classificação é janela móvel, não mês fechado.** As linhas classificadas trazem `data_inicio` de até ~30 dias atrás (no snapshot de 27/08 começa em 29/07). O mês da venda para comissão vem de `data_inicio` (fuso São Paulo), não de `mes_ref` do snapshot.
-3. **Upsell não traz o MRR anterior.** O delta será calculado comparando o `mrr` do mesmo `company_id` no snapshot anterior (a tabela guarda a série diária) e, quando não houver snapshot anterior, pelo `previous_mrr` já existente em `stripe_conversions`. Sem nenhuma das duas referências, a linha entra como pendência de revisão em vez de comissionar o MRR cheio.
+Um ponto de ajuste na ingestão: hoje a tabela **não guarda** `previous_mrr` nem data de pagamento — a função de ingestão que puxa o card do Metabase mapeia só `New Mrr`, `Status_pagamento` e as demais colunas. Como esses campos existem na origem, serão adicionadas duas colunas à tabela (`previous_mrr` e `data_pagamento`) e ao mapeamento da ingestão. Sem isso não há como calcular o delta de upsell nem recortar o mês vigente por data de pagamento.
 
-Não será criada tabela nova de conversões: a ingestão diária que já existe continua igual.
+Regras confirmadas:
+
+1. **Vendedor:** resolvido exclusivamente pelo mapa de vendedor por Price ID. Sem correspondência, a linha cai na aba "Sem vendedor" para atribuição manual, e a atribuição fica gravada para o próximo reprocesso (não é sobrescrita).
+2. **Recorte do mês:** mês vigente pelo campo de **data de pagamento** (fuso São Paulo), não por `mes_ref` do snapshot nem por `data_inicio`. Linhas da janela móvel cujo pagamento caiu em mês anterior entram no mês correto.
+3. **Upsell:** comissiona só a diferença `mrr - previous_mrr`. Se o delta for zero ou negativo, não gera comissão; se `previous_mrr` vier vazio, a linha fica como pendência de revisão em vez de comissionar o MRR cheio.
 
 ## 2. Cálculo da comissão a partir dessa base
 
-- Nova rotina `apply_commissions_from_metabase(p_month)` que lê as linhas de `metas_ativos_pagantes_daily` do snapshot mais recente (ou do snapshot fechado do mês) e gera/atualiza as linhas de comissão com origem `metabase`.
-- Comissiona apenas `novo pagante`, `recuperado` e `upsell` (este último só sobre o delta de MRR). `downsell` e `regular` ficam de fora.
-- Deduplicação por `company_id` + `stripe_price_id` + mês da venda, para o snapshot diário não gerar linha repetida.
-- Mantém tudo que já existe: percentuais por plano/periodicidade, mapa de preços (price ID → plano/área), elegibilidade e multiplicadores por tipo de conversão, base líquida/bruta, pagamento T+N.
+- Nova rotina `apply_commissions_from_metabase(p_month)` que lê as linhas de `metas_ativos_pagantes_daily` do snapshot mais recente do mês (ou do snapshot fechado, para meses passados) e gera/atualiza as linhas de comissão com origem `metabase`.
+- Comissiona apenas `novo pagante`, `recuperado` e `upsell` (este só no delta). `downsell` e `regular` ficam de fora.
+- Deduplicação por `company_id` + `stripe_price_id` + mês de pagamento, para o snapshot diário não gerar linha repetida.
+- Mantém tudo que já existe: percentuais por plano/periodicidade, mapa de preços (price ID → plano/área/vendedor), elegibilidade e multiplicadores por tipo de conversão, base líquida/bruta, pagamento T+N.
 - Price ID sem de-para vira pendência, reaproveitando o reprocesso automático que já existe ao mapear um preço.
 - Overrides manuais e linhas importadas por planilha são preservados: o reprocesso nunca sobrescreve linha com revisão manual, nem mexe em mês fechado.
+
 
 
 ## 3. Arquivar o caminho Stripe
