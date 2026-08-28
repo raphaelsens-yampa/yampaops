@@ -36,6 +36,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [reviewFilter, setReviewFilter] = useState<string>("all");
   const [saleMonthFilter, setSaleMonthFilter] = useState<string>("all"); // YYYY-MM
   const [payMonthFilter, setPayMonthFilter] = useState<string>("all"); // YYYY-MM
+  const [sellerStatusFilter, setSellerStatusFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
@@ -102,6 +103,8 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       if (sourceFilter !== "all" && (c.source || "manual") !== sourceFilter) return false;
       if (reviewFilter === "locked" && !c.manually_reviewed) return false;
       if (reviewFilter === "auto" && c.manually_reviewed) return false;
+      if (sellerStatusFilter === "missing" && (c.resolved_seller_user_id || c.resolved_seller_label)) return false;
+      if (sellerStatusFilter === "assigned" && !c.resolved_seller_user_id && !c.resolved_seller_label) return false;
       if (sellerFilter !== "all") {
         const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
         if (key !== sellerFilter) return false;
@@ -120,7 +123,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       }
       return true;
     });
-  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter, saleMonthFilter, payMonthFilter]);
+  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter, sellerStatusFilter, saleMonthFilter, payMonthFilter]);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
@@ -201,7 +204,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     <Card className="mt-4">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-sm font-medium">Conversões</CardTitle>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">Conversões {conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label).length > 0 && <Badge variant="destructive">{conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label).length} sem vendedor</Badge>}</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
             {filtered.length} linhas · Total: <span className="font-medium text-foreground">{BRL(totalComissao)}</span>
           </p>
@@ -239,8 +242,16 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               <SelectItem value="auto">Automáticas</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sellerFilter} onValueChange={setSellerFilter}>
-            <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+           <Select value={sellerStatusFilter} onValueChange={setSellerStatusFilter}>
+             <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">Todos vendedores</SelectItem>
+               <SelectItem value="missing">Sem vendedor</SelectItem>
+               <SelectItem value="assigned">Com vendedor</SelectItem>
+             </SelectContent>
+           </Select>
+           <Select value={sellerFilter} onValueChange={setSellerFilter}>
+             <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos vendedores</SelectItem>
               {sellers.map((s) => (
@@ -321,7 +332,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
               <TableHead className="text-left">Cliente</TableHead>
               <TableHead className="text-left">Vendedor</TableHead>
               <TableHead className="text-left">Plano</TableHead>
-              <TableHead className="text-left">Tipo</TableHead>
+              <TableHead className="text-left">Tipo / Base</TableHead>
               <TableHead className="text-right">MRR</TableHead>
               <TableHead className="text-right">%</TableHead>
               <TableHead className="text-right">Comissão</TableHead>
@@ -372,9 +383,10 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                   <div>{c.resolved_plan || <span className="text-muted-foreground italic">não mapeado</span>}</div>
                   <div className="text-xs text-muted-foreground truncate max-w-[180px]">{c.offer_name || c.price_id || ""}</div>
                 </TableCell>
-                <TableCell className="text-left">
-                  {c.resolved_payment_type ? PAYMENT_TYPE_LABEL[c.resolved_payment_type as PaymentType] : "—"}
-                </TableCell>
+                 <TableCell className="text-left">
+                   <div>{c.conversion_type || (c.source === "stripe" ? "new" : "manual")}</div>
+                   <div className="text-xs text-muted-foreground">{c.base_kind === "delta" ? "Delta de MRR" : c.base_kind === "total" ? "MRR total" : c.resolved_payment_type ? PAYMENT_TYPE_LABEL[c.resolved_payment_type as PaymentType] : "—"}</div>
+                 </TableCell>
                 <TableCell className="text-right tabular-nums">{BRL(Number(c.mrr || 0))}</TableCell>
                 <TableCell className="text-right tabular-nums">{(Number(c.commission_pct || 0) * 100).toFixed(1)}%</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{BRL(Number(c.commission_amount || 0))}</TableCell>

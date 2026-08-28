@@ -1584,6 +1584,119 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_clawbacks: {
+        Row: {
+          canceled_at: string
+          churn_ref: string | null
+          churn_source: string
+          clawback_amount: number
+          conversion_id: string
+          created_at: string
+          customer_email: string | null
+          forgiven_at: string | null
+          forgiven_by: string | null
+          forgiven_reason: string | null
+          id: string
+          months_since_sale: number
+          original_amount: number
+          payment_month: string
+          sale_month: string | null
+          seller_user_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          canceled_at: string
+          churn_ref?: string | null
+          churn_source?: string
+          clawback_amount?: number
+          conversion_id: string
+          created_at?: string
+          customer_email?: string | null
+          forgiven_at?: string | null
+          forgiven_by?: string | null
+          forgiven_reason?: string | null
+          id?: string
+          months_since_sale?: number
+          original_amount?: number
+          payment_month: string
+          sale_month?: string | null
+          seller_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          canceled_at?: string
+          churn_ref?: string | null
+          churn_source?: string
+          clawback_amount?: number
+          conversion_id?: string
+          created_at?: string
+          customer_email?: string | null
+          forgiven_at?: string | null
+          forgiven_by?: string | null
+          forgiven_reason?: string | null
+          id?: string
+          months_since_sale?: number
+          original_amount?: number
+          payment_month?: string
+          sale_month?: string | null
+          seller_user_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_clawbacks_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: true
+            referencedRelation: "commission_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_closings: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_month: string
+          status: string
+          total_clawback: number
+          total_commission: number
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_month: string
+          status?: string
+          total_clawback?: number
+          total_commission?: number
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_month?: string
+          status?: string
+          total_clawback?: number
+          total_commission?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       commission_conversion_edits: {
         Row: {
           action: string
@@ -1621,9 +1734,11 @@ export type Database = {
       }
       commission_conversions: {
         Row: {
+          base_kind: string | null
           commission_amount: number
           commission_pct: number
           company_id: string | null
+          conversion_type: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
@@ -1647,15 +1762,18 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           sale_month: string
+          seller_source: string | null
           source: string
           status: Database["public"]["Enums"]["commission_conversion_status"]
           stripe_conversion_id: string | null
           updated_at: string
         }
         Insert: {
+          base_kind?: string | null
           commission_amount?: number
           commission_pct?: number
           company_id?: string | null
+          conversion_type?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
@@ -1679,15 +1797,18 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           sale_month: string
+          seller_source?: string | null
           source?: string
           status?: Database["public"]["Enums"]["commission_conversion_status"]
           stripe_conversion_id?: string | null
           updated_at?: string
         }
         Update: {
+          base_kind?: string | null
           commission_amount?: number
           commission_pct?: number
           company_id?: string | null
+          conversion_type?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
@@ -1711,6 +1832,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           sale_month?: string
+          seller_source?: string | null
           source?: string
           status?: Database["public"]["Enums"]["commission_conversion_status"]
           stripe_conversion_id?: string | null
@@ -1930,34 +2052,64 @@ export type Database = {
       }
       commission_settings: {
         Row: {
+          clawback_enabled: boolean
           commission_base: string
           created_at: string
+          eligible_downgrade: boolean
+          eligible_new: boolean
+          eligible_reactivation: boolean
+          eligible_renewal: boolean
+          eligible_upsell: boolean
           guarantee_months: number
           id: string
+          mult_new: number
+          mult_reactivation: number
+          mult_upsell: number
           payment_day: number
           reactivation_gap_months: number
           t_plus_months: number
           updated_at: string
+          upsell_base: string
         }
         Insert: {
+          clawback_enabled?: boolean
           commission_base?: string
           created_at?: string
+          eligible_downgrade?: boolean
+          eligible_new?: boolean
+          eligible_reactivation?: boolean
+          eligible_renewal?: boolean
+          eligible_upsell?: boolean
           guarantee_months?: number
           id?: string
+          mult_new?: number
+          mult_reactivation?: number
+          mult_upsell?: number
           payment_day?: number
           reactivation_gap_months?: number
           t_plus_months?: number
           updated_at?: string
+          upsell_base?: string
         }
         Update: {
+          clawback_enabled?: boolean
           commission_base?: string
           created_at?: string
+          eligible_downgrade?: boolean
+          eligible_new?: boolean
+          eligible_reactivation?: boolean
+          eligible_renewal?: boolean
+          eligible_upsell?: boolean
           guarantee_months?: number
           id?: string
+          mult_new?: number
+          mult_reactivation?: number
+          mult_upsell?: number
           payment_day?: number
           reactivation_gap_months?: number
           t_plus_months?: number
           updated_at?: string
+          upsell_base?: string
         }
         Relationships: []
       }
@@ -5297,8 +5449,13 @@ export type Database = {
           previous_price_id: string
         }[]
       }
+      commission_month_locked: { Args: { p_month: string }; Returns: boolean }
       fill_snapshot_gaps: {
         Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      generate_commission_clawbacks: {
+        Args: { p_dry_run?: boolean; p_from?: string; p_to?: string }
         Returns: Json
       }
       get_chatwoot_labels: { Args: never; Returns: string[] }

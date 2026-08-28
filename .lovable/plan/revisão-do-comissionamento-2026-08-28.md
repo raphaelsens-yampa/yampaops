@@ -32,9 +32,9 @@ Configurável em Configurações de Comissão, com os padrões acima. A linha de
 
 ## 3. Clawback / estorno por churn
 
-Hoje a garantia está em 0 mês (estorno desligado) e a base de cancelamentos do Stripe está vazia — sem ela não há como estornar.
+Hoje a garantia está em 0 mês (estorno desligado), utilizar a base de Churn carregada manualmente pelo usuario ou pelo processo de carga diária via MCP Claude. Não utilizar o churn da Stripe para esta comparação.
 
-- Ligar a captura de cancelamentos (webhook + carga retroativa) e conferir volume antes de ativar regra.
+- Ligar a captura de cancelamentos (através de cruzamento com a base de churn carregado) e conferir volume antes de ativar regra.
 - Definir garantia em meses nas Configurações (sugestão: 3).
 - Cancelamento dentro da garantia gera uma linha de estorno vinculada à comissão original, com valor negativo, no mês de pagamento seguinte — nunca apagando o registro original.
 - Estorno não é gerado se a comissão original ainda não foi paga: nesse caso a comissão é cancelada antes do pagamento.
@@ -53,6 +53,6 @@ Hoje a garantia está em 0 mês (estorno desligado) e a base de cancelamentos do
 - `commission_settings`: colunas para elegibilidade e multiplicador por tipo de conversão, e uso efetivo de `guarantee_months`.
 - `commission_conversions`: novas colunas para origem da atribuição, tipo de conversão e base de cálculo.
 - Nova tabela de estornos (clawback) referenciando a comissão original e o evento de churn; nova tabela de fechamento por mês de pagamento.
-- Ingestão de churn: ativar gravação em `stripe_churn_events` via webhook `customer.subscription.deleted` e função de carga retroativa.
+- Ingestão de churn: ativar gravação a partir da base de Churn do Metabase (inserida manualmente ou via MCP Claude diariamente) e função de carga retroativa.
 - Reprocessamento retroativo limitado a 2026 (fev/2024 fica como está), via a rotina de reaplicação por período já existente.
 - Telas: aba Conversões ganha filtro "Sem vendedor" e atribuição em lote; Visão Geral ganha bloco de estornos; nova aba Fechamento (admin) com extrato por vendedor.
