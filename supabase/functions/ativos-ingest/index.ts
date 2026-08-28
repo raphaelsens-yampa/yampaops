@@ -220,6 +220,8 @@ try {
         nome_oferta: txt(r['Nome Oferta']),
         stripe_price_id: txt(r['Stripe Price ID']),
         mrr: toNum(r['New Mrr']),
+        previous_mrr: toNum(pick(r, PREVIOUS_MRR_KEYS)),
+        data_pagamento: toDate(pick(r, PAYMENT_DATE_KEYS)),
         origem_cliente: lower(r['Origem Cliente']),
         data_inicio: toDate(r['Inicio Vigencia Plano']),
         data_cancelamento: null,
