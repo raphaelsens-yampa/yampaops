@@ -80,21 +80,24 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     const monthStart = `${month}-01`;
     const monthEnd = nextMonthStart(month);
 
-    const applySnapshot = (snapshotRows: BaseRow[], snapDate: string | null, src: SnapshotSource) => {
-      setSnapshotRowsCount(snapshotRows.length);
-      setMissingPaymentDates(snapshotRows.filter((row) => !row.data_pagamento).length);
-      setRows(snapshotRows.filter((row) => inMonth(row.data_pagamento, month)));
-      setSource(src);
-      setSnapshotDate(snapDate);
-      setLoading(false);
-    };
-
     const fail = (message: string) => {
       toast({ title: "Erro ao carregar a Base Metabase", description: message, variant: "destructive" });
+      setRows([]);
+      setSnapshotRowsCount(0);
+      setMissingPaymentDates(0);
       setLoading(false);
     };
 
-    // 1) Fotografia oficial do mês fechado
+    const empty = (src: SnapshotSource) => {
+      setRows([]);
+      setSnapshotRowsCount(0);
+      setMissingPaymentDates(0);
+      setSource(src);
+      setSnapshotDate(null);
+      setLoading(false);
+    };
+
+    // Resolve qual tabela e qual fotografia usar
     const monthlyDate = await supabase
       .from("metas_ativos_pagantes_monthly")
       .select("data_snapshot")
@@ -103,63 +106,71 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
       .limit(1);
     if (monthlyDate.error) return fail(monthlyDate.error.message);
 
-    const monthlySnap = monthlyDate.data?.[0]?.data_snapshot || null;
-    if (monthlySnap) {
-      const monthly = await supabase
-        .from("metas_ativos_pagantes_monthly")
-        .select("*")
-        .eq("mes_fechado", monthStart)
-        .eq("data_snapshot", monthlySnap)
-        .eq("status_assinatura", "ativo")
-        .limit(10000);
-      if (monthly.error) return fail(monthly.error.message);
-      return applySnapshot((monthly.data || []) as BaseRow[], monthlySnap, "monthly");
-    }
+    let table: "metas_ativos_pagantes_monthly" | "metas_ativos_pagantes_daily" = "metas_ativos_pagantes_monthly";
+    let src: SnapshotSource = "monthly";
+    let snap: string | null = monthlyDate.data?.[0]?.data_snapshot || null;
 
-    // 2) Mês fechado sem fotografia oficial: usa a última fotografia diária DENTRO do mês
-    if (!isCurrent) {
-      const closedDate = await supabase
+    if (!snap) {
+      table = "metas_ativos_pagantes_daily";
+      src = "daily";
+      // Mês fechado: a última fotografia DENTRO do mês. Mês vigente: a última fotografia existente.
+      let dateQuery = supabase
         .from("metas_ativos_pagantes_daily")
         .select("data_snapshot")
-        .gte("data_snapshot", monthStart)
-        .lt("data_snapshot", monthEnd)
         .order("data_snapshot", { ascending: false })
         .limit(1);
-      if (closedDate.error) return fail(closedDate.error.message);
-
-      const closedSnap = closedDate.data?.[0]?.data_snapshot || null;
-      if (!closedSnap) return applySnapshot([], null, "daily");
-
-      const closed = await supabase
-        .from("metas_ativos_pagantes_daily")
-        .select("*")
-        .eq("data_snapshot", closedSnap)
-        .eq("status_assinatura", "ativo")
-        .limit(10000);
-      if (closed.error) return fail(closed.error.message);
-      return applySnapshot((closed.data || []) as BaseRow[], closedSnap, "daily");
+      if (!isCurrent) {
+        dateQuery = dateQuery.gte("data_snapshot", monthStart).lt("data_snapshot", monthEnd);
+      }
+      const dailyDate = await dateQuery;
+      if (dailyDate.error) return fail(dailyDate.error.message);
+      snap = dailyDate.data?.[0]?.data_snapshot || null;
     }
 
-    // 3) Mês vigente: fotografia diária mais recente
-    const latestDate = await supabase
-      .from("metas_ativos_pagantes_daily")
-      .select("data_snapshot")
-      .order("data_snapshot", { ascending: false })
-      .limit(1);
-    if (latestDate.error) return fail(latestDate.error.message);
+    if (!snap) return empty(src);
 
-    const latest = latestDate.data?.[0]?.data_snapshot || null;
-    if (!latest) return applySnapshot([], null, "daily");
+    const scoped = () => {
+      let q = (supabase.from(table) as any).select("*").eq("data_snapshot", snap).eq("status_assinatura", "ativo");
+      if (table === "metas_ativos_pagantes_monthly") q = q.eq("mes_fechado", monthStart);
+      return q;
+    };
 
-    const daily = await supabase
-      .from("metas_ativos_pagantes_daily")
-      .select("*")
-      .eq("data_snapshot", latest)
+    // Total de ativos na fotografia (contagem no servidor, sem trazer linhas)
+    const totalCount = await (supabase.from(table) as any)
+      .select("id", { count: "exact", head: true })
+      .eq("data_snapshot", snap)
       .eq("status_assinatura", "ativo")
-      .limit(10000);
-    if (daily.error) return fail(daily.error.message);
-    applySnapshot((daily.data || []) as BaseRow[], latest, "daily");
+      .then((r: any) => r);
+    if (totalCount.error) return fail(totalCount.error.message);
+
+    const missingCount = await scoped()
+      .select("id", { count: "exact", head: true })
+      .is("data_pagamento", null);
+    if (missingCount.error) return fail(missingCount.error.message);
+
+    // Linhas do mês, paginadas (o Data API limita cada página a 1000 linhas)
+    const pageSize = 1000;
+    const collected: BaseRow[] = [];
+    for (let page = 0; page < 20; page++) {
+      const chunk = await scoped()
+        .gte("data_pagamento", monthStart)
+        .lt("data_pagamento", monthEnd)
+        .order("data_pagamento", { ascending: false })
+        .range(page * pageSize, page * pageSize + pageSize - 1);
+      if (chunk.error) return fail(chunk.error.message);
+      const data = (chunk.data || []) as BaseRow[];
+      collected.push(...data);
+      if (data.length < pageSize) break;
+    }
+
+    setSnapshotRowsCount(totalCount.count ?? collected.length);
+    setMissingPaymentDates(missingCount.count ?? 0);
+    setRows(collected);
+    setSource(src);
+    setSnapshotDate(snap);
+    setLoading(false);
   }, [month, toast]);
+
 
 
   useEffect(() => { load(); }, [load]);
