@@ -384,6 +384,45 @@ try {
     // ---- Fonte 2: cancelados do mês ----
     const churnRaw = await metabase('/api/card/181/query/json', apiKey);
     const churnMes = churnRaw.filter((r) => String(r['Mes Ref Analise'] ?? '').startsWith(yearMonth));
+
+    // ---- Fonte 2c: analítico de churn (metas_churn_daily) — reaproveita o card 181 ----
+    const churnDailyBackfill = body.backfill === true;
+    const churnDailyFonte = churnDailyBackfill
+      ? churnRaw
+      : churnRaw.filter((r) => String(r['Mes Ref Analise'] ?? '').startsWith(yearMonth));
+    const churnDailyRows: Row[] = [];
+    const churnDailyKeys = new Set<string>();
+    let churnDailyDup = 0;
+    let churnDailyInvalidas = 0;
+    for (const r of churnDailyFonte) {
+      const mapped = mapChurnDaily(r, dataExecucao, coletadoEm);
+      if (!mapped) { churnDailyInvalidas++; continue; }
+      const key = `${mapped.mes_ref}|${mapped.company_id}`;
+      if (churnDailyKeys.has(key)) {
+        // Não deduplicamos por regra; apenas reportamos e mantemos a última ocorrência.
+        churnDailyDup++;
+        const idx = churnDailyRows.findIndex((x) => `${x.mes_ref}|${x.company_id}` === key);
+        if (idx >= 0) churnDailyRows[idx] = mapped;
+        continue;
+      }
+      churnDailyKeys.add(key);
+      churnDailyRows.push(mapped);
+    }
+    if (churnDailyDup > 0) {
+      avisos.push(`${churnDailyDup} linha(s) duplicada(s) de (mes_ref, company_id) no analítico de churn (esperado 0).`);
+    }
+    if (churnDailyInvalidas > 0) {
+      avisos.push(`${churnDailyInvalidas} linha(s) do analítico de churn sem Mes Ref Analise/Company ID foram ignoradas.`);
+    }
+    const churnDailyPorMes: Record<string, { linhas: number; mrr: number }> = {};
+    for (const r of churnDailyRows) {
+      const k = String(r.mes_ref);
+      const acc = churnDailyPorMes[k] ?? { linhas: 0, mrr: 0 };
+      acc.linhas++;
+      acc.mrr = Number((acc.mrr + (Number(r.total_mrr) || 0)).toFixed(2));
+      churnDailyPorMes[k] = acc;
+    }
+
     const churnIds = new Set<string>();
     let dupChurn = 0;
     for (const r of churnMes) {
