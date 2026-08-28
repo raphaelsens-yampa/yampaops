@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarCheck, Download, FileSpreadsheet, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarCheck, DatabaseZap, Download, FileSpreadsheet, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -244,6 +244,8 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
         <div className="flex flex-wrap items-end gap-2">
           <div><Label className="text-xs">Mês de pagamento</Label><Input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="w-44" /></div>
           <Button variant="outline" size="icon" onClick={load} disabled={loading} title="Atualizar base"><RefreshCw className="h-4 w-4" /></Button>
+          <Button variant="outline" onClick={reloadMetabase} disabled={reloading} title={`Recarregar do Metabase somente ${month}`}><DatabaseZap className={`h-4 w-4 ${reloading ? "animate-pulse" : ""}`} /> Recarregar Metabase ({month})</Button>
+
           <Button variant="outline" onClick={() => exportBase("csv")} disabled={loading || rows.length === 0}><Download className="h-4 w-4" /> CSV</Button>
           <Button variant="outline" onClick={() => exportBase("xlsx")} disabled={loading || rows.length === 0}><FileSpreadsheet className="h-4 w-4" /> XLSX</Button>
         </div>
