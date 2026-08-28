@@ -211,6 +211,10 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
         </div>
       </div>
 
+      <p className="text-xs text-muted-foreground capitalize">{modeHint}</p>
+
+
+
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
