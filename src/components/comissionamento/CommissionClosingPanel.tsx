@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { ProfileLite } from "@/pages/Comissionamento";
 
-interface ClosingRow { id: string; payment_month: string; status: string; total_commission: number; total_clawback: number; closed_at: string | null; paid_at: string | null; notes: string | null; }
+interface ClosingRow { id: string; payment_month: string; status: string; total_commission: number; total_clawback: number; closed_by: string | null; closed_at: string | null; paid_at: string | null; notes: string | null; }
 interface ConversionAmount { commission_amount: number; resolved_seller_user_id: string | null; resolved_seller_label: string | null; status: string; }
 interface ClawbackAmount { clawback_amount: number; seller_user_id: string | null; status: string; }
 interface Props { profiles: ProfileLite[]; onChanged?: () => void; }
