@@ -175,6 +175,11 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   if (loading) return <div className="py-12 text-center text-muted-foreground">Carregando...</div>;
 
   const modeLabel = mode === "payment" ? "Mês de Pagamento" : "Mês da Venda";
+  const saleRefMonth = new Date(month.getFullYear(), month.getMonth() - 2, 1);
+  const modeHint =
+    mode === "payment"
+      ? `Comissão paga em ${formatMonthLabel(month)} · vendas de ${formatMonthLabel(saleRefMonth)} (M-2)`
+      : `Vendas realizadas em ${formatMonthLabel(month)} · pagamento em ${formatMonthLabel(new Date(month.getFullYear(), month.getMonth() + 2, 1))} (M+2)`;
 
   return (
     <div className="space-y-4 sm:space-y-6 mt-4 w-full max-w-full overflow-x-hidden">
