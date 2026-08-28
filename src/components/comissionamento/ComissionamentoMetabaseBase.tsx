@@ -47,6 +47,7 @@ const classificationLabel = (value: string | null) => {
   return normalized ? normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Sem classificação";
 };
 const classificationKey = (value: string | null) => (value || "").trim().toLowerCase();
+const COMMISSIONABLE_CLASSIFICATIONS = ["novo pagante", "recuperado", "upsell"] as const;
 const sellerLabel = (map: PriceMapEntry | undefined) => map?.seller_label || map?.seller_user_id || "Sem vendedor";
 
 export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
@@ -130,16 +131,23 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     if (!snap) return empty(src);
 
     const scoped = () => {
-      let q = (supabase.from(table) as any).select("*").eq("data_snapshot", snap).eq("status_assinatura", "ativo");
+      let q = (supabase.from(table) as any)
+        .select("*")
+        .eq("data_snapshot", snap)
+        .eq("status_assinatura", "ativo")
+        .in("classificacao_company", [...COMMISSIONABLE_CLASSIFICATIONS]);
       if (table === "metas_ativos_pagantes_monthly") q = q.eq("mes_fechado", monthStart);
       return q;
     };
 
-    // Total de ativos na fotografia (contagem no servidor, sem trazer linhas)
+    // Total da base comissionável no mês (contagem no servidor, sem trazer linhas)
     const totalCount = await (supabase.from(table) as any)
       .select("id", { count: "exact", head: true })
       .eq("data_snapshot", snap)
       .eq("status_assinatura", "ativo")
+      .in("classificacao_company", [...COMMISSIONABLE_CLASSIFICATIONS])
+      .gte("data_pagamento", monthStart)
+      .lt("data_pagamento", monthEnd)
       .then((r: any) => r);
     if (totalCount.error) return fail(totalCount.error.message);
 
@@ -211,7 +219,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     return result;
   }, [rows]);
 
-  const payableRows = useMemo(() => rows.filter((row) => ["novo pagante", "recuperado", "upsell"].includes(classificationKey(row.classificacao_company))), [rows]);
+  const payableRows = rows;
   const missingMap = useMemo(() => {
     const map = new Map<string, { priceId: string; plan: string; count: number; mrr: number }>();
     for (const row of payableRows) {
@@ -260,7 +268,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
 
   const exportBase = (kind: "csv" | "xlsx") => {
 
-    const data = rows.map((row) => ({
+    const data = payableRows.map((row) => ({
       "Data fotografia": row.data_snapshot,
       "Mês fechado": row.mes_fechado || "",
       Empresa: row.company_id || "",
@@ -302,7 +310,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
   };
 
   const metric = (key: string) => summary.get(key) || { count: 0, mrr: 0 };
-  const relevantMissingMrr = rows.filter((row) => classificationKey(row.classificacao_company) === "upsell" && row.previous_mrr == null).length;
+  const relevantMissingMrr = payableRows.filter((row) => classificationKey(row.classificacao_company) === "upsell" && row.previous_mrr == null).length;
   const sourceLabel = source === "monthly" ? "Fotografia fechada" : "Snapshot diário mais recente";
 
   return (
@@ -329,13 +337,13 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
         <span>·</span><span>{rows.length} de {snapshotRowsCount} linhas no mês</span>
       </div>
 
-      {missingPaymentDates > 0 && <Alert><AlertTriangle className="h-4 w-4" /><AlertTitle>Data de pagamento ausente</AlertTitle><AlertDescription>{missingPaymentDates} linha(s) da fotografia não têm Data Pagamento e ficam fora do recorte mensal. Recarregue a ingestão Metabase para preenchê-la.</AlertDescription></Alert>}
+      {missingPaymentDates > 0 && <Alert><AlertTriangle className="h-4 w-4" /><AlertTitle>Data de pagamento ausente</AlertTitle><AlertDescription>{missingPaymentDates} linha(s) comissionável(is) da fotografia não têm Data Pagamento e ficam fora do recorte mensal. Recarregue a ingestão Metabase para preenchê-la.</AlertDescription></Alert>}
       {relevantMissingMrr > 0 && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Upsells sem Previous MRR</AlertTitle><AlertDescription>{relevantMissingMrr} linha(s) não podem gerar comissão de delta até a base Metabase ser recarregada com o MRR anterior.</AlertDescription></Alert>}
       {missingMap.length > 0 && <Alert><AlertTriangle className="h-4 w-4" /><AlertTitle>Price IDs sem de-para</AlertTitle><AlertDescription>{missingMap.length} Price ID(s) não estão no mapa de preços e aparecerão em “Sem vendedor” até a atribuição/correção do cadastro.</AlertDescription></Alert>}
 
       {loading ? <div className="py-12 text-center text-muted-foreground">Carregando fotografia...</div> : <>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {(["novo pagante", "recuperado", "upsell", "downsell"] as const).map((key) => {
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {COMMISSIONABLE_CLASSIFICATIONS.map((key) => {
             const value = metric(key);
             return <Card key={key}><CardHeader className="pb-2"><CardTitle className="text-sm">{classificationLabel(key)}</CardTitle></CardHeader><CardContent><div className="text-xl font-semibold">{value.count}</div><p className="text-xs text-muted-foreground">{BRL(value.mrr)} em MRR</p></CardContent></Card>;
           })}
@@ -343,7 +351,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
 
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-sm"><CalendarCheck className="h-4 w-4" /> Operações da fotografia</CardTitle><CardDescription>Feche ou refaça a referência do mês e reprocese as comissões usando exclusivamente a base Metabase.</CardDescription></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => runAction("close")} disabled={running !== null}>{running === "close" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />} {source === "monthly" ? "Refazer fotografia" : "Fechar fotografia"}</Button><Button onClick={() => runAction("reprocess")} disabled={running !== null || payableRows.length === 0}>{running === "reprocess" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Recalcular comissões</Button></div></CardHeader>
-          <CardContent><div className="grid gap-3 text-sm md:grid-cols-3"><div className="rounded-md border p-3"><div className="text-muted-foreground">Linhas na fotografia</div><div className="text-xl font-semibold">{rows.length}</div></div><div className="rounded-md border p-3"><div className="text-muted-foreground">Linhas comissionáveis</div><div className="text-xl font-semibold">{payableRows.length}</div></div><div className="rounded-md border p-3"><div className="text-muted-foreground">MRR comissionável informado</div><div className="text-xl font-semibold">{BRL(payableRows.reduce((sum, row) => sum + Number(row.mrr || 0), 0))}</div></div></div></CardContent>
+          <CardContent><div className="grid gap-3 text-sm md:grid-cols-3"><div className="rounded-md border p-3"><div className="text-muted-foreground">Linhas comissionáveis no mês</div><div className="text-xl font-semibold">{rows.length}</div></div><div className="rounded-md border p-3"><div className="text-muted-foreground">Linhas comissionáveis</div><div className="text-xl font-semibold">{payableRows.length}</div></div><div className="rounded-md border p-3"><div className="text-muted-foreground">MRR comissionável informado</div><div className="text-xl font-semibold">{BRL(payableRows.reduce((sum, row) => sum + Number(row.mrr || 0), 0))}</div></div></div></CardContent>
         </Card>
 
         <div className="grid gap-4 xl:grid-cols-2">
