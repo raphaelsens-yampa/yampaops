@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ProductPricingTable } from "@/components/commissions/ProductPricingTable";
 import { CommissionTriggersTable } from "@/components/commissions/CommissionTriggersTable";
 
-export default function CommissionSettings() {
+export function CommissionRulesPanel() {
+
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,12 +91,8 @@ export default function CommissionSettings() {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          <h1 className="font-heading text-2xl font-bold">Configurações de Comissão</h1>
-        </div>
+    <div className="space-y-6 pt-4">
+
 
         <Card>
           <CardHeader>
@@ -177,8 +173,8 @@ export default function CommissionSettings() {
         <CommissionTriggersTable />
 
         <ProductPricingTable />
-      </div>
-    </Layout>
+    </div>
+
   );
 }
 
