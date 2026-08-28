@@ -37,6 +37,11 @@ interface Props { priceMap: PriceMapEntry[]; onChanged: () => void; }
 const currentMonthSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date());
 const brDate = (value: string | null | undefined) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 const inMonth = (value: string | null | undefined, month: string) => Boolean(value && value.slice(0, 7) === month);
+const nextMonthStart = (month: string) => {
+  const [year, mon] = month.split("-").map(Number);
+  return mon === 12 ? `${year + 1}-01-01` : `${year}-${String(mon + 1).padStart(2, "0")}-01`;
+};
+
 const classificationLabel = (value: string | null) => {
   const normalized = (value || "").trim().toLowerCase();
   return normalized ? normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Sem classificação";
