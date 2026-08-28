@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useToast } from "@/hooks/use-toast";
 import { BRL, type PriceMapEntry } from "@/lib/commissioning";
 
@@ -157,20 +158,17 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
 
 
 
-    // Linhas do mês, paginadas (o Data API limita cada página a 1000 linhas)
-    const pageSize = 1000;
-    const collected: BaseRow[] = [];
-    for (let page = 0; page < 20; page++) {
-      const chunk = await scoped()
+    // Linhas do mês, paginadas (o Data API limita cada página a 1000 linhas).
+    // A ordenação inclui "id" para ser estável entre páginas (datas repetem muito).
+    const paged = await fetchAllPaged<BaseRow>(() =>
+      scoped()
         .gte("data_pagamento", monthStart)
         .lt("data_pagamento", monthEnd)
         .order("data_pagamento", { ascending: false })
-        .range(page * pageSize, page * pageSize + pageSize - 1);
-      if (chunk.error) return fail(chunk.error.message);
-      const data = (chunk.data || []) as BaseRow[];
-      collected.push(...data);
-      if (data.length < pageSize) break;
-    }
+        .order("id"),
+    );
+    if (paged.error) return fail(paged.error);
+    const collected = paged.data;
 
     setSnapshotRowsCount(totalCount.count ?? collected.length);
     setMissingPaymentDates(missingCount.count ?? 0);

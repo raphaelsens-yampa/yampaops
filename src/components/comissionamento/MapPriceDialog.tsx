@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useToast } from "@/hooks/use-toast";
 import {
   PAYMENT_TYPES,
@@ -129,20 +130,21 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
         (r) => r.plan_name === planName && r.payment_type === paymentType && r.is_active,
       );
 
-      let query = supabase
-        .from("commission_conversions")
-        .select("id, mrr, price_id, offer_name");
-
-      if (normalizedPriceId) {
-        query = query.eq("price_id", normalizedPriceId);
-      } else if (normalizedOfferName) {
-        query = query.is("price_id", null).eq("offer_name", normalizedOfferName);
-      } else {
-        query = query.eq("id", "__none__");
-      }
-
-      const { data: matchingConversions, error: convErr } = await query;
-      if (convErr) throw convErr;
+      const { data: matchingConversions, error: convErr } = await fetchAllPaged<{ id: string; mrr: number | null; price_id: string | null; offer_name: string | null }>(() => {
+        let query = supabase
+          .from("commission_conversions")
+          .select("id, mrr, price_id, offer_name")
+          .order("id");
+        if (normalizedPriceId) {
+          query = query.eq("price_id", normalizedPriceId);
+        } else if (normalizedOfferName) {
+          query = query.is("price_id", null).eq("offer_name", normalizedOfferName);
+        } else {
+          query = query.eq("price_id", "__none__");
+        }
+        return query as never;
+      });
+      if (convErr) throw new Error(convErr);
 
       let recalculated = 0;
       if (matchingConversions && matchingConversions.length > 0) {
@@ -170,11 +172,14 @@ export function MapPriceDialog({ target, reference, priceMap, profiles, onClose,
       // Também atualizar stripe_conversions já existentes para refletir o novo mapeamento
       let stripeUpdated = 0;
       if (normalizedPriceId) {
-        const { data: stripeRows, error: stripeErr } = await supabase
-          .from("stripe_conversions")
-          .select("id, mrr")
-          .eq("stripe_price_id", normalizedPriceId);
-        if (stripeErr) throw stripeErr;
+        const { data: stripeRows, error: stripeErr } = await fetchAllPaged<{ id: string; mrr: number | null }>(() =>
+          supabase
+            .from("stripe_conversions")
+            .select("id, mrr")
+            .eq("stripe_price_id", normalizedPriceId)
+            .order("id") as never,
+        );
+        if (stripeErr) throw new Error(stripeErr);
         if (stripeRows && stripeRows.length > 0) {
           const overrideMrr = null; // mrr_override do price_map é tratado no webhook; aqui mantemos o mrr atual
           for (const s of stripeRows) {

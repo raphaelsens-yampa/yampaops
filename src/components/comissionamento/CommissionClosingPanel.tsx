@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, LockKeyhole, RefreshCw, UnlockKeyhole } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { ProfileLite } from "@/pages/Comissionamento";
@@ -34,17 +35,17 @@ export function CommissionClosingPanel({ profiles, onChanged }: Props) {
     setLoading(true);
     const [closingResult, conversionResult, clawbackResult] = await Promise.all([
       supabase.from("commission_closings").select("*").eq("payment_month", monthDate(month)).maybeSingle(),
-      supabase.from("commission_conversions").select("commission_amount, resolved_seller_user_id, resolved_seller_label, status").eq("payment_month", monthDate(month)),
-      supabase.from("commission_clawbacks").select("clawback_amount, seller_user_id, status").eq("payment_month", monthDate(month)),
+      fetchAllPaged<ConversionAmount>(() => supabase.from("commission_conversions").select("commission_amount, resolved_seller_user_id, resolved_seller_label, status").eq("payment_month", monthDate(month)).order("id") as never),
+      fetchAllPaged<ClawbackAmount>(() => supabase.from("commission_clawbacks").select("clawback_amount, seller_user_id, status").eq("payment_month", monthDate(month)).order("id") as never),
     ]);
     setLoading(false);
     if (closingResult.error || conversionResult.error || clawbackResult.error) {
-      toast({ title: "Erro ao carregar fechamento", description: closingResult.error?.message || conversionResult.error?.message || clawbackResult.error?.message, variant: "destructive" });
+      toast({ title: "Erro ao carregar fechamento", description: closingResult.error?.message || conversionResult.error || clawbackResult.error || undefined, variant: "destructive" });
       return;
     }
     setClosing((closingResult.data as ClosingRow | null) || null);
-    setConversions((conversionResult.data as ConversionAmount[]) || []);
-    setClawbacks((clawbackResult.data as ClawbackAmount[]) || []);
+    setConversions(conversionResult.data);
+    setClawbacks(clawbackResult.data);
   }, [month, toast]);
 
   useEffect(() => { fetchData(); }, [fetchData]);

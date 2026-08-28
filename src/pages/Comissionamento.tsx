@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { DollarSign } from "lucide-react";
 import type { CommissionReference, PriceMapEntry } from "@/lib/commissioning";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { ComissionamentoOverview } from "@/components/comissionamento/ComissionamentoOverview";
 import { ComissionamentoConversions } from "@/components/comissionamento/ComissionamentoConversions";
 import { ComissionamentoImport } from "@/components/comissionamento/ComissionamentoImport";
@@ -67,16 +68,17 @@ export default function Comissionamento() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    const CONVERSION_COLUMNS = "id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, commissionable, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, seller_source, conversion_type, base_kind, commission_pct, commission_amount, status, sale_at:stripe_conversions(converted_at)";
     const [refRes, mapRes, convRes, profRes] = await Promise.all([
-      supabase.from("commission_reference").select("*").order("plan_name").order("payment_type"),
-      supabase.from("commission_price_map").select("*").order("plan_name", { nullsFirst: false }),
-      supabase.from("commission_conversions").select("id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, commissionable, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, seller_source, conversion_type, base_kind, commission_pct, commission_amount, status, sale_at:stripe_conversions(converted_at)").order("sale_month", { ascending: false }).limit(5000),
-      isAdmin ? supabase.from("profiles").select("user_id, full_name, email") : Promise.resolve({ data: [], error: null } as { data: ProfileLite[]; error: null }),
+      fetchAllPaged<CommissionReference>(() => supabase.from("commission_reference").select("*").order("plan_name").order("payment_type").order("id") as never),
+      fetchAllPaged<PriceMapEntry>(() => supabase.from("commission_price_map").select("*").order("plan_name", { nullsFirst: false }).order("id") as never),
+      fetchAllPaged<ConversionRow>(() => supabase.from("commission_conversions").select(CONVERSION_COLUMNS).order("sale_month", { ascending: false }).order("id") as never),
+      isAdmin ? fetchAllPaged<ProfileLite>(() => supabase.from("profiles").select("user_id, full_name, email").order("user_id") as never) : Promise.resolve({ data: [] as ProfileLite[], error: null }),
     ]);
-    setReference((refRes.data as CommissionReference[] | null) || []);
-    setPriceMap((mapRes.data as PriceMapEntry[] | null) || []);
-    setConversions((convRes.data as ConversionRow[] | null) || []);
-    setProfiles(((profRes as { data: ProfileLite[] | null }).data) || []);
+    setReference(refRes.data);
+    setPriceMap(mapRes.data);
+    setConversions(convRes.data);
+    setProfiles(profRes.data);
     setLoading(false);
   }, [isAdmin]);
 

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, Plus, Trash2, Ticket } from "lucide-react";
 import {
@@ -33,11 +34,13 @@ export function ComissionamentoReference({ reference, onChanged }: Props) {
   useEffect(() => {
     // Carrega cupons distintos vistos nas conversões pra popular o autocomplete
     (async () => {
-      const { data } = await supabase
-        .from("stripe_conversions")
-        .select("coupon_id, coupon_name")
-        .not("coupon_id", "is", null)
-        .limit(1000);
+      const { data } = await fetchAllPaged<{ coupon_id: string | null; coupon_name: string | null }>(() =>
+        supabase
+          .from("stripe_conversions")
+          .select("coupon_id, coupon_name")
+          .not("coupon_id", "is", null)
+          .order("id") as never,
+      );
       const seen = new Map<string, string | null>();
       (data || []).forEach((r: any) => {
         if (r.coupon_id && !seen.has(r.coupon_id)) seen.set(r.coupon_id, r.coupon_name);
