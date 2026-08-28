@@ -12,8 +12,8 @@ import {
 import { BRL, PAYMENT_TYPE_LABEL, formatMonthLabel, type PaymentType, type PriceMapEntry } from "@/lib/commissioning";
 import type { ConversionRow, ProfileLite } from "@/pages/Comissionamento";
 import { CommissionMonthFilter } from "@/components/commissions/CommissionMonthFilter";
-import { TrendingUp, DollarSign, Users, Calendar, Filter, ShoppingBag, Building2 } from "lucide-react";
-import { parseDateBR, parseDateBRStart, parseDateBREnd } from "@/lib/dateBR";
+import { TrendingUp, DollarSign, Users, Filter, ShoppingBag, Building2 } from "lucide-react";
+import { parseDateBR } from "@/lib/dateBR";
 
 interface Props {
   conversions: ConversionRow[];
