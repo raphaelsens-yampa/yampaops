@@ -132,6 +132,15 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     return dt ? dt.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "") : "—";
   };
 
+  const fmtSaleDate = (c: ConversionRow) => {
+    const raw = c.sale_at?.converted_at;
+    if (raw) {
+      const dt = new Date(raw);
+      if (!isNaN(dt.getTime())) return dt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    }
+    return "—";
+  };
+
   const sellerName = (c: ConversionRow) => {
     if (c.resolved_seller_user_id) {
       const p = profiles.find((p) => p.user_id === c.resolved_seller_user_id);
@@ -168,6 +177,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     };
     const data = filtered.map((c) => ({
       Origem: c.source || "manual",
+      "Data Venda": fmtSaleDate(c),
       "Mês Venda": c.sale_month || "",
       "Mês Pagamento": c.payment_month || "",
       Cliente: c.customer_name || "",
@@ -327,6 +337,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           <TableHeader>
             <TableRow>
               <TableHead className="text-left">Origem</TableHead>
+              <TableHead className="text-left">Data Venda</TableHead>
               <TableHead className="text-left">Mês Venda</TableHead>
               <TableHead className="text-left">Mês Pagto</TableHead>
               <TableHead className="text-left">Cliente</TableHead>
@@ -342,7 +353,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
                   Nenhuma conversão encontrada.
                 </TableCell>
               </TableRow>
@@ -372,6 +383,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                     )}
                   </div>
                 </TableCell>
+                <TableCell className="text-left tabular-nums">{fmtSaleDate(c)}</TableCell>
                 <TableCell className="text-left">{fmtMonth(c.sale_month)}</TableCell>
                 <TableCell className="text-left">{fmtMonth(c.payment_month)}</TableCell>
                 <TableCell className="text-left">
