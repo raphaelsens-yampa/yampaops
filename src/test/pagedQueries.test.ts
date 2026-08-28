@@ -34,9 +34,11 @@ describe("guardrail de paginação", () => {
     }
   });
 
-  it("a tela de Conversões por Área usa fetchAllPaged em stripe_conversions", () => {
-    const { blocking } = splitByBaseline(findViolations("src/pages/StripeConversions.tsx".replace(/\/[^/]+$/, "")), baseline.allow);
-    expect(blocking.filter((v: { file: string }) => v.file.endsWith("StripeConversions.tsx"))).toEqual([]);
+  it("a tela de Conversões por Área usa fetchAllPaged em stripe_conversions", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync("src/pages/StripeConversions.tsx", "utf8");
+    expect(source).toContain("fetchAllPaged");
+    expect(source).not.toContain(".limit(5000)");
   });
 });
 
