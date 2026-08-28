@@ -281,41 +281,50 @@ async function getCard103DatabaseId(apiKey: string): Promise<number> {
 }
 
 /**
- * Consulta o card 103 como source-table via /api/dataset, filtrando
- * data_ref_analise no servidor. Retorna linhas como objetos nomeados pelas
- * colunas de data.cols[].name.
+ * Consulta o card 103 como source-table via /api/dataset/json (rota de
+ * exportação, SEM o teto de 2.000 linhas do /api/dataset), filtrando
+ * data_ref_analise no servidor. Retorna array de objetos já nomeados com
+ * os nomes de exibição — iguais aos de /api/card/103/query/json.
  */
 async function metabaseDatasetCard103(apiKey: string, from: string, to: string): Promise<Row[]> {
   const database = await getCard103DatabaseId(apiKey);
-  const res = await fetch(`${METABASE_BASE}/api/dataset`, {
+  const mbql = {
+    database,
+    type: 'query',
+    query: {
+      'source-table': 'card__103',
+      filter: ['between', ['field', 'data_ref_analise', { 'base-type': 'type/Date' }], from, to],
+    },
+  };
+  const fd = new URLSearchParams();
+  fd.set('query', JSON.stringify(mbql));
+  const res = await fetch(`${METABASE_BASE}/api/dataset/json`, {
     method: 'POST',
-    headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      database,
-      type: 'query',
-      query: {
-        'source-table': 'card__103',
-        filter: ['between', ['field', 'data_ref_analise', { 'base-type': 'type/Date' }], from, to],
-      },
-    }),
+    headers: { 'x-api-key': apiKey, 'content-type': 'application/x-www-form-urlencoded' },
+    body: fd,
   });
   if (!res.ok) {
     const detail = await res.text();
-    throw Object.assign(new Error(`Metabase /api/dataset falhou [${res.status}]: ${detail.slice(0, 500)}`), {
+    throw Object.assign(new Error(`Metabase /api/dataset/json falhou [${res.status}]: ${detail.slice(0, 500)}`), {
       status: res.status >= 500 ? 502 : res.status,
     });
   }
-  const payload = await res.json();
-  const cols: string[] = (payload?.data?.cols ?? []).map((c: Row) => String(c?.name ?? ''));
-  const dataRows: unknown[][] = payload?.data?.rows ?? [];
-  if (!Array.isArray(dataRows) || cols.length === 0) {
-    throw Object.assign(new Error('Metabase /api/dataset retornou formato inesperado'), { status: 502 });
+  const data = await res.json();
+  if (!Array.isArray(data)) {
+    throw Object.assign(new Error('Metabase /api/dataset/json retornou formato inesperado'), { status: 502 });
   }
-  return dataRows.map((values) => {
-    const obj: Row = {};
-    for (let i = 0; i < cols.length; i++) obj[cols[i]] = values[i];
-    return obj;
-  });
+  // Trava de segurança: 2.000 redondo é a assinatura de truncamento do
+  // /api/dataset; nunca gravar um mês truncado.
+  if (data.length === 2000) {
+    throw Object.assign(
+      new Error(
+        'Leitura TRUNCADA: exatamente 2.000 linhas (teto do /api/dataset). ' +
+        'Nada foi gravado. Use /api/dataset/json ou revise o período.',
+      ),
+      { status: 502 },
+    );
+  }
+  return data as Row[];
 }
 
 async function metabase(path: string, apiKey: string, body?: unknown): Promise<Row[]> {
