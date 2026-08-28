@@ -620,14 +620,22 @@ try {
       mrr_total_ativos: Number(mrrAtivos.toFixed(2)),
       ativos_por_origem: porOrigem,
       churn_historico: { meses: churnMonths, desde: cutoff, lidos: churnHist.length },
+      churn_daily: {
+        backfill: churnDailyBackfill,
+        lidos: churnDailyFonte.length,
+        linhas: churnDailyRows.length,
+        duplicadas_encontradas: churnDailyDup,
+        ignoradas_sem_chave: churnDailyInvalidas,
+        por_mes: churnDailyPorMes,
+      },
       avisos,
     };
 
     if (dryRun) {
-      return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0 } });
+      return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0, churn_daily: 0 } });
     }
 
-    const gravados = { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0 };
+    const gravados = { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0, churn_daily: 0 };
     const grupos: Array<[keyof typeof gravados, Row[]]> = [
       ['ativo', ativos],
       ['cancelado', cancelados],
@@ -666,7 +674,46 @@ try {
       gravados.churn_historico += chunk.length;
     }
 
+    // Analítico de churn (metas_churn_daily). visto_primeira_vez_em é gravado
+    // apenas na inserção — nunca sobrescrito em update.
+    if (churnDailyRows.length > 0) {
+      const existentes = new Set<string>();
+      const meses = Array.from(new Set(churnDailyRows.map((r) => String(r.mes_ref))));
+      for (let i = 0; i < meses.length; i += 50) {
+        const fatia = meses.slice(i, i + 50);
+        const { data, error } = await supabase
+          .from('metas_churn_daily')
+          .select('mes_ref, company_id')
+          .in('mes_ref', fatia);
+        if (error) {
+          avisos.push(`Falha ao ler chaves existentes de metas_churn_daily: ${error.message}`);
+          break;
+        }
+        for (const row of data ?? []) existentes.add(`${row.mes_ref}|${row.company_id}`);
+      }
+
+      const novas = churnDailyRows
+        .filter((r) => !existentes.has(`${r.mes_ref}|${r.company_id}`))
+        .map((r) => ({ ...r, visto_primeira_vez_em: dataExecucao }));
+      const atualizadas = churnDailyRows.filter((r) => existentes.has(`${r.mes_ref}|${r.company_id}`));
+
+      for (const conjunto of [novas, atualizadas]) {
+        for (let i = 0; i < conjunto.length; i += BATCH) {
+          const chunk = conjunto.slice(i, i + BATCH);
+          const { error } = await supabase
+            .from('metas_churn_daily')
+            .upsert(chunk, { onConflict: 'mes_ref,company_id', ignoreDuplicates: false });
+          if (error) {
+            avisos.push(`Falha ao gravar analítico de churn (lote ${i / BATCH + 1}): ${error.message}`);
+            break;
+          }
+          gravados.churn_daily += chunk.length;
+        }
+      }
+    }
+
     return json({ ...base, gravados });
+
   } catch (e) {
     const status = (e as { status?: number })?.status ?? 500;
     return json({ error: (e as Error)?.message ?? String(e) }, status);
