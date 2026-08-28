@@ -218,7 +218,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     <Card className="mt-4">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">Conversões {conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label).length > 0 && <Badge variant="destructive">{conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label).length} sem vendedor</Badge>}</CardTitle>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">Conversões {conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label && c.commissionable !== false).length > 0 && <Badge variant="destructive">{conversions.filter((c) => !c.resolved_seller_user_id && !c.resolved_seller_label && c.commissionable !== false).length} sem vendedor</Badge>}</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
             {filtered.length} linhas · Total: <span className="font-medium text-foreground">{BRL(totalComissao)}</span>
           </p>
