@@ -64,26 +64,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       payMonths: Array.from(p).sort(sortDesc),
     };
   }, [conversions]);
-  const duplicateCount = useMemo(() => {
-    const stripeKeys = new Set<string>();
-    for (const c of conversions) {
-      if ((c.source || "manual") !== "stripe") continue;
-      const email = (c.customer_email || "").trim().toLowerCase();
-      const dt = parseDateOnly(c.sale_month);
-      if (!email || !dt) continue;
-      stripeKeys.add(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`);
-    }
-    let n = 0;
-    for (const c of conversions) {
-      const src = c.source || "manual";
-      if (src === "stripe") continue;
-      const email = (c.customer_email || "").trim().toLowerCase();
-      const dt = parseDateOnly(c.sale_month);
-      if (!email || !dt) continue;
-      if (stripeKeys.has(`${email}|${dt.getFullYear()}-${dt.getMonth() + 1}`)) n++;
-    }
-    return n;
-  }, [conversions]);
+  const duplicateCount = useMemo(() => 0, []);
 
 
   const sellers = useMemo(() => {
@@ -153,7 +134,6 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   };
 
   const sourceBadge = (src: ConversionRow["source"]) => {
-    if (src === "stripe") return <Badge variant="default" className="gap-1"><Zap className="h-3 w-3" />Stripe</Badge>;
     if (src === "metabase") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Metabase</Badge>;
     if (src === "import") return <Badge variant="secondary" className="gap-1"><FileUp className="h-3 w-3" />Import</Badge>;
     return <Badge variant="outline" className="gap-1"><User className="h-3 w-3" />Manual</Badge>;
@@ -436,7 +416,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    {isAdmin && c.manually_reviewed && c.source === "stripe" && (
+                    {isAdmin && c.manually_reviewed && (
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => unlockReview(c)} title="Destravar recálculo">
                         <Unlock className="h-3.5 w-3.5" />
                       </Button>

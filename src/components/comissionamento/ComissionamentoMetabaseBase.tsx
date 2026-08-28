@@ -48,7 +48,6 @@ const classificationLabel = (value: string | null) => {
 };
 const classificationKey = (value: string | null) => (value || "").trim().toLowerCase();
 const COMMISSIONABLE_CLASSIFICATIONS = ["novo pagante", "recuperado", "upsell"] as const;
-const EXCLUDED_ORIGIN = "4blue";
 const sellerLabel = (map: PriceMapEntry | undefined) => map?.seller_label || map?.seller_user_id || "Sem vendedor";
 
 
