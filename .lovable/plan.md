@@ -47,8 +47,9 @@ Regras confirmadas:
 
 ## Detalhes técnicos
 
-- Migração: tabela de snapshot mensal fechado (`metas_ativos_pagantes_monthly`, mesma estrutura da diária + `mes_fechado`) com GRANTs e RLS (leitura autenticada, escrita service role); origem `metabase` nas linhas de comissão; funções `apply_commissions_from_metabase(p_month)` e de fechamento de snapshot; índices por `data_snapshot`, `classificacao_company` e `company_id`.
-- Sem alteração na edge function de ingestão: a tabela já é alimentada hoje.
+- Migração: colunas `previous_mrr` (numeric) e `data_pagamento` (date) em `metas_ativos_pagantes_daily`; tabela de snapshot mensal fechado (`metas_ativos_pagantes_monthly`, mesma estrutura + `mes_fechado`) com GRANTs e RLS (leitura autenticada, escrita service role); origem `metabase` nas linhas de comissão; funções `apply_commissions_from_metabase(p_month)` e de fechamento de snapshot; índices por `data_snapshot`, `data_pagamento`, `classificacao_company` e `company_id`.
+- Edge function `ativos-ingest`: mapear as colunas `Previous Mrr` e a data de pagamento do card do Metabase para as novas colunas (reprocesso de dias anteriores fica disponível).
 - Frontend: novo componente `ComissionamentoMetabaseBase.tsx`, remoção do trigger/aba `stripe` em `src/pages/Comissionamento.tsx`.
-- Resolução de vendedor reaproveita `resolve_stripe_seller` e `ac_owner_seller_map`, com atribuição manual persistida.
+- Vendedor: apenas `commission_price_map` (price ID → vendedor) + atribuição manual persistida; sem cascata por e-mail/oportunidade.
+
 
