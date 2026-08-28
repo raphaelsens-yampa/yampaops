@@ -89,15 +89,161 @@ function pick(row: Row, names: string[]): unknown {
   return null;
 }
 
-const PREVIOUS_MRR_KEYS = ['Previous Mrr', 'Previous MRR', 'Mrr Anterior', 'Old Mrr'];
+function toInt(v: unknown): number | null {
+  const n = toNum(v);
+  return n == null ? null : Math.trunc(n);
+}
+
+function toBool(v: unknown): boolean | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'boolean') return v;
+  const s = String(v).trim().toLowerCase();
+  if (['true', 't', '1', 'sim', 'yes', 'y'].includes(s)) return true;
+  if (['false', 'f', '0', 'nao', 'não', 'no', 'n'].includes(s)) return false;
+  return null;
+}
+
+/** Texto de identificador numérico sem sufixo ".0" (ex.: "1234.0" -> "1234"). */
+function idTxt(v: unknown): string | null {
+  const s = txt(v);
+  if (!s) return null;
+  return s.replace(/\.0+$/, '');
+}
+
+/** 'MM/YYYY' a partir de uma data ISO. */
+function mesRefFromISO(iso: string): string {
+  const [y, m] = iso.split('-');
+  return `${m}/${y}`;
+}
+
+function firstDayOfMonthISO(iso: string): string {
+  const [y, m] = iso.split('-');
+  return `${y}-${m}-01`;
+}
+
+const PREVIOUS_MRR_KEYS = ['Previous Mrr', 'Previous MRR', 'previous_mrr', 'Mrr Anterior', 'Old Mrr'];
 const PAYMENT_DATE_KEYS = [
   'Data Pagamento',
+  'data_pagamento',
   'Data de Pagamento',
   'Data Pagto',
   'Payment Date',
   'Paid At',
   'Data Pagamento Assinatura',
 ];
+const NEW_MRR_KEYS = ['New Mrr', 'new_mrr', 'Mrr', 'mrr'];
+const COMPANY_ID_KEYS = ['Company ID', 'company_id'];
+const EMAIL_KEYS = ['Email', 'email'];
+const PLANO_ATUAL_KEYS = ['Plano Atual', 'plano_atual', 'Plano', 'plano'];
+const NOME_OFERTA_KEYS = ['Nome Oferta', 'nome_oferta'];
+const PRICE_ID_KEYS = ['Stripe Price ID', 'stripe_price_id'];
+const ORIGEM_KEYS = ['Origem Cliente', 'origem_cliente'];
+const INICIO_VIGENCIA_KEYS = ['Inicio Vigencia Plano', 'inicio_vigencia_plano'];
+const CLASSIFICACAO_KEYS = ['Classificacao Company', 'classificacao_company'];
+const STATUS_PAGAMENTO_KEYS = ['Status_pagamento', 'status_pagamento', 'Status Pagamento'];
+const GATEWAY_KEYS = ['Gateway', 'gateway'];
+const RECORRENCIA_KEYS = ['Recorrencia Pagamento', 'recorrencia_pagamento'];
+const DATA_REF_KEYS = ['Data Ref Analise', 'data_ref_analise'];
+
+/** Linha de ativo pagante para metas_ativos_pagantes_daily. */
+function mapAtivo(
+  r: Row,
+  opts: {
+    dataSnapshot: string;
+    mesRef: string;
+    tipoSnapshot: string;
+    dataExecucao: string;
+    coletadoEm: string;
+    fonte: string;
+  },
+): Row {
+  return {
+    data_snapshot: opts.dataSnapshot,
+    data_execucao: opts.dataExecucao,
+    mes_ref: opts.mesRef,
+    status_assinatura: 'ativo',
+    tipo_snapshot: opts.tipoSnapshot,
+    company_id: txt(pick(r, COMPANY_ID_KEYS)) ?? '',
+    email: lower(pick(r, EMAIL_KEYS)),
+    plano: txt(pick(r, PLANO_ATUAL_KEYS)),
+    nome_oferta: txt(pick(r, NOME_OFERTA_KEYS)),
+    stripe_price_id: txt(pick(r, PRICE_ID_KEYS)),
+    mrr: toNum(pick(r, NEW_MRR_KEYS)),
+    previous_mrr: toNum(pick(r, PREVIOUS_MRR_KEYS)),
+    data_pagamento: toDate(pick(r, PAYMENT_DATE_KEYS)),
+    origem_cliente: lower(pick(r, ORIGEM_KEYS)),
+    data_inicio: toDate(pick(r, INICIO_VIGENCIA_KEYS)),
+    data_cancelamento: null,
+    classificacao_company: txt(pick(r, CLASSIFICACAO_KEYS)),
+    status_pagamento: txt(pick(r, STATUS_PAGAMENTO_KEYS)),
+    gateway: txt(pick(r, GATEWAY_KEYS)),
+    recorrencia_pagamento: txt(pick(r, RECORRENCIA_KEYS)),
+    tipo_churn: null,
+    fonte: opts.fonte,
+    coletado_em: opts.coletadoEm,
+  };
+}
+
+const CHURN_DAILY_FONTE = 'Dash 11 card 181 churn_analitico via API';
+
+/**
+ * Linha analítica de churn para metas_churn_daily.
+ * Colunas ignoradas de propósito: Description, Is Trail (duplicata com typo de
+ * Is Trial), a 2ª coluna "Tipo Churn" do card e Import Date.
+ */
+function mapChurnDaily(r: Row, dataExecucao: string, coletadoEm: string): Row | null {
+  const mesRefAnalise = toDate(r['Mes Ref Analise']);
+  const companyId = txt(r['Company ID']);
+  if (!mesRefAnalise || !companyId) return null;
+  return {
+    mes_ref: mesRefFromISO(mesRefAnalise),
+    mes_ref_data: firstDayOfMonthISO(mesRefAnalise),
+    company_id: companyId,
+    email: lower(r['Email']),
+    cell_phone: txt(r['Cell Phone']),
+    segmento: txt(r['Segmento']),
+    plano: txt(r['Plano']),
+    origem_cliente: lower(r['Origem Cliente']),
+    gateway: txt(r['Gateway']),
+    sck: txt(r['Sck']),
+    owner_id: idTxt(r['Owner ID']),
+    tipo_churn: txt(r['Tipo Churn']),
+    reason: txt(r['Reason']),
+    churn_at: toDate(r['Churn At']),
+    data_ref_churn: toDate(r['Data Ref Churn']),
+    data_pedido_cancelamento: toDate(r['Data Pedido Cancelamento']),
+    activation_date: toDate(r['Activation Date']),
+    data_pagamento: toDate(r['Data Pagamento']),
+    inicio_vigencia_plano: toDate(r['Inicio Vigencia Plano']),
+    final_vigencia_plano: toDate(r['Final Vigencia Plano']),
+    vigencia: toInt(r['Vigencia']),
+    recorrencia_pagamento: toInt(r['Recorrencia Pagamento']),
+    intervalo_cobranca_stripe: txt(r['Intervalo Combranca Stripe']),
+    id_oferta: idTxt(r['ID Oferta']),
+    nome_oferta: txt(r['Nome Oferta']),
+    stripe_price_name: txt(r['Stripe Price Name']),
+    preco_stripe: toNum(r['Preco Stripe']),
+    valor_pago: toNum(r['Valor Pago']),
+    total_mrr: toNum(r['Total Mrr']),
+    cupom_aplicado: txt(r['Cupom Aplicado']),
+    cd_promo: txt(r['Cd Promo']),
+    status_transacao: txt(r['Status Transacao']),
+    status_vitalicio: txt(r['Status Vitalicio']),
+    is_4blue_customer: toBool(r['Is 4blue Costumer']),
+    is_illuminist: toBool(r['Is Illuminist']),
+    is_freetrial: toBool(r['Is Freetrial']),
+    is_trial: toBool(r['Is Trial']),
+    is_perpetual: toBool(r['Is Perpetual']),
+    is_paying: toBool(r['Is Paying']),
+    is_bonus: toBool(r['Is Bonus']),
+    is_refund: toBool(r['Is Refund']),
+    data_ref_analise: toDate(r['Data Ref Analise']),
+    data_extracao: dataExecucao,
+    fonte: CHURN_DAILY_FONTE,
+    coletado_em: coletadoEm,
+  };
+}
+
 
 
 async function metabase(path: string, apiKey: string, body?: unknown): Promise<Row[]> {
