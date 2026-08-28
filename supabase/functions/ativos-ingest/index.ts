@@ -75,6 +75,31 @@ function lower(v: unknown): string | null {
   return s ? s.toLowerCase() : null;
 }
 
+/**
+ * Busca o 1º campo presente entre vários nomes possíveis (o card do Metabase
+ * pode rotular a coluna de formas diferentes). Comparação case-insensitive e
+ * ignorando espaços/underscores.
+ */
+function pick(row: Row, names: string[]): unknown {
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_]+/g, '');
+  const wanted = names.map(norm);
+  for (const [k, v] of Object.entries(row)) {
+    if (wanted.includes(norm(k)) && v !== null && v !== '') return v;
+  }
+  return null;
+}
+
+const PREVIOUS_MRR_KEYS = ['Previous Mrr', 'Previous MRR', 'Mrr Anterior', 'Old Mrr'];
+const PAYMENT_DATE_KEYS = [
+  'Data Pagamento',
+  'Data de Pagamento',
+  'Data Pagto',
+  'Payment Date',
+  'Paid At',
+  'Data Pagamento Assinatura',
+];
+
+
 async function metabase(path: string, apiKey: string, body?: unknown): Promise<Row[]> {
   const res = await fetch(`${METABASE_BASE}${path}`, {
     method: 'POST',
@@ -195,6 +220,8 @@ try {
         nome_oferta: txt(r['Nome Oferta']),
         stripe_price_id: txt(r['Stripe Price ID']),
         mrr: toNum(r['New Mrr']),
+        previous_mrr: toNum(pick(r, PREVIOUS_MRR_KEYS)),
+        data_pagamento: toDate(pick(r, PAYMENT_DATE_KEYS)),
         origem_cliente: lower(r['Origem Cliente']),
         data_inicio: toDate(r['Inicio Vigencia Plano']),
         data_cancelamento: null,

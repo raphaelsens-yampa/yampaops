@@ -1746,6 +1746,7 @@ export type Database = {
           id: string
           import_id: string | null
           manually_reviewed: boolean
+          metabase_key: string | null
           mrr: number
           offer_name: string | null
           origem_cliente: string | null
@@ -1781,6 +1782,7 @@ export type Database = {
           id?: string
           import_id?: string | null
           manually_reviewed?: boolean
+          metabase_key?: string | null
           mrr?: number
           offer_name?: string | null
           origem_cliente?: string | null
@@ -1816,6 +1818,7 @@ export type Database = {
           id?: string
           import_id?: string | null
           manually_reviewed?: boolean
+          metabase_key?: string | null
           mrr?: number
           offer_name?: string | null
           origem_cliente?: string | null
@@ -2948,6 +2951,7 @@ export type Database = {
           data_cancelamento: string | null
           data_execucao: string
           data_inicio: string | null
+          data_pagamento: string | null
           data_snapshot: string
           email: string | null
           fonte: string
@@ -2958,6 +2962,7 @@ export type Database = {
           nome_oferta: string | null
           origem_cliente: string | null
           plano: string | null
+          previous_mrr: number | null
           recorrencia_pagamento: string | null
           status_assinatura: string
           status_pagamento: string | null
@@ -2971,6 +2976,7 @@ export type Database = {
           data_cancelamento?: string | null
           data_execucao: string
           data_inicio?: string | null
+          data_pagamento?: string | null
           data_snapshot: string
           email?: string | null
           fonte: string
@@ -2981,6 +2987,7 @@ export type Database = {
           nome_oferta?: string | null
           origem_cliente?: string | null
           plano?: string | null
+          previous_mrr?: number | null
           recorrencia_pagamento?: string | null
           status_assinatura: string
           status_pagamento?: string | null
@@ -2994,6 +3001,7 @@ export type Database = {
           data_cancelamento?: string | null
           data_execucao?: string
           data_inicio?: string | null
+          data_pagamento?: string | null
           data_snapshot?: string
           email?: string | null
           fonte?: string
@@ -3004,11 +3012,99 @@ export type Database = {
           nome_oferta?: string | null
           origem_cliente?: string | null
           plano?: string | null
+          previous_mrr?: number | null
           recorrencia_pagamento?: string | null
           status_assinatura?: string
           status_pagamento?: string | null
           stripe_price_id?: string | null
           tipo_churn?: string | null
+        }
+        Relationships: []
+      }
+      metas_ativos_pagantes_monthly: {
+        Row: {
+          classificacao_company: string | null
+          coletado_em: string | null
+          company_id: string | null
+          created_at: string
+          data_cancelamento: string | null
+          data_execucao: string | null
+          data_inicio: string | null
+          data_pagamento: string | null
+          data_snapshot: string
+          email: string | null
+          fonte: string | null
+          gateway: string | null
+          id: string
+          mes_fechado: string
+          mes_ref: string | null
+          mrr: number | null
+          nome_oferta: string | null
+          origem_cliente: string | null
+          plano: string | null
+          previous_mrr: number | null
+          recorrencia_pagamento: string | null
+          status_assinatura: string | null
+          status_pagamento: string | null
+          stripe_price_id: string | null
+          tipo_churn: string | null
+          updated_at: string
+        }
+        Insert: {
+          classificacao_company?: string | null
+          coletado_em?: string | null
+          company_id?: string | null
+          created_at?: string
+          data_cancelamento?: string | null
+          data_execucao?: string | null
+          data_inicio?: string | null
+          data_pagamento?: string | null
+          data_snapshot: string
+          email?: string | null
+          fonte?: string | null
+          gateway?: string | null
+          id?: string
+          mes_fechado: string
+          mes_ref?: string | null
+          mrr?: number | null
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          plano?: string | null
+          previous_mrr?: number | null
+          recorrencia_pagamento?: string | null
+          status_assinatura?: string | null
+          status_pagamento?: string | null
+          stripe_price_id?: string | null
+          tipo_churn?: string | null
+          updated_at?: string
+        }
+        Update: {
+          classificacao_company?: string | null
+          coletado_em?: string | null
+          company_id?: string | null
+          created_at?: string
+          data_cancelamento?: string | null
+          data_execucao?: string | null
+          data_inicio?: string | null
+          data_pagamento?: string | null
+          data_snapshot?: string
+          email?: string | null
+          fonte?: string | null
+          gateway?: string | null
+          id?: string
+          mes_fechado?: string
+          mes_ref?: string | null
+          mrr?: number | null
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          plano?: string | null
+          previous_mrr?: number | null
+          recorrencia_pagamento?: string | null
+          status_assinatura?: string | null
+          status_pagamento?: string | null
+          stripe_price_id?: string | null
+          tipo_churn?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5404,6 +5500,10 @@ export type Database = {
         Args: { p_stripe_id: string }
         Returns: string
       }
+      apply_commissions_from_metabase: {
+        Args: { p_month?: string }
+        Returns: Json
+      }
       apply_commissions_from_stripe_range: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
@@ -5449,6 +5549,7 @@ export type Database = {
           previous_price_id: string
         }[]
       }
+      close_ativos_pagantes_month: { Args: { p_month?: string }; Returns: Json }
       commission_month_locked: { Args: { p_month: string }; Returns: boolean }
       fill_snapshot_gaps: {
         Args: { p_from?: string; p_to?: string }

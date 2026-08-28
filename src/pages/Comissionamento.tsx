@@ -10,15 +10,13 @@ import { ComissionamentoConversions } from "@/components/comissionamento/Comissi
 import { ComissionamentoImport } from "@/components/comissionamento/ComissionamentoImport";
 import { ComissionamentoReference } from "@/components/comissionamento/ComissionamentoReference";
 import { ComissionamentoPriceMap } from "@/components/comissionamento/ComissionamentoPriceMap";
-import { ComissionamentoStripeSync } from "@/components/comissionamento/ComissionamentoStripeSync";
 import { CommissionClawbacksPanel } from "@/components/comissionamento/CommissionClawbacksPanel";
 import { CommissionClosingPanel } from "@/components/comissionamento/CommissionClosingPanel";
 import { CommissionRulesPanel } from "@/components/comissionamento/CommissionRulesPanel";
 import { UnassignedCommissionsPanel } from "@/components/comissionamento/UnassignedCommissionsPanel";
-import { NetAmountDivergences } from "@/components/stripe/NetAmountDivergences";
-import { ChurnBackfillPanel } from "@/components/comissionamento/ChurnBackfillPanel";
+import { ComissionamentoMetabaseBase } from "@/components/comissionamento/ComissionamentoMetabaseBase";
 
-export type ConversionSource = "stripe" | "manual" | "import";
+export type ConversionSource = "stripe" | "manual" | "import" | "metabase";
 
 export interface ConversionRow {
   id: string;
@@ -94,12 +92,12 @@ export default function Comissionamento() {
           <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger><TabsTrigger value="conversions">Conversões</TabsTrigger>
             {isAdmin && <TabsTrigger value="unassigned">Sem vendedor {unassigned.length > 0 && `(${unassigned.length})`}</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="stripe">Stripe</TabsTrigger>}{isAdmin && <TabsTrigger value="import">Importar</TabsTrigger>}{isAdmin && <TabsTrigger value="rules">Regras</TabsTrigger>}{isAdmin && <TabsTrigger value="reference">Referência</TabsTrigger>}{isAdmin && <TabsTrigger value="pricemap">Mapa de Preços</TabsTrigger>}{isAdmin && <TabsTrigger value="clawbacks">Estornos</TabsTrigger>}{isAdmin && <TabsTrigger value="closing">Fechamento</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="metabase">Base Metabase</TabsTrigger>}{isAdmin && <TabsTrigger value="import">Importar</TabsTrigger>}{isAdmin && <TabsTrigger value="rules">Regras</TabsTrigger>}{isAdmin && <TabsTrigger value="reference">Referência</TabsTrigger>}{isAdmin && <TabsTrigger value="pricemap">Mapa de Preços</TabsTrigger>}{isAdmin && <TabsTrigger value="clawbacks">Estornos</TabsTrigger>}{isAdmin && <TabsTrigger value="closing">Fechamento</TabsTrigger>}
           </TabsList>
           <TabsContent value="overview"><ComissionamentoOverview conversions={filteredConversions} profiles={profiles} priceMap={priceMap} isAdmin={isAdmin} loading={loading} /></TabsContent>
           <TabsContent value="conversions"><ComissionamentoConversions conversions={filteredConversions} profiles={profiles} priceMap={priceMap} reference={reference} isAdmin={isAdmin} onChanged={fetchAll} /></TabsContent>
           {isAdmin && <TabsContent value="unassigned"><UnassignedCommissionsPanel conversions={conversions} profiles={profiles} onChanged={fetchAll} /></TabsContent>}
-          {isAdmin && <TabsContent value="stripe" className="space-y-4"><ComissionamentoStripeSync onDone={fetchAll} /><ChurnBackfillPanel /><NetAmountDivergences /></TabsContent>}
+          {isAdmin && <TabsContent value="metabase"><ComissionamentoMetabaseBase priceMap={priceMap} onChanged={fetchAll} /></TabsContent>}
           {isAdmin && <TabsContent value="import"><ComissionamentoImport priceMap={priceMap} reference={reference} onImported={fetchAll} /></TabsContent>}
           {isAdmin && <TabsContent value="rules"><CommissionRulesPanel /></TabsContent>}
           {isAdmin && <TabsContent value="reference"><ComissionamentoReference reference={reference} onChanged={fetchAll} /></TabsContent>}
