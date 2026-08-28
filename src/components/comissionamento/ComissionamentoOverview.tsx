@@ -233,30 +233,6 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
             <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(month)}</p>
           </CardContent>
         </Card>
-        {isAdmin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-xs sm:text-sm font-medium">A pagar (M+1)</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-2xl font-bold">{BRL(provM1)}</div>
-              <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(monthM1)}</p>
-            </CardContent>
-          </Card>
-        )}
-        {isAdmin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-xs sm:text-sm font-medium">A pagar (M+2)</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg sm:text-2xl font-bold">{BRL(provM2)}</div>
-              <p className="text-xs text-muted-foreground capitalize">{formatMonthLabel(monthM2)}</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <Card>
