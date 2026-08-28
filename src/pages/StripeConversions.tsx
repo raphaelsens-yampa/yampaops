@@ -18,6 +18,8 @@ import { PieChart as PieChartIcon, Download, Pencil, RefreshCw, RotateCcw } from
 import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
+import { fetchAllPaged } from "@/lib/supabasePaged";
+
 
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
