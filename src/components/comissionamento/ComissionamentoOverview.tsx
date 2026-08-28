@@ -61,8 +61,13 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   }, [conversions, profiles]);
 
   const sellerFiltered = useMemo(() => {
-    if (selectedSeller === "all") return conversions;
-    return conversions.filter((c) => {
+    const canonical = conversions.filter((c) =>
+      c.source !== "stripe" &&
+      c.commissionable !== false &&
+      (c.origem_cliente || "").trim().toLowerCase() !== "4blue",
+    );
+    if (selectedSeller === "all") return canonical;
+    return canonical.filter((c) => {
       const key = c.resolved_seller_user_id || `lbl:${c.resolved_seller_label || "—"}`;
       return key === selectedSeller;
     });

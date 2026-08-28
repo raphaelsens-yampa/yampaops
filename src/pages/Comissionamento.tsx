@@ -70,7 +70,7 @@ export default function Comissionamento() {
     const [refRes, mapRes, convRes, profRes] = await Promise.all([
       supabase.from("commission_reference").select("*").order("plan_name").order("payment_type"),
       supabase.from("commission_price_map").select("*").order("plan_name", { nullsFirst: false }),
-      supabase.from("commission_conversions").select("id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, seller_source, conversion_type, base_kind, commission_pct, commission_amount, status, sale_at:stripe_conversions(converted_at)").order("sale_month", { ascending: false }).limit(5000),
+      supabase.from("commission_conversions").select("id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, commissionable, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, seller_source, conversion_type, base_kind, commission_pct, commission_amount, status, sale_at:stripe_conversions(converted_at)").order("sale_month", { ascending: false }).limit(5000),
       isAdmin ? supabase.from("profiles").select("user_id, full_name, email") : Promise.resolve({ data: [], error: null } as { data: ProfileLite[]; error: null }),
     ]);
     setReference((refRes.data as CommissionReference[] | null) || []);

@@ -33,10 +33,10 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [originFilter, setOriginFilter] = useState<string>("all");
   const [reviewFilter, setReviewFilter] = useState<string>("all");
   const [saleMonthFilter, setSaleMonthFilter] = useState<string>("all"); // YYYY-MM
   const [payMonthFilter, setPayMonthFilter] = useState<string>("all"); // YYYY-MM
-  const [sellerStatusFilter, setSellerStatusFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
@@ -101,6 +101,8 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
     return conversions.filter((c) => {
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
       if (sourceFilter !== "all" && (c.source || "manual") !== sourceFilter) return false;
+      const origin = (c.origem_cliente || "").trim().toLowerCase();
+      if (originFilter !== "all" && origin !== originFilter) return false;
       if (reviewFilter === "locked" && !c.manually_reviewed) return false;
       if (reviewFilter === "auto" && c.manually_reviewed) return false;
       if (sellerStatusFilter === "missing" && (c.resolved_seller_user_id || c.resolved_seller_label)) return false;
@@ -123,7 +125,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
       }
       return true;
     });
-  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, reviewFilter, sellerStatusFilter, saleMonthFilter, payMonthFilter]);
+  }, [conversions, search, statusFilter, sellerFilter, sourceFilter, originFilter, reviewFilter, sellerStatusFilter, saleMonthFilter, payMonthFilter]);
 
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
 
