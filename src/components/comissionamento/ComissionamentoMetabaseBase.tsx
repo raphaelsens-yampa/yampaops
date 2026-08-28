@@ -154,7 +154,7 @@ export function ComissionamentoMetabaseBase({ priceMap, onChanged }: Props) {
     const stamp = `${month}-${source}`;
     if (kind === "csv") {
       const headers = Object.keys(data[0] || { Base: "" });
-      const csv = [headers, ...data.map((row) => headers.map((header) => String(row[header as keyof typeof row] ?? "").replaceAll('"', '""')))].map((line) => line.map((value) => `"${value}"`).join(",")).join("\n");
+      const csv = [headers, ...data.map((row) => headers.map((header) => String(row[header as keyof typeof row] ?? "").replace(/"/g, '""')))].map((line) => line.map((value) => `"${value}"`).join(",")).join("\n");
       saveAs(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), `base_metabase_${stamp}.csv`);
     } else {
       const sheet = XLSX.utils.json_to_sheet(data);
