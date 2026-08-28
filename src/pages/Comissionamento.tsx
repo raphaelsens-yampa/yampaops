@@ -11,6 +11,8 @@ import { ComissionamentoImport } from "@/components/comissionamento/Comissioname
 import { ComissionamentoReference } from "@/components/comissionamento/ComissionamentoReference";
 import { ComissionamentoPriceMap } from "@/components/comissionamento/ComissionamentoPriceMap";
 import { ComissionamentoStripeSync } from "@/components/comissionamento/ComissionamentoStripeSync";
+import { CommissionClawbacksPanel } from "@/components/comissionamento/CommissionClawbacksPanel";
+import { CommissionClosingPanel } from "@/components/comissionamento/CommissionClosingPanel";
 import { NetAmountDivergences } from "@/components/stripe/NetAmountDivergences";
 import { ChurnBackfillPanel } from "@/components/comissionamento/ChurnBackfillPanel";
 
@@ -37,6 +39,9 @@ export interface ConversionRow {
   resolved_payment_type: string | null;
   resolved_seller_user_id: string | null;
   resolved_seller_label: string | null;
+  seller_source?: string | null;
+  conversion_type?: string | null;
+  base_kind?: string | null;
   commission_pct: number;
   commission_amount: number;
   status: string;
@@ -67,7 +72,7 @@ export default function Comissionamento() {
       supabase
         .from("commission_conversions")
         .select(
-          "id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, commission_pct, commission_amount, status",
+          "id, import_id, source, stripe_conversion_id, manually_reviewed, reviewed_by, reviewed_at, override_fields, sale_month, payment_month, customer_name, customer_email, price_id, offer_name, mrr, origem_cliente, resolved_plan, resolved_payment_type, resolved_seller_user_id, resolved_seller_label, seller_source, conversion_type, base_kind, commission_pct, commission_amount, status",
         )
         .order("sale_month", { ascending: false })
         .limit(5000),
@@ -161,6 +166,18 @@ export default function Comissionamento() {
                 profiles={profiles}
                 onChanged={fetchAll}
               />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="clawbacks">
+              <CommissionClawbacksPanel profiles={profiles} onChanged={fetchAll} />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="closing">
+              <CommissionClosingPanel profiles={profiles} onChanged={fetchAll} />
             </TabsContent>
           )}
         </Tabs>
