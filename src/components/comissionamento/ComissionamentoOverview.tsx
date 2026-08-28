@@ -81,19 +81,6 @@ export function ComissionamentoOverview({ conversions, profiles, priceMap, isAdm
   }, [sellerFiltered, month, dateField]);
 
 
-  const monthM1 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const monthM2 = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-  const sumByPaymentMonth = (target: Date) =>
-    sellerFiltered
-      .filter((c) => {
-        const d = parseDateBR(c.payment_month);
-        return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth();
-      })
-      .reduce((s, c) => s + Number(c.commission_amount || 0), 0);
-
-  const provM1 = sumByPaymentMonth(monthM1);
-  const provM2 = sumByPaymentMonth(monthM2);
-
   const totalComissao = filtered.reduce((s, c) => s + Number(c.commission_amount || 0), 0);
   const totalMrr = filtered.reduce((s, c) => s + Number(c.mrr || 0), 0);
   const count = filtered.length;
