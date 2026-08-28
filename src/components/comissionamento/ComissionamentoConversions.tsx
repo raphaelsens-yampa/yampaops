@@ -37,6 +37,7 @@ export function ComissionamentoConversions({ conversions, profiles, priceMap, re
   const [reviewFilter, setReviewFilter] = useState<string>("all");
   const [saleMonthFilter, setSaleMonthFilter] = useState<string>("all"); // YYYY-MM
   const [payMonthFilter, setPayMonthFilter] = useState<string>("all"); // YYYY-MM
+  const [sellerStatusFilter, setSellerStatusFilter] = useState<string>("all");
   const [mapTarget, setMapTarget] = useState<ConversionRow | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ConversionRow | null>(null);
