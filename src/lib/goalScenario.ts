@@ -203,9 +203,15 @@ export function buildScenarioFactors(
   monthList.forEach((m, idx) => {
     const prevMonth = idx > 0 ? monthList[idx - 1] : null;
     const stockNow = newStock.get(m) ?? 0;
-    const stockPrev = prevMonth ? newStock.get(prevMonth) ?? 0 : 0;
+    // Quando o mês âncora não tem meta cadastrada, o realizado dele é o "anterior".
+    const stockPrev = prevMonth
+      ? newStock.get(prevMonth) ?? 0
+      : m > anchorMonth
+        ? anchorValue
+        : 0;
     const origNet = netCat ? orig.get(`${netCat.id}|${m}`) ?? 0 : 0;
-    const netTarget = prevMonth && stockPrev > 0 ? stockNow - stockPrev : origNet;
+    const netTarget = stockPrev > 0 ? stockNow - stockPrev : origNet;
+
     netFactor.set(m, origNet > 0 ? Math.max(1, netTarget / origNet) : 1);
 
     const gm = rateAt(m);
