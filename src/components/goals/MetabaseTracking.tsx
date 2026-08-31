@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
 const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
 /** Net MRR (fluxo) — recebe a variação mensal do MRR do 2.0 no recorte "Todos" */
 const NET_MRR_CAT = "259883ec-7be5-44cd-927f-947b12918da7";
+const RETENTION_CAT = "762093e4-9e06-4659-837f-b7eb06dbb1a9";
 /** category_id do 2.0 → category_id equivalente no yampaFin */
 const YAMPA20_TO_BASE: Record<string, string> = {
   [YAMPA20_MRR_CAT]: BASE_MRR_CAT,
@@ -210,7 +212,11 @@ export function MetabaseTracking() {
   const [teams, setTeams] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [teamByUser, setTeamByUser] = useState<Map<string, string>>(new Map());
   const [agg, setAgg] = useState<AggRow[]>([]);
+  const [tacticalRetention, setTacticalRetention] = useState<
+    { entry_date: string; user_id: string | null; mrr: number }[]
+  >([]);
   const [rawGoals, setRawGoals] = useState<Goal[]>([]);
   const [allCategories, setAllCategories] = useState<GoalCategory[]>([]);
   // Cenário de crescimento (simulação local): eleva todas as metas em memória.
@@ -230,11 +236,12 @@ export function MetabaseTracking() {
 
   useEffect(() => {
     (async () => {
-      const [cRes, tRes, pRes, campRes] = await Promise.all([
+      const [cRes, tRes, pRes, campRes, membersRes] = await Promise.all([
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("teams").select("id, name"),
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("sales_campaigns").select("id, name").order("name"),
+        supabase.from("team_members").select("team_id, user_id"),
       ]);
       // As categorias do 2.0 nunca entram na lista: são tratadas só pelo recorte de Produto
       setAllCategories(((cRes.data as GoalCategory[]) || []));
@@ -242,6 +249,7 @@ export function MetabaseTracking() {
       setTeams(tRes.data || []);
       setProfiles(pRes.data || []);
       setCampaigns(campRes.data || []);
+      setTeamByUser(new Map(((membersRes.data as any[]) || []).map((row) => [row.user_id, row.team_id])));
     })();
   }, []);
 
@@ -259,6 +267,54 @@ export function MetabaseTracking() {
       setLoading(false);
     })();
   }, []);
+
+  // Retenção (Pré-churn) tem como fonte canônica os lançamentos realizados
+  // no painel de Metas Táticas, e não o agregado mensal do Metabase.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const from = `${year}-01-01`;
+      const to = `${year}-12-31`;
+      const [manualRes, recoveryRes] = await Promise.all([
+        fetchAllPaged<{ entry_date: string; user_id: string | null; mrr_value: number | null }>(() =>
+          supabase
+            .from("tactical_manual_entries")
+            .select("entry_date, user_id, mrr_value, id")
+            .eq("entry_kind", "retained")
+            .gte("entry_date", from)
+            .lte("entry_date", to)
+            .order("entry_date")
+            .order("id") as never,
+        ),
+        fetchAllPaged<{ recovered_at: string; seller_id: string | null; mrr: number | null }>(() =>
+          supabase
+            .from("tactical_recoveries")
+            .select("recovered_at, seller_id, mrr, id")
+            .eq("entry_kind", "retained")
+            .gte("recovered_at", from)
+            .lte("recovered_at", to)
+            .order("recovered_at")
+            .order("id") as never,
+        ),
+      ]);
+      if (cancelled) return;
+      setTacticalRetention([
+        ...manualRes.data.map((row) => ({
+          entry_date: row.entry_date,
+          user_id: row.user_id,
+          mrr: Number(row.mrr_value || 0),
+        })),
+        ...recoveryRes.data.map((row) => ({
+          entry_date: String(row.recovered_at).slice(0, 10),
+          user_id: row.seller_id,
+          mrr: Number(row.mrr || 0),
+        })),
+      ]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
 
   /**
    * ===== Modo histórico =====
@@ -389,10 +445,49 @@ export function MetabaseTracking() {
     return map;
   }, [categories]);
 
+  /** Retenção vem dos registros realizados no painel tático, agrupados por mês e vendedor. */
+  const tacticalRetentionAgg = useMemo<AggRow[]>(() => {
+    const grouped = new Map<string, AggRow>();
+    const asOfDate = historicalMode ? refDate : todayKey;
+    tacticalRetention.forEach((entry) => {
+      const date = String(entry.entry_date).slice(0, 10);
+      const month = date.slice(0, 7);
+      // Em consultas históricas, respeita a fotografia da data de referência;
+      // nunca deixa um lançamento posterior contaminar o mês em análise.
+      if (!month || date > asOfDate) return;
+      // Lançamentos sem vendedor continuam no consolidado da empresa, mas não
+      // aparecem quando o usuário filtra um vendedor específico.
+      const userId = entry.user_id;
+      const key = `${month}|${userId || "__sem_vendedor__"}`;
+      const previous = grouped.get(key);
+      if (previous) {
+        previous.realized_amount += entry.mrr;
+        previous.deals_count += 1;
+        return;
+      }
+      grouped.set(key, {
+        year_month: `${month}-01`,
+        metric_key: "retencao_tatica",
+        scope: "company",
+        team_id: userId ? teamByUser.get(userId) || null : null,
+        user_id: userId,
+        campaign_id: null,
+        category_id: RETENTION_CAT,
+        area: "cs",
+        realized_amount: entry.mrr,
+        deals_count: 1,
+      });
+    });
+    return Array.from(grouped.values());
+  }, [tacticalRetention, teamByUser, historicalMode, refDate, todayKey]);
+
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
-    const base = !historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [];
-    if (!isOriginFiltered(originFilter)) return base;
+    const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
+      .filter((row) => row.category_id !== RETENTION_CAT);
+    if (!isOriginFiltered(originFilter)) return [...base, ...tacticalRetentionAgg];
+    // Registros táticos de retenção são lançamentos da operação Yampa.
+    if (originFilter === "yampa") return [...base, ...tacticalRetentionAgg];
     // Aplica a participação da origem sobre o realizado canônico:
     // 4blue + Yampa = Visão Geral, e cada recorte <= total.
     const out: AggRow[] = [];
@@ -410,11 +505,14 @@ export function MetabaseTracking() {
       });
     }
     return out;
-  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
+  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
     if (!isOriginFiltered(originFilter)) return false;
+    // Retenção é uma apuração operacional do painel tático: pertence à Yampa
+    // e não deve ser rateada pela base de price ID.
+    if (id === RETENTION_CAT) return originFilter === "4blue";
     const cat = categories.find((c) => c.id === id);
     const slug = (cat as any)?.slug as string | undefined;
     if (!slug) return true;
