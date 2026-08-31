@@ -483,6 +483,8 @@ export function MetabaseTracking() {
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
     if (!isOriginFiltered(originFilter)) return [...base, ...tacticalRetentionAgg];
+    // Registros táticos de retenção são lançamentos da operação Yampa.
+    if (originFilter === "yampa") return [...base, ...tacticalRetentionAgg];
     // Aplica a participação da origem sobre o realizado canônico:
     // 4blue + Yampa = Visão Geral, e cada recorte <= total.
     const out: AggRow[] = [];
