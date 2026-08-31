@@ -235,11 +235,12 @@ export function MetabaseTracking() {
 
   useEffect(() => {
     (async () => {
-      const [cRes, tRes, pRes, campRes] = await Promise.all([
+      const [cRes, tRes, pRes, campRes, membersRes] = await Promise.all([
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase.from("teams").select("id, name"),
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("sales_campaigns").select("id, name").order("name"),
+        supabase.from("team_members").select("team_id, user_id"),
       ]);
       // As categorias do 2.0 nunca entram na lista: são tratadas só pelo recorte de Produto
       setAllCategories(((cRes.data as GoalCategory[]) || []));
@@ -247,6 +248,7 @@ export function MetabaseTracking() {
       setTeams(tRes.data || []);
       setProfiles(pRes.data || []);
       setCampaigns(campRes.data || []);
+      setTeamByUser(new Map(((membersRes.data as any[]) || []).map((row) => [row.user_id, row.team_id])));
     })();
   }, []);
 
