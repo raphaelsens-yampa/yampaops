@@ -476,7 +476,7 @@ export function MetabaseTracking() {
       });
     });
     return Array.from(grouped.values());
-  }, [tacticalRetention, teamByUser]);
+  }, [tacticalRetention, teamByUser, historicalMode, refDate, todayKey]);
 
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
