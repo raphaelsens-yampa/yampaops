@@ -31,13 +31,15 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
   const month = saoPauloParts.find((part) => part.type === "month")?.value;
   if (!year || !month) return null;
   const currentMonth = `${year}-${month}`;
-  // Base = realizado do mês IMEDIATAMENTE ANTERIOR ao mês vigente.
-  const currentMonthNumber = Number(month);
-  const previousYear = currentMonthNumber === 1 ? Number(year) - 1 : Number(year);
-  const previousMonthNumber = currentMonthNumber === 1 ? 12 : currentMonthNumber - 1;
-  const previousMonth = `${previousYear}-${String(previousMonthNumber).padStart(2, "0")}`;
-  const anchor = rows.find((r) => String(r.year_month).slice(0, 7) === previousMonth);
-  // Se ainda não houver dado para o mês anterior, usa o último realizado disponível.
+  // No último dia do mês, esse mês passa a ser a referência do próximo mês projetado.
+  // Antes disso, usamos o mês imediatamente anterior ao vigente.
+  const isLastDay = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+  }).format(now)) === new Date(Number(year), Number(month), 0).getDate();
+  const referenceMonth = isLastDay ? currentMonth : previousMonth;
+  const anchor = rows.find((r) => String(r.year_month).slice(0, 7) === referenceMonth);
+  // Se ainda não houver dado para a referência, usa o último realizado disponível.
   const fallback = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
   const selected = anchor ?? fallback;
   if (!selected) return null;
