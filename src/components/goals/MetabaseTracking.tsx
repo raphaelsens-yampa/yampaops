@@ -212,6 +212,7 @@ export function MetabaseTracking() {
   const [teams, setTeams] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [teamByUser, setTeamByUser] = useState<Map<string, string>>(new Map());
   const [agg, setAgg] = useState<AggRow[]>([]);
   const [tacticalRetention, setTacticalRetention] = useState<
     { entry_date: string; user_id: string | null; mrr: number }[]
