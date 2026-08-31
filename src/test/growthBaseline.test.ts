@@ -46,4 +46,28 @@ describe("buildScenarioFactors com base revisada", () => {
     const factors = buildScenarioFactors(goals, categories, 0, { month: "2026-08", value: 1000 }, []);
     expect(factors.size).toBe(0);
   });
+
+  it("usa o realizado do mês anterior mesmo sem meta cadastrada nesse mês", () => {
+    const onlySep = goals.filter((g) => g.period_start.startsWith("2026-09"));
+    const factors = buildScenarioFactors(onlySep, categories, 0, { month: "2026-08", value: 1000 }, BASELINES);
+    expect(factors.get("total|2026-09")).toBeCloseTo(1012 / 1010, 6);
+  });
+
+  it("meses futuros compõem sobre o projetado, não sobre o realizado", () => {
+    const withOct = [
+      ...goals,
+      { category_id: "total", period_start: "2026-10-01", period_end: "2026-10-31", target_mrr: 1020 },
+    ];
+    const factors = buildScenarioFactors(withOct, categories, 0, { month: "2026-08", value: 1000 }, BASELINES);
+    // out = 1000 * 1,012 * 1,012
+    expect(factors.get("total|2026-10")).toBeCloseTo((1000 * 1.012 * 1.012) / 1020, 6);
+  });
+
+  it("permite fator abaixo de 1 quando o realizado ficou abaixo da meta cadastrada", () => {
+    const factors = buildScenarioFactors(goals, categories, 0, { month: "2026-08", value: 900 }, BASELINES);
+    const f = factors.get("total|2026-09")!;
+    expect(f).toBeLessThan(1);
+    expect(f).toBeCloseTo((900 * 1.012) / 1010, 6);
+  });
 });
+
