@@ -103,9 +103,9 @@ export function makeGrowthRate(
     .sort((a, b) => a.month.localeCompare(b.month));
   return (month: string) => {
     if (scenario > 0 && isFinite(scenario)) return scenario / 100;
-    let pct = 0;
+    let pct = BASELINE_GROWTH_PCT;
     for (const b of sorted) if (b.month <= month) pct = b.pct;
-    return pct > 0 && isFinite(pct) ? pct / 100 : 0;
+    return pct >= 0 && isFinite(pct) ? pct / 100 : BASELINE_GROWTH_PCT / 100;
   };
 }
 
@@ -263,8 +263,9 @@ export function applyScenarioToGoals<T extends ScenarioGoalLike>(
   categories: ScenarioCategoryLike[],
   growthPct: number,
   baseline?: ScenarioBaseline | null,
+  baselines?: GrowthBaseline[] | null,
 ): T[] {
-  const factors = buildScenarioFactors(goals, categories, growthPct, baseline);
+  const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
   if (!factors.size) return goals;
   return goals.map((goal) => {
     const f = scenarioFactorFor(factors, goal.category_id, goal.period_start);
@@ -289,21 +290,27 @@ export function scenarioDailyFactor(
   growthPct: number,
   ref: Date,
   baseline?: ScenarioBaseline | null,
+  baselines?: GrowthBaseline[] | null,
 ): number {
-  const g = Number(growthPct) / 100;
-  if (!g || g <= 0) return 1;
-  const factors = buildScenarioFactors(goals, categories, growthPct, baseline);
   const month = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
+  const rateAt = makeGrowthRate(growthPct, baselines);
+  const configuredRate = rateAt(month);
+  const hasScenario = Number(growthPct) > 0 && isFinite(Number(growthPct));
+  if (!hasScenario && configuredRate <= 0) return 1;
+  const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
   const increase = categories.find((c) => c.slug === INCREASE_SLUG);
   if (increase) {
     const f = factors.get(`${increase.id}|${month}`);
     if (f && f > 0) return f;
   }
-  return 1 + g;
+  return 1 + configuredRate;
 }
 
-export function scenarioLabel(growthPct: number): string {
-  if (!growthPct) return `Cadastrado (${BASELINE_GROWTH_PCT}%)`;
+export function scenarioLabel(growthPct: number, baseGrowthPct = BASELINE_GROWTH_PCT): string {
+  if (!growthPct) {
+    const base = Number.isInteger(baseGrowthPct) ? String(baseGrowthPct) : baseGrowthPct.toFixed(1).replace(".", ",");
+    return `Cadastrado (${base}%)`;
+  }
   const v = Number.isInteger(growthPct) ? String(growthPct) : growthPct.toFixed(1).replace(".", ",");
   return `Cenário ${v}%`;
 }
