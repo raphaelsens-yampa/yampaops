@@ -2412,6 +2412,36 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_growth_baselines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_month: string
+          growth_pct: number
+          id: string
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_month: string
+          growth_pct?: number
+          id?: string
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_month?: string
+          growth_pct?: number
+          id?: string
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           campaign: string | null
