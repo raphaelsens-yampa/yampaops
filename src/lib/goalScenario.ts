@@ -74,7 +74,7 @@ function isLowerBetter(direction?: string | null) {
 
 /** Fatores por `categoryId|YYYY-MM`. Vazio quando o cenário é o cadastrado. */
 export interface ScenarioBaseline {
-  /** YYYY-MM do último mês fechado com realizado de Total de MRR */
+  /** YYYY-MM do mês de referência anterior ao primeiro mês projetado */
   month: string;
   /** Total de MRR realizado nesse mês */
   value: number;
