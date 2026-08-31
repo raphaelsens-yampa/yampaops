@@ -445,10 +445,41 @@ export function MetabaseTracking() {
     return map;
   }, [categories]);
 
+  /** Retenção vem dos registros realizados no painel tático, agrupados por mês e vendedor. */
+  const tacticalRetentionAgg = useMemo<AggRow[]>(() => {
+    const grouped = new Map<string, AggRow>();
+    tacticalRetention.forEach((entry) => {
+      const date = String(entry.entry_date).slice(0, 10);
+      const month = date.slice(0, 7);
+      if (!month || !entry.user_id) return;
+      const key = `${month}|${entry.user_id}`;
+      const previous = grouped.get(key);
+      if (previous) {
+        previous.realized_amount += entry.mrr;
+        previous.deals_count += 1;
+        return;
+      }
+      grouped.set(key, {
+        year_month: `${month}-01`,
+        metric_key: "retencao_tatica",
+        scope: "all",
+        team_id: teamByUser.get(entry.user_id) || null,
+        user_id: entry.user_id,
+        campaign_id: null,
+        category_id: RETENTION_CAT,
+        area: "cs",
+        realized_amount: entry.mrr,
+        deals_count: 1,
+      });
+    });
+    return Array.from(grouped.values());
+  }, [tacticalRetention, teamByUser]);
+
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
-    const base = !historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [];
-    if (!isOriginFiltered(originFilter)) return base;
+    const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
+      .filter((row) => row.category_id !== RETENTION_CAT);
+    if (!isOriginFiltered(originFilter)) return [...base, ...tacticalRetentionAgg];
     // Aplica a participação da origem sobre o realizado canônico:
     // 4blue + Yampa = Visão Geral, e cada recorte <= total.
     const out: AggRow[] = [];
@@ -466,7 +497,7 @@ export function MetabaseTracking() {
       });
     }
     return out;
-  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg]);
+  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
