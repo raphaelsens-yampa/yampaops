@@ -65,7 +65,9 @@ describe("buildScenarioFactors com base revisada", () => {
 
   it("permite fator abaixo de 1 quando o realizado ficou abaixo da meta cadastrada", () => {
     const factors = buildScenarioFactors(goals, categories, 0, { month: "2026-08", value: 900 }, BASELINES);
-    const f = factors.get("total|2026-09")!;
+    const f = factors.get("total|2026-09");
+    expect(f).toBeDefined();
+    if (f === undefined) return;
     expect(f).toBeLessThan(1);
     expect(f).toBeCloseTo((900 * 1.012) / 1010, 6);
   });
