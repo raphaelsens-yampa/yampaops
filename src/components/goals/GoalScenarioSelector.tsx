@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp } from "lucide-react";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
-import { BASELINE_GROWTH_PCT, SCENARIO_PRESETS, scenarioLabel } from "@/lib/goalScenario";
+import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
+import { BASELINE_GROWTH_PCT, SCENARIO_PRESETS, makeGrowthRate, scenarioLabel } from "@/lib/goalScenario";
 
 const CUSTOM = "custom";
 const MAX_PCT = 100;
