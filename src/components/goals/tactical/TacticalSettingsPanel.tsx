@@ -5,6 +5,7 @@ import { StripeBackupPanel } from "./StripeBackupPanel";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { RecoveryReasonsConfig } from "./RecoveryReasonsConfig";
 import { CampaignCouponsConfig } from "./CampaignCouponsConfig";
+import { GrowthBaselineConfig } from "@/components/goals/GrowthBaselineConfig";
 
 /**
  * Agrupa as configurações do módulo tático (backup do Stripe, metas diárias e
@@ -25,7 +26,11 @@ export function TacticalSettingsPanel() {
 
   return (
     <div className="space-y-5 md:space-y-6">
+      <GrowthBaselineConfig />
+
       <StripeBackupPanel profiles={profiles} today={today} onChanged={() => setReloadKey((k) => k + 1)} />
+
+
 
       <TacticalGoalsManager
         metrics={metrics}

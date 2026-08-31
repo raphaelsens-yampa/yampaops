@@ -265,7 +265,7 @@ export default function GoalsPage() {
                 </TabsTrigger>
               )}
               {role === "admin" && <TabsTrigger value="categories" className="whitespace-nowrap">Categorias</TabsTrigger>}
-              {role === "admin" && (
+              {isManager && (
                 <TabsTrigger value="finance" className="whitespace-nowrap">
                   <span className="md:hidden">Config.</span>
                   <span className="hidden md:inline">Configurações</span>
@@ -289,7 +289,7 @@ export default function GoalsPage() {
             </TabsContent>
           )}
 
-          {role === "admin" && (
+          {isManager && (
             <TabsContent value="finance" className="space-y-6">
               <FinanceSettings />
               <TacticalSettingsPanel />
