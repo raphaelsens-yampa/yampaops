@@ -71,7 +71,7 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
             <SelectValue placeholder="Cenário" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="0">Cadastrado ({BASELINE_GROWTH_PCT}% a.m.)</SelectItem>
+            <SelectItem value="0">Cadastrado ({baseLabel}% a.m.)</SelectItem>
             <SelectItem value="5">Cenário 5% a.m.</SelectItem>
             <SelectItem value="10">Cenário 10% a.m.</SelectItem>
             <SelectItem value={CUSTOM}>Personalizado…</SelectItem>
