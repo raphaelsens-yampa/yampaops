@@ -32,9 +32,10 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
   if (!year || !month) return null;
   const currentMonth = `${year}-${month}`;
   // Base = realizado do mês IMEDIATAMENTE ANTERIOR ao mês vigente.
-  const currentMonthIndex = Number(month) - 1;
-  const previousMonthDate = new Date(Number(year), currentMonthIndex - 1, 1);
-  const previousMonth = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonthNumber = Number(month);
+  const previousYear = currentMonthNumber === 1 ? Number(year) - 1 : Number(year);
+  const previousMonthNumber = currentMonthNumber === 1 ? 12 : currentMonthNumber - 1;
+  const previousMonth = `${previousYear}-${String(previousMonthNumber).padStart(2, "0")}`;
   const anchor = rows.find((r) => String(r.year_month).slice(0, 7) === previousMonth);
   // Se ainda não houver dado para o mês anterior, usa o último realizado disponível.
   const fallback = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
