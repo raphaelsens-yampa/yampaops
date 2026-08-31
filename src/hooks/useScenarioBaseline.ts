@@ -23,17 +23,15 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
   const rows = ((data as any[]) || []).filter((r) => Number(r.realized_amount || 0) > 0);
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  // Base = realizado do mês IMEDIATAMENTE ANTERIOR ao primeiro mês projetado.
-  // O mês vigente só serve de base quando já chegou ao seu último dia (dados completos).
-  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const monthIsComplete = now.getDate() >= lastDayOfMonth;
-  const limit = monthIsComplete ? currentMonth : null;
-  const anchor = rows.find((r) => {
-    const m = String(r.year_month).slice(0, 7);
-    return limit ? m <= limit : m < currentMonth;
-  });
-  if (!anchor) return null;
-  return { month: String(anchor.year_month).slice(0, 7), value: Number(anchor.realized_amount) };
+  // Base = realizado do mês IMEDIATAMENTE ANTERIOR ao mês vigente.
+  const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousMonth = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const anchor = rows.find((r) => String(r.year_month).slice(0, 7) === previousMonth);
+  // Se ainda não houver dado para o mês anterior, usa o último realizado disponível.
+  const fallback = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
+  const selected = anchor ?? fallback;
+  if (!selected) return null;
+  return { month: String(selected.year_month).slice(0, 7), value: Number(selected.realized_amount) };
 }
 
 /**
