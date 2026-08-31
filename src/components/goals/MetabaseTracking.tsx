@@ -448,10 +448,13 @@ export function MetabaseTracking() {
   /** Retenção vem dos registros realizados no painel tático, agrupados por mês e vendedor. */
   const tacticalRetentionAgg = useMemo<AggRow[]>(() => {
     const grouped = new Map<string, AggRow>();
+    const asOfDate = historicalMode ? refDate : todayKey;
     tacticalRetention.forEach((entry) => {
       const date = String(entry.entry_date).slice(0, 10);
       const month = date.slice(0, 7);
-      if (!month || !entry.user_id) return;
+      // Em consultas históricas, respeita a fotografia da data de referência;
+      // nunca deixa um lançamento posterior contaminar o mês em análise.
+      if (!month || date > asOfDate || !entry.user_id) return;
       const key = `${month}|${entry.user_id}`;
       const previous = grouped.get(key);
       if (previous) {
