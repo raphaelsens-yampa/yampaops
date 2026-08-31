@@ -22,9 +22,18 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
     .limit(24);
   const rows = ((data as any[]) || []).filter((r) => Number(r.realized_amount || 0) > 0);
   const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const saoPauloParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(now);
+  const year = saoPauloParts.find((part) => part.type === "year")?.value;
+  const month = saoPauloParts.find((part) => part.type === "month")?.value;
+  if (!year || !month) return null;
+  const currentMonth = `${year}-${month}`;
   // Base = realizado do mês IMEDIATAMENTE ANTERIOR ao mês vigente.
-  const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const currentMonthIndex = Number(month) - 1;
+  const previousMonthDate = new Date(Number(year), currentMonthIndex - 1, 1);
   const previousMonth = `${previousMonthDate.getFullYear()}-${String(previousMonthDate.getMonth() + 1).padStart(2, "0")}`;
   const anchor = rows.find((r) => String(r.year_month).slice(0, 7) === previousMonth);
   // Se ainda não houver dado para o mês anterior, usa o último realizado disponível.
