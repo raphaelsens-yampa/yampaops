@@ -262,6 +262,54 @@ export function MetabaseTracking() {
     })();
   }, []);
 
+  // Retenção (Pré-churn) tem como fonte canônica os lançamentos realizados
+  // no painel de Metas Táticas, e não o agregado mensal do Metabase.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const from = `${year}-01-01`;
+      const to = `${year}-12-31`;
+      const [manualRes, recoveryRes] = await Promise.all([
+        fetchAllPaged<{ entry_date: string; user_id: string | null; mrr_value: number | null }>(() =>
+          supabase
+            .from("tactical_manual_entries")
+            .select("entry_date, user_id, mrr_value, id")
+            .eq("entry_kind", "retained")
+            .gte("entry_date", from)
+            .lte("entry_date", to)
+            .order("entry_date")
+            .order("id") as never,
+        ),
+        fetchAllPaged<{ recovered_at: string; seller_id: string | null; mrr: number | null }>(() =>
+          supabase
+            .from("tactical_recoveries")
+            .select("recovered_at, seller_id, mrr, id")
+            .eq("entry_kind", "retained")
+            .gte("recovered_at", from)
+            .lte("recovered_at", to)
+            .order("recovered_at")
+            .order("id") as never,
+        ),
+      ]);
+      if (cancelled) return;
+      setTacticalRetention([
+        ...manualRes.data.map((row) => ({
+          entry_date: row.entry_date,
+          user_id: row.user_id,
+          mrr: Number(row.mrr_value || 0),
+        })),
+        ...recoveryRes.data.map((row) => ({
+          entry_date: String(row.recovered_at).slice(0, 10),
+          user_id: row.seller_id,
+          mrr: Number(row.mrr || 0),
+        })),
+      ]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
+
   /**
    * ===== Modo histórico =====
    * Com a Data de referência em HOJE, nada muda: o realizado vem de
