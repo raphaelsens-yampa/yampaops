@@ -172,7 +172,7 @@ export function buildScenarioFactors(
       newStock.set(m, prev);
       return;
     }
-    prev = prev * (1 + g);
+    prev = prev * (1 + rateAt(m));
     newStock.set(m, prev);
   });
   const anchorMonth = monthList[anchorIdx];
