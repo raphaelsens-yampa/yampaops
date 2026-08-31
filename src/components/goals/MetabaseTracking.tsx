@@ -510,6 +510,9 @@ export function MetabaseTracking() {
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
     if (!isOriginFiltered(originFilter)) return false;
+    // Retenção é uma apuração operacional do painel tático: pertence à Yampa
+    // e não deve ser rateada pela base de price ID.
+    if (id === RETENTION_CAT) return originFilter === "4blue";
     const cat = categories.find((c) => c.id === id);
     const slug = (cat as any)?.slug as string | undefined;
     if (!slug) return true;
