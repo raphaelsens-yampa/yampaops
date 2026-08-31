@@ -23,15 +23,23 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
   const rows = ((data as any[]) || []).filter((r) => Number(r.realized_amount || 0) > 0);
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  // Último mês FECHADO (o mês vigente ainda está em curso)
-  const closed = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
-  if (!closed) return null;
-  return { month: String(closed.year_month).slice(0, 7), value: Number(closed.realized_amount) };
+  // Base = realizado do mês IMEDIATAMENTE ANTERIOR ao primeiro mês projetado.
+  // O mês vigente só serve de base quando já chegou ao seu último dia (dados completos).
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthIsComplete = now.getDate() >= lastDayOfMonth;
+  const limit = monthIsComplete ? currentMonth : null;
+  const anchor = rows.find((r) => {
+    const m = String(r.year_month).slice(0, 7);
+    return limit ? m <= limit : m < currentMonth;
+  });
+  if (!anchor) return null;
+  return { month: String(anchor.year_month).slice(0, 7), value: Number(anchor.realized_amount) };
 }
 
 /**
- * Âncora dos cenários de crescimento: último mês fechado com Total de MRR
- * realizado. Metas até esse mês nunca são alteradas pela simulação.
+ * Âncora dos cenários de crescimento: realizado do mês anterior ao primeiro mês
+ * projetado (Total de MRR). Metas até esse mês nunca são alteradas.
+ * Os meses seguintes compõem sobre o PROJETADO do mês anterior.
  */
 export function useScenarioBaseline(): ScenarioBaseline | null {
   const [baseline, setBaseline] = useState<ScenarioBaseline | null>(null);
