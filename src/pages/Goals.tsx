@@ -289,7 +289,7 @@ export default function GoalsPage() {
             </TabsContent>
           )}
 
-          {role === "admin" && (
+          {isManager && (
             <TabsContent value="finance" className="space-y-6">
               <FinanceSettings />
               <TacticalSettingsPanel />
