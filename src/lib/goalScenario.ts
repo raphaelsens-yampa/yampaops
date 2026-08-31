@@ -208,11 +208,13 @@ export function buildScenarioFactors(
     const netTarget = prevMonth && stockPrev > 0 ? stockNow - stockPrev : origNet;
     netFactor.set(m, origNet > 0 ? Math.max(1, netTarget / origNet) : 1);
 
+    const gm = rateAt(m);
     const origDecrease = componentSum(decreaseCat, m);
-    const adjDecrease = origDecrease * (1 - g);
+    const adjDecrease = origDecrease * (1 - gm);
     const origIncrease = componentSum(increaseCat, m);
     const required = netTarget + adjDecrease;
-    inflowFactor.set(m, origIncrease > 0 ? Math.max(1, required / origIncrease) : 1 + g);
+    inflowFactor.set(m, origIncrease > 0 ? Math.max(1, required / origIncrease) : 1 + gm);
+
   });
 
   // ===== Fator final por categoria/mês =====
