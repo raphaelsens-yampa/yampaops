@@ -95,9 +95,13 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
             <span className="text-xs text-muted-foreground">% a.m.</span>
           </div>
         )}
-        {growthPct > 0 && (
+        {growthPct > 0 ? (
           <Badge variant="secondary" className="whitespace-nowrap">
-            {scenarioLabel(growthPct)} · simulação
+            {scenarioLabel(growthPct, basePct)} · simulação
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="whitespace-nowrap">
+            Base oficial {baseLabel}% a.m.
           </Badge>
         )}
       </div>
@@ -112,6 +116,7 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
           {growthPct.toString().replace(".", ",")}% mais rígidas. Realizados e cadastro não mudam.
         </p>
       )}
+
     </div>
   );
 }
