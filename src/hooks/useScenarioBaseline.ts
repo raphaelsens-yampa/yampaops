@@ -22,16 +22,38 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
     .limit(24);
   const rows = ((data as any[]) || []).filter((r) => Number(r.realized_amount || 0) > 0);
   const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  // Último mês FECHADO (o mês vigente ainda está em curso)
-  const closed = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
-  if (!closed) return null;
-  return { month: String(closed.year_month).slice(0, 7), value: Number(closed.realized_amount) };
+  const saoPauloParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(now);
+  const year = saoPauloParts.find((part) => part.type === "year")?.value;
+  const month = saoPauloParts.find((part) => part.type === "month")?.value;
+  if (!year || !month) return null;
+  const currentMonth = `${year}-${month}`;
+  const currentMonthNumber = Number(month);
+  const previousYear = currentMonthNumber === 1 ? Number(year) - 1 : Number(year);
+  const previousMonthNumber = currentMonthNumber === 1 ? 12 : currentMonthNumber - 1;
+  const previousMonth = `${previousYear}-${String(previousMonthNumber).padStart(2, "0")}`;
+  // No último dia do mês, esse mês passa a ser a referência do próximo mês projetado.
+  // Antes disso, usamos o mês imediatamente anterior ao vigente.
+  const isLastDay = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+  }).format(now)) === new Date(Number(year), Number(month), 0).getDate();
+  const referenceMonth = isLastDay ? currentMonth : previousMonth;
+  const anchor = rows.find((r) => String(r.year_month).slice(0, 7) === referenceMonth);
+  // Se ainda não houver dado para a referência, usa o último realizado disponível.
+  const fallback = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
+  const selected = anchor ?? fallback;
+  if (!selected) return null;
+  return { month: String(selected.year_month).slice(0, 7), value: Number(selected.realized_amount) };
 }
 
 /**
- * Âncora dos cenários de crescimento: último mês fechado com Total de MRR
- * realizado. Metas até esse mês nunca são alteradas pela simulação.
+ * Âncora dos cenários de crescimento: realizado do mês anterior ao primeiro mês
+ * projetado (Total de MRR). Metas até esse mês nunca são alteradas.
+ * Os meses seguintes compõem sobre o PROJETADO do mês anterior.
  */
 export function useScenarioBaseline(): ScenarioBaseline | null {
   const [baseline, setBaseline] = useState<ScenarioBaseline | null>(null);
