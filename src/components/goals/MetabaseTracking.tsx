@@ -212,6 +212,7 @@ export function MetabaseTracking() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [agg, setAgg] = useState<AggRow[]>([]);
+  const [tacticalRetention, setTacticalRetention] = useState<{ entry_date: string; mrr: number }[]>([]);
   const [rawGoals, setRawGoals] = useState<Goal[]>([]);
   const [allCategories, setAllCategories] = useState<GoalCategory[]>([]);
   // Cenário de crescimento (simulação local): eleva todas as metas em memória.
