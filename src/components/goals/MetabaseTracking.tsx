@@ -454,8 +454,11 @@ export function MetabaseTracking() {
       const month = date.slice(0, 7);
       // Em consultas históricas, respeita a fotografia da data de referência;
       // nunca deixa um lançamento posterior contaminar o mês em análise.
-      if (!month || date > asOfDate || !entry.user_id) return;
-      const key = `${month}|${entry.user_id}`;
+      if (!month || date > asOfDate) return;
+      // Lançamentos sem vendedor continuam no consolidado da empresa, mas não
+      // aparecem quando o usuário filtra um vendedor específico.
+      const userId = entry.user_id;
+      const key = `${month}|${userId || "__sem_vendedor__"}`;
       const previous = grouped.get(key);
       if (previous) {
         previous.realized_amount += entry.mrr;
@@ -465,9 +468,9 @@ export function MetabaseTracking() {
       grouped.set(key, {
         year_month: `${month}-01`,
         metric_key: "retencao_tatica",
-        scope: "all",
-        team_id: teamByUser.get(entry.user_id) || null,
-        user_id: entry.user_id,
+        scope: "company",
+        team_id: userId ? teamByUser.get(userId) || null : null,
+        user_id: userId,
         campaign_id: null,
         category_id: RETENTION_CAT,
         area: "cs",
