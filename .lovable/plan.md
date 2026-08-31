@@ -1,21 +1,37 @@
-# Verificação do New MRR no Acompanhamento Metas
+# Validação: realizado das metas por `classificacao_company`
 
-## Resultado confirmado
-- A linha **New MRR** corresponde à categoria `New MRR` (`slug: new_mrr`), da área Sales.
-- No modo atual, o realizado mensal vem de `metabase_monthly_agg`; ao consultar uma data histórica com snapshot disponível, vem de `metas_snapshot_diario` na posição mais recente até a data escolhida.
-- O valor exibido é a soma de `realized_amount` do mês para essa categoria; a quantidade é a soma de `deals_count`.
-- A categoria é separada de **Recuperados** e **Upsell**. Esses componentes entram somente no agregado **MRR Increase**, quando esse agregado está sendo exibido.
-- Não entram na linha New MRR: Renovação, Downgrade, Downsell, Churn ou o estoque de Total de MRR.
+## Conclusão: já está implementado assim — nenhuma mudança necessária
 
-## Valores atualmente confirmados na base mensal
-- Jan/2026: R$ 9.685,74 — 86 vendas
-- Fev/2026: R$ 10.183,99 — 88 vendas
-- Mar/2026: R$ 13.867,26 — 88 vendas
-- Abr/2026: R$ 9.990,44 — 85 vendas
-- Mai/2026: R$ 10.113,18 — 95 vendas
-- Jun/2026: R$ 14.072,08 — 123 vendas
-- Jul/2026: R$ 12.982,79 — 119 vendas
-- Ago/2026: R$ 16.753,96 — 114 vendas
+O realizado das metas vem de `metabase_monthly_agg` (e do histórico as-of em `metas_snapshot_diario`), e os valores conferem exatamente com a soma por `classificacao_company` da base canônica do Metabase.
+
+## Conferência feita (soma da base x valor exibido nas metas)
+
+Agosto/2026 (fotografia de 30/08):
+
+| Categoria | Base Metabase (`classificacao_company`) | Realizado nas Metas |
+| --- | --- | --- |
+| New MRR | novo pagante — 114 · R$ 16.753,96 | 114 · R$ 16.753,96 |
+| Recuperados | recuperado — 30 · R$ 4.792,77 | 30 · R$ 4.792,77 |
+| Upsell | upsell — 8 · R$ 1.523,50 | 8 · R$ 1.523,50 |
+| Downsell | downsell — 5 · R$ 606,80 | 5 · R$ 606,80 |
+
+Julho/2026 (mês fechado):
+
+| Categoria | Base Metabase | Realizado nas Metas |
+| --- | --- | --- |
+| New MRR | 119 · R$ 12.982,79 | 119 · R$ 12.982,79 |
+| Recuperados | 41 · R$ 6.756,15 | 41 · R$ 6.756,15 |
+| Upsell | 5 · R$ 773,39 | 5 · R$ 773,39 |
+| Downsell | 10 · R$ 2.082,97 | 10 · R$ 2.082,97 |
+
+Nenhuma linha `regular` ou sem classificação entra nessas categorias, e Stripe não é somado ao realizado dessas linhas.
+
+## Um ponto de atenção (não é erro, é diferença de regra proposital)
+
+Nas Metas, o **Upsell** usa o MRR cheio da linha (agosto: R$ 1.523,50), exatamente como você descreveu aqui.
+No **Comissionamento**, o Upsell usa o delta positivo `mrr − previous_mrr` (agosto: R$ 845,63).
+
+Ou seja, as duas telas divergem por definição — é esperado, mas vale confirmar se você quer manter assim ou alinhar as duas na mesma regra.
 
 ## Próximo passo
-Nenhuma alteração de código é necessária para responder à pergunta. Se houver divergência em um mês específico, a investigação deve comparar a linha da fotografia/snapshot daquele mês com o agregado mensal, sem misturar a fonte histórica com Stripe.
+Nada a implementar. Se quiser alinhar o Upsell das Metas ao delta usado no Comissionamento, é uma mudança pequena e faço um plano específico para isso.
