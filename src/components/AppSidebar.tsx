@@ -219,7 +219,7 @@ export function AppSidebar() {
     },
     {
       key: "vendas",
-      label: "Operações",
+      label: "CX",
       section: "operations",
       collapsible: true,
       defaultOpen: openVendas,
