@@ -33,6 +33,15 @@ export function GoalScenarioSelector({ className }: { className?: string }) {
     growthPct > 0 && !isPresetPct(growthPct) ? String(growthPct).replace(".", ",") : "",
   );
   const inputRef = useRef<HTMLInputElement>(null);
+  const { baselines } = useGrowthBaselines();
+  /** Base oficial vigente no mês atual (cadastro no banco; 1% a.m. por padrão). */
+  const basePct = useMemo(() => {
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const rate = makeGrowthRate(0, baselines)(month) * 100;
+    return rate > 0 ? rate : BASELINE_GROWTH_PCT;
+  }, [baselines]);
+  const baseLabel = basePct.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
   useEffect(() => {
     if (customMode) inputRef.current?.focus();
