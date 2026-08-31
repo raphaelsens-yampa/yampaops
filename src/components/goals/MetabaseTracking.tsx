@@ -53,6 +53,7 @@ const BASE_MRR_CAT = "9bf2da79-f47f-4215-b841-bbb3e91ee036";
 const BASE_ACTIVE_CAT = "b70ca504-9f35-40b6-807b-e830c6342ac7";
 /** Net MRR (fluxo) — recebe a variação mensal do MRR do 2.0 no recorte "Todos" */
 const NET_MRR_CAT = "259883ec-7be5-44cd-927f-947b12918da7";
+const RETENTION_CAT = "762093e4-9e06-4659-837f-b7eb06dbb1a9";
 /** category_id do 2.0 → category_id equivalente no yampaFin */
 const YAMPA20_TO_BASE: Record<string, string> = {
   [YAMPA20_MRR_CAT]: BASE_MRR_CAT,
