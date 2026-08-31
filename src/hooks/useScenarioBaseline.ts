@@ -31,6 +31,10 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
   const month = saoPauloParts.find((part) => part.type === "month")?.value;
   if (!year || !month) return null;
   const currentMonth = `${year}-${month}`;
+  const currentMonthNumber = Number(month);
+  const previousYear = currentMonthNumber === 1 ? Number(year) - 1 : Number(year);
+  const previousMonthNumber = currentMonthNumber === 1 ? 12 : currentMonthNumber - 1;
+  const previousMonth = `${previousYear}-${String(previousMonthNumber).padStart(2, "0")}`;
   // No último dia do mês, esse mês passa a ser a referência do próximo mês projetado.
   // Antes disso, usamos o mês imediatamente anterior ao vigente.
   const isLastDay = Number(new Intl.DateTimeFormat("en-US", {
