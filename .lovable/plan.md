@@ -1,37 +1,42 @@
-# Validação: realizado das metas por `classificacao_company`
+# Base de crescimento revisável por mês (ex.: 1,2% a.m. de setembro em diante)
 
-## Conclusão: já está implementado assim — nenhuma mudança necessária
+## O que muda para o usuário
 
-O realizado das metas vem de `metabase_monthly_agg` (e do histórico as-of em `metas_snapshot_diario`), e os valores conferem exatamente com a soma por `classificacao_company` da base canônica do Metabase.
+Hoje a base de crescimento embutida nas metas é fixa em 1% a.m. (constante no código) e o único ajuste disponível é uma simulação local no seletor "Cenário de crescimento".
 
-## Conferência feita (soma da base x valor exibido nas metas)
+Passa a existir um cadastro de **Revisões da base de crescimento** salvo no banco e visível para todos:
 
-Agosto/2026 (fotografia de 30/08):
+- Uma linha por revisão: "a partir de 2026-09 → 1,2% a.m." (com observação opcional).
+- Pode-se adicionar novas revisões no futuro (histórico de bases); a mais recente com mês de início ≤ mês avaliado é a que vale.
+- Meses anteriores à primeira revisão continuam com 1% a.m. e nada do passado é recalculado.
+- Onde fica: nova seção **Base de crescimento** no painel de Configurações das Metas (junto de Metas diárias / Configurações Financeiras), restrita a admin/tático.
 
-| Categoria | Base Metabase (`classificacao_company`) | Realizado nas Metas |
-| --- | --- | --- |
-| New MRR | novo pagante — 114 · R$ 16.753,96 | 114 · R$ 16.753,96 |
-| Recuperados | recuperado — 30 · R$ 4.792,77 | 30 · R$ 4.792,77 |
-| Upsell | upsell — 8 · R$ 1.523,50 | 8 · R$ 1.523,50 |
-| Downsell | downsell — 5 · R$ 606,80 | 5 · R$ 606,80 |
+Efeito da base revisada:
 
-Julho/2026 (mês fechado):
+- Aba **Acompanhamento Metas**: as metas de MRR (estoque, Net MRR, entradas e saídas) do mês vigente em diante passam a considerar a base cadastrada.
+- Aba **Metas Táticas**: metas diárias e semanais seguem o mesmo fator.
+- O seletor de cenário continua existindo como simulação por cima da base: o item "Cadastrado" passa a exibir o percentual vigente (ex.: "Cadastrado (1,2% a.m.)") e os cenários 5%/10%/personalizado seguem sendo simulação local que não altera o banco.
 
-| Categoria | Base Metabase | Realizado nas Metas |
-| --- | --- | --- |
-| New MRR | 119 · R$ 12.982,79 | 119 · R$ 12.982,79 |
-| Recuperados | 41 · R$ 6.756,15 | 41 · R$ 6.756,15 |
-| Upsell | 5 · R$ 773,39 | 5 · R$ 773,39 |
-| Downsell | 10 · R$ 2.082,97 | 10 · R$ 2.082,97 |
+## Como funciona o cálculo
 
-Nenhuma linha `regular` ou sem classificação entra nessas categorias, e Stripe não é somado ao realizado dessas linhas.
+A base é o crescimento considerado "normal"; o cenário é a diferença sobre ela.
 
-## Um ponto de atenção (não é erro, é diferença de regra proposital)
+```text
+base vigente do mês (do cadastro)      -> ex.: 1,2%
+cenário selecionado (simulação local)  -> 0 = usar a base
+crescimento aplicado = cenário > 0 ? cenário : base
+```
 
-Nas Metas, o **Upsell** usa o MRR cheio da linha (agosto: R$ 1.523,50), exatamente como você descreveu aqui.
-No **Comissionamento**, o Upsell usa o delta positivo `mrr − previous_mrr` (agosto: R$ 845,63).
+O motor atual já faz crescimento composto ancorado no último mês fechado; passa a receber a taxa por mês em vez de um único percentual global, de forma que a mudança de setembro só afete setembro em diante.
 
-Ou seja, as duas telas divergem por definição — é esperado, mas vale confirmar se você quer manter assim ou alinhar as duas na mesma regra.
+## Detalhes técnicos
 
-## Próximo passo
-Nada a implementar. Se quiser alinhar o Upsell das Metas ao delta usado no Comissionamento, é uma mudança pequena e faço um plano específico para isso.
+Banco (migração):
+- Nova tabela `goal_growth_baselines` (`effective_month` date único, `growth_pct` numeric, `note` text, `created_by`, timestamps) com GRANTs, RLS: leitura para `authenticated`, escrita apenas para admin/tático via `is_tatico_or_admin(auth.uid())`, trigger de `updated_at`.
+- Seed opcional da revisão de setembro/2026 com 1,2% após aprovação.
+
+Frontend:
+- `src/lib/goalScenario.ts`: aceitar um mapa/lista de taxas base por mês (`baseGrowthFor(month)`) e usar `growth = cenário || base` por mês em `buildScenarioFactors` e `scenarioDailyFactor`. `BASELINE_GROWTH_PCT` fica apenas como fallback padrão (1%).
+- Novo hook `src/hooks/useGrowthBaselines.ts` (fetch + cache + resolução por mês), consumido por `MetabaseTracking.tsx`, `useCategoryWeeklyData.ts`, `useScenarioDailyFactor.ts` e `GoalScenarioSelector.tsx`.
+- Novo componente `src/components/goals/GrowthBaselineConfig.tsx` (tabela + adicionar/editar/excluir revisão) incluído em `TacticalSettingsPanel.tsx`.
+- Testes em `src/test/` cobrindo: base por mês respeitada, meses anteriores intactos e cenário sobrepondo a base.
