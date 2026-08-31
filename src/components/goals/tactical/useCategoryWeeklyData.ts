@@ -5,6 +5,7 @@ import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
+import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
   buildOriginShares,
@@ -117,9 +118,9 @@ export function useCategoryWeeklyData(
   const [noOriginSplit, setNoOriginSplit] = useState<Set<string>>(new Set());
   const [couponShares, setCouponShares] = useState<CouponShares | null>(null);
   const [loading, setLoading] = useState(true);
-  /** Cenário de crescimento simulado (0 = metas cadastradas). */
   const { growthPct: scenarioPct } = useGoalScenario();
   const scenarioBaseline = useScenarioBaseline();
+  const { baselines: growthBaselines } = useGrowthBaselines();
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +182,7 @@ export function useCategoryWeeklyData(
         ((catRes.data as any[]) || []) as any[],
         scenarioPct,
         scenarioBaseline,
+        growthBaselines,
       );
       for (const g of scenarioGoals) {
         if (!g.category_id) continue;
@@ -404,7 +406,7 @@ export function useCategoryWeeklyData(
     return () => {
       cancelled = true;
     };
-  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, coupon, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value]);
+  }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, coupon, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value, growthBaselines]);
 
   return { categories, targets, series, noOriginSplit, couponShares, loading };
 }

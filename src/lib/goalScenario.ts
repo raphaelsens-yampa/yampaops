@@ -80,16 +80,51 @@ export interface ScenarioBaseline {
   value: number;
 }
 
+/** Revisão da base de crescimento cadastrada (vale do mês de início em diante). */
+export interface GrowthBaseline {
+  /** YYYY-MM ou data ISO */
+  effective_month: string;
+  growth_pct: number;
+}
+
+/**
+ * Resolve o crescimento (decimal) aplicável a cada mês:
+ *  - cenário selecionado (> 0) sobrepõe a base para todos os meses;
+ *  - sem cenário, vale a revisão de base mais recente com início <= mês;
+ *  - meses anteriores à primeira revisão ficam em 0 (metas cadastradas).
+ */
+export function makeGrowthRate(
+  growthPct: number,
+  baselines?: GrowthBaseline[] | null,
+): (month: string) => number {
+  const scenario = Number(growthPct) || 0;
+  const sorted = (baselines || [])
+    .map((b) => ({ month: monthKeyOf(String(b.effective_month)), pct: Number(b.growth_pct) || 0 }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  return (month: string) => {
+    if (scenario > 0 && isFinite(scenario)) return scenario / 100;
+    let pct = BASELINE_GROWTH_PCT;
+    for (const b of sorted) if (b.month <= month) pct = b.pct;
+    return pct >= 0 && isFinite(pct) ? pct / 100 : BASELINE_GROWTH_PCT / 100;
+  };
+}
+
 export function buildScenarioFactors(
   goals: ScenarioGoalLike[],
   categories: ScenarioCategoryLike[],
   growthPct: number,
   /** Ancora o cenário no último fechamento real; meses anteriores ficam intactos. */
   baseline?: ScenarioBaseline | null,
+  /** Revisões da base de crescimento cadastradas no banco. */
+  baselines?: GrowthBaseline[] | null,
 ): Map<string, number> {
   const factors = new Map<string, number>();
-  const g = Number(growthPct) / 100;
-  if (!g || !isFinite(g) || g <= 0) return factors;
+  const rateAt = makeGrowthRate(growthPct, baselines);
+  const scenarioG = Number(growthPct) / 100;
+  const hasScenario = isFinite(scenarioG) && scenarioG > 0;
+  const hasBase = (baselines || []).some((b) => (Number(b.growth_pct) || 0) > 0);
+  if (!hasScenario && !hasBase) return factors;
+
 
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
   const byId = new Map(categories.map((c) => [c.id, c]));
@@ -137,7 +172,7 @@ export function buildScenarioFactors(
       newStock.set(m, prev);
       return;
     }
-    prev = prev * (1 + g);
+    prev = prev * (1 + rateAt(m));
     newStock.set(m, prev);
   });
   const anchorMonth = monthList[anchorIdx];
@@ -173,11 +208,13 @@ export function buildScenarioFactors(
     const netTarget = prevMonth && stockPrev > 0 ? stockNow - stockPrev : origNet;
     netFactor.set(m, origNet > 0 ? Math.max(1, netTarget / origNet) : 1);
 
+    const gm = rateAt(m);
     const origDecrease = componentSum(decreaseCat, m);
-    const adjDecrease = origDecrease * (1 - g);
+    const adjDecrease = origDecrease * (1 - gm);
     const origIncrease = componentSum(increaseCat, m);
     const required = netTarget + adjDecrease;
-    inflowFactor.set(m, origIncrease > 0 ? Math.max(1, required / origIncrease) : 1 + g);
+    inflowFactor.set(m, origIncrease > 0 ? Math.max(1, required / origIncrease) : 1 + gm);
+
   });
 
   // ===== Fator final por categoria/mês =====
@@ -189,15 +226,17 @@ export function buildScenarioFactors(
     }
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
+    const gm = rateAt(month);
     let f: number;
     if (STOCK_SLUGS.has(slug)) {
       f = stockFactor.get(month) ?? 1;
     } else if (slug === NET_MRR_SLUG) {
       f = netFactor.get(month) ?? 1;
     } else if (OUTFLOW_SLUGS.has(slug) || isLowerBetter(cat?.goal_direction)) {
-      f = 1 - g;
+      f = 1 - gm;
     } else if (INFLOW_SLUGS.has(slug) || !isLowerBetter(cat?.goal_direction)) {
-      f = inflowFactor.get(month) ?? 1 + g;
+      f = inflowFactor.get(month) ?? 1 + gm;
+
     } else {
       f = 1;
     }
@@ -224,8 +263,9 @@ export function applyScenarioToGoals<T extends ScenarioGoalLike>(
   categories: ScenarioCategoryLike[],
   growthPct: number,
   baseline?: ScenarioBaseline | null,
+  baselines?: GrowthBaseline[] | null,
 ): T[] {
-  const factors = buildScenarioFactors(goals, categories, growthPct, baseline);
+  const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
   if (!factors.size) return goals;
   return goals.map((goal) => {
     const f = scenarioFactorFor(factors, goal.category_id, goal.period_start);
@@ -250,21 +290,27 @@ export function scenarioDailyFactor(
   growthPct: number,
   ref: Date,
   baseline?: ScenarioBaseline | null,
+  baselines?: GrowthBaseline[] | null,
 ): number {
-  const g = Number(growthPct) / 100;
-  if (!g || g <= 0) return 1;
-  const factors = buildScenarioFactors(goals, categories, growthPct, baseline);
   const month = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
+  const rateAt = makeGrowthRate(growthPct, baselines);
+  const configuredRate = rateAt(month);
+  const hasScenario = Number(growthPct) > 0 && isFinite(Number(growthPct));
+  if (!hasScenario && configuredRate <= 0) return 1;
+  const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
   const increase = categories.find((c) => c.slug === INCREASE_SLUG);
   if (increase) {
     const f = factors.get(`${increase.id}|${month}`);
     if (f && f > 0) return f;
   }
-  return 1 + g;
+  return 1 + configuredRate;
 }
 
-export function scenarioLabel(growthPct: number): string {
-  if (!growthPct) return `Cadastrado (${BASELINE_GROWTH_PCT}%)`;
+export function scenarioLabel(growthPct: number, baseGrowthPct = BASELINE_GROWTH_PCT): string {
+  if (!growthPct) {
+    const base = Number.isInteger(baseGrowthPct) ? String(baseGrowthPct) : baseGrowthPct.toFixed(1).replace(".", ",");
+    return `Cadastrado (${base}%)`;
+  }
   const v = Number.isInteger(growthPct) ? String(growthPct) : growthPct.toFixed(1).replace(".", ",");
   return `Cenário ${v}%`;
 }
