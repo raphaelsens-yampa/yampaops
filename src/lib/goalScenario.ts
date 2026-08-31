@@ -80,16 +80,51 @@ export interface ScenarioBaseline {
   value: number;
 }
 
+/** Revisão da base de crescimento cadastrada (vale do mês de início em diante). */
+export interface GrowthBaseline {
+  /** YYYY-MM ou data ISO */
+  effective_month: string;
+  growth_pct: number;
+}
+
+/**
+ * Resolve o crescimento (decimal) aplicável a cada mês:
+ *  - cenário selecionado (> 0) sobrepõe a base para todos os meses;
+ *  - sem cenário, vale a revisão de base mais recente com início <= mês;
+ *  - meses anteriores à primeira revisão ficam em 0 (metas cadastradas).
+ */
+export function makeGrowthRate(
+  growthPct: number,
+  baselines?: GrowthBaseline[] | null,
+): (month: string) => number {
+  const scenario = Number(growthPct) || 0;
+  const sorted = (baselines || [])
+    .map((b) => ({ month: monthKeyOf(String(b.effective_month)), pct: Number(b.growth_pct) || 0 }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  return (month: string) => {
+    if (scenario > 0 && isFinite(scenario)) return scenario / 100;
+    let pct = 0;
+    for (const b of sorted) if (b.month <= month) pct = b.pct;
+    return pct > 0 && isFinite(pct) ? pct / 100 : 0;
+  };
+}
+
 export function buildScenarioFactors(
   goals: ScenarioGoalLike[],
   categories: ScenarioCategoryLike[],
   growthPct: number,
   /** Ancora o cenário no último fechamento real; meses anteriores ficam intactos. */
   baseline?: ScenarioBaseline | null,
+  /** Revisões da base de crescimento cadastradas no banco. */
+  baselines?: GrowthBaseline[] | null,
 ): Map<string, number> {
   const factors = new Map<string, number>();
-  const g = Number(growthPct) / 100;
-  if (!g || !isFinite(g) || g <= 0) return factors;
+  const rateAt = makeGrowthRate(growthPct, baselines);
+  const scenarioG = Number(growthPct) / 100;
+  const hasScenario = isFinite(scenarioG) && scenarioG > 0;
+  const hasBase = (baselines || []).some((b) => (Number(b.growth_pct) || 0) > 0);
+  if (!hasScenario && !hasBase) return factors;
+
 
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
   const byId = new Map(categories.map((c) => [c.id, c]));
