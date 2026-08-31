@@ -226,15 +226,17 @@ export function buildScenarioFactors(
     }
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
+    const gm = rateAt(month);
     let f: number;
     if (STOCK_SLUGS.has(slug)) {
       f = stockFactor.get(month) ?? 1;
     } else if (slug === NET_MRR_SLUG) {
       f = netFactor.get(month) ?? 1;
     } else if (OUTFLOW_SLUGS.has(slug) || isLowerBetter(cat?.goal_direction)) {
-      f = 1 - g;
+      f = 1 - gm;
     } else if (INFLOW_SLUGS.has(slug) || !isLowerBetter(cat?.goal_direction)) {
-      f = inflowFactor.get(month) ?? 1 + g;
+      f = inflowFactor.get(month) ?? 1 + gm;
+
     } else {
       f = 1;
     }
