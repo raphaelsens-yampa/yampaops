@@ -16,6 +16,7 @@ import { computeRevisedTargets } from "@/lib/revisedGoals";
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
+import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
@@ -219,12 +220,12 @@ export function MetabaseTracking() {
   >([]);
   const [rawGoals, setRawGoals] = useState<Goal[]>([]);
   const [allCategories, setAllCategories] = useState<GoalCategory[]>([]);
-  // Cenário de crescimento (simulação local): eleva todas as metas em memória.
   const { growthPct: scenarioPct } = useGoalScenario();
   const scenarioBaseline = useScenarioBaseline();
+  const { baselines: growthBaselines } = useGrowthBaselines();
   const goals = useMemo(
-    () => applyScenarioToGoals(rawGoals, allCategories as any, scenarioPct, scenarioBaseline),
-    [rawGoals, allCategories, scenarioPct, scenarioBaseline],
+    () => applyScenarioToGoals(rawGoals, allCategories as any, scenarioPct, scenarioBaseline, growthBaselines),
+    [rawGoals, allCategories, scenarioPct, scenarioBaseline, growthBaselines],
   );
   const [maxCapture, setMaxCapture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

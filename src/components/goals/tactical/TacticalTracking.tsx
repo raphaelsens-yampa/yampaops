@@ -35,6 +35,7 @@ import { LowTouchConversionsTable } from "./LowTouchConversionsTable";
 import { useLowTouchData } from "./useLowTouchData";
 import { metricsForTeam } from "./types";
 import { useScenarioDailyFactor } from "./useScenarioDailyFactor";
+import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { ORIGIN_OPTIONS, ORIGIN_MIN_DATE_HINT, isOriginFiltered, type OriginFilter } from "@/lib/origins";
 
@@ -62,7 +63,8 @@ export function TacticalTracking() {
    * Cenário de crescimento (simulação local): eleva as metas diárias na mesma
    * proporção da exigência extra de entrada de MRR do mês.
    */
-  const scenarioFactor = useScenarioDailyFactor(today);
+  const { baselines: growthBaselines } = useGrowthBaselines();
+  const scenarioFactor = useScenarioDailyFactor(today, growthBaselines);
   const goals = useMemo(
     () =>
       scenarioFactor === 1
