@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeCohortByOwner,
   computeConversionKpis,
+  computeMeetingsByOwner,
   computeOwnerConversion,
   computeStageFlow,
+  computeStagePairByOwner,
   deltaPct,
   deltaPp,
   previousRange,
