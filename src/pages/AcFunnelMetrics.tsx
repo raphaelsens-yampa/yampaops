@@ -247,6 +247,7 @@ export default function AcFunnelMetrics() {
     return day >= from && day <= to;
   };
 
+  const [excludedLossReasons, setExcludedLossReasons] = useState<string[]>([]);
 
   /** Ranking de motivos de perda (campo "Deal - Sales - Motivo de perda"). */
   const lossRanking = useMemo(() => {
