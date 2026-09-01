@@ -693,7 +693,8 @@ export default function AcFunnelMetrics() {
                 Conecte um funil na aba <strong>Conexão</strong> para ver as métricas.
               </CardContent></Card>
             ) : (
-              <TooltipProvider delayDuration={150}>
+              <>
+                <TooltipProvider delayDuration={150}>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                   <KpiCard
                     icon={<Trophy className="h-4 w-4" />}
