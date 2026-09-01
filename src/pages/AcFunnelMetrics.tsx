@@ -365,6 +365,81 @@ export default function AcFunnelMetrics() {
 
   const ownerConversion = useMemo(() => computeOwnerConversion(kpiInput.events), [kpiInput.events]);
 
+  /** Conversão etapa → destino por executivo */
+  const [pairFrom, setPairFrom] = useState<string>("");
+  const [pairDest, setPairDest] = useState<string>("won");
+
+  useEffect(() => {
+    if (!stages.length) return;
+    const exists = stages.some((s) => s.ac_stage_id === pairFrom);
+    if (exists) return;
+    const diag = stages.find((s) => /diagn/i.test(s.title));
+    setPairFrom(diag?.ac_stage_id ?? stages[stages.length - 1]?.ac_stage_id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages]);
+
+  const stagePair = useMemo(
+    () =>
+      pairFrom
+        ? computeStagePairByOwner(kpiInput.events, kpiInput.stages, pairFrom, pairDest)
+        : { rows: [], total: null as null | ReturnType<typeof computeStagePairByOwner>["total"] },
+    [kpiInput, pairFrom, pairDest],
+  );
+
+  /** Matriz etapa × executivo: taxa de passagem para a etapa seguinte */
+  const ownerStageMatrix = useMemo(() => {
+    const ownersInPeriod = Array.from(
+      new Set(kpiInput.events.map((e) => (e.owner_name ?? "").trim() || "Sem proprietário")),
+    ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return ownersInPeriod.map((o) => ({
+      owner: o,
+      cells: stages.map((s) => {
+        const evs = kpiInput.events.filter((e) => ((e.owner_name ?? "").trim() || "Sem proprietário") === o);
+        const next = stages.find((x) => x.position > s.position);
+        const r = computeStagePairByOwner(evs, stages, s.ac_stage_id, next ? next.ac_stage_id : "won");
+        return { stageId: s.ac_stage_id, base: r.total.base, rate: r.total.rate };
+      }),
+    }));
+  }, [kpiInput, stages]);
+
+  /** Coortes por vendedor: criado no período x safra anterior */
+  const cohortOwners = useMemo(
+    () => computeCohortByOwner(kpiInput.events, kpiInput.deals, from, to),
+    [kpiInput, from, to],
+  );
+
+  /** Reuniões por executivo */
+  const meetingTypeOptions = useMemo(() => {
+    const set = new Set<string>();
+    allTasks.forEach((t) => {
+      const v = (t.task_type ?? "").trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [allTasks]);
+
+  const [meetingTypes, setMeetingTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (meetingTypes.length || !meetingTypeOptions.length) return;
+    const guess = meetingTypeOptions.filter((t) => /reuni|meeting|diagn/i.test(t));
+    if (guess.length) setMeetingTypes(guess);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meetingTypeOptions]);
+
+  const meetings = useMemo(
+    () =>
+      computeMeetingsByOwner(tasks as KpiTask[], {
+        from,
+        to,
+        today: todaySp(),
+        types: meetingTypes,
+        wonDealIds: new Set(kpiInput.events.filter((e) => e.event_type === "won").map((e) => e.ac_deal_id)),
+      }),
+    [tasks, from, to, meetingTypes, kpiInput.events],
+  );
+
+
   const kpis = useMemo(() => {
     const openNow = deals.filter((d) => d.status === 0 || d.status === 3);
     return {
