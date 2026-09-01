@@ -242,25 +242,6 @@ export default function AcFunnelMetrics() {
     return day >= from && day <= to;
   };
 
-  /** Ranking de ganhos por proprietário (negócios fechados como Ganho no período). */
-  const wonRanking = useMemo(() => {
-    const map = new Map<string, { owner: string; qtd: number; valor: number }>();
-    deals
-      .filter((d) => d.status === 1 && inPeriod(d.closed_at ?? d.stage_changed_at ?? d.deal_created_at))
-      .forEach((d) => {
-        const key = d.owner_name ?? "Sem proprietário";
-        const row = map.get(key) ?? { owner: key, qtd: 0, valor: 0 };
-        row.qtd++;
-        row.valor += Number(d.value || 0);
-        map.set(key, row);
-      });
-    const rows = Array.from(map.values()).sort((a, b) => b.valor - a.valor || b.qtd - a.qtd);
-    return {
-      rows,
-      totalQtd: rows.reduce((a, r) => a + r.qtd, 0),
-      totalValor: rows.reduce((a, r) => a + r.valor, 0),
-    };
-  }, [deals, from, to]);
 
   /** Ranking de motivos de perda (campo "Deal - Sales - Motivo de perda"). */
   const lossRanking = useMemo(() => {
