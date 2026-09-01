@@ -5,6 +5,12 @@
  * igualmente entre os meses restantes do MESMO trimestre. Superávit nunca
  * abate metas futuras. Categorias "menor é melhor" (churn) usam a matemática
  * invertida: o excesso realizado reduz a meta (limite) dos meses seguintes.
+ *
+ * IMPORTANTE — a revisão é CONGELADA ("as of"): a meta revisada de cada mês é
+ * calculada com a informação disponível no início daquele mês. Assim, um mês
+ * encerrado nunca tem sua meta revisada alterada depois (o valor exibido é o
+ * mesmo que foi usado durante o mês). Só meses vigentes/futuros continuam
+ * absorvendo novos déficits.
  */
 
 export interface RevisedTargets {
@@ -23,6 +29,13 @@ export interface ComputeRevisedInput {
   /** meses com índice menor que este são considerados encerrados */
   currentMonthIdx: number;
   lowerIsBetter?: (catId: string) => boolean;
+  /**
+   * Permite apurar o déficit de uma categoria a partir de OUTRA categoria.
+   * Usado para amarrar indicadores de fluxo ao estoque correspondente
+   * (ex.: Net MRR herda exatamente o déficit do Total de MRR), evitando que
+   * a mesma defasagem gere revisões de tamanhos diferentes.
+   */
+  deficitSourceFor?: (catId: string) => string | null | undefined;
 }
 
 export function computeRevisedTargets({
@@ -31,6 +44,7 @@ export function computeRevisedTargets({
   categoryIds,
   currentMonthIdx,
   lowerIsBetter,
+  deficitSourceFor,
 }: ComputeRevisedInput): RevisedTargets {
   const revisedByCatMonth = new Map<string, number>();
   const addedByCatMonth = new Map<string, number>();
@@ -38,48 +52,60 @@ export function computeRevisedTargets({
 
   for (const catId of categoryIds) {
     const lte = lowerIsBetter?.(catId) ?? false;
+    const srcId = deficitSourceFor?.(catId) || catId;
+
+    const targetOf = (id: string, idx: number) => targetByCatMonth.get(`${id}|${idx}`) || 0;
+    const gapAt = (idx: number) => {
+      const t = targetOf(srcId, idx);
+      if (t <= 0) return 0;
+      const r = realizedByCatMonth.get(`${srcId}|${idx}`) || 0;
+      return lte ? Math.max(0, r - t) : Math.max(0, t - r);
+    };
 
     for (let q = 0; q < 4; q++) {
       const months = [q * 3, q * 3 + 1, q * 3 + 2];
 
-      let deficit = 0;
+      // baseline: meta revisada = meta original
       for (const idx of months) {
-        if (idx >= currentMonthIdx) continue; // mês ainda aberto
-        const t = targetByCatMonth.get(`${catId}|${idx}`) || 0;
-        if (t <= 0) continue;
-        const r = realizedByCatMonth.get(`${catId}|${idx}`) || 0;
-        deficit += lte ? Math.max(0, r - t) : Math.max(0, t - r);
+        revisedByCatMonth.set(`${catId}|${idx}`, targetOf(catId, idx));
       }
 
-      const remaining = months.filter(
-        (idx) => idx >= currentMonthIdx && (targetByCatMonth.get(`${catId}|${idx}`) || 0) > 0,
-      );
-
-      // meta revisada = meta original para os meses sem herança
       for (const idx of months) {
-        const t = targetByCatMonth.get(`${catId}|${idx}`) || 0;
-        revisedByCatMonth.set(`${catId}|${idx}`, t);
-      }
+        // "as of": para meses encerrados vale a foto do início daquele mês.
+        const effClosed = Math.min(idx, currentMonthIdx);
+        let deficit = 0;
+        for (const j of months) {
+          if (j >= effClosed) continue;
+          deficit += gapAt(j);
+        }
+        if (deficit <= 0) continue;
 
-      if (deficit <= 0) continue;
+        const remaining = months.filter((m) => m >= effClosed && targetOf(catId, m) > 0);
+        if (!remaining.length || !remaining.includes(idx)) continue;
 
-      if (!remaining.length) {
-        unrecoveredByCatQuarter.set(`${catId}|${q}`, deficit);
-        continue;
-      }
-
-      const share = deficit / remaining.length;
-      for (const idx of remaining) {
-        const t = targetByCatMonth.get(`${catId}|${idx}`) || 0;
+        const share = deficit / remaining.length;
+        const t = targetOf(catId, idx);
         const revised = lte ? Math.max(0, t - share) : t + share;
         revisedByCatMonth.set(`${catId}|${idx}`, revised);
         addedByCatMonth.set(`${catId}|${idx}`, Math.abs(revised - t));
+      }
+
+      // Déficit que não cabe mais no trimestre (nenhum mês aberto restante)
+      let deficitNow = 0;
+      for (const j of months) {
+        if (j >= currentMonthIdx) continue;
+        deficitNow += gapAt(j);
+      }
+      const remainingNow = months.filter((m) => m >= currentMonthIdx && targetOf(catId, m) > 0);
+      if (deficitNow > 0 && !remainingNow.length) {
+        unrecoveredByCatQuarter.set(`${catId}|${q}`, deficitNow);
       }
     }
   }
 
   return { revisedByCatMonth, addedByCatMonth, unrecoveredByCatQuarter };
 }
+
 
 /** Ritmo diário necessário para fechar o mês na meta (usado nas Metas Táticas). */
 export function adjustedDailyTarget(params: {
