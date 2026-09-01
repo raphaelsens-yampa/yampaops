@@ -259,10 +259,12 @@ export function buildScenarioFactors(
   // ===== Fator final por categoria/mês =====
   for (const [key] of orig) {
     const [catId, month] = key.split("|");
-    if (month <= anchorMonth) {
+    const untouched = baseline?.realizedByMonth ? month < startMonth : month <= anchorMonth;
+    if (untouched) {
       factors.set(key, 1);
       continue;
     }
+
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
     const gm = rateAt(month);
