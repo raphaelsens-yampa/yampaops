@@ -47,7 +47,16 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
   const fallback = rows.find((r) => String(r.year_month).slice(0, 7) < currentMonth);
   const selected = anchor ?? fallback;
   if (!selected) return null;
-  return { month: String(selected.year_month).slice(0, 7), value: Number(selected.realized_amount) };
+  // Realizado por mês: cada mês projeta sobre o realizado do mês anterior, o que
+  // congela a meta dos meses já encerrados.
+  const realizedByMonth: Record<string, number> = {};
+  for (const r of rows) realizedByMonth[String(r.year_month).slice(0, 7)] = Number(r.realized_amount);
+  return {
+    month: String(selected.year_month).slice(0, 7),
+    value: Number(selected.realized_amount),
+    realizedByMonth,
+  };
+
 }
 
 /**

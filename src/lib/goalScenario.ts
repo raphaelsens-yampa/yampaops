@@ -78,7 +78,28 @@ export interface ScenarioBaseline {
   month: string;
   /** Total de MRR realizado nesse mês */
   value: number;
+  /**
+   * Total de MRR realizado por mês (`YYYY-MM` -> valor). Cada mês projeta sobre
+   * o REALIZADO do mês anterior — dado imutável — de forma que a meta de um mês
+   * encerrado nunca mude quando o mês seguinte começa.
+   */
+  realizedByMonth?: Record<string, number>;
 }
+
+/**
+ * Primeiro mês em que a projeção por crescimento passou a valer. Meses
+ * anteriores mantêm exatamente a meta cadastrada (histórico intocado).
+ */
+export const PROJECTION_START_MONTH = "2026-08";
+
+/** Mês anterior a `YYYY-MM`. */
+export function prevMonthKey(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  const py = m === 1 ? y - 1 : y;
+  const pm = m === 1 ? 12 : m - 1;
+  return `${py}-${String(pm).padStart(2, "0")}`;
+}
+
 
 /** Revisão da base de crescimento cadastrada (vale do mês de início em diante). */
 export interface GrowthBaseline {
@@ -152,27 +173,38 @@ export function buildScenarioFactors(
   const origTotal = (m: string) => (totalMrrCat ? orig.get(`${totalMrrCat.id}|${m}`) ?? 0 : 0);
 
   // ===== Estoque de MRR por crescimento composto =====
-  // Âncora: realizado do mês anterior ao primeiro mês projetado (quando informado).
-  // Só o primeiro mês projetado usa o realizado; os seguintes compõem sobre o projetado.
+  // Cada mês projeta sobre o REALIZADO do mês anterior (dado imutável). Quando
+  // o mês anterior ainda não tem realizado (futuro), compõe sobre o projetado.
+  // Meses antes de `startMonth` mantêm a meta cadastrada — o passado não muda.
   const newStock = new Map<string, number>();
-  // Mês âncora pode não ter meta cadastrada — nesse caso ele fica fora de monthList
-  // e serve apenas como valor inicial da composição.
+  const realizedOf = (m: string) => Number(baseline?.realizedByMonth?.[m] ?? 0);
   const anchorMonth = baseline?.month
     ? baseline.month
     : monthList[Math.max(0, monthList.findIndex((m) => origTotal(m) > 0))];
   const anchorValue =
     baseline?.month && Number(baseline.value) > 0 ? Number(baseline.value) : origTotal(anchorMonth);
-  let prev = anchorValue;
+  // Sem realizados por mês, mantém o comportamento antigo (âncora única).
+  const startMonth = baseline?.realizedByMonth ? PROJECTION_START_MONTH : anchorMonth;
+
+  const stockPrevOf = new Map<string, number>();
+  let prev = 0;
   monthList.forEach((m) => {
-    if (m < anchorMonth) {
+    if (m < startMonth) {
       newStock.set(m, origTotal(m));
+      prev = 0;
       return;
     }
-    if (m === anchorMonth) {
-      newStock.set(m, prev);
+    if (!baseline?.realizedByMonth && m === startMonth) {
+      newStock.set(m, anchorValue);
+      prev = anchorValue;
       return;
     }
-    prev = prev * (1 + rateAt(m));
+    const pm = prevMonthKey(m);
+    const base =
+      realizedOf(pm) ||
+      (prev > 0 ? prev : anchorMonth === pm && anchorValue > 0 ? anchorValue : origTotal(pm));
+    stockPrevOf.set(m, base);
+    prev = base * (1 + rateAt(m));
     newStock.set(m, prev);
   });
 
@@ -183,6 +215,7 @@ export function buildScenarioFactors(
     const n = newStock.get(m) ?? o;
     stockFactor.set(m, o > 0 ? n / o : 1);
   });
+
 
   // ===== Net MRR alvo e exigência de entrada =====
   const inflowFactor = new Map<string, number>();
@@ -203,14 +236,14 @@ export function buildScenarioFactors(
   monthList.forEach((m, idx) => {
     const prevMonth = idx > 0 ? monthList[idx - 1] : null;
     const stockNow = newStock.get(m) ?? 0;
-    // Quando o mês âncora não tem meta cadastrada, o realizado dele é o "anterior".
-    const stockPrev = prevMonth
-      ? newStock.get(prevMonth) ?? 0
-      : m > anchorMonth
-        ? anchorValue
-        : 0;
+    // Base do fluxo: a MESMA base usada na projeção do estoque (realizado do
+    // mês anterior). Fora dela, cai no mês anterior da série / âncora.
+    const stockPrev =
+      stockPrevOf.get(m) ??
+      (prevMonth ? newStock.get(prevMonth) ?? 0 : m > anchorMonth ? anchorValue : 0);
     const origNet = netCat ? orig.get(`${netCat.id}|${m}`) ?? 0 : 0;
     const netTarget = stockPrev > 0 ? stockNow - stockPrev : origNet;
+
 
     netFactor.set(m, origNet > 0 ? Math.max(1, netTarget / origNet) : 1);
 
@@ -226,10 +259,12 @@ export function buildScenarioFactors(
   // ===== Fator final por categoria/mês =====
   for (const [key] of orig) {
     const [catId, month] = key.split("|");
-    if (month <= anchorMonth) {
+    const untouched = baseline?.realizedByMonth ? month < startMonth : month <= anchorMonth;
+    if (untouched) {
       factors.set(key, 1);
       continue;
     }
+
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
     const gm = rateAt(month);
