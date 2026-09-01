@@ -47,13 +47,17 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 import {
+  computeCohortByOwner,
   computeConversionKpis,
+  computeMeetingsByOwner,
   computeOwnerConversion,
   computeStageFlow,
+  computeStagePairByOwner,
   deltaPct,
   deltaPp,
   previousRange,
   type KpiEvent,
+  type KpiTask,
 } from "@/lib/acFunnelKpis";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
