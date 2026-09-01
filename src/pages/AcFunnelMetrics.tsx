@@ -699,7 +699,7 @@ export default function AcFunnelMetrics() {
             ) : (
               <>
                 <TooltipProvider delayDuration={150}>
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <KpiCard
                     icon={<Trophy className="h-4 w-4" />}
                     label="Win rate"
@@ -713,13 +713,6 @@ export default function AcFunnelMetrics() {
                     value={formatPercent(conversionKpis.entryConversion)}
                     hint={formatDelta(conversionDelta.entryConversion, "p.p.")}
                     tooltip="Percentual de negócios criados no período que já foram convertidos em ganho até o momento atual."
-                  />
-                  <KpiCard
-                    icon={<ArrowRight className="h-4 w-4" />}
-                    label="Taxa de avanço"
-                    value={formatPercent(conversionKpis.advanceRate)}
-                    hint={formatDelta(conversionDelta.advanceRate, "p.p.")}
-                    tooltip="Percentual de movimentações entre etapas que avançaram para frente no funil, excluindo retrocessos."
                   />
                   <KpiCard
                     icon={<Trophy className="h-4 w-4" />}
