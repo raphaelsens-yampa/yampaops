@@ -36,6 +36,13 @@ export interface ComputeRevisedInput {
    * a mesma defasagem gere revisões de tamanhos diferentes.
    */
   deficitSourceFor?: (catId: string) => string | null | undefined;
+  /**
+   * Mapas de apoio para as categorias-fonte do déficit. Necessários quando a
+   * tela está filtrada por uma categoria (ex.: só Net MRR): sem eles a fonte
+   * (Total de MRR) não estaria nos mapas principais e o déficit sairia zero.
+   */
+  sourceTargetByCatMonth?: Map<string, number>;
+  sourceRealizedByCatMonth?: Map<string, number>;
 }
 
 export function computeRevisedTargets({
@@ -45,6 +52,8 @@ export function computeRevisedTargets({
   currentMonthIdx,
   lowerIsBetter,
   deficitSourceFor,
+  sourceTargetByCatMonth,
+  sourceRealizedByCatMonth,
 }: ComputeRevisedInput): RevisedTargets {
   const revisedByCatMonth = new Map<string, number>();
   const addedByCatMonth = new Map<string, number>();
@@ -53,14 +62,26 @@ export function computeRevisedTargets({
   for (const catId of categoryIds) {
     const lte = lowerIsBetter?.(catId) ?? false;
     const srcId = deficitSourceFor?.(catId) || catId;
+    const isExternalSrc = srcId !== catId;
 
     const targetOf = (id: string, idx: number) => targetByCatMonth.get(`${id}|${idx}`) || 0;
+    const srcTargetOf = (idx: number) => {
+      const own = targetOf(srcId, idx);
+      if (own > 0 || !isExternalSrc) return own;
+      return sourceTargetByCatMonth?.get(`${srcId}|${idx}`) || 0;
+    };
+    const srcRealizedOf = (idx: number) => {
+      const own = realizedByCatMonth.get(`${srcId}|${idx}`) || 0;
+      if (own > 0 || !isExternalSrc) return own;
+      return sourceRealizedByCatMonth?.get(`${srcId}|${idx}`) || 0;
+    };
     const gapAt = (idx: number) => {
-      const t = targetOf(srcId, idx);
+      const t = srcTargetOf(idx);
       if (t <= 0) return 0;
-      const r = realizedByCatMonth.get(`${srcId}|${idx}`) || 0;
+      const r = srcRealizedOf(idx);
       return lte ? Math.max(0, r - t) : Math.max(0, t - r);
     };
+
 
     for (let q = 0; q < 4; q++) {
       const months = [q * 3, q * 3 + 1, q * 3 + 2];

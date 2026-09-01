@@ -100,3 +100,18 @@ describe("adjustedDailyTarget", () => {
     expect(v).toBe(0);
   });
 });
+
+describe("computeRevisedTargets — fonte de déficit externa aos mapas filtrados", () => {
+  it("usa os mapas de apoio quando a categoria-fonte não está no recorte", () => {
+    const res = computeRevisedTargets({
+      targetByCatMonth: new Map([["net|6", 100], ["net|7", 100]]),
+      realizedByCatMonth: new Map([["net|6", 90]]),
+      categoryIds: ["net"],
+      currentMonthIdx: 7,
+      deficitSourceFor: () => "stock",
+      sourceTargetByCatMonth: new Map([["stock|6", 1000]]),
+      sourceRealizedByCatMonth: new Map([["stock|6", 900]]),
+    });
+    expect(res.addedByCatMonth.get("net|7")).toBeCloseTo(100);
+  });
+});

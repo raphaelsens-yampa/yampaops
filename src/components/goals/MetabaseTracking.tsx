@@ -981,9 +981,14 @@ export function MetabaseTracking() {
         currentMonthIdx: closedBeforeIdx,
         lowerIsBetter: lowerIsBetterFor,
         deficitSourceFor,
+        // Com filtro por categoria (ex.: só Net MRR), a categoria-fonte do
+        // déficit não está nos mapas filtrados — cai nestes mapas completos.
+        sourceTargetByCatMonth: tableTargetByCatMonth,
+        sourceRealizedByCatMonth: revisedTableRealizedByCatMonth,
       }),
-    [targetByCatMonth, revisedRealizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor, deficitSourceFor],
+    [targetByCatMonth, revisedRealizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor, deficitSourceFor, tableTargetByCatMonth, revisedTableRealizedByCatMonth],
   );
+
 
   const tableRevised = useMemo(
     () =>
