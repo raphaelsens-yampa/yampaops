@@ -764,7 +764,7 @@ export default function AcFunnelMetrics() {
                 </div>
               </TooltipProvider>
 
-                <Card>
+              <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Conversão por etapa</CardTitle>
                     <CardDescription>Passagem, vazamento e permanência no período selecionado. A comparação é contra o período anterior do mesmo tamanho.</CardDescription>
