@@ -144,7 +144,18 @@ export function buildScenarioFactors(
   const scenarioG = Number(growthPct) / 100;
   const hasScenario = isFinite(scenarioG) && scenarioG > 0;
   const hasBase = (baselines || []).some((b) => (Number(b.growth_pct) || 0) > 0);
-  if (!hasScenario && !hasBase) return factors;
+  const hasDerivedAggregators = categories.some(
+    (category) =>
+      (category.slug === INCREASE_SLUG || category.slug === DECREASE_SLUG) &&
+      (category.component_category_ids ?? []).length > 0,
+  );
+  /**
+   * Sem cenário/revisão e sem agregadores para recompor, não há nenhum fator a
+   * aplicar. Isso preserva o contrato anterior para metas independentes.
+   */
+  if (!hasScenario && !hasBase && !hasDerivedAggregators) return factors;
+  const growthActive = hasScenario || hasBase;
+
 
 
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
@@ -264,6 +275,10 @@ export function buildScenarioFactors(
       factors.set(key, 1);
       continue;
     }
+    // Sem cenário ou revisão, não criamos fatores artificiais para categorias
+    // independentes. Os agregadores são tratados abaixo para que suas somas
+    // fechem mesmo na visão cadastrada.
+    if (!growthActive) continue;
 
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
@@ -282,6 +297,32 @@ export function buildScenarioFactors(
       f = 1;
     }
     factors.set(key, f);
+  }
+
+  /**
+   * ===== Agregadores = soma dos componentes =====
+   * MRR Increase = New MRR + Recuperados + Upsell.
+   * MRR Decrease = Churn de MRR + Downsell.
+   * O fator do agregador é derivado da soma JÁ ajustada dos componentes, então a
+   * igualdade vale tanto na visão cadastrada quanto na revisada. Meses anteriores
+   * ao início da projeção continuam intocados (histórico congelado).
+   */
+  const adjustedOf = (catId: string, month: string) => {
+    const o = orig.get(`${catId}|${month}`) ?? 0;
+    if (!o) return 0;
+    return o * (factors.get(`${catId}|${month}`) ?? 1);
+  };
+  for (const aggCat of [increaseCat, decreaseCat]) {
+    const comps = (aggCat?.component_category_ids ?? []).filter(Boolean);
+    if (!aggCat || !comps.length) continue;
+    for (const month of monthList) {
+      if (month < startMonth) continue;
+      const key = `${aggCat.id}|${month}`;
+      const own = orig.get(key) ?? 0;
+      if (!own) continue;
+      const sum = comps.reduce((s, id) => s + adjustedOf(id, month), 0);
+      if (sum > 0) factors.set(key, sum / own);
+    }
   }
 
   // Meses sem meta cadastrada de alguma categoria: fator geral de entrada
@@ -339,9 +380,14 @@ export function scenarioDailyFactor(
   const hasScenario = Number(growthPct) > 0 && isFinite(Number(growthPct));
   if (!hasScenario && configuredRate <= 0) return 1;
   const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
-  const increase = categories.find((c) => c.slug === INCREASE_SLUG);
-  if (increase) {
-    const f = factors.get(`${increase.id}|${month}`);
+  // O fator do agregador MRR Increase é derivado da soma dos componentes, então
+  // o ritmo diário segue o fator de ENTRADA (New MRR e afins).
+  const inflowRef =
+    categories.find((c) => c.slug === "new_mrr") ??
+    categories.find((c) => c.slug === "recuperados") ??
+    categories.find((c) => c.slug === INCREASE_SLUG);
+  if (inflowRef) {
+    const f = factors.get(`${inflowRef.id}|${month}`);
     if (f && f > 0) return f;
   }
   return 1 + configuredRate;
