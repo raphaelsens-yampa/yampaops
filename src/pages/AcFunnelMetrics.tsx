@@ -189,7 +189,8 @@ export default function AcFunnelMetrics() {
           .limit(20000),
         supabase.from("ac_funnel_deal_tasks").select("*").eq("ac_group_id", gid).limit(20000),
       ]);
-      setStages((s.data ?? []) as Stage[]);
+      // "Triagem Backlog" foi uma etapa pontual de limpeza do CRM: não exibir na tela
+      setStages(((s.data ?? []) as Stage[]).filter((st) => !/triagem\s*backlog/i.test(st.title ?? "")));
       setAllDeals((d.data ?? []) as Deal[]);
       setAllEvents((e.data ?? []) as Event[]);
       setPreviousEvents((pe.data ?? []) as Event[]);
