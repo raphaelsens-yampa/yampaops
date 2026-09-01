@@ -178,6 +178,14 @@ export default function AcFunnelMetrics() {
           .lte("occurred_at", `${to}T23:59:59-03:00`)
           .order("occurred_at", { ascending: false })
           .limit(20000),
+        supabase
+          .from("ac_funnel_stage_events")
+          .select("*")
+          .eq("ac_group_id", gid)
+          .gte("occurred_at", `${previousRange(from, to).from}T00:00:00-03:00`)
+          .lte("occurred_at", `${previousRange(from, to).to}T23:59:59-03:00`)
+          .order("occurred_at", { ascending: false })
+          .limit(20000),
         supabase.from("ac_funnel_deal_tasks").select("*").eq("ac_group_id", gid).limit(20000),
       ]);
       setStages((s.data ?? []) as Stage[]);
