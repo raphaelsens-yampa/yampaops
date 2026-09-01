@@ -916,9 +916,9 @@ export default function AcFunnelMetrics() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Motivo</TableHead>
+                          <TableHead>Motivo</TableHead>
                             <TableHead className="text-right">Qtd</TableHead>
-                            <TableHead className="text-right">%</TableHead>
+                            <TableHead className="text-right">% das perdas</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                           </TableRow>
                         </TableHeader>

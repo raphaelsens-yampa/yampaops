@@ -83,7 +83,8 @@ export function computeConversionKpis(
 
   const dealById = new Map(deals.map((d) => [d.ac_deal_id, d]));
   const createdIds = new Set(created.map((e) => e.ac_deal_id));
-  const createdWon = Array.from(createdIds).filter((id) => dealById.get(id)?.status === 1).length;
+  const wonIds = new Set(won.map((e) => e.ac_deal_id));
+  const createdWon = Array.from(createdIds).filter((id) => wonIds.has(id)).length;
 
   const cycles: number[] = [];
   for (const e of won) {

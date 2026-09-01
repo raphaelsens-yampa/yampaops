@@ -32,7 +32,7 @@ function ev(p: Partial<KpiEvent>): KpiEvent {
 
 describe("previousRange", () => {
   it("usa o intervalo anterior de mesmo tamanho", () => {
-    expect(previousRange("2026-09-01", "2026-09-15")).toEqual({ from: "2026-08-18", to: "2026-08-31" });
+    expect(previousRange("2026-09-01", "2026-09-15")).toEqual({ from: "2026-08-17", to: "2026-08-31" });
   });
   it("funciona para um único dia", () => {
     expect(previousRange("2026-09-10", "2026-09-10")).toEqual({ from: "2026-09-09", to: "2026-09-09" });
