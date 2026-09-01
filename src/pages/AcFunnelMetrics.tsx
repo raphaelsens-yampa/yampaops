@@ -259,9 +259,17 @@ export default function AcFunnelMetrics() {
       row.valor += Number(d.value || 0);
       map.set(key, row);
     });
-    const rows = Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
-    return { rows, total: lost.length, totalValor: rows.reduce((a, r) => a + r.valor, 0) };
-  }, [deals, from, to]);
+    const allRows = Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
+    const rows = allRows.filter((r) => !excludedLossReasons.includes(r.reason));
+    return {
+      allRows,
+      rows,
+      total: rows.reduce((a, r) => a + r.qtd, 0),
+      totalValor: rows.reduce((a, r) => a + r.valor, 0),
+      totalGeral: lost.length,
+    };
+  }, [deals, from, to, excludedLossReasons]);
+
 
   /** Visão de tarefas por proprietário / etapa / ação. */
   const taskMatrix = useMemo(() => {
