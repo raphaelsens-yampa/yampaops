@@ -73,3 +73,67 @@ describe("buildScenarioFactors com base revisada", () => {
   });
 });
 
+
+  it("faz MRR Increase ser a soma ajustada de New, Recuperados e Upsell", () => {
+    const cats = [
+      ...categories,
+      { id: "recovered", slug: "recuperados", goal_direction: "gte" },
+      { id: "upsell", slug: "upsell", goal_direction: "gte" },
+      {
+        id: "increase",
+        slug: "mrr_increase",
+        goal_direction: "gte",
+        component_category_ids: ["new", "recovered", "upsell"],
+      },
+    ];
+    const gs = [
+      ...goals,
+      { category_id: "recovered", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 50 },
+      { category_id: "upsell", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 25 },
+      { category_id: "increase", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 175 },
+    ];
+    const factors = buildScenarioFactors(gs, cats, 0, { month: "2026-08", value: 1000 }, BASELINES);
+    const adjusted = (id: string, original: number) => original * (factors.get(`${id}|2026-09`) ?? 1);
+    const componentTotal = adjusted("new", 100) + adjusted("recovered", 50) + adjusted("upsell", 25);
+    expect(adjusted("increase", 175)).toBeCloseTo(componentTotal);
+  });
+
+  it("faz MRR Decrease ser a soma ajustada de Churn MRR e Downsell", () => {
+    const cats = [
+      ...categories,
+      { id: "downsell", slug: "downsell", goal_direction: "lte" },
+      {
+        id: "decrease",
+        slug: "mrr_decrease",
+        goal_direction: "lte",
+        component_category_ids: ["churn", "downsell"],
+      },
+    ];
+    const gs = [
+      ...goals,
+      { category_id: "downsell", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 10 },
+      { category_id: "decrease", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 60 },
+    ];
+    const factors = buildScenarioFactors(gs, cats, 0, { month: "2026-08", value: 1000 }, BASELINES);
+    const adjusted = (id: string, original: number) => original * (factors.get(`${id}|2026-09`) ?? 1);
+    const componentTotal = adjusted("churn", 50) + adjusted("downsell", 10);
+    expect(adjusted("decrease", 60)).toBeCloseTo(componentTotal);
+  });
+
+  it("aplica a revisão às categorias independentes e mantém agosto congelado", () => {
+    const cats = [
+      ...categories,
+      { id: "retention", slug: "retencao", goal_direction: "gte" },
+      { id: "churnRate", slug: "churn-rate-logos", goal_direction: "lte" },
+    ];
+    const gs = [
+      ...goals,
+      { category_id: "retention", period_start: "2026-08-01", period_end: "2026-08-31", target_mrr: 20 },
+      { category_id: "retention", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 20 },
+      { category_id: "churnRate", period_start: "2026-09-01", period_end: "2026-09-30", target_pct: 5 },
+    ];
+    const factors = buildScenarioFactors(gs, cats, 0, { month: "2026-08", value: 1000 }, BASELINES);
+    expect(factors.get("retention|2026-08")).toBe(1);
+    expect(factors.get("retention|2026-09")).toBeCloseTo(1.012, 6);
+    expect(factors.get("churnRate|2026-09")).toBeCloseTo(0.988, 6);
+  });
