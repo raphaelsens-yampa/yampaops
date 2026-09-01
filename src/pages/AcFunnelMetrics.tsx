@@ -693,20 +693,75 @@ export default function AcFunnelMetrics() {
                 Conecte um funil na aba <strong>Conexão</strong> para ver as métricas.
               </CardContent></Card>
             ) : (
-              <>
+              <TooltipProvider delayDuration={150}>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                  <KpiCard icon={<Trophy className="h-4 w-4" />} label="Win rate" value={formatPercent(conversionKpis.winRate)} hint={formatDelta(conversionDelta.winRate, "p.p.")} />
-                  <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Conversão de entrada" value={formatPercent(conversionKpis.entryConversion)} hint={formatDelta(conversionDelta.entryConversion, "p.p.")} />
-                  <KpiCard icon={<ArrowRight className="h-4 w-4" />} label="Taxa de avanço" value={formatPercent(conversionKpis.advanceRate)} hint={formatDelta(conversionDelta.advanceRate, "p.p.")} />
-                  <KpiCard icon={<Trophy className="h-4 w-4" />} label="Ticket médio ganho" value={formatCurrency(conversionKpis.avgTicket)} hint={formatDelta(conversionDelta.avgTicket)} />
-                  <KpiCard icon={<Clock className="h-4 w-4" />} label="Ciclo médio de fechamento" value={formatDays(conversionKpis.cycleDays)} hint={formatDelta(conversionDelta.cycleDays)} />
+                  <KpiCard
+                    icon={<Trophy className="h-4 w-4" />}
+                    label="Win rate"
+                    value={formatPercent(conversionKpis.winRate)}
+                    hint={formatDelta(conversionDelta.winRate, "p.p.")}
+                    tooltip="Percentual de negócios ganhos em relação ao total de negócios fechados (ganhos + perdidos) no período."
+                  />
+                  <KpiCard
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    label="Conversão de entrada"
+                    value={formatPercent(conversionKpis.entryConversion)}
+                    hint={formatDelta(conversionDelta.entryConversion, "p.p.")}
+                    tooltip="Percentual de negócios criados no período que já foram convertidos em ganho até o momento atual."
+                  />
+                  <KpiCard
+                    icon={<ArrowRight className="h-4 w-4" />}
+                    label="Taxa de avanço"
+                    value={formatPercent(conversionKpis.advanceRate)}
+                    hint={formatDelta(conversionDelta.advanceRate, "p.p.")}
+                    tooltip="Percentual de movimentações entre etapas que avançaram para frente no funil, excluindo retrocessos."
+                  />
+                  <KpiCard
+                    icon={<Trophy className="h-4 w-4" />}
+                    label="Ticket médio ganho"
+                    value={formatCurrency(conversionKpis.avgTicket)}
+                    hint={formatDelta(conversionDelta.avgTicket)}
+                    tooltip="Valor médio dos negócios marcados como ganho no período filtrado."
+                  />
+                  <KpiCard
+                    icon={<Clock className="h-4 w-4" />}
+                    label="Ciclo médio de fechamento"
+                    value={formatDays(conversionKpis.cycleDays)}
+                    hint={formatDelta(conversionDelta.cycleDays)}
+                    tooltip="Tempo médio, em dias, entre a criação do negócio e o fechamento como ganho."
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Negócios abertos no período" value={String(kpis.created)} hint={`${kpis.openNow} em aberto agora`} />
-                  <KpiCard icon={<ArrowRight className="h-4 w-4" />} label="Movimentações" value={String(kpis.moves)} hint="mudanças de etapa" />
-                  <KpiCard icon={<Trophy className="h-4 w-4" />} label="Ganhos" value={String(kpis.won)} hint={brl(kpis.wonValue)} />
-                  <KpiCard icon={<XCircle className="h-4 w-4" />} label="Perdidos" value={String(kpis.lost)} hint={`Win rate ${formatPercent(conversionKpis.winRate)}`} />
+                  <KpiCard
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    label="Negócios abertos no período"
+                    value={String(kpis.created)}
+                    hint={`${kpis.openNow} em aberto agora`}
+                    tooltip="Quantidade de negócios criados dentro do período filtrado. O complemento mostra quantos ainda estão em aberto."
+                  />
+                  <KpiCard
+                    icon={<ArrowRight className="h-4 w-4" />}
+                    label="Movimentações"
+                    value={String(kpis.moves)}
+                    hint="mudanças de etapa"
+                    tooltip="Total de mudanças de etapa registradas no funil durante o período."
+                  />
+                  <KpiCard
+                    icon={<Trophy className="h-4 w-4" />}
+                    label="Ganhos"
+                    value={String(kpis.won)}
+                    hint={brl(kpis.wonValue)}
+                    tooltip="Quantidade de negócios marcados como ganho no período, com o valor total correspondente."
+                  />
+                  <KpiCard
+                    icon={<XCircle className="h-4 w-4" />}
+                    label="Perdidos"
+                    value={String(kpis.lost)}
+                    hint={`Win rate ${formatPercent(conversionKpis.winRate)}`}
+                    tooltip="Quantidade de negócios marcados como perdido no período, com o win rate acumulado como referência."
+                  />
                 </div>
+              </TooltipProvider>
 
                 <Card>
                   <CardHeader>
