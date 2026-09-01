@@ -184,11 +184,8 @@ export function buildScenarioFactors(
   const anchorValue =
     baseline?.month && Number(baseline.value) > 0 ? Number(baseline.value) : origTotal(anchorMonth);
   // Sem realizados por mês, mantém o comportamento antigo (âncora única).
-  const startMonth = baseline?.realizedByMonth
-    ? PROJECTION_START_MONTH
-    : prevMonthKey(anchorMonth) >= PROJECTION_START_MONTH
-      ? anchorMonth
-      : anchorMonth;
+  const startMonth = baseline?.realizedByMonth ? PROJECTION_START_MONTH : anchorMonth;
+
   const stockPrevOf = new Map<string, number>();
   let prev = 0;
   monthList.forEach((m) => {
