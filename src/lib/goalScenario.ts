@@ -266,7 +266,7 @@ export function buildScenarioFactors(
   for (const [key] of orig) {
     const [catId, month] = key.split("|");
     const untouched = baseline?.realizedByMonth ? month < startMonth : month <= anchorMonth;
-    if (untouched) {
+    if (untouched || !growthActive) {
       factors.set(key, 1);
       continue;
     }
@@ -290,8 +290,35 @@ export function buildScenarioFactors(
     factors.set(key, f);
   }
 
+  /**
+   * ===== Agregadores = soma dos componentes =====
+   * MRR Increase = New MRR + Recuperados + Upsell.
+   * MRR Decrease = Churn de MRR + Downsell.
+   * O fator do agregador é derivado da soma JÁ ajustada dos componentes, então a
+   * igualdade vale tanto na visão cadastrada quanto na revisada. Meses anteriores
+   * ao início da projeção continuam intocados (histórico congelado).
+   */
+  const adjustedOf = (catId: string, month: string) => {
+    const o = orig.get(`${catId}|${month}`) ?? 0;
+    if (!o) return 0;
+    return o * (factors.get(`${catId}|${month}`) ?? 1);
+  };
+  for (const aggCat of [increaseCat, decreaseCat]) {
+    const comps = (aggCat?.component_category_ids ?? []).filter(Boolean);
+    if (!aggCat || !comps.length) continue;
+    for (const month of monthList) {
+      if (month < startMonth) continue;
+      const key = `${aggCat.id}|${month}`;
+      const own = orig.get(key) ?? 0;
+      if (!own) continue;
+      const sum = comps.reduce((s, id) => s + adjustedOf(id, month), 0);
+      if (sum > 0) factors.set(key, sum / own);
+    }
+  }
+
   // Meses sem meta cadastrada de alguma categoria: fator geral de entrada
   return factors;
+}
 }
 
 /** Fator de uma categoria/mês (1 quando não há cenário). */
