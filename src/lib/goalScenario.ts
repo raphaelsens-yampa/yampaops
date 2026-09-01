@@ -266,10 +266,14 @@ export function buildScenarioFactors(
   for (const [key] of orig) {
     const [catId, month] = key.split("|");
     const untouched = baseline?.realizedByMonth ? month < startMonth : month <= anchorMonth;
-    if (untouched || !growthActive) {
+    if (untouched) {
       factors.set(key, 1);
       continue;
     }
+    // Sem cenário ou revisão, não criamos fatores artificiais para categorias
+    // independentes. Os agregadores são tratados abaixo para que suas somas
+    // fechem mesmo na visão cadastrada.
+    if (!growthActive) continue;
 
     const cat = byId.get(catId);
     const slug = cat?.slug ?? "";
