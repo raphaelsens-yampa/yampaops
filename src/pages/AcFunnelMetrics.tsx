@@ -998,18 +998,19 @@ export default function AcFunnelMetrics() {
                         <PopoverContent align="end" className="w-72 p-3">
                           <div className="mb-2 flex items-center justify-between">
                             <span className="text-sm font-medium">Motivos incluídos</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={() =>
-                                setExcludedLossReasons(
-                                  excludedLossReasons.length ? [] : lossRanking.allRows.map((r) => r.reason),
-                                )
-                              }
-                            >
-                              {excludedLossReasons.length ? "Todos" : "Nenhum"}
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() =>
+                                  setExcludedLossReasons(
+                                    excludedLossReasons.length ? [] : lossRanking.allRows.map((r) => r.reason),
+                                  )
+                                }
+                              >
+                                {excludedLossReasons.length ? "Selecionar todos" : "Desmarcar todos"}
+                              </Button>
+
                           </div>
                           <div className="max-h-64 space-y-2 overflow-y-auto">
                             {lossRanking.allRows.map((r) => {
