@@ -40,6 +40,15 @@ import {
   Legend,
 } from "recharts";
 import * as XLSX from "xlsx";
+import {
+  computeConversionKpis,
+  computeOwnerConversion,
+  computeStageFlow,
+  deltaPct,
+  deltaPp,
+  previousRange,
+  type KpiEvent,
+} from "@/lib/acFunnelKpis";
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const WEBHOOK_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/ac-funnel-webhook`;
@@ -134,6 +143,7 @@ export default function AcFunnelMetrics() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [allDeals, setAllDeals] = useState<Deal[]>([]);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [previousEvents, setPreviousEvents] = useState<Event[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [groupId, setGroupId] = useState<string>("");
   // Padrão: mês vigente, do dia 1 até hoje (fuso São Paulo)
@@ -157,7 +167,7 @@ export default function AcFunnelMetrics() {
     setGroupId(gid);
 
     if (gid) {
-      const [s, d, e, t] = await Promise.all([
+      const [s, d, e, pe, t] = await Promise.all([
         supabase.from("ac_funnel_stages").select("*").eq("ac_group_id", gid).order("position"),
         supabase.from("ac_funnel_deals").select("*").eq("ac_group_id", gid).limit(5000),
         supabase
@@ -173,11 +183,13 @@ export default function AcFunnelMetrics() {
       setStages((s.data ?? []) as Stage[]);
       setAllDeals((d.data ?? []) as Deal[]);
       setAllEvents((e.data ?? []) as Event[]);
+      setPreviousEvents((pe.data ?? []) as Event[]);
       setAllTasks((t.data ?? []) as Task[]);
     } else {
       setStages([]);
       setAllDeals([]);
       setAllEvents([]);
+      setPreviousEvents([]);
       setAllTasks([]);
     }
     setLoading(false);
@@ -316,30 +328,62 @@ export default function AcFunnelMetrics() {
   }, [tasks, deals, taskDim, from, to, stageMap]);
 
 
+  const kpiInput = useMemo(() => ({
+    events: events as KpiEvent[],
+    deals,
+    stages,
+  }), [events, deals, stages]);
+
+  const conversionKpis = useMemo(
+    () => computeConversionKpis(kpiInput.events, kpiInput.deals, kpiInput.stages),
+    [kpiInput],
+  );
+
+  const previousConversionKpis = useMemo(
+    () => computeConversionKpis(previousEvents as KpiEvent[], deals, stages),
+    [previousEvents, deals, stages],
+  );
+
+  const stageFlow = useMemo(
+    () => computeStageFlow(kpiInput.events, kpiInput.stages),
+    [kpiInput],
+  );
+
+  const previousStageFlow = useMemo(
+    () => computeStageFlow(previousEvents as KpiEvent[], stages),
+    [previousEvents, stages],
+  );
+
+  const ownerConversion = useMemo(() => computeOwnerConversion(kpiInput.events), [kpiInput.events]);
+
   const kpis = useMemo(() => {
-    const created = events.filter((e) => e.event_type === "created");
-    const moves = events.filter((e) => e.event_type === "stage_change");
-    const won = events.filter((e) => e.event_type === "won");
-    const lost = events.filter((e) => e.event_type === "lost");
     const openNow = deals.filter((d) => d.status === 0 || d.status === 3);
-    const wonValue = won.reduce((a, e) => a + Number(e.deal_value || 0), 0);
-    const closed = won.length + lost.length;
-    const now = Date.now();
-    const ages = openNow
-      .filter((d) => d.deal_created_at)
-      .map((d) => (now - new Date(d.deal_created_at!).getTime()) / 86400000);
     return {
-      created: created.length,
-      moves: moves.length,
-      won: won.length,
-      lost: lost.length,
-      wonValue,
+      created: conversionKpis.created,
+      moves: conversionKpis.moves,
+      won: conversionKpis.won,
+      lost: conversionKpis.lost,
+      wonValue: conversionKpis.wonValue,
       openNow: openNow.length,
       openValue: openNow.reduce((a, d) => a + Number(d.value || 0), 0),
-      convRate: closed ? (won.length / closed) * 100 : 0,
-      avgAge: ages.length ? ages.reduce((a, b) => a + b, 0) / ages.length : 0,
+      convRate: conversionKpis.winRate ?? 0,
+      avgAge: (() => {
+        const now = Date.now();
+        const ages = openNow
+          .filter((d) => d.deal_created_at)
+          .map((d) => (now - new Date(d.deal_created_at as string).getTime()) / 86400000);
+        return ages.length ? ages.reduce((a, b) => a + b, 0) / ages.length : 0;
+      })(),
     };
-  }, [events, deals]);
+  }, [deals, conversionKpis]);
+
+  const conversionDelta = useMemo(() => ({
+    winRate: deltaPp(conversionKpis.winRate, previousConversionKpis.winRate),
+    entryConversion: deltaPp(conversionKpis.entryConversion, previousConversionKpis.entryConversion),
+    avgTicket: deltaPct(conversionKpis.avgTicket, previousConversionKpis.avgTicket),
+    cycleDays: deltaPct(conversionKpis.cycleDays, previousConversionKpis.cycleDays),
+    advanceRate: deltaPp(conversionKpis.advanceRate, previousConversionKpis.advanceRate),
+  }), [conversionKpis, previousConversionKpis]);
 
   const stageSnapshot = useMemo(() => {
     return stages.map((s) => {
@@ -363,10 +407,10 @@ export default function AcFunnelMetrics() {
   }, [events]);
 
   const dailySeries = useMemo(() => {
-    const map = new Map<string, { day: string; entradas: number; movimentacoes: number; ganhos: number; perdas: number }>();
+    const map = new Map<string, { day: string; entradas: number; movimentacoes: number; ganhos: number; perdas: number; winRateAcumulado: number | null }>();
     let cursor = from;
     while (cursor <= to) {
-      map.set(cursor, { day: cursor, entradas: 0, movimentacoes: 0, ganhos: 0, perdas: 0 });
+      map.set(cursor, { day: cursor, entradas: 0, movimentacoes: 0, ganhos: 0, perdas: 0, winRateAcumulado: null });
       cursor = addDays(cursor, 1);
     }
     events.forEach((e) => {
@@ -378,7 +422,19 @@ export default function AcFunnelMetrics() {
       else if (e.event_type === "won") row.ganhos++;
       else if (e.event_type === "lost") row.perdas++;
     });
-    return Array.from(map.values()).map((r) => ({ ...r, label: r.day.slice(5).split("-").reverse().join("/") }));
+    let accumulatedWon = 0;
+    let accumulatedLost = 0;
+    return Array.from(map.values()).map((r) => {
+      accumulatedWon += r.ganhos;
+      accumulatedLost += r.perdas;
+      return {
+        ...r,
+        winRateAcumulado: accumulatedWon + accumulatedLost
+          ? (accumulatedWon / (accumulatedWon + accumulatedLost)) * 100
+          : null,
+        label: r.day.slice(5).split("-").reverse().join("/"),
+      };
+    });
   }, [events, from, to]);
 
   const dealsInPeriod = useMemo(() => {
@@ -644,12 +700,64 @@ export default function AcFunnelMetrics() {
               </CardContent></Card>
             ) : (
               <>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                  <KpiCard icon={<Trophy className="h-4 w-4" />} label="Win rate" value={formatPercent(conversionKpis.winRate)} hint={formatDelta(conversionDelta.winRate, "p.p.")} />
+                  <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Conversão de entrada" value={formatPercent(conversionKpis.entryConversion)} hint={formatDelta(conversionDelta.entryConversion, "p.p.")} />
+                  <KpiCard icon={<ArrowRight className="h-4 w-4" />} label="Taxa de avanço" value={formatPercent(conversionKpis.advanceRate)} hint={formatDelta(conversionDelta.advanceRate, "p.p.")} />
+                  <KpiCard icon={<Trophy className="h-4 w-4" />} label="Ticket médio ganho" value={formatCurrency(conversionKpis.avgTicket)} hint={formatDelta(conversionDelta.avgTicket)} />
+                  <KpiCard icon={<Clock className="h-4 w-4" />} label="Ciclo médio de fechamento" value={formatDays(conversionKpis.cycleDays)} hint={formatDelta(conversionDelta.cycleDays)} />
+                </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <KpiCard icon={<TrendingUp className="h-4 w-4" />} label="Negócios abertos no período" value={String(kpis.created)} hint={`${kpis.openNow} em aberto agora`} />
                   <KpiCard icon={<ArrowRight className="h-4 w-4" />} label="Movimentações" value={String(kpis.moves)} hint="mudanças de etapa" />
                   <KpiCard icon={<Trophy className="h-4 w-4" />} label="Ganhos" value={String(kpis.won)} hint={brl(kpis.wonValue)} />
-                  <KpiCard icon={<XCircle className="h-4 w-4" />} label="Perdidos" value={String(kpis.lost)} hint={`Conversão ${kpis.convRate.toFixed(1)}%`} />
+                  <KpiCard icon={<XCircle className="h-4 w-4" />} label="Perdidos" value={String(kpis.lost)} hint={`Win rate ${formatPercent(conversionKpis.winRate)}`} />
                 </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Conversão por etapa</CardTitle>
+                    <CardDescription>Passagem, vazamento e permanência no período selecionado. A comparação é contra o período anterior do mesmo tamanho.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Etapa</TableHead>
+                          <TableHead className="text-right">Entradas</TableHead>
+                          <TableHead className="text-right">Avanço</TableHead>
+                          <TableHead className="text-right">Passagem</TableHead>
+                          <TableHead className="text-right">Perda</TableHead>
+                          <TableHead className="text-right">Acumulada</TableHead>
+                          <TableHead className="text-right">Permanência</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stageFlow.map((row, index) => {
+                          const previous = previousStageFlow[index];
+                          return (
+                            <TableRow key={row.stageId}>
+                              <TableCell className="font-medium">{row.title}</TableCell>
+                              <TableCell className="text-right tabular-nums">{row.entries}</TableCell>
+                              <TableCell className="text-right tabular-nums">{row.advanced}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                <span>{formatPercent(row.passRate)}</span>
+                                <SmallDelta value={deltaPp(row.passRate, previous?.passRate ?? null)} suffix=" p.p." />
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                <span>{formatPercent(row.lossRate)}</span>
+                                <SmallDelta value={deltaPp(row.lossRate, previous?.lossRate ?? null)} suffix=" p.p." />
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{formatPercent(row.cumulative)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatDays(row.avgDays)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {!stageFlow.length && <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Sem dados de movimentação no período</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <Card>
@@ -695,6 +803,7 @@ export default function AcFunnelMetrics() {
                           <Line type="monotone" dataKey="movimentacoes" name="Movimentações" stroke="hsl(var(--secondary))" strokeWidth={2} dot={false} />
                           <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
                           <Line type="monotone" dataKey="perdas" name="Perdas" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="winRateAcumulado" name="Win rate acumulado (%)" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false} connectNulls />
                         </LineChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -757,19 +866,23 @@ export default function AcFunnelMetrics() {
                             <TableHead>Proprietário</TableHead>
                             <TableHead className="text-right">Ganhos</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
+                            <TableHead className="text-right">Win rate</TableHead>
+                            <TableHead className="text-right">Ticket médio</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {wonRanking.rows.map((r, i) => (
+                          {ownerConversion.map((r, i) => (
                             <TableRow key={r.owner}>
                               <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                               <TableCell className="font-medium">{r.owner}</TableCell>
-                              <TableCell className="text-right tabular-nums">{r.qtd}</TableCell>
-                              <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{r.won}</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(r.value)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatPercent(r.winRate)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatCurrency(r.avgTicket)}</TableCell>
                             </TableRow>
                           ))}
                           {!wonRanking.rows.length && (
-                            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem ganhos no período</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem fechamentos no período</TableCell></TableRow>
                           )}
                           {!!wonRanking.rows.length && (
                             <TableRow className="border-t-2 font-semibold">
@@ -1112,6 +1225,28 @@ export default function AcFunnelMetrics() {
       </div>
     </Layout>
   );
+}
+
+function formatPercent(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : `${value.toFixed(1)}%`;
+}
+
+function formatCurrency(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : brl(value);
+}
+
+function formatDays(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : `${value.toFixed(1)} dias`;
+}
+
+function formatDelta(value: number | null, suffix = "%"): string {
+  if (value === null) return "Sem base anterior";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}${suffix} vs anterior`;
+}
+
+function SmallDelta({ value, suffix }: { value: number | null; suffix: string }) {
+  if (value === null) return <span className="ml-1 text-xs text-muted-foreground">—</span>;
+  return <span className={`ml-1 text-xs ${value >= 0 ? "text-success" : "text-destructive"}`}>{`(${value >= 0 ? "+" : ""}${value.toFixed(1)}${suffix})`}</span>;
 }
 
 function KpiCard({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint?: string }) {
