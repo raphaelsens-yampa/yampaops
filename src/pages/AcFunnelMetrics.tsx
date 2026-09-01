@@ -1256,11 +1256,40 @@ function SmallDelta({ value, suffix }: { value: number | null; suffix: string })
   return <span className={`ml-1 text-xs ${value >= 0 ? "text-success" : "text-destructive"}`}>{`(${value >= 0 ? "+" : ""}${value.toFixed(1)}${suffix})`}</span>;
 }
 
-function KpiCard({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint?: string }) {
+function KpiCard({
+  icon,
+  label,
+  value,
+  hint,
+  tooltip,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+  tooltip?: string;
+}) {
+  const labelContent = (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {icon}
+      <span className="truncate">{label}</span>
+      {tooltip && <HelpCircle className="h-3 w-3 shrink-0 text-muted-foreground/70" />}
+    </div>
+  );
+
   return (
     <Card>
       <CardContent className="space-y-1 pt-6">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">{icon}<span className="truncate">{label}</span></div>
+        {tooltip ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{labelContent}</TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          labelContent
+        )}
         <div className="text-2xl font-bold tabular-nums">{value}</div>
         {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       </CardContent>
