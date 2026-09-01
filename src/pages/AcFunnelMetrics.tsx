@@ -152,6 +152,7 @@ export default function AcFunnelMetrics() {
   const [to, setTo] = useState<string>(todaySp());
   const [owner, setOwner] = useState<string>("__all__");
   const [taskDim, setTaskDim] = useState<"owner" | "stage" | "action">("owner");
+  const [matrixMode, setMatrixMode] = useState<"count" | "percent">("count");
   const [auditing, setAuditing] = useState(false);
   const [audit, setAudit] = useState<any | null>(null);
 
@@ -805,14 +806,15 @@ export default function AcFunnelMetrics() {
                         <LineChart data={dailySeries}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                           <XAxis dataKey="label" fontSize={11} />
-                          <YAxis fontSize={11} allowDecimals={false} />
+                          <YAxis yAxisId="count" fontSize={11} allowDecimals={false} />
+                          <YAxis yAxisId="rate" orientation="right" fontSize={11} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                           <RTooltip />
                           <Legend />
-                          <Line type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="movimentacoes" name="Movimentações" stroke="hsl(var(--secondary))" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="perdas" name="Perdas" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="winRateAcumulado" name="Win rate acumulado (%)" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false} connectNulls />
+                          <Line yAxisId="count" type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                          <Line yAxisId="count" type="monotone" dataKey="movimentacoes" name="Movimentações" stroke="hsl(var(--secondary))" strokeWidth={2} dot={false} />
+                          <Line yAxisId="count" type="monotone" dataKey="ganhos" name="Ganhos" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
+                          <Line yAxisId="count" type="monotone" dataKey="perdas" name="Perdas" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
+                          <Line yAxisId="rate" type="monotone" dataKey="winRateAcumulado" name="Win rate acumulado (%)" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false} connectNulls />
                         </LineChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -820,9 +822,15 @@ export default function AcFunnelMetrics() {
                 </div>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Movimentações de X para Y</CardTitle>
-                    <CardDescription>Linhas = etapa de origem · Colunas = etapa de destino · {matrix.moves.length} movimentações no período</CardDescription>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Movimentações de X para Y</CardTitle>
+                      <CardDescription>Linhas = etapa de origem · Colunas = etapa de destino · {matrix.moves.length} movimentações no período</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-1 rounded-md border p-1" aria-label="Modo da matriz">
+                      <Button variant={matrixMode === "count" ? "secondary" : "ghost"} size="sm" onClick={() => setMatrixMode("count")}>Quantidade</Button>
+                      <Button variant={matrixMode === "percent" ? "secondary" : "ghost"} size="sm" onClick={() => setMatrixMode("percent")}>% da linha</Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="overflow-x-auto">
                     <Table>
@@ -848,7 +856,11 @@ export default function AcFunnelMetrics() {
                                 const v = matrix.counts.get(`${origin.ac_stage_id}>${dest.ac_stage_id}`) ?? 0;
                                 return (
                                   <TableCell key={dest.ac_stage_id} className="text-center tabular-nums">
-                                    {v ? <Badge variant={origin.position < dest.position ? "default" : "secondary"}>{v}</Badge> : <span className="text-muted-foreground">–</span>}
+                                    {v ? (
+                                      <Badge variant={origin.position < dest.position ? "default" : "secondary"}>
+                                        {matrixMode === "percent" && rowTotal ? `${((v / rowTotal) * 100).toFixed(0)}%` : v}
+                                      </Badge>
+                                    ) : <span className="text-muted-foreground">–</span>}
                                   </TableCell>
                                 );
                               })}
