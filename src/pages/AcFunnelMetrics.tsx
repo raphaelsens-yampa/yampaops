@@ -889,7 +889,7 @@ export default function AcFunnelMetrics() {
                               <TableCell className="text-right tabular-nums">{formatCurrency(r.avgTicket)}</TableCell>
                             </TableRow>
                           ))}
-                          {!wonRanking.rows.length && (
+                          {!ownerConversion.length && (
                             <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem fechamentos no período</TableCell></TableRow>
                           )}
                           {!!ownerConversion.length && (
