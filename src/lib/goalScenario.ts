@@ -144,7 +144,13 @@ export function buildScenarioFactors(
   const scenarioG = Number(growthPct) / 100;
   const hasScenario = isFinite(scenarioG) && scenarioG > 0;
   const hasBase = (baselines || []).some((b) => (Number(b.growth_pct) || 0) > 0);
-  if (!hasScenario && !hasBase) return factors;
+  /**
+   * Sem cenário e sem base revisada nada cresce, mas os agregadores (MRR
+   * Increase / MRR Decrease) ainda são recompostos a partir dos componentes:
+   * a soma tem de fechar também na visão cadastrada.
+   */
+  const growthActive = hasScenario || hasBase;
+
 
 
   const bySlug = new Map(categories.map((c) => [c.slug, c]));
