@@ -600,7 +600,7 @@ export default function AcFunnelMetrics() {
       <div className="space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Funis ActiveCampaign</h1>
+            <h1 className="text-2xl font-bold">Funis CRM</h1>
             <p className="text-sm text-muted-foreground">
               Métricas de funil somente leitura: aberturas, movimentações entre etapas e fechamentos.
             </p>
