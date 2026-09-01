@@ -78,7 +78,28 @@ export interface ScenarioBaseline {
   month: string;
   /** Total de MRR realizado nesse mês */
   value: number;
+  /**
+   * Total de MRR realizado por mês (`YYYY-MM` -> valor). Cada mês projeta sobre
+   * o REALIZADO do mês anterior — dado imutável — de forma que a meta de um mês
+   * encerrado nunca mude quando o mês seguinte começa.
+   */
+  realizedByMonth?: Record<string, number>;
 }
+
+/**
+ * Primeiro mês em que a projeção por crescimento passou a valer. Meses
+ * anteriores mantêm exatamente a meta cadastrada (histórico intocado).
+ */
+export const PROJECTION_START_MONTH = "2026-08";
+
+/** Mês anterior a `YYYY-MM`. */
+export function prevMonthKey(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  const py = m === 1 ? y - 1 : y;
+  const pm = m === 1 ? 12 : m - 1;
+  return `${py}-${String(pm).padStart(2, "0")}`;
+}
+
 
 /** Revisão da base de crescimento cadastrada (vale do mês de início em diante). */
 export interface GrowthBaseline {
