@@ -123,7 +123,9 @@ function todaySp(): string {
   return spDate(new Date().toISOString());
 }
 function addDays(day: string, delta: number): string {
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
   const d = new Date(`${day}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return day;
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
@@ -402,8 +404,10 @@ export default function AcFunnelMetrics() {
 
   const dailySeries = useMemo(() => {
     const map = new Map<string, { day: string; entradas: number; movimentacoes: number; ganhos: number; perdas: number; winRateAcumulado: number | null }>();
+    const validRange = /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && from <= to;
     let cursor = from;
-    while (cursor <= to) {
+    let guard = 0;
+    while (validRange && cursor <= to && guard++ < 1000) {
       map.set(cursor, { day: cursor, entradas: 0, movimentacoes: 0, ganhos: 0, perdas: 0, winRateAcumulado: null });
       cursor = addDays(cursor, 1);
     }
