@@ -319,7 +319,6 @@ export function buildScenarioFactors(
   // Meses sem meta cadastrada de alguma categoria: fator geral de entrada
   return factors;
 }
-}
 
 /** Fator de uma categoria/mês (1 quando não há cenário). */
 export function scenarioFactorFor(
