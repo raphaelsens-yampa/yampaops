@@ -59,8 +59,9 @@ describe("computeRevisedTargets", () => {
     // Agosto manteve a meta revisada que valeu durante o mês
     expect(durante.revisedByCatMonth.get("c|7")).toBe(115);
     expect(depois.revisedByCatMonth.get("c|7")).toBe(115);
-    // Setembro absorve os déficits de julho e agosto (30 + 45)
-    expect(depois.revisedByCatMonth.get("c|8")).toBeCloseTo(175);
+    // Setembro absorve os déficits de julho e agosto (30 + 30)
+    expect(depois.revisedByCatMonth.get("c|8")).toBeCloseTo(160);
+
   });
 
   it("herda o déficit de outra categoria (fluxo amarrado ao estoque)", () => {
