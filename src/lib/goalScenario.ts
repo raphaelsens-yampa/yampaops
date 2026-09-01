@@ -144,11 +144,16 @@ export function buildScenarioFactors(
   const scenarioG = Number(growthPct) / 100;
   const hasScenario = isFinite(scenarioG) && scenarioG > 0;
   const hasBase = (baselines || []).some((b) => (Number(b.growth_pct) || 0) > 0);
+  const hasDerivedAggregators = categories.some(
+    (category) =>
+      (category.slug === INCREASE_SLUG || category.slug === DECREASE_SLUG) &&
+      (category.component_category_ids ?? []).length > 0,
+  );
   /**
-   * Sem cenário e sem base revisada nada cresce, mas os agregadores (MRR
-   * Increase / MRR Decrease) ainda são recompostos a partir dos componentes:
-   * a soma tem de fechar também na visão cadastrada.
+   * Sem cenário/revisão e sem agregadores para recompor, não há nenhum fator a
+   * aplicar. Isso preserva o contrato anterior para metas independentes.
    */
+  if (!hasScenario && !hasBase && !hasDerivedAggregators) return factors;
   const growthActive = hasScenario || hasBase;
 
 
