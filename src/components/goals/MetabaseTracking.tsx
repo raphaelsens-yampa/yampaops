@@ -37,6 +37,8 @@ import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type D
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
+import { resolveSnapshotAsOf } from "@/lib/snapshotAsOf";
+
 
 type Period = "day" | "week" | "month" | "custom" | "year";
 type CompareMode = "to_date" | "full";
@@ -382,18 +384,14 @@ export function MetabaseTracking() {
 
   /**
    * Snapshot → formato AggRow, resolvido as-of: para cada (mês, métrica) usa a
-   * linha do último snapshot com `data` <= data de referência. Meses encerrados
-   * ficam no fechamento; o mês da data escolhida fica no valor daquele dia.
+   * linha vigente na data de referência, ignorando linhas gravadas DEPOIS do
+   * fim do mês que descrevem (ex.: `carry_forward` de 01/08 para 07/2026) e
+   * dando prioridade ao `fechamento`. Meses encerrados ficam no fechamento; o
+   * mês da data escolhida fica no valor daquele dia.
    * Métricas ausentes simplesmente não geram linha → a UI mostra "—", nunca 0.
    */
   const snapshotAsAgg = useMemo<AggRow[]>(() => {
-    const latest = new Map<string, SnapRow>();
-    snapRows.forEach((r) => {
-      const key = `${r.year_month}|${r.metric_key}|${r.scope}`;
-      const prev = latest.get(key);
-      if (!prev || prev.data < r.data) latest.set(key, r);
-    });
-    return Array.from(latest.values()).map((r) => ({
+    return resolveSnapshotAsOf(snapRows, refDate).map((r) => ({
       year_month: r.year_month,
       metric_key: r.metric_key,
       scope: r.scope,
@@ -405,7 +403,8 @@ export function MetabaseTracking() {
       realized_amount: Number(r.realized_amount || 0),
       deals_count: Number(r.deals_count || 0),
     }));
-  }, [snapRows]);
+  }, [snapRows, refDate]);
+
 
   // ===== Recorte por origem do cliente (4blue / Yampa) =====
   // Única base com origem: `metas_price_daily` (por price ID, a partir de 07/08/2026).
