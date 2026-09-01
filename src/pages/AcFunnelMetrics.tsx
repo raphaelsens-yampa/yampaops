@@ -892,12 +892,14 @@ export default function AcFunnelMetrics() {
                           {!wonRanking.rows.length && (
                             <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sem fechamentos no período</TableCell></TableRow>
                           )}
-                          {!!wonRanking.rows.length && (
+                          {!!ownerConversion.length && (
                             <TableRow className="border-t-2 font-semibold">
                               <TableCell />
                               <TableCell>Total</TableCell>
-                              <TableCell className="text-right tabular-nums">{wonRanking.totalQtd}</TableCell>
-                              <TableCell className="text-right tabular-nums">{brl(wonRanking.totalValor)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{ownerConversion.reduce((sum, r) => sum + r.won, 0)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{brl(ownerConversion.reduce((sum, r) => sum + r.value, 0))}</TableCell>
+                              <TableCell />
+                              <TableCell />
                             </TableRow>
                           )}
                         </TableBody>
