@@ -371,9 +371,14 @@ export function scenarioDailyFactor(
   const hasScenario = Number(growthPct) > 0 && isFinite(Number(growthPct));
   if (!hasScenario && configuredRate <= 0) return 1;
   const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
-  const increase = categories.find((c) => c.slug === INCREASE_SLUG);
-  if (increase) {
-    const f = factors.get(`${increase.id}|${month}`);
+  // O fator do agregador MRR Increase é derivado da soma dos componentes, então
+  // o ritmo diário segue o fator de ENTRADA (New MRR e afins).
+  const inflowRef =
+    categories.find((c) => c.slug === "new_mrr") ??
+    categories.find((c) => c.slug === "recuperados") ??
+    categories.find((c) => c.slug === INCREASE_SLUG);
+  if (inflowRef) {
+    const f = factors.get(`${inflowRef.id}|${month}`);
     if (f && f > 0) return f;
   }
   return 1 + configuredRate;
