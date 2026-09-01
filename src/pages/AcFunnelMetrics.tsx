@@ -11,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Filter } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
@@ -247,6 +251,7 @@ export default function AcFunnelMetrics() {
     return day >= from && day <= to;
   };
 
+  const [excludedLossReasons, setExcludedLossReasons] = useState<string[]>([]);
 
   /** Ranking de motivos de perda (campo "Deal - Sales - Motivo de perda"). */
   const lossRanking = useMemo(() => {
@@ -259,9 +264,17 @@ export default function AcFunnelMetrics() {
       row.valor += Number(d.value || 0);
       map.set(key, row);
     });
-    const rows = Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
-    return { rows, total: lost.length, totalValor: rows.reduce((a, r) => a + r.valor, 0) };
-  }, [deals, from, to]);
+    const allRows = Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
+    const rows = allRows.filter((r) => !excludedLossReasons.includes(r.reason));
+    return {
+      allRows,
+      rows,
+      total: rows.reduce((a, r) => a + r.qtd, 0),
+      totalValor: rows.reduce((a, r) => a + r.valor, 0),
+      totalGeral: lost.length,
+    };
+  }, [deals, from, to, excludedLossReasons]);
+
 
   /** Visão de tarefas por proprietário / etapa / ação. */
   const taskMatrix = useMemo(() => {
@@ -964,10 +977,69 @@ export default function AcFunnelMetrics() {
                   </Card>
 
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Motivos de Perda</CardTitle>
-                      <CardDescription>Campo "Deal - Sales - Motivo de perda" · {lossRanking.total} negócios perdidos no período</CardDescription>
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <CardTitle className="text-base">Motivos de Perda</CardTitle>
+                        <CardDescription>
+                          Campo "Deal - Sales - Motivo de perda" · {lossRanking.total} negócios perdidos no período
+                          {excludedLossReasons.length > 0 && ` (${lossRanking.totalGeral} sem filtro)`}
+                        </CardDescription>
+                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2 shrink-0">
+                            <Filter className="h-3.5 w-3.5" />
+                            Motivos
+                            {excludedLossReasons.length > 0 && (
+                              <Badge variant="secondary" className="ml-1">{lossRanking.rows.length}/{lossRanking.allRows.length}</Badge>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72 p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-sm font-medium">Motivos incluídos</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() =>
+                                  setExcludedLossReasons(
+                                    excludedLossReasons.length ? [] : lossRanking.allRows.map((r) => r.reason),
+                                  )
+                                }
+                              >
+                                {excludedLossReasons.length ? "Selecionar todos" : "Desmarcar todos"}
+                              </Button>
+
+                          </div>
+                          <div className="max-h-64 space-y-2 overflow-y-auto">
+                            {lossRanking.allRows.map((r) => {
+                              const checked = !excludedLossReasons.includes(r.reason);
+                              return (
+                                <label key={r.reason} className="flex cursor-pointer items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() =>
+                                      setExcludedLossReasons((prev) =>
+                                        prev.includes(r.reason)
+                                          ? prev.filter((x) => x !== r.reason)
+                                          : [...prev, r.reason],
+                                      )
+                                    }
+                                  />
+                                  <span className="flex-1 truncate">{r.reason}</span>
+                                  <span className="tabular-nums text-muted-foreground">{r.qtd}</span>
+                                </label>
+                              );
+                            })}
+                            {!lossRanking.allRows.length && (
+                              <p className="text-sm text-muted-foreground">Sem perdas no período</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </CardHeader>
+
                     <CardContent className="overflow-x-auto">
                       <Table>
                         <TableHeader>
