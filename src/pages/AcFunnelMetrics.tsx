@@ -848,7 +848,13 @@ export default function AcFunnelMetrics() {
                           <XAxis dataKey="label" fontSize={11} />
                           <YAxis yAxisId="count" fontSize={11} allowDecimals={false} />
                           <YAxis yAxisId="rate" orientation="right" fontSize={11} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                          <RTooltip />
+                          <RTooltip
+                            formatter={(value: number, name: string) =>
+                              name === "Win rate acumulado (%)"
+                                ? [formatPercent(value), name]
+                                : [value, name]
+                            }
+                          />
                           <Legend />
                           <Line yAxisId="count" type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                           <Line yAxisId="count" type="monotone" dataKey="movimentacoes" name="Movimentações" stroke="hsl(var(--secondary))" strokeWidth={2} dot={false} />
