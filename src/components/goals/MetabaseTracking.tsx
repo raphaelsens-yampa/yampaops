@@ -961,6 +961,17 @@ export function MetabaseTracking() {
     [revisedBaseAgg, year, componentToVirtuals],
   );
 
+  /**
+   * Net MRR é o FLUXO do estoque de MRR: a defasagem do mês encerrado é a mesma
+   * do Total de MRR. Por isso o déficit dele é apurado na categoria de estoque,
+   * garantindo que a revisão do Net MRR seja exatamente o mesmo valor herdado
+   * pelo Total de MRR (sem revisões de tamanhos diferentes para a mesma perda).
+   */
+  const deficitSourceFor = useMemo(
+    () => (catId: string) => (catId === NET_MRR_CAT ? BASE_MRR_CAT : catId),
+    [],
+  );
+
   const revised = useMemo(
     () =>
       computeRevisedTargets({
@@ -969,8 +980,9 @@ export function MetabaseTracking() {
         categoryIds: categoriesForTable.map((c) => c.id),
         currentMonthIdx: closedBeforeIdx,
         lowerIsBetter: lowerIsBetterFor,
+        deficitSourceFor,
       }),
-    [targetByCatMonth, revisedRealizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor],
+    [targetByCatMonth, revisedRealizedByCatMonth, categoriesForTable, closedBeforeIdx, lowerIsBetterFor, deficitSourceFor],
   );
 
   const tableRevised = useMemo(
@@ -981,9 +993,11 @@ export function MetabaseTracking() {
         categoryIds: categories.map((c) => c.id),
         currentMonthIdx: closedBeforeIdx,
         lowerIsBetter: lowerIsBetterFor,
+        deficitSourceFor,
       }),
-    [tableTargetByCatMonth, revisedTableRealizedByCatMonth, categories, closedBeforeIdx, lowerIsBetterFor],
+    [tableTargetByCatMonth, revisedTableRealizedByCatMonth, categories, closedBeforeIdx, lowerIsBetterFor, deficitSourceFor],
   );
+
 
 
   const persistTableOrder = (ids: string[]) => {
