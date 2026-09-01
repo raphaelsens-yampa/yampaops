@@ -197,7 +197,10 @@ export function computeStageFlow(events: KpiEvent[], stages: KpiStage[]): StageF
     }
   }
 
-  const rows = ordered.map((s) => base.get(s.ac_stage_id)!);
+  const rows = ordered.flatMap((s) => {
+    const row = base.get(s.ac_stage_id);
+    return row ? [row] : [];
+  });
   const firstEntries = rows[0]?.entries ?? 0;
   for (const r of rows) {
     r.passRate = r.entries ? ((r.advanced + r.won) / r.entries) * 100 : null;

@@ -232,6 +232,7 @@ export default function AcFunnelMetrics() {
 
   const deals = useMemo(() => allDeals.filter((d) => matchOwner(d.owner_name)), [allDeals, owner]);
   const events = useMemo(() => allEvents.filter((e) => matchOwner(e.owner_name)), [allEvents, owner]);
+  const previousEventsFiltered = useMemo(() => previousEvents.filter((e) => matchOwner(e.owner_name)), [previousEvents, owner]);
   const tasks = useMemo(() => allTasks.filter((t) => matchOwner(t.owner_name)), [allTasks, owner]);
 
   const inPeriod = (iso: string | null) => {
@@ -348,8 +349,8 @@ export default function AcFunnelMetrics() {
   );
 
   const previousConversionKpis = useMemo(
-    () => computeConversionKpis(previousEvents as KpiEvent[], deals, stages),
-    [previousEvents, deals, stages],
+    () => computeConversionKpis(previousEventsFiltered as KpiEvent[], deals, stages),
+    [previousEventsFiltered, deals, stages],
   );
 
   const stageFlow = useMemo(
@@ -358,8 +359,8 @@ export default function AcFunnelMetrics() {
   );
 
   const previousStageFlow = useMemo(
-    () => computeStageFlow(previousEvents as KpiEvent[], stages),
-    [previousEvents, stages],
+    () => computeStageFlow(previousEventsFiltered as KpiEvent[], stages),
+    [previousEventsFiltered, stages],
   );
 
   const ownerConversion = useMemo(() => computeOwnerConversion(kpiInput.events), [kpiInput.events]);
