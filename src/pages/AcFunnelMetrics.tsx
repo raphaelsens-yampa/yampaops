@@ -973,10 +973,68 @@ export default function AcFunnelMetrics() {
                   </Card>
 
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Motivos de Perda</CardTitle>
-                      <CardDescription>Campo "Deal - Sales - Motivo de perda" · {lossRanking.total} negócios perdidos no período</CardDescription>
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <CardTitle className="text-base">Motivos de Perda</CardTitle>
+                        <CardDescription>
+                          Campo "Deal - Sales - Motivo de perda" · {lossRanking.total} negócios perdidos no período
+                          {excludedLossReasons.length > 0 && ` (${lossRanking.totalGeral} sem filtro)`}
+                        </CardDescription>
+                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2 shrink-0">
+                            <Filter className="h-3.5 w-3.5" />
+                            Motivos
+                            {excludedLossReasons.length > 0 && (
+                              <Badge variant="secondary" className="ml-1">{lossRanking.rows.length}/{lossRanking.allRows.length}</Badge>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72 p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-sm font-medium">Motivos incluídos</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() =>
+                                setExcludedLossReasons(
+                                  excludedLossReasons.length ? [] : lossRanking.allRows.map((r) => r.reason),
+                                )
+                              }
+                            >
+                              {excludedLossReasons.length ? "Todos" : "Nenhum"}
+                            </Button>
+                          </div>
+                          <div className="max-h-64 space-y-2 overflow-y-auto">
+                            {lossRanking.allRows.map((r) => {
+                              const checked = !excludedLossReasons.includes(r.reason);
+                              return (
+                                <label key={r.reason} className="flex cursor-pointer items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() =>
+                                      setExcludedLossReasons((prev) =>
+                                        prev.includes(r.reason)
+                                          ? prev.filter((x) => x !== r.reason)
+                                          : [...prev, r.reason],
+                                      )
+                                    }
+                                  />
+                                  <span className="flex-1 truncate">{r.reason}</span>
+                                  <span className="tabular-nums text-muted-foreground">{r.qtd}</span>
+                                </label>
+                              );
+                            })}
+                            {!lossRanking.allRows.length && (
+                              <p className="text-sm text-muted-foreground">Sem perdas no período</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </CardHeader>
+
                     <CardContent className="overflow-x-auto">
                       <Table>
                         <TableHeader>
