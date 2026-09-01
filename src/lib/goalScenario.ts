@@ -173,27 +173,41 @@ export function buildScenarioFactors(
   const origTotal = (m: string) => (totalMrrCat ? orig.get(`${totalMrrCat.id}|${m}`) ?? 0 : 0);
 
   // ===== Estoque de MRR por crescimento composto =====
-  // Âncora: realizado do mês anterior ao primeiro mês projetado (quando informado).
-  // Só o primeiro mês projetado usa o realizado; os seguintes compõem sobre o projetado.
+  // Cada mês projeta sobre o REALIZADO do mês anterior (dado imutável). Quando
+  // o mês anterior ainda não tem realizado (futuro), compõe sobre o projetado.
+  // Meses antes de `startMonth` mantêm a meta cadastrada — o passado não muda.
   const newStock = new Map<string, number>();
-  // Mês âncora pode não ter meta cadastrada — nesse caso ele fica fora de monthList
-  // e serve apenas como valor inicial da composição.
+  const realizedOf = (m: string) => Number(baseline?.realizedByMonth?.[m] ?? 0);
   const anchorMonth = baseline?.month
     ? baseline.month
     : monthList[Math.max(0, monthList.findIndex((m) => origTotal(m) > 0))];
   const anchorValue =
     baseline?.month && Number(baseline.value) > 0 ? Number(baseline.value) : origTotal(anchorMonth);
-  let prev = anchorValue;
+  // Sem realizados por mês, mantém o comportamento antigo (âncora única).
+  const startMonth = baseline?.realizedByMonth
+    ? PROJECTION_START_MONTH
+    : prevMonthKey(anchorMonth) >= PROJECTION_START_MONTH
+      ? anchorMonth
+      : anchorMonth;
+  const stockPrevOf = new Map<string, number>();
+  let prev = 0;
   monthList.forEach((m) => {
-    if (m < anchorMonth) {
+    if (m < startMonth) {
       newStock.set(m, origTotal(m));
+      prev = 0;
       return;
     }
-    if (m === anchorMonth) {
-      newStock.set(m, prev);
+    if (!baseline?.realizedByMonth && m === startMonth) {
+      newStock.set(m, anchorValue);
+      prev = anchorValue;
       return;
     }
-    prev = prev * (1 + rateAt(m));
+    const pm = prevMonthKey(m);
+    const base =
+      realizedOf(pm) ||
+      (prev > 0 ? prev : anchorMonth === pm && anchorValue > 0 ? anchorValue : origTotal(pm));
+    stockPrevOf.set(m, base);
+    prev = base * (1 + rateAt(m));
     newStock.set(m, prev);
   });
 
@@ -204,6 +218,7 @@ export function buildScenarioFactors(
     const n = newStock.get(m) ?? o;
     stockFactor.set(m, o > 0 ? n / o : 1);
   });
+
 
   // ===== Net MRR alvo e exigência de entrada =====
   const inflowFactor = new Map<string, number>();
