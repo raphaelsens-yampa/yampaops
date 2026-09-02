@@ -221,6 +221,19 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
                         Meta ajustada {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia
                       </Badge>
                     )}
+                    {inherited && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] text-muted-foreground"
+                        title={
+                          inheritedFrom
+                            ? `Herdada do período ${formatPeriodBR(inheritedFrom.period_start, inheritedFrom.period_end)} (sem cadastro para este mês)`
+                            : "Meta herdada de período anterior"
+                        }
+                      >
+                        herdada
+                      </Badge>
+                    )}
                   </div>
                   {hit ? (
                     <p className="text-xl sm:text-2xl font-heading font-bold text-success flex items-center gap-1">
