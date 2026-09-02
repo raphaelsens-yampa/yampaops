@@ -20,16 +20,16 @@ import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
-  CATEGORY_SLUG_TO_CLASSIFICATION,
-  ORIGIN_MIN_DATE_HINT,
+  CATEGORY_SLUG_TO_ORIGIN_METRIC,
+  ORIGIN_MONTHLY_MIN_HINT,
   ORIGIN_OPTIONS,
-  buildOriginShares,
   isOriginFiltered,
-  originShareAsOf,
-  type OriginClassification,
   type OriginFilter,
+  type OriginMetric,
 } from "@/lib/origins";
+import { useOriginRealized } from "@/components/goals/useOriginRealized";
 import { CategoryWeeklyMatrix } from "@/components/goals/CategoryWeeklyMatrix";
+
 
 
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
