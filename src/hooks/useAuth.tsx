@@ -68,7 +68,7 @@ function defaultsForRole(role: AppRole): Permissions {
   return {
     overview: ro, goals: ro, conversions: none, reports: none,
     operations: ro, atendimentos: ro,
-    agent_activity: none, auditoria_ia: ro, auditoria_ia_admin: none,
+    agent_activity: none, auditoria_ia: ro, auditoria_ia_admin: none, engajamento_cs: ro,
     sales: ro, sales_campaigns: none, campaign_history: none, link_builder: ro, precificacao: ro,
     gestao: none, team: none, users: none,
 
