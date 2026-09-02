@@ -5776,6 +5776,16 @@ export type Database = {
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
+      origin_monthly_realized: {
+        Args: { p_as_of: string; p_from: string; p_to: string }
+        Returns: {
+          classificacao: string
+          mrr: number
+          origem: string
+          qtd: number
+          year_month: string
+        }[]
+      }
       refresh_metabase_monthly_agg: {
         Args: { p_from: string; p_to: string }
         Returns: number
