@@ -109,6 +109,7 @@ export default function GoalsPage() {
     setGArpa(goal.target_tpv?.toString() || "");
     setGPct(goal.target_pct ? goal.target_pct.toString() : "");
     setGCategory(goal.category_id || "none");
+    setGOrigin(goal.origem_cliente || "all");
     setOpen(true);
   }
 
@@ -125,8 +126,10 @@ export default function GoalsPage() {
       target_tpv: parseFloat(gArpa) || 0,
       target_pct: parseFloat(gPct) || 0,
       category_id: gCategory === "none" ? null : gCategory,
+      origem_cliente: gOrigin === "all" ? null : gOrigin,
     };
   }
+
 
   async function saveGoal() {
     if (!gStart || !gEnd) return;
