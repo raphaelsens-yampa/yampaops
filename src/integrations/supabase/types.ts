@@ -5783,6 +5783,7 @@ export type Database = {
           mrr: number
           origem: string
           qtd: number
+          status: string
           year_month: string
         }[]
       }
