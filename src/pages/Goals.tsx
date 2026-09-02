@@ -60,6 +60,9 @@ export default function GoalsPage() {
   const [gArpa, setGArpa] = useState("");
   const [gPct, setGPct] = useState("");
   const [gCategory, setGCategory] = useState<string>("none");
+  // Recorte por origem do cliente: "all" = meta geral (sem origem)
+  const [gOrigin, setGOrigin] = useState<string>("all");
+
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
 
