@@ -20,16 +20,16 @@ import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { netMrrIncludingYampa20 } from "@/lib/netMrr";
 import {
-  CATEGORY_SLUG_TO_CLASSIFICATION,
-  ORIGIN_MIN_DATE_HINT,
+  CATEGORY_SLUG_TO_ORIGIN_METRIC,
+  ORIGIN_MONTHLY_MIN_HINT,
   ORIGIN_OPTIONS,
-  buildOriginShares,
   isOriginFiltered,
-  originShareAsOf,
-  type OriginClassification,
   type OriginFilter,
+  type OriginMetric,
 } from "@/lib/origins";
+import { useOriginRealized } from "@/components/goals/useOriginRealized";
 import { CategoryWeeklyMatrix } from "@/components/goals/CategoryWeeklyMatrix";
+
 
 
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
@@ -121,7 +121,11 @@ interface Goal {
   target_deals?: number | null;
   target_tpv?: number | null;
   target_pct?: number | null;
+  /** null = meta geral; "4blue" | "yampa" = meta específica da origem */
+  origem_cliente?: string | null;
 }
+
+
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -407,40 +411,21 @@ export function MetabaseTracking() {
 
 
   // ===== Recorte por origem do cliente (4blue / Yampa) =====
-  // Única base com origem: `metas_price_daily` (por price ID, a partir de 07/08/2026).
-  const [originRows, setOriginRows] = useState<
-    { data: string; classificacao: string | null; origem_cliente: string | null; qtd_mtd: number | null; mrr_mtd: number | null }[]
-  >([]);
-
-  useEffect(() => {
-    if (!isOriginFiltered(originFilter)) {
-      setOriginRows([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("metas_price_daily")
-        .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
-        .not("origem_cliente", "is", null);
-      if (cancelled) return;
-      setOriginRows(((data as any[]) || []) as any);
-    })();
-    return () => { cancelled = true; };
-  }, [originFilter]);
-
-  /** Participação (0..1) de cada origem por dia/classificação. */
-  const originShares = useMemo(
-    () => buildOriginShares(originRows as any, originFilter),
-    [originRows, originFilter],
+  // Fonte canônica: base cliente-a-cliente de ativos pagantes (com
+  // `origem_cliente` desde 01/2026), via `origin_monthly_realized`.
+  // O valor é o REAL da origem — 4blue + Yampa = Visão Geral.
+  const { monthly: originMonthly } = useOriginRealized(
+    originFilter,
+    year,
+    historicalMode ? refDate : todayKey,
   );
 
-  /** category_id -> classificação com recorte por origem */
-  const classByCategoryId = useMemo(() => {
-    const map = new Map<string, OriginClassification>();
+  /** category_id -> métrica com recorte real por origem */
+  const originMetricByCategoryId = useMemo(() => {
+    const map = new Map<string, OriginMetric>();
     categories.forEach((c) => {
-      const cls = CATEGORY_SLUG_TO_CLASSIFICATION[(c as any).slug];
-      if (cls) map.set(c.id, cls);
+      const metric = CATEGORY_SLUG_TO_ORIGIN_METRIC[(c as any).slug];
+      if (metric) map.set(c.id, metric);
     });
     return map;
   }, [categories]);
@@ -481,52 +466,65 @@ export function MetabaseTracking() {
     return Array.from(grouped.values());
   }, [tacticalRetention, teamByUser, historicalMode, refDate, todayKey]);
 
+  /** Realizado por origem convertido para o formato de agregado mensal. */
+  const originAgg = useMemo<AggRow[]>(() => {
+    if (!isOriginFiltered(originFilter) || !originMonthly.size) return [];
+    const out: AggRow[] = [];
+    originMetricByCategoryId.forEach((metric, categoryId) => {
+      const cat = categories.find((c) => c.id === categoryId);
+      for (const [key, value] of originMonthly) {
+        const [month, m] = key.split("|");
+        if (m !== metric) continue;
+        if (month.slice(0, 4) !== String(year)) continue;
+        const isQty = metric === "ativos" || metric === "churn_qtd";
+        const isPct = metric === "churn_pct";
+        out.push({
+          year_month: `${month}-01`,
+          metric_key: `origin_${metric}`,
+          scope: "company",
+          team_id: null,
+          user_id: null,
+          campaign_id: null,
+          category_id: categoryId,
+          area: (cat as any)?.area ?? null,
+          realized_amount: isPct ? value.mrr : isQty ? value.qtd : value.mrr,
+          deals_count: value.qtd,
+        });
+      }
+    });
+    return out;
+  }, [originFilter, originMonthly, originMetricByCategoryId, categories, year]);
+
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
     if (!isOriginFiltered(originFilter)) return [...base, ...tacticalRetentionAgg];
     // Registros táticos de retenção são lançamentos da operação Yampa.
-    if (originFilter === "yampa") return [...base, ...tacticalRetentionAgg];
-    // Aplica a participação da origem sobre o realizado canônico:
-    // 4blue + Yampa = Visão Geral, e cada recorte <= total.
-    const out: AggRow[] = [];
-    for (const r of base) {
-      const cls = r.category_id ? classByCategoryId.get(r.category_id) : undefined;
-      if (!cls) continue; // categoria sem recorte por origem -> "—"
-      const asOf = `${r.year_month}-31` <= refDate ? `${r.year_month}-31` : refDate;
-      const sq = originShareAsOf(originShares, asOf, cls, "qtd");
-      const sm = originShareAsOf(originShares, asOf, cls, "mrr");
-      if (sq === null || sm === null) continue;
-      out.push({
-        ...r,
-        realized_amount: Number(r.realized_amount || 0) * sm,
-        deals_count: Number(r.deals_count || 0) * sq,
-      });
-    }
-    return out;
-  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
+    if (originFilter === "yampa") return [...originAgg, ...tacticalRetentionAgg];
+    return originAgg;
+  }, [originFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
     if (!isOriginFiltered(originFilter)) return false;
-    // Retenção é uma apuração operacional do painel tático: pertence à Yampa
-    // e não deve ser rateada pela base de price ID.
+    // Retenção é uma apuração operacional do painel tático: pertence à Yampa.
     if (id === RETENTION_CAT) return originFilter === "4blue";
     const cat = categories.find((c) => c.id === id);
     const slug = (cat as any)?.slug as string | undefined;
     if (!slug) return true;
-    if (CATEGORY_SLUG_TO_CLASSIFICATION[slug]) return false;
+    if (CATEGORY_SLUG_TO_ORIGIN_METRIC[slug]) return false;
     // virtuais agregadoras seguem disponíveis se seus componentes têm origem
     const comps = (cat as any)?.component_category_ids as string[] | null;
     if (comps?.length) {
       return !comps.some((cid) => {
         const s = (categories.find((c) => c.id === cid) as any)?.slug;
-        return s && CATEGORY_SLUG_TO_CLASSIFICATION[s];
+        return s && CATEGORY_SLUG_TO_ORIGIN_METRIC[s];
       });
     }
     return true;
   };
+
 
 
 
@@ -642,10 +640,24 @@ export function MetabaseTracking() {
     return true;
   };
 
+  /**
+   * Metas seguem o recorte de origem: em Visão Geral só entram as metas gerais
+   * (sem origem); com 4blue/Yampa só entram as metas cadastradas para a origem.
+   * Sem meta específica, a linha aparece sem meta — nunca reaproveita a geral.
+   */
+  const originScopedGoals = useMemo(() => {
+    return goals.filter((g) => {
+      const goalOrigin = String((g as any).origem_cliente ?? "").trim().toLowerCase();
+      return isOriginFiltered(originFilter) ? goalOrigin === originFilter : !goalOrigin;
+    });
+  }, [goals, originFilter]);
+
   const filteredGoals = useMemo(() => {
-    return goals.filter((g) => scopedFilter({ ...g }));
+    return originScopedGoals.filter((g) => scopedFilter({ ...g }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goals, scope, categoryId, teamId, userId, campaignId]);
+  }, [originScopedGoals, scope, categoryId, teamId, userId, campaignId]);
+
+
 
   // Mapa de categorias virtuais (agrupadoras) → set de componentes
   const virtualComponents = useMemo(() => {
@@ -888,7 +900,7 @@ export function MetabaseTracking() {
 
   const tableTargetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
-    goals.forEach((g) => {
+    originScopedGoals.forEach((g) => {
       monthList.forEach((mStart, idx) => {
         const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
         const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
@@ -898,7 +910,8 @@ export function MetabaseTracking() {
       });
     });
     return map;
-  }, [goals, monthList, year]);
+  }, [originScopedGoals, monthList, year]);
+
 
   // ===== Meta Revisada — déficit dos meses encerrados diluído no restante do trimestre =====
   const refYear = isNaN(refDay.getTime()) ? now.getFullYear() : refDay.getFullYear();
@@ -1238,11 +1251,13 @@ export function MetabaseTracking() {
               )}
               {isOriginFiltered(originFilter) && (
                 <p className="mb-4 text-xs text-amber-600">
-                  Recorte por origem usa a base por price ID (Novos Pagantes, Upsell, Downsell e
-                  Recuperados). Métricas de estoque (Total de MRR, Ativos Pagantes, Churn) não têm
-                  quebra por origem e aparecem como "—". {ORIGIN_MIN_DATE_HINT}.
+                  Recorte por origem apurado na base cliente a cliente de ativos pagantes: Total de
+                  MRR, Ativos Pagantes, New MRR, Recuperados, Upsell, Downsell, Churn e Net MRR.
+                  Métricas sem origem na base aparecem como "—". As metas exibidas são as
+                  cadastradas para esta origem. {ORIGIN_MONTHLY_MIN_HINT}.
                 </p>
               )}
+
 
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-start">

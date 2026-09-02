@@ -22,6 +22,8 @@ import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
 
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
+import { ORIGIN_OPTIONS, originLabel, type OriginFilter } from "@/lib/origins";
+
 
 type GoalScope = "company" | "team" | "user" | "campaign";
 
@@ -60,6 +62,9 @@ export default function GoalsPage() {
   const [gArpa, setGArpa] = useState("");
   const [gPct, setGPct] = useState("");
   const [gCategory, setGCategory] = useState<string>("none");
+  // Recorte por origem do cliente: "all" = meta geral (sem origem)
+  const [gOrigin, setGOrigin] = useState<string>("all");
+
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
 
@@ -88,10 +93,12 @@ export default function GoalsPage() {
     setGScope("company"); setGUser("none"); setGTeam("none"); setGCampaignId("none");
     setGStart(""); setGEnd(""); setGMrr(""); setGDeals(""); setGArpa(""); setGPct("");
     setGCategory("none");
+    setGOrigin("all");
     setEditingGoal(null);
   }
 
   function openEditDialog(goal: any) {
+
     setEditingGoal(goal);
     setGScope((goal.scope as GoalScope) || "company");
     setGUser(goal.user_id || "none");
@@ -104,6 +111,7 @@ export default function GoalsPage() {
     setGArpa(goal.target_tpv?.toString() || "");
     setGPct(goal.target_pct ? goal.target_pct.toString() : "");
     setGCategory(goal.category_id || "none");
+    setGOrigin(goal.origem_cliente || "all");
     setOpen(true);
   }
 
@@ -120,8 +128,10 @@ export default function GoalsPage() {
       target_tpv: parseFloat(gArpa) || 0,
       target_pct: parseFloat(gPct) || 0,
       category_id: gCategory === "none" ? null : gCategory,
+      origem_cliente: gOrigin === "all" ? null : gOrigin,
     };
   }
+
 
   async function saveGoal() {
     if (!gStart || !gEnd) return;
@@ -185,6 +195,25 @@ export default function GoalsPage() {
           </SelectContent>
         </Select>
       </div>
+
+      <div>
+        <Label className="text-sm font-semibold">Origem do cliente</Label>
+        <Select value={gOrigin} onValueChange={setGOrigin}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {ORIGIN_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.value === "all" ? "Geral (sem origem)" : o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          A meta só aparece no acompanhamento quando o filtro de origem estiver nesta seleção.
+        </p>
+      </div>
+
+
 
       {gScope === "user" && (
         <Select value={gUser} onValueChange={setGUser}>
@@ -386,6 +415,10 @@ export default function GoalsPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || "Empresa"}</Badge>
                             {cat && <span className="text-xs text-muted-foreground truncate">{cat.name}</span>}
+                            {g.origem_cliente && (
+                              <Badge variant="secondary">{originLabel(g.origem_cliente as OriginFilter)}</Badge>
+                            )}
+
                           </div>
                           <p className="text-sm font-medium mt-1 truncate">{details}</p>
                           <p className="text-xs text-muted-foreground">{g.period_start} → {g.period_end}</p>
@@ -462,7 +495,15 @@ export default function GoalsPage() {
                       return (
                         <TableRow key={g.id}>
                           <TableCell><Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || g.scope || "Empresa"}</Badge></TableCell>
-                          <TableCell className="text-sm">{cat ? cat.name : "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {cat ? cat.name : "—"}
+                            {g.origem_cliente && (
+                              <Badge variant="secondary" className="ml-2">
+                                {originLabel(g.origem_cliente as OriginFilter)}
+                              </Badge>
+                            )}
+                          </TableCell>
+
                           <TableCell className="text-sm">{details}</TableCell>
                           <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
                           <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
