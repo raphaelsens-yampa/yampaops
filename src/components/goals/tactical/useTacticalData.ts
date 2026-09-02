@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDateBR } from "@/lib/dateBR";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } from "./types";
 import {
   fetchRealizedSources,
@@ -57,7 +58,16 @@ export function useTacticalData(
 
       const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes, moveCfgRes, ownerMapRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("tactical_goals").select("*").lte("period_start", toDateStr).gte("period_end", fromDateStr).order("created_at", { ascending: false }),
+        // Traz também metas já encerradas: quando o mês consultado não tem
+        // cadastro, a meta é herdada da última meta anterior do mesmo escopo.
+        fetchAllPaged<TacticalGoal>(() =>
+          supabase
+            .from("tactical_goals")
+            .select("*")
+            .lte("period_start", toDateStr)
+            .order("period_end", { ascending: false })
+            .order("id", { ascending: true }) as any,
+        ),
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("id, name").order("name"),
         supabase.from("team_members").select("team_id, user_id"),

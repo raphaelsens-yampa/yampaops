@@ -9,7 +9,9 @@ import {
   monthPacing,
   motivationalCopy,
   realizedMonthBeforeToday,
+  formatPeriodBR,
   resolveDailyTarget,
+  resolveDailyTargetInfo,
   toBRDateKey,
 } from "./types";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
@@ -84,14 +86,15 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   const rows = metrics
     .filter((m) => m.key !== "call_realizada")
     .map((m) => {
-      const target = resolveDailyTarget(goals, m.id, userId, teamId);
+      const info = resolveDailyTargetInfo(goals, m.id, userId, teamId, today);
+      const target = info.value;
       const realized = daily.find((x) => x.user_id === userId && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const missing = Math.max(target - realized, 0);
       const streak = computeStreak(userId, m.id, target, daily, today);
       const monthBefore = realizedMonthBeforeToday(daily, m.id, [userId], today);
       const pacing = monthPacing(today, target, monthBefore);
-      return { m, target, realized, pct, missing, streak, pacing };
+      return { m, target, realized, pct, missing, streak, pacing, inherited: info.source === "inherited", inheritedFrom: info.goal };
     });
 
 
@@ -189,7 +192,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
       </div>
 
       <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-        {withGoal.map(({ m, target, realized, pct, missing, streak, pacing }) => {
+        {withGoal.map(({ m, target, realized, pct, missing, streak, pacing, inherited, inheritedFrom }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
           const behind = revisedView && pacing.adjusted > target + 0.05;
@@ -217,6 +220,19 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
                     {behind && (
                       <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px]">
                         Meta ajustada {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia
+                      </Badge>
+                    )}
+                    {inherited && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] text-muted-foreground"
+                        title={
+                          inheritedFrom
+                            ? `Herdada do período ${formatPeriodBR(inheritedFrom.period_start, inheritedFrom.period_end)} (sem cadastro para este mês)`
+                            : "Meta herdada de período anterior"
+                        }
+                      >
+                        herdada
                       </Badge>
                     )}
                   </div>

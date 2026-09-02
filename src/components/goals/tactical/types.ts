@@ -143,32 +143,99 @@ export function realizedMonthBeforeToday(
     .reduce((s, x) => s + (x.value ?? 0), 0);
 }
 
-/** Precedência de meta diária: pessoa → time → equipe toda. */
+export interface DailyTargetInfo {
+  value: number;
+  source: "current" | "inherited" | "none";
+  goal?: TacticalGoal;
+}
+
+const dateKeyOf = (d: Date | string): string =>
+  typeof d === "string" ? d.slice(0, 10) : toBRDateKey(d);
+
+/**
+ * Precedência de meta diária: pessoa → time → equipe toda.
+ *
+ * 1. Vale a meta vigente na data de referência (period_start ≤ data ≤ period_end);
+ *    havendo mais de uma no mesmo escopo, vence a de criação mais recente.
+ * 2. Não havendo meta vigente em nenhum escopo, herda a última meta anterior
+ *    (maior period_end < data), na mesma ordem de precedência.
+ * 3. Sem meta anterior → 0.
+ */
+export function resolveDailyTargetInfo(
+  goals: TacticalGoal[],
+  metricId: string,
+  userId: string | null,
+  teamId: string | null,
+  refDate?: Date | string,
+): DailyTargetInfo {
+  const latest = (list: TacticalGoal[]) =>
+    list.length
+      ? list.reduce((a, b) => (String(b.created_at ?? "") > String(a.created_at ?? "") ? b : a))
+      : undefined;
+  const latestEnded = (list: TacticalGoal[]) =>
+    list.length
+      ? list.reduce((a, b) => {
+          const ea = String(a.period_end).slice(0, 10);
+          const eb = String(b.period_end).slice(0, 10);
+          if (eb > ea) return b;
+          if (eb < ea) return a;
+          return String(b.created_at ?? "") > String(a.created_at ?? "") ? b : a;
+        })
+      : undefined;
+
+  const scoped = goals.filter((g) => g.metric_id === metricId);
+  const inScope = (g: TacticalGoal, scope: "user" | "team" | "all") =>
+    scope === "user"
+      ? g.user_id === userId
+      : scope === "team"
+        ? !g.user_id && g.team_id === teamId
+        : !g.user_id && !g.team_id;
+
+  const scopes: ("user" | "team" | "all")[] = [
+    ...(userId ? (["user"] as const) : []),
+    ...(teamId ? (["team"] as const) : []),
+    "all",
+  ];
+
+  const refKey = refDate ? dateKeyOf(refDate) : undefined;
+
+  // 1) meta vigente
+  for (const scope of scopes) {
+    const list = scoped.filter(
+      (g) =>
+        inScope(g, scope) &&
+        (!refKey ||
+          (String(g.period_start).slice(0, 10) <= refKey &&
+            String(g.period_end).slice(0, 10) >= refKey)),
+    );
+    const hit = latest(list);
+    if (hit) return { value: Number(hit.daily_target) || 0, source: "current", goal: hit };
+  }
+
+  if (!refKey) return { value: 0, source: "none" };
+
+  // 2) herança da última meta encerrada
+  for (const scope of scopes) {
+    const list = scoped.filter(
+      (g) => inScope(g, scope) && String(g.period_end).slice(0, 10) < refKey,
+    );
+    const hit = latestEnded(list);
+    if (hit) return { value: Number(hit.daily_target) || 0, source: "inherited", goal: hit };
+  }
+
+  return { value: 0, source: "none" };
+}
 
 export function resolveDailyTarget(
   goals: TacticalGoal[],
   metricId: string,
   userId: string | null,
   teamId: string | null,
+  refDate?: Date | string,
 ): number {
-  // Se houver mais de uma meta para o mesmo escopo (ex.: cadastro refeito),
-  // vale sempre a mais recente.
-  const latest = (list: TacticalGoal[]) =>
-    list.length
-      ? list.reduce((a, b) => (String(b.created_at ?? "") > String(a.created_at ?? "") ? b : a))
-      : undefined;
-
-  const byUser = userId
-    ? latest(goals.filter((g) => g.metric_id === metricId && g.user_id === userId))
-    : undefined;
-  if (byUser) return Number(byUser.daily_target) || 0;
-  const byTeam = teamId
-    ? latest(goals.filter((g) => g.metric_id === metricId && !g.user_id && g.team_id === teamId))
-    : undefined;
-  if (byTeam) return Number(byTeam.daily_target) || 0;
-  const global = latest(goals.filter((g) => g.metric_id === metricId && !g.user_id && !g.team_id));
-  return global ? Number(global.daily_target) || 0 : 0;
+  return resolveDailyTargetInfo(goals, metricId, userId, teamId, refDate).value;
 }
+
 
 /** Métricas visíveis para um time (métrica sem time vale para todos). */
 export function metricsForTeam(metrics: TacticalMetric[], teamId: string | null): TacticalMetric[] {
@@ -246,4 +313,13 @@ export function realizedBetween(
         x.date <= to,
     )
     .reduce((s, x) => s + (x.value ?? 0), 0);
+}
+
+/** "01/08/2026 – 31/08/2026" a partir de datas YYYY-MM-DD. */
+export function formatPeriodBR(start: string, end: string): string {
+  const br = (s: string) => {
+    const [y, m, d] = String(s).slice(0, 10).split("-");
+    return y && m && d ? `${d}/${m}/${y}` : String(s);
+  };
+  return `${br(start)} – ${br(end)}`;
 }

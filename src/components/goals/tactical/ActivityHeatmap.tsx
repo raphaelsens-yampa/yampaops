@@ -68,7 +68,7 @@ export function ActivityHeatmap({ metrics, goals, daily, profiles, memberIds, te
         <div className="space-y-2 overflow-x-auto no-scrollbar">
           {users.map((uid) => {
             const name = profiles.find((p) => p.user_id === uid)?.full_name || "—";
-            const target = metric ? resolveDailyTarget(goals, metric.id, uid, teamId) : 0;
+            const target = metric ? resolveDailyTarget(goals, metric.id, uid, teamId, today) : 0;
             return (
               <div key={uid} className="flex items-center gap-2">
                 <span className="w-20 sm:w-32 text-[11px] sm:text-xs truncate shrink-0">{name}</span>

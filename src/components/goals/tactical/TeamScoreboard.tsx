@@ -76,7 +76,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
 
     const userRows = memberIds.map((uid) => {
       const scopeTeam = groupByTeam ? teamOf.get(uid) ?? null : teamId;
-      const target = metric ? resolveDailyTarget(goals, metric.id, uid, scopeTeam) : 0;
+      const target = metric ? resolveDailyTarget(goals, metric.id, uid, scopeTeam, today) : 0;
       const value = metric
         ? daily.find((x) => x.user_id === uid && x.metric_id === metric.id && x.date === todayKey)?.value ?? 0
         : 0;

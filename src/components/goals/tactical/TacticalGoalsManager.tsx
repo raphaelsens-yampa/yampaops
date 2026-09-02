@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Profile, TacticalGoal, TacticalMetric, Team, toBRDateKey } from "./types";
+import { formatPeriodBR, Profile, TacticalGoal, TacticalMetric, Team, toBRDateKey } from "./types";
 
 
 interface Props {
@@ -146,6 +146,38 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
     return "Equipe toda";
   }
 
+  const todayKey = toBRDateKey(today);
+
+  function statusOf(g: TacticalGoal): "vigente" | "futura" | "encerrada" {
+    const s = String(g.period_start).slice(0, 10);
+    const e = String(g.period_end).slice(0, 10);
+    if (s > todayKey) return "futura";
+    if (e < todayKey) return "encerrada";
+    return "vigente";
+  }
+
+  // Escopos que hoje rodam com meta herdada (não há cadastro vigente, mas existe meta anterior).
+  const inherited = (() => {
+    const byScope = new Map<string, TacticalGoal[]>();
+    for (const g of goals) {
+      const key = `${g.metric_id}|${g.user_id ?? ""}|${g.team_id ?? ""}`;
+      byScope.set(key, [...(byScope.get(key) || []), g]);
+    }
+    const out: { label: string; from: TacticalGoal }[] = [];
+    for (const list of byScope.values()) {
+      if (list.some((g) => statusOf(g) === "vigente")) continue;
+      const past = list.filter((g) => String(g.period_end).slice(0, 10) < todayKey);
+      if (!past.length) continue;
+      const from = past.reduce((a, b) =>
+        String(b.period_end).slice(0, 10) > String(a.period_end).slice(0, 10) ? b : a,
+      );
+      const metricLabel = metrics.find((m) => m.id === from.metric_id)?.label ?? "—";
+      out.push({ label: `${metricLabel} · ${scopeLabel(from)}`, from });
+    }
+    return out;
+  })();
+
+
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">Metas diárias</CardTitle></CardHeader>
@@ -195,6 +227,22 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
           <Button onClick={addGoal}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
         </div>
 
+        {inherited.length > 0 && (
+          <div className="rounded-md border border-amber-400/50 bg-amber-500/10 p-3 text-xs space-y-1">
+            <p className="font-medium">
+              {inherited.length} meta(s) sem cadastro para o período atual — o sistema está herdando a última meta anterior:
+            </p>
+            <ul className="list-disc pl-4 text-muted-foreground">
+              {inherited.map((i) => (
+                <li key={i.from.id}>
+                  {i.label} — herdada do período {formatPeriodBR(i.from.period_start, i.from.period_end)} ({i.from.daily_target}/dia)
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground">Cadastre o novo período acima para substituir a meta herdada.</p>
+          </div>
+        )}
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -202,16 +250,32 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
               <TableHead>Escopo</TableHead>
               <TableHead className="text-right">Meta/dia</TableHead>
               <TableHead>Período</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {goals.map((g) => (
+            {goals.map((g) => {
+              const st = statusOf(g);
+              return (
               <TableRow key={g.id}>
                 <TableCell>{metrics.find((m) => m.id === g.metric_id)?.label ?? "—"}</TableCell>
                 <TableCell>{scopeLabel(g)}</TableCell>
                 <TableCell className="text-right">{g.daily_target}</TableCell>
                 <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
+                <TableCell>
+                  <span
+                    className={`text-[11px] rounded-full border px-2 py-0.5 ${
+                      st === "vigente"
+                        ? "border-success/50 text-success"
+                        : st === "futura"
+                          ? "border-primary/50 text-primary"
+                          : "border-muted-foreground/40 text-muted-foreground"
+                    }`}
+                  >
+                    {st}
+                  </span>
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
                     <Button variant="ghost" size="icon" aria-label="Editar meta" onClick={() => startEdit(g)}>
@@ -223,10 +287,12 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
             {goals.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma meta cadastrada</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhuma meta cadastrada</TableCell></TableRow>
             )}
+
           </TableBody>
         </Table>
       </CardContent>
