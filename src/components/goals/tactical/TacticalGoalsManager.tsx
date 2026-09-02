@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Trash2, Plus, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Profile, TacticalGoal, TacticalMetric, Team, toBRDateKey } from "./types";
+import { formatPeriodBR, Profile, TacticalGoal, TacticalMetric, Team, toBRDateKey } from "./types";
 
 
 interface Props {
