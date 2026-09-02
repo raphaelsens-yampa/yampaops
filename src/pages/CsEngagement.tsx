@@ -53,7 +53,7 @@ export default function CsEngagement() {
             className="w-full border-0 bg-background"
             style={{ height: "calc(100vh - 260px)", minHeight: 520 }}
             referrerPolicy="no-referrer-when-downgrade"
-production            allow="clipboard-read; clipboard-write; fullscreen"
+allow="clipboard-read; clipboard-write; fullscreen"
           />
         </CardContent>
       </Card>
