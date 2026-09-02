@@ -1232,11 +1232,13 @@ export function MetabaseTracking() {
               )}
               {isOriginFiltered(originFilter) && (
                 <p className="mb-4 text-xs text-amber-600">
-                  Recorte por origem usa a base por price ID (Novos Pagantes, Upsell, Downsell e
-                  Recuperados). Métricas de estoque (Total de MRR, Ativos Pagantes, Churn) não têm
-                  quebra por origem e aparecem como "—". {ORIGIN_MIN_DATE_HINT}.
+                  Recorte por origem apurado na base cliente a cliente de ativos pagantes: Total de
+                  MRR, Ativos Pagantes, New MRR, Recuperados, Upsell, Downsell, Churn e Net MRR.
+                  Métricas sem origem na base aparecem como "—". As metas exibidas são as
+                  cadastradas para esta origem. {ORIGIN_MONTHLY_MIN_HINT}.
                 </p>
               )}
+
 
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-start">
