@@ -14,7 +14,7 @@ export default function CsEngagement() {
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="p-4 md:p-6 flex flex-col h-full gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Engajamento CS</h1>
@@ -36,15 +36,14 @@ export default function CsEngagement() {
           </div>
         </div>
 
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
+        <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+          <CardContent className="p-0 flex-1 min-h-0">
             <iframe
               key={key}
               ref={iframeRef}
               src={APP_URL}
               title="Engajamento CS"
-              className="w-full border-0 bg-background"
-              style={{ height: "calc(100vh - 260px)", minHeight: 520 }}
+              className="w-full h-full border-0 bg-background"
               referrerPolicy="no-referrer-when-downgrade"
               allow="clipboard-read; clipboard-write; fullscreen"
             />
