@@ -88,9 +88,10 @@ describe("computeStageFlow", () => {
     expect(novo.lost).toBe(1);
     expect(novo.passRate).toBe(50);
     expect(novo.lossRate).toBe(50);
+    expect(novo.winRate).toBe(0);
     expect(novo.avgDays).toBeCloseTo(1.5, 5);
     expect(rows[1].entries).toBe(1);
-    expect(rows[1].cumulative).toBe(50);
+    expect(rows[1].winRate).toBe(0);
   });
 });
 
