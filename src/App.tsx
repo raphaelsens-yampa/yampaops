@@ -121,6 +121,7 @@ function AppRoutes() {
       <Route path="/atendimentos/auditoria/insights" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditInsights /></RequireArea>} />
       <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditGoldenSet /></RequireArea>} />
       <Route path="/atendimentos/auditoria/minhas" element={<RequireArea area="auditoria_ia"><ChatwootAuditMine /></RequireArea>} />
+      <Route path="/atendimentos/engajamento-cs" element={<RequireArea area="engajamento_cs"><CsEngagement /></RequireArea>} />
       <Route path="/reports" element={<RequireArea area="reports"><Reports /></RequireArea>} />
 
       <Route path="/insights/conversions" element={<RequireArea area="conversions"><StripeConversions /></RequireArea>} />
