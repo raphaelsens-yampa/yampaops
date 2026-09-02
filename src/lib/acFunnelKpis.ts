@@ -201,11 +201,10 @@ export function computeStageFlow(events: KpiEvent[], stages: KpiStage[]): StageF
     const row = base.get(s.ac_stage_id);
     return row ? [row] : [];
   });
-  const firstEntries = rows[0]?.entries ?? 0;
   for (const r of rows) {
-    r.passRate = r.entries ? ((r.advanced + r.won) / r.entries) * 100 : null;
+    r.passRate = r.entries ? (r.advanced / r.entries) * 100 : null;
+    r.winRate = r.entries ? (r.won / r.entries) * 100 : null;
     r.lossRate = r.entries ? (r.lost / r.entries) * 100 : null;
-    r.cumulative = firstEntries ? (r.entries / firstEntries) * 100 : null;
     const d = dwell.get(r.stageId);
     r.avgDays = d?.length ? d.reduce((a, b) => a + b, 0) / d.length : null;
   }
