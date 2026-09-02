@@ -146,6 +146,38 @@ export function TacticalGoalsManager({ metrics, profiles, teams, goals, onChange
     return "Equipe toda";
   }
 
+  const todayKey = toBRDateKey(today);
+
+  function statusOf(g: TacticalGoal): "vigente" | "futura" | "encerrada" {
+    const s = String(g.period_start).slice(0, 10);
+    const e = String(g.period_end).slice(0, 10);
+    if (s > todayKey) return "futura";
+    if (e < todayKey) return "encerrada";
+    return "vigente";
+  }
+
+  // Escopos que hoje rodam com meta herdada (não há cadastro vigente, mas existe meta anterior).
+  const inherited = (() => {
+    const byScope = new Map<string, TacticalGoal[]>();
+    for (const g of goals) {
+      const key = `${g.metric_id}|${g.user_id ?? ""}|${g.team_id ?? ""}`;
+      byScope.set(key, [...(byScope.get(key) || []), g]);
+    }
+    const out: { label: string; from: TacticalGoal }[] = [];
+    for (const list of byScope.values()) {
+      if (list.some((g) => statusOf(g) === "vigente")) continue;
+      const past = list.filter((g) => String(g.period_end).slice(0, 10) < todayKey);
+      if (!past.length) continue;
+      const from = past.reduce((a, b) =>
+        String(b.period_end).slice(0, 10) > String(a.period_end).slice(0, 10) ? b : a,
+      );
+      const metricLabel = metrics.find((m) => m.id === from.metric_id)?.label ?? "—";
+      out.push({ label: `${metricLabel} · ${scopeLabel(from)}`, from });
+    }
+    return out;
+  })();
+
+
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">Metas diárias</CardTitle></CardHeader>
