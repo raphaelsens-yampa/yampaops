@@ -194,6 +194,25 @@ export default function GoalsPage() {
         </Select>
       </div>
 
+      <div>
+        <Label className="text-sm font-semibold">Origem do cliente</Label>
+        <Select value={gOrigin} onValueChange={setGOrigin}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {ORIGIN_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.value === "all" ? "Geral (sem origem)" : o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          A meta só aparece no acompanhamento quando o filtro de origem estiver nesta seleção.
+        </p>
+      </div>
+
+
+
       {gScope === "user" && (
         <Select value={gUser} onValueChange={setGUser}>
           <SelectTrigger><SelectValue placeholder="Vendedor" /></SelectTrigger>
