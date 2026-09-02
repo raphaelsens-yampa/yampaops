@@ -22,6 +22,8 @@ import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
 
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
+import { ORIGIN_OPTIONS, originLabel, type OriginFilter } from "@/lib/origins";
+
 
 type GoalScope = "company" | "team" | "user" | "campaign";
 
