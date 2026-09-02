@@ -1,49 +1,26 @@
-# Engajamento CS — integração com o app do Google Apps Script
+# Engajamento CS — nova tela com embed do app do Google
 
-O link enviado está restrito ao login Google do domínio yampa.com.br: uma chamada do servidor é redirecionada para a tela de login, então hoje a aplicação não consegue ler esses dados. O plano abaixo resolve o acesso e cria a seção.
+Sim, é possível. O item entra no grupo CX logo abaixo de "Auditoria IA" e a tela exibe o app do Apps Script dentro de um iframe.
 
-## O que você precisa fazer (uma vez)
+## O que será feito
 
-No Apps Script, reimplantar o Web App com:
-- Executar como: eu (seu usuário)
-- Quem pode acessar: qualquer pessoa (com a URL)
+1. Nova página `src/pages/CsEngagement.tsx` na rota `/atendimentos/engajamento-cs`:
+   - Cabeçalho "Engajamento CS" com botões "Recarregar" e "Abrir em nova aba".
+   - Iframe em tela cheia (altura calculada) com o app do Apps Script.
+   - Aviso amigável caso o conteúdo não carregue, com link direto para abrir fora do sistema.
+2. Rota registrada em `src/App.tsx`, protegida como as demais.
+3. Item "Engajamento CS" no sidebar (grupo CX), imediatamente abaixo de "Auditoria IA".
+4. Nova chave de acesso `engajamento_cs` na Gestão de Nível de Acessos, para controlar quem enxerga a seção.
 
-E adicionar uma verificação simples de token no `doGet(e)`:
+## Duas ressalvas importantes sobre o embed
+
+- **Login Google:** o app é restrito ao domínio yampa.com.br. Só carrega para quem estiver logado com a conta Google da empresa no mesmo navegador; caso contrário aparece a tela de login do Google dentro do quadro.
+- **Permissão de incorporação:** por padrão, o Apps Script bloqueia ser exibido em sites de terceiros. Para o iframe funcionar, é preciso adicionar no script, no retorno do `doGet`:
 
 ```text
-if (e.parameter.token !== 'SEGREDO') return ContentService.createTextOutput('unauthorized');
+.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
 ```
 
-Depois me envie a nova URL `/exec` e o token. Guardo o token como segredo do backend (nunca no frontend).
+e reimplantar o Web App. Sem isso, o navegador recusa a exibição e a tela mostrará o aviso com o botão "Abrir em nova aba".
 
-Se preferir não abrir o Web App, a alternativa é o script empurrar os dados (POST diário) para uma função do backend — o restante do plano continua igual.
-
-## Etapa 1 — Descobrir o formato dos dados
-
-Com a URL liberada, faço uma chamada de inspeção e mapeio os campos reais retornados (colunas, tipos, granularidade: por cliente, por CS, por dia). O modelo de tabela abaixo é ajustado ao que vier de fato.
-
-## Etapa 2 — Backend
-
-- Segredos: `CS_ENGAGEMENT_URL` e `CS_ENGAGEMENT_TOKEN`.
-- Edge function `cs-engagement-sync`: busca o JSON, normaliza e faz upsert.
-- Tabela `cs_engagement` (schema final definido na Etapa 1), com colunas previstas: `id`, `ref_date`, `cliente`, `email`, `cs_owner`, `ultimo_contato`, `interacoes`, `score`, `status`, `raw` (jsonb), `synced_at`. RLS habilitada + GRANTs (leitura para usuários autenticados, escrita apenas service_role).
-- Tabela `cs_engagement_sync_log` para status/erros da última sincronização.
-- Cron diário (07:00 America/Sao_Paulo) + botão "Atualizar agora" na tela.
-
-## Etapa 3 — Tela "Engajamento CS"
-
-Nova página `src/pages/CsEngagement.tsx`, rota `/cs-engagement`, item no sidebar dentro do grupo CX, seguindo o padrão visual das telas atuais (tokens do design system, PT-BR, timezone São Paulo).
-
-Conteúdo:
-- Filtros: período, responsável CS, status/segmento.
-- KPIs: clientes acompanhados, engajados no período, sem contato há X dias, score médio.
-- Gráfico de evolução diária/semanal do engajamento.
-- Ranking por responsável CS.
-- Tabela detalhada com busca, ordenação, paginação (`fetchAllPaged`) e exportação CSV/XLSX.
-- Painel de status da sincronização (última execução, registros, erros).
-
-## Detalhes técnicos
-
-- Consultas seguem o guardrail de paginação já existente no projeto.
-- Chave de acesso na tela de Gestão de Nível de Acessos (`cs_engagement`), para controlar quem vê a seção.
-- Datas normalizadas para `America/Sao_Paulo`.
+Implemento a tela do jeito acima; se o embed for bloqueado, basta o ajuste no script para passar a renderizar.
