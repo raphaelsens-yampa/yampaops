@@ -495,7 +495,15 @@ export default function GoalsPage() {
                       return (
                         <TableRow key={g.id}>
                           <TableCell><Badge variant="outline">{SCOPE_LABELS[g.scope as GoalScope] || g.scope || "Empresa"}</Badge></TableCell>
-                          <TableCell className="text-sm">{cat ? cat.name : "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {cat ? cat.name : "—"}
+                            {g.origem_cliente && (
+                              <Badge variant="secondary" className="ml-2">
+                                {originLabel(g.origem_cliente as OriginFilter)}
+                              </Badge>
+                            )}
+                          </TableCell>
+
                           <TableCell className="text-sm">{details}</TableCell>
                           <TableCell className="text-sm">{g.period_start} → {g.period_end}</TableCell>
                           <TableCell className="text-right">R$ {(g.target_mrr || 0).toLocaleString("pt-BR")}</TableCell>
