@@ -640,10 +640,24 @@ export function MetabaseTracking() {
     return true;
   };
 
+  /**
+   * Metas seguem o recorte de origem: em Visão Geral só entram as metas gerais
+   * (sem origem); com 4blue/Yampa só entram as metas cadastradas para a origem.
+   * Sem meta específica, a linha aparece sem meta — nunca reaproveita a geral.
+   */
   const filteredGoals = useMemo(() => {
-    return goals.filter((g) => scopedFilter({ ...g }));
+    return goals.filter((g) => {
+      const goalOrigin = String((g as any).origem_cliente ?? "").trim().toLowerCase();
+      if (isOriginFiltered(originFilter)) {
+        if (goalOrigin !== originFilter) return false;
+      } else if (goalOrigin) {
+        return false;
+      }
+      return scopedFilter({ ...g });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goals, scope, categoryId, teamId, userId, campaignId]);
+  }, [goals, scope, categoryId, teamId, userId, campaignId, originFilter]);
+
 
   // Mapa de categorias virtuais (agrupadoras) → set de componentes
   const virtualComponents = useMemo(() => {
