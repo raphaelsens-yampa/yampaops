@@ -869,9 +869,9 @@ export default function AcFunnelMetrics() {
                             { label: "Entradas", hint: "Negócios que entraram na etapa no período (criação ou movimentação).", align: "text-right" },
                             { label: "Avanço", hint: "Quantidade que saiu da etapa para uma etapa posterior.", align: "text-right" },
                             { label: "Ganho", hint: "Negócios marcados como ganho a partir desta etapa.", align: "text-right" },
-                            { label: "Passagem", hint: "(Avanço + Ganho) ÷ Entradas da etapa.", align: "text-right" },
+                            { label: "Passagem", hint: "Avanço ÷ Entradas da etapa.", align: "text-right" },
                             { label: "Perda", hint: "Perdidos a partir da etapa ÷ Entradas da etapa.", align: "text-right" },
-                            { label: "Acumulada", hint: "Entradas na etapa em relação às entradas da primeira etapa.", align: "text-right" },
+                            { label: "% Ganho", hint: "Ganhos a partir da etapa ÷ Entradas da etapa.", align: "text-right" },
                             { label: "Permanência", hint: "Tempo médio, em dias, que os negócios ficaram na etapa antes de sair.", align: "text-right" },
                           ].map((h) => (
                             <TableHead key={h.label} className={h.align}>
@@ -904,7 +904,10 @@ export default function AcFunnelMetrics() {
                                 <span>{formatPercent(row.lossRate)}</span>
                                 <SmallDelta value={deltaPp(row.lossRate, previous?.lossRate ?? null)} suffix=" p.p." />
                               </TableCell>
-                              <TableCell className="text-right tabular-nums">{formatPercent(row.cumulative)}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                <span>{formatPercent(row.winRate)}</span>
+                                <SmallDelta value={deltaPp(row.winRate, previous?.winRate ?? null)} suffix=" p.p." />
+                              </TableCell>
                               <TableCell className="text-right tabular-nums">{formatDays(row.avgDays)}</TableCell>
                             </TableRow>
                           );
