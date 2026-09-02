@@ -119,12 +119,12 @@ export type StageFlowRow = {
   regressed: number;
   won: number;
   lost: number;
-  /** (avançou + ganhou) / entradas */
+  /** avançou / entradas */
   passRate: number | null;
+  /** ganhou / entradas */
+  winRate: number | null;
   /** perdidos / entradas */
   lossRate: number | null;
-  /** entradas na etapa / entradas na primeira etapa */
-  cumulative: number | null;
   /** dias médios de permanência na etapa (saídas observadas no período) */
   avgDays: number | null;
 };
