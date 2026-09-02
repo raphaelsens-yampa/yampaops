@@ -10,6 +10,7 @@ import {
   motivationalCopy,
   realizedMonthBeforeToday,
   resolveDailyTarget,
+  resolveDailyTargetInfo,
   toBRDateKey,
 } from "./types";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
