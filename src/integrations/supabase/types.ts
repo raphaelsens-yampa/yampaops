@@ -2449,6 +2449,7 @@ export type Database = {
           category_id: string | null
           created_at: string
           id: string
+          origem_cliente: string | null
           period_end: string
           period_start: string
           realized_override: number | null
@@ -2468,6 +2469,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          origem_cliente?: string | null
           period_end: string
           period_start: string
           realized_override?: number | null
@@ -2487,6 +2489,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          origem_cliente?: string | null
           period_end?: string
           period_start?: string
           realized_override?: number | null
