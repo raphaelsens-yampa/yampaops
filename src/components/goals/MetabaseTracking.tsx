@@ -900,7 +900,7 @@ export function MetabaseTracking() {
 
   const tableTargetByCatMonth = useMemo(() => {
     const map = new Map<string, number>();
-    goals.forEach((g) => {
+    originScopedGoals.forEach((g) => {
       monthList.forEach((mStart, idx) => {
         const mEnd = new Date(year, idx + 1, 0, 23, 59, 59, 999);
         const frac = targetFraction(g.period_start, g.period_end, mStart, mEnd);
@@ -910,7 +910,8 @@ export function MetabaseTracking() {
       });
     });
     return map;
-  }, [goals, monthList, year]);
+  }, [originScopedGoals, monthList, year]);
+
 
   // ===== Meta Revisada — déficit dos meses encerrados diluído no restante do trimestre =====
   const refYear = isNaN(refDay.getTime()) ? now.getFullYear() : refDay.getFullYear();
