@@ -145,8 +145,8 @@ export function computeStageFlow(events: KpiEvent[], stages: KpiStage[]): StageF
       won: 0,
       lost: 0,
       passRate: null,
+      winRate: null,
       lossRate: null,
-      cumulative: null,
       avgDays: null,
     });
   }
