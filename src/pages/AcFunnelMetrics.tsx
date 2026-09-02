@@ -357,54 +357,46 @@ export default function AcFunnelMetrics() {
     [previousEventsFiltered, deals, stages],
   );
 
-  const stageFlow = useMemo(
-    () => computeStageFlow(kpiInput.events, kpiInput.stages),
-    [kpiInput],
+  /** Filtro de proprietário aplicado à tabela de conversão por etapa */
+  const [flowOwner, setFlowOwner] = useState<string>("all");
+
+  const ownerOptions = useMemo(
+    () =>
+      Array.from(new Set(events.map((e) => (e.owner_name ?? "").trim() || "Sem proprietário"))).sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
+    [events],
   );
 
+  const flowEvents = useMemo(
+    () =>
+      flowOwner === "all"
+        ? (kpiInput.events as KpiEvent[])
+        : (kpiInput.events as KpiEvent[]).filter(
+            (e) => ((e.owner_name ?? "").trim() || "Sem proprietário") === flowOwner,
+          ),
+    [kpiInput.events, flowOwner],
+  );
+
+  const previousFlowEvents = useMemo(
+    () =>
+      flowOwner === "all"
+        ? (previousEventsFiltered as KpiEvent[])
+        : (previousEventsFiltered as KpiEvent[]).filter(
+            (e) => ((e.owner_name ?? "").trim() || "Sem proprietário") === flowOwner,
+          ),
+    [previousEventsFiltered, flowOwner],
+  );
+
+  const stageFlow = useMemo(() => computeStageFlow(flowEvents, kpiInput.stages), [flowEvents, kpiInput.stages]);
+
   const previousStageFlow = useMemo(
-    () => computeStageFlow(previousEventsFiltered as KpiEvent[], stages),
-    [previousEventsFiltered, stages],
+    () => computeStageFlow(previousFlowEvents, stages),
+    [previousFlowEvents, stages],
   );
 
   const ownerConversion = useMemo(() => computeOwnerConversion(kpiInput.events), [kpiInput.events]);
 
-  /** Conversão etapa → destino por executivo */
-  const [pairFrom, setPairFrom] = useState<string>("");
-  const [pairDest, setPairDest] = useState<string>("won");
-
-  useEffect(() => {
-    if (!stages.length) return;
-    const exists = stages.some((s) => s.ac_stage_id === pairFrom);
-    if (exists) return;
-    const diag = stages.find((s) => /diagn/i.test(s.title));
-    setPairFrom(diag?.ac_stage_id ?? stages[stages.length - 1]?.ac_stage_id ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stages]);
-
-  const stagePair = useMemo(
-    () =>
-      pairFrom
-        ? computeStagePairByOwner(kpiInput.events, kpiInput.stages, pairFrom, pairDest)
-        : { rows: [], total: null as null | ReturnType<typeof computeStagePairByOwner>["total"] },
-    [kpiInput, pairFrom, pairDest],
-  );
-
-  /** Matriz etapa × executivo: taxa de passagem para a etapa seguinte */
-  const ownerStageMatrix = useMemo(() => {
-    const ownersInPeriod = Array.from(
-      new Set(kpiInput.events.map((e) => (e.owner_name ?? "").trim() || "Sem proprietário")),
-    ).sort((a, b) => a.localeCompare(b, "pt-BR"));
-    return ownersInPeriod.map((o) => ({
-      owner: o,
-      cells: stages.map((s) => {
-        const evs = kpiInput.events.filter((e) => ((e.owner_name ?? "").trim() || "Sem proprietário") === o);
-        const next = stages.find((x) => x.position > s.position);
-        const r = computeStagePairByOwner(evs, stages, s.ac_stage_id, next ? next.ac_stage_id : "won");
-        return { stageId: s.ac_stage_id, base: r.total.base, rate: r.total.rate };
-      }),
-    }));
-  }, [kpiInput, stages]);
 
   /** Coortes por vendedor: criado no período x safra anterior */
   const cohortOwners = useMemo(
@@ -854,21 +846,45 @@ export default function AcFunnelMetrics() {
               </TooltipProvider>
 
               <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Conversão por etapa</CardTitle>
-                    <CardDescription>Passagem, vazamento e permanência no período selecionado. A comparação é contra o período anterior do mesmo tamanho.</CardDescription>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Conversão por etapa</CardTitle>
+                      <CardDescription>Passagem, ganho, vazamento e permanência no período selecionado. A comparação é contra o período anterior do mesmo tamanho.</CardDescription>
+                    </div>
+                    <Select value={flowOwner} onValueChange={setFlowOwner}>
+                      <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os vendedores</SelectItem>
+                        {ownerOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </CardHeader>
                   <CardContent className="overflow-x-auto">
+                    <TooltipProvider>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Etapa</TableHead>
-                          <TableHead className="text-right">Entradas</TableHead>
-                          <TableHead className="text-right">Avanço</TableHead>
-                          <TableHead className="text-right">Passagem</TableHead>
-                          <TableHead className="text-right">Perda</TableHead>
-                          <TableHead className="text-right">Acumulada</TableHead>
-                          <TableHead className="text-right">Permanência</TableHead>
+                          {[
+                            { label: "Etapa", hint: "Nome da etapa do funil.", align: "" },
+                            { label: "Entradas", hint: "Negócios que entraram na etapa no período (criação ou movimentação).", align: "text-right" },
+                            { label: "Avanço", hint: "Quantidade que saiu da etapa para uma etapa posterior.", align: "text-right" },
+                            { label: "Ganho", hint: "Negócios marcados como ganho a partir desta etapa.", align: "text-right" },
+                            { label: "Passagem", hint: "(Avanço + Ganho) ÷ Entradas da etapa.", align: "text-right" },
+                            { label: "Perda", hint: "Perdidos a partir da etapa ÷ Entradas da etapa.", align: "text-right" },
+                            { label: "Acumulada", hint: "Entradas na etapa em relação às entradas da primeira etapa.", align: "text-right" },
+                            { label: "Permanência", hint: "Tempo médio, em dias, que os negócios ficaram na etapa antes de sair.", align: "text-right" },
+                          ].map((h) => (
+                            <TableHead key={h.label} className={h.align}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex cursor-help items-center gap-1 underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">
+                                    {h.label}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-[240px]">{h.hint}</TooltipContent>
+                              </Tooltip>
+                            </TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -879,6 +895,7 @@ export default function AcFunnelMetrics() {
                               <TableCell className="font-medium">{row.title}</TableCell>
                               <TableCell className="text-right tabular-nums">{row.entries}</TableCell>
                               <TableCell className="text-right tabular-nums">{row.advanced}</TableCell>
+                              <TableCell className="text-right tabular-nums">{row.won}</TableCell>
                               <TableCell className="text-right tabular-nums">
                                 <span>{formatPercent(row.passRate)}</span>
                                 <SmallDelta value={deltaPp(row.passRate, previous?.passRate ?? null)} suffix=" p.p." />
@@ -892,40 +909,13 @@ export default function AcFunnelMetrics() {
                             </TableRow>
                           );
                         })}
-                        {!stageFlow.length && <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Sem dados de movimentação no período</TableCell></TableRow>}
+                        {!stageFlow.length && <TableRow><TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Sem dados de movimentação no período</TableCell></TableRow>}
                       </TableBody>
                     </Table>
+                    </TooltipProvider>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <CardTitle className="text-base">Conversão por etapa e executivo</CardTitle>
-                      <CardDescription>De quem entrou em uma etapa no período até chegar ao destino selecionado.</CardDescription>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Select value={pairFrom} onValueChange={setPairFrom}>
-                        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Etapa de origem" /></SelectTrigger>
-                        <SelectContent>{stages.map((s) => <SelectItem key={s.ac_stage_id} value={s.ac_stage_id}>{s.title}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Select value={pairDest} onValueChange={setPairDest}>
-                        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Destino" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="won">Fechado (ganho)</SelectItem>
-                          {stages.filter((s) => s.ac_stage_id !== pairFrom).map((s) => <SelectItem key={s.ac_stage_id} value={s.ac_stage_id}>Até {s.title}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="overflow-x-auto">
-                    <Table><TableHeader><TableRow><TableHead>Executivo</TableHead><TableHead className="text-right">Na etapa</TableHead><TableHead className="text-right">Convertidos</TableHead><TableHead className="text-right">Taxa</TableHead><TableHead className="text-right">Valor convertido</TableHead><TableHead className="text-right">Ticket médio</TableHead></TableRow></TableHeader><TableBody>
-                      {stagePair.total && <TableRow className="border-b-2 font-semibold"><TableCell>{stagePair.total.owner}</TableCell><TableCell className="text-right tabular-nums">{stagePair.total.base}</TableCell><TableCell className="text-right tabular-nums">{stagePair.total.converted}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(stagePair.total.rate)}</TableCell><TableCell className="text-right tabular-nums">{brl(stagePair.total.value)}</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(stagePair.total.avgTicket)}</TableCell></TableRow>}
-                      {stagePair.rows.map((r) => <TableRow key={r.owner}><TableCell className="font-medium">{r.owner}</TableCell><TableCell className="text-right tabular-nums">{r.base}</TableCell><TableCell className="text-right tabular-nums">{r.converted}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(r.rate)}</TableCell><TableCell className="text-right tabular-nums">{brl(r.value)}</TableCell><TableCell className="text-right tabular-nums">{formatCurrency(r.avgTicket)}</TableCell></TableRow>)}
-                      {!stagePair.rows.length && <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">Sem entradas na etapa no período</TableCell></TableRow>}
-                    </TableBody></Table>
-                  </CardContent>
-                </Card>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <Card><CardHeader><CardTitle className="text-base">Coorte de criação e fechamento</CardTitle><CardDescription>Fechados no período: criados no período versus safras anteriores.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead className="text-right">Criados</TableHead><TableHead className="text-right">Criado e fechado</TableHead><TableHead className="text-right">Safra anterior</TableHead><TableHead className="text-right">Conversão</TableHead><TableHead className="text-right">Ciclo médio</TableHead></TableRow></TableHeader><TableBody>
@@ -934,14 +924,14 @@ export default function AcFunnelMetrics() {
                     {!cohortOwners.rows.length && <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">Sem fechamentos ou criações no período</TableCell></TableRow>}
                   </TableBody></Table></CardContent></Card>
 
-                  <Card><CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="text-base">Reuniões agendadas por executivo</CardTitle><CardDescription>Agendadas pela data prevista no período filtrado.</CardDescription></div><Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="gap-2 shrink-0"><Filter className="h-3.5 w-3.5" /> Tipos</Button></PopoverTrigger><PopoverContent align="end" className="w-72 p-3"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium">Tipos considerados</span><Button variant="ghost" size="sm" onClick={() => setMeetingTypes(meetingTypes.length ? [] : meetingTypeOptions)}>{meetingTypes.length ? "Limpar" : "Todos"}</Button></div><div className="max-h-56 space-y-2 overflow-y-auto">{meetingTypeOptions.map((type) => <label key={type} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={meetingTypes.includes(type)} onCheckedChange={(checked) => setMeetingTypes((current) => checked ? [...new Set([...current, type])] : current.filter((x) => x !== type))} /><span>{type}</span></label>)}{!meetingTypeOptions.length && <p className="text-sm text-muted-foreground">Nenhum tipo disponível.</p>}</div></PopoverContent></Popover></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Executivo</TableHead><TableHead className="text-right">Agendadas</TableHead><TableHead className="text-right">Realizadas</TableHead><TableHead className="text-right">Pendentes</TableHead><TableHead className="text-right">Atrasadas</TableHead><TableHead className="text-right">Realização</TableHead></TableRow></TableHeader><TableBody>
-                    <TableRow className="border-b-2 font-semibold"><TableCell>{meetings.total.owner}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.scheduled}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.done}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.pending}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.overdue}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(meetings.total.doneRate)}</TableCell></TableRow>
-                    {meetings.rows.map((r) => <TableRow key={r.owner}><TableCell className="font-medium">{r.owner}</TableCell><TableCell className="text-right tabular-nums">{r.scheduled}</TableCell><TableCell className="text-right tabular-nums">{r.done}</TableCell><TableCell className="text-right tabular-nums">{r.pending}</TableCell><TableCell className="text-right tabular-nums">{r.overdue}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(r.doneRate)}</TableCell></TableRow>)}
-                    {!meetings.rows.length && <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">Sem reuniões agendadas no período</TableCell></TableRow>}
+                  <Card><CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="text-base">Reuniões por executivo</CardTitle><CardDescription>Agendadas pela data prevista no período, realização e conversão em ganho.</CardDescription></div><Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="gap-2 shrink-0"><Filter className="h-3.5 w-3.5" /> Tipos</Button></PopoverTrigger><PopoverContent align="end" className="w-72 p-3"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium">Tipos considerados</span><Button variant="ghost" size="sm" onClick={() => setMeetingTypes(meetingTypes.length ? [] : meetingTypeOptions)}>{meetingTypes.length ? "Limpar" : "Todos"}</Button></div><div className="max-h-56 space-y-2 overflow-y-auto">{meetingTypeOptions.map((type) => <label key={type} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={meetingTypes.includes(type)} onCheckedChange={(checked) => setMeetingTypes((current) => checked ? [...new Set([...current, type])] : current.filter((x) => x !== type))} /><span>{type}</span></label>)}{!meetingTypeOptions.length && <p className="text-sm text-muted-foreground">Nenhum tipo disponível.</p>}</div></PopoverContent></Popover></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Executivo</TableHead><TableHead className="text-right">Agendadas</TableHead><TableHead className="text-right">Realizadas</TableHead><TableHead className="text-right">Pendentes</TableHead><TableHead className="text-right">Atrasadas</TableHead><TableHead className="text-right">Realização</TableHead><TableHead className="text-right">Ganho</TableHead><TableHead className="text-right">% Conversão</TableHead></TableRow></TableHeader><TableBody>
+                    <TableRow className="border-b-2 font-semibold"><TableCell>{meetings.total.owner}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.scheduled}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.done}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.pending}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.overdue}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(meetings.total.doneRate)}</TableCell><TableCell className="text-right tabular-nums">{meetings.total.won}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(meetings.total.done ? (meetings.total.won / meetings.total.done) * 100 : null)}</TableCell></TableRow>
+                    {meetings.rows.map((r) => <TableRow key={r.owner}><TableCell className="font-medium">{r.owner}</TableCell><TableCell className="text-right tabular-nums">{r.scheduled}</TableCell><TableCell className="text-right tabular-nums">{r.done}</TableCell><TableCell className="text-right tabular-nums">{r.pending}</TableCell><TableCell className="text-right tabular-nums">{r.overdue}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(r.doneRate)}</TableCell><TableCell className="text-right tabular-nums">{r.won}</TableCell><TableCell className="text-right tabular-nums">{formatPercent(r.done ? (r.won / r.done) * 100 : null)}</TableCell></TableRow>)}
+                    {!meetings.rows.length && <TableRow><TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Sem reuniões agendadas no período</TableCell></TableRow>}
                   </TableBody></Table></CardContent></Card>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle className="text-base">Taxa de passagem por etapa e executivo</CardTitle><CardDescription>Percentual que avançou para a próxima etapa, por vendedor.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Executivo</TableHead>{stages.map((s) => <TableHead key={s.ac_stage_id} className="text-right">{s.title}</TableHead>)}</TableRow></TableHeader><TableBody>{ownerStageMatrix.map((r) => <TableRow key={r.owner}><TableCell className="font-medium">{r.owner}</TableCell>{r.cells.map((c) => <TableCell key={c.stageId} className="text-right tabular-nums">{c.base ? formatPercent(c.rate) : "—"}</TableCell>)}</TableRow>)}{!ownerStageMatrix.length && <TableRow><TableCell colSpan={stages.length + 1} className="py-6 text-center text-muted-foreground">Sem dados por executivo</TableCell></TableRow>}</TableBody></Table></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Reunião → ganho</CardTitle><CardDescription>Ganhos associados a reunião agendada, por executivo.</CardDescription></CardHeader><CardContent className="space-y-3">{meetings.rows.map((r) => <div key={r.owner} className="flex items-center justify-between border-b pb-2 text-sm"><span className="font-medium">{r.owner}</span><span className="tabular-nums text-muted-foreground">{r.won} ganhos · {formatPercent(r.wonRate)}</span></div>)}{!meetings.rows.length && <p className="py-6 text-center text-sm text-muted-foreground">Sem dados de reunião no período.</p>}</CardContent></Card></div>
+                
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <Card>
