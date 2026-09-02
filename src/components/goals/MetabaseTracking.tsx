@@ -123,6 +123,8 @@ interface Goal {
   target_pct?: number | null;
   /** null = meta geral; "4blue" | "yampa" = meta específica da origem */
   origem_cliente?: string | null;
+}
+
 
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
