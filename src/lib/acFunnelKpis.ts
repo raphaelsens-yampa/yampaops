@@ -119,12 +119,12 @@ export type StageFlowRow = {
   regressed: number;
   won: number;
   lost: number;
-  /** (avançou + ganhou) / entradas */
+  /** avançou / entradas */
   passRate: number | null;
+  /** ganhou / entradas */
+  winRate: number | null;
   /** perdidos / entradas */
   lossRate: number | null;
-  /** entradas na etapa / entradas na primeira etapa */
-  cumulative: number | null;
   /** dias médios de permanência na etapa (saídas observadas no período) */
   avgDays: number | null;
 };
@@ -145,8 +145,8 @@ export function computeStageFlow(events: KpiEvent[], stages: KpiStage[]): StageF
       won: 0,
       lost: 0,
       passRate: null,
+      winRate: null,
       lossRate: null,
-      cumulative: null,
       avgDays: null,
     });
   }
@@ -201,11 +201,10 @@ export function computeStageFlow(events: KpiEvent[], stages: KpiStage[]): StageF
     const row = base.get(s.ac_stage_id);
     return row ? [row] : [];
   });
-  const firstEntries = rows[0]?.entries ?? 0;
   for (const r of rows) {
-    r.passRate = r.entries ? ((r.advanced + r.won) / r.entries) * 100 : null;
+    r.passRate = r.entries ? (r.advanced / r.entries) * 100 : null;
+    r.winRate = r.entries ? (r.won / r.entries) * 100 : null;
     r.lossRate = r.entries ? (r.lost / r.entries) * 100 : null;
-    r.cumulative = firstEntries ? (r.entries / firstEntries) * 100 : null;
     const d = dwell.get(r.stageId);
     r.avgDays = d?.length ? d.reduce((a, b) => a + b, 0) / d.length : null;
   }
