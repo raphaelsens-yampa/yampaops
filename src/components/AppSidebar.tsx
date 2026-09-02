@@ -1,7 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
-  FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator,
+  FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator, HeartHandshake,
   ChevronLeft, ChevronRight, Filter,
 } from "lucide-react";
 import { useEffect, useState } from "react";
