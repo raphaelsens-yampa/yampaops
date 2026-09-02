@@ -88,7 +88,7 @@ export function TacticalProgressChart({ metrics, goals, daily, memberIds, teamId
     if (!metric) return [];
     const users = memberIds.length ? memberIds : Array.from(new Set(daily.map((d) => d.user_id)));
     const dailyTargetTotal = users.reduce(
-      (s, uid) => s + resolveDailyTarget(goals, metric.id, uid, teamId),
+      (s, uid) => s + resolveDailyTarget(goals, metric.id, uid, teamId, today),
       0,
     );
 

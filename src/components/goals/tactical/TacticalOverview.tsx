@@ -71,7 +71,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       let target = 0;
       let realized = 0;
       for (const uid of memberIds) {
-        target += resolveDailyTarget(goals, m.id, uid, teamOf.get(uid) ?? null);
+        target += resolveDailyTarget(goals, m.id, uid, teamOf.get(uid) ?? null, today);
         realized += daily.find((x) => x.user_id === uid && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
       }
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;

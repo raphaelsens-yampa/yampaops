@@ -207,7 +207,7 @@ export function WeeklyGoalsPanel({
       ? memberIds
       : Array.from(new Set(daily.map((d) => d.user_id)));
     const dailyTargetFor = (mid: string) =>
-      users.reduce((s, uid) => s + resolveDailyTarget(goals, mid, uid, teamId), 0);
+      users.reduce((s, uid) => s + resolveDailyTarget(goals, mid, uid, teamId, today), 0);
     const dailyTargetTotal = isLowTouch
       ? 0
       : isAll

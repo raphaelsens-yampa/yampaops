@@ -84,7 +84,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   const rows = metrics
     .filter((m) => m.key !== "call_realizada")
     .map((m) => {
-      const target = resolveDailyTarget(goals, m.id, userId, teamId);
+      const target = resolveDailyTargetInfo(goals, m.id, userId, teamId, today);
       const realized = daily.find((x) => x.user_id === userId && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const missing = Math.max(target - realized, 0);
