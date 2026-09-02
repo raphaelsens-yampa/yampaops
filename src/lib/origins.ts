@@ -172,3 +172,130 @@ export function originShareAsOf(
   return map.get(`${chosen}|${cls}`) ?? null;
 
 }
+
+/* ------------------------------------------------------------------ *
+ * Recorte MENSAL por origem (Acompanhamento Metas)
+ *
+ * Fonte canônica: `metas_ativos_pagantes_daily` (cliente a cliente, com
+ * `origem_cliente` preenchido desde 31/01/2026), lida via a função
+ * `origin_monthly_realized(p_from, p_to, p_as_of)`, que resolve o snapshot
+ * as-of de cada mês e devolve qtd/MRR por origem, status e classificação.
+ *
+ * Diferente do rateio por participação (acima, usado no painel tático diário),
+ * aqui o valor é o REAL da origem: 4blue + Yampa = Visão Geral por construção.
+ * ------------------------------------------------------------------ */
+
+export type OriginMetric =
+  | "total_mrr"
+  | "ativos"
+  | "novos_pagantes"
+  | "recuperados"
+  | "upsell"
+  | "downsell"
+  | "churn_mrr"
+  | "churn_qtd"
+  | "churn_pct"
+  | "net_mrr";
+
+/** Slug da categoria de metas -> métrica com recorte real por origem. */
+export const CATEGORY_SLUG_TO_ORIGIN_METRIC: Record<string, OriginMetric> = {
+  total_de_mrr_ms3g6o38: "total_mrr",
+  usuarios_ativos_pagantes_ms8yyce5: "ativos",
+  new_mrr: "novos_pagantes",
+  recuperados: "recuperados",
+  upsell: "upsell",
+  downsell: "downsell",
+  "churn-mrr": "churn_mrr",
+  "churn-logos": "churn_qtd",
+  "churn-rate-logos": "churn_pct",
+  "net-mrr": "net_mrr",
+};
+
+/** Primeiro mês com origem na base mensal de ativos pagantes. */
+export const ORIGIN_MONTHLY_MIN_MONTH = "2026-01";
+export const ORIGIN_MONTHLY_MIN_HINT = "Origem disponível a partir de 01/2026";
+
+export interface OriginRpcRow {
+  year_month: string;
+  origem: string | null;
+  status: string | null;
+  classificacao: string | null;
+  qtd: number | null;
+  mrr: number | null;
+}
+
+export interface OriginMonthlyValue {
+  mrr: number;
+  qtd: number;
+}
+
+const CLASSIFICATION_TO_METRIC: Record<string, OriginMetric> = {
+  "novo pagante": "novos_pagantes",
+  novo_pagante: "novos_pagantes",
+  novos_pagantes: "novos_pagantes",
+  recuperado: "recuperados",
+  recuperados: "recuperados",
+  upsell: "upsell",
+  downsell: "downsell",
+};
+
+/**
+ * Consolida as linhas da função por mês (`YYYY-MM`) e métrica.
+ * Chave do mapa: `${YYYY-MM}|${OriginMetric}`.
+ */
+export function buildOriginMonthly(
+  rows: OriginRpcRow[],
+  origin: OriginFilter,
+): Map<string, OriginMonthlyValue> {
+  const out = new Map<string, OriginMonthlyValue>();
+  if (!isOriginFiltered(origin)) return out;
+  const add = (month: string, metric: OriginMetric, mrr: number, qtd: number) => {
+    const key = `${month}|${metric}`;
+    const cur = out.get(key) ?? { mrr: 0, qtd: 0 };
+    cur.mrr += mrr;
+    cur.qtd += qtd;
+    out.set(key, cur);
+  };
+
+  for (const r of rows) {
+    if (!matchesOrigin(r.origem, origin)) continue;
+    const month = String(r.year_month || "").slice(0, 7);
+    if (!month) continue;
+    const status = String(r.status ?? "").trim().toLowerCase();
+    const mrr = Number(r.mrr || 0);
+    const qtd = Number(r.qtd || 0);
+    if (status === "ativo") {
+      add(month, "total_mrr", mrr, qtd);
+      add(month, "ativos", mrr, qtd);
+      const cls = CLASSIFICATION_TO_METRIC[String(r.classificacao ?? "").trim().toLowerCase()];
+      if (cls) add(month, cls, mrr, qtd);
+      continue;
+    }
+    if (status === "cancelado") {
+      add(month, "churn_mrr", mrr, qtd);
+      add(month, "churn_qtd", mrr, qtd);
+    }
+    // trial e demais status não entram em nenhuma métrica de meta
+  }
+
+  // Derivadas: churn % (sobre a base ativa do mês anterior) e Net MRR.
+  const months = Array.from(new Set(Array.from(out.keys()).map((k) => k.split("|")[0]))).sort();
+  months.forEach((month, i) => {
+    const churnQtd = out.get(`${month}|churn_qtd`)?.qtd ?? 0;
+    const prev = i > 0 ? months[i - 1] : null;
+    const prevActive = prev ? out.get(`${prev}|ativos`)?.qtd ?? 0 : 0;
+    if (prevActive > 0 && out.has(`${month}|churn_qtd`)) {
+      const pct = (churnQtd / prevActive) * 100;
+      out.set(`${month}|churn_pct`, { mrr: pct, qtd: pct });
+    }
+    const inc =
+      (out.get(`${month}|novos_pagantes`)?.mrr ?? 0) +
+      (out.get(`${month}|recuperados`)?.mrr ?? 0) +
+      (out.get(`${month}|upsell`)?.mrr ?? 0);
+    const dec =
+      (out.get(`${month}|churn_mrr`)?.mrr ?? 0) + (out.get(`${month}|downsell`)?.mrr ?? 0);
+    if (inc || dec) out.set(`${month}|net_mrr`, { mrr: inc - dec, qtd: 0 });
+  });
+
+  return out;
+}
