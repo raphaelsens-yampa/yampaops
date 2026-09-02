@@ -243,6 +243,7 @@ export function AppSidebar() {
             ] : []),
           ],
         },
+        { title: "Engajamento CS", url: "/atendimentos/engajamento-cs", icon: HeartHandshake, area: "engajamento_cs" },
         // { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" }, // archived (AC-dependent)
       ],
     },
