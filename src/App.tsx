@@ -37,6 +37,7 @@ import ChatwootAuditReview from "./pages/ChatwootAuditReview";
 import ChatwootAuditInsights from "./pages/ChatwootAuditInsights";
 import ChatwootAuditGoldenSet from "./pages/ChatwootAuditGoldenSet";
 import ChatwootAuditMine from "./pages/ChatwootAuditMine";
+import CsEngagement from "./pages/CsEngagement";
 import SalesCampaigns from "./pages/SalesCampaigns";
 import SalesCampaignDetail from "./pages/SalesCampaignDetail";
 import SalesCampaignReports from "./pages/SalesCampaignReports";
