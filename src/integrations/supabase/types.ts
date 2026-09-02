@@ -5780,6 +5780,7 @@ export type Database = {
         Args: { p_as_of: string; p_from: string; p_to: string }
         Returns: {
           classificacao: string
+          kind: string
           mrr: number
           origem: string
           qtd: number

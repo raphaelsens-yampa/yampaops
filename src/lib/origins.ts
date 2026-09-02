@@ -217,6 +217,13 @@ export const ORIGIN_MONTHLY_MIN_HINT = "Origem disponível a partir de 01/2026";
 
 export interface OriginRpcRow {
   year_month: string;
+  /**
+   * `stock` = foto do mês (Total de MRR, Ativos, Churn).
+   * `flow` = entradas do mês (New MRR, Recuperado, Upsell, Downsell) já
+   * atribuídas ao mês do evento — o snapshot mantém a classificação do mês
+   * anterior, então contar pelo mês do snapshot inflava o mês corrente.
+   */
+  kind?: string | null;
   origem: string | null;
   status: string | null;
   classificacao: string | null;
@@ -262,13 +269,17 @@ export function buildOriginMonthly(
     const month = String(r.year_month || "").slice(0, 7);
     if (!month) continue;
     const status = String(r.status ?? "").trim().toLowerCase();
+    const kind = String(r.kind ?? "stock").trim().toLowerCase();
     const mrr = Number(r.mrr || 0);
     const qtd = Number(r.qtd || 0);
+    if (kind === "flow") {
+      const cls = CLASSIFICATION_TO_METRIC[String(r.classificacao ?? "").trim().toLowerCase()];
+      if (cls) add(month, cls, mrr, qtd);
+      continue;
+    }
     if (status === "ativo") {
       add(month, "total_mrr", mrr, qtd);
       add(month, "ativos", mrr, qtd);
-      const cls = CLASSIFICATION_TO_METRIC[String(r.classificacao ?? "").trim().toLowerCase()];
-      if (cls) add(month, cls, mrr, qtd);
       continue;
     }
     if (status === "cancelado") {
