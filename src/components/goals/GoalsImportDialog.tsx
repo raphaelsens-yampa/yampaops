@@ -33,6 +33,7 @@ interface ParsedRow {
   target_deals: number;
   target_tpv: number;
   target_pct: number;
+  origem_cliente: string | null;
   categoryLabel: string;
   targetLabel: string;
   error: string | null;
@@ -40,6 +41,7 @@ interface ParsedRow {
 
 const HEADERS = [
   "categoria",
+  "origem",
   "escopo",
   "alvo",
   "periodo_inicio",
@@ -111,9 +113,9 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
 
     const data = [
       HEADERS,
-      [exampleCat, "Empresa", "", start, end, 350000, 0, 0],
-      [exampleCat, "Vendedor", "vendedor@empresa.com", start, end, 40000, 12, 0],
-      [exampleCat, "Time", "Sales", start, end, 120000, 30, 0],
+      [exampleCat, "Geral", "Empresa", "", start, end, 350000, 0, 0],
+      [exampleCat, "4blue", "Empresa", "", start, end, 5000, 0, 0],
+      [exampleCat, "Yampa", "Vendedor", "vendedor@empresa.com", start, end, 40000, 12, 0],
     ];
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -123,6 +125,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
     const help = [
       ["Campo", "Obrigatório", "Como preencher"],
       ["categoria", "Não", "Nome ou slug da categoria cadastrada (deixe vazio para meta sem categoria)"],
+      ["origem", "Não", "Geral (sem recorte) | 4blue | Yampa — a meta só aparece no filtro de origem correspondente"],
       ["escopo", "Sim", "Empresa | Time | Vendedor | Campanha"],
       ["alvo", "Depende", "Vendedor: e-mail ou nome do perfil | Time: nome do time | Campanha: nome da campanha | Empresa: vazio"],
       ["periodo_inicio", "Sim", "dd/mm/aaaa (ou data do Excel)"],
@@ -153,6 +156,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
     const col = (name: string) => headers.indexOf(name);
     const idx = {
       categoria: col("categoria"),
+      origem: col("origem"),
       escopo: col("escopo"),
       alvo: col("alvo"),
       inicio: col("periodo_inicio"),
@@ -185,6 +189,13 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
         const cat = categories.find((c) => norm(c.name) === catRaw || norm(c.slug) === catRaw);
         if (!cat) error = error ?? `Categoria não encontrada: "${get(idx.categoria)}"`;
         else { category_id = cat.id; categoryLabel = cat.name; }
+      }
+
+      const origemRaw = norm(get(idx.origem));
+      let origem_cliente: string | null = null;
+      if (origemRaw && origemRaw !== "geral" && origemRaw !== "todos") {
+        if (origemRaw === "4blue" || origemRaw === "yampa") origem_cliente = origemRaw;
+        else error = error ?? `Origem inválida: "${get(idx.origem)}" (use Geral, 4blue ou Yampa)`;
       }
 
       const alvoRaw = (get(idx.alvo) ?? "").toString().trim();
@@ -221,6 +232,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
         category_id, user_id, team_id, campaign_id, campaign,
         period_start: period_start ?? "", period_end: period_end ?? "",
         target_mrr, target_deals, target_tpv, target_pct,
+        origem_cliente,
         categoryLabel, targetLabel, error,
       });
     }
@@ -243,6 +255,7 @@ export function GoalsImportDialog({ categories, profiles, teams, campaigns, onIm
       target_deals: r.target_deals,
       target_tpv: r.target_tpv,
       target_pct: r.target_pct,
+      origem_cliente: r.origem_cliente,
     }));
     const { error } = await supabase.from("goals").insert(payload as any);
     setSaving(false);
