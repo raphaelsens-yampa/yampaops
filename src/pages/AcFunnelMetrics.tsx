@@ -846,21 +846,45 @@ export default function AcFunnelMetrics() {
               </TooltipProvider>
 
               <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Conversão por etapa</CardTitle>
-                    <CardDescription>Passagem, vazamento e permanência no período selecionado. A comparação é contra o período anterior do mesmo tamanho.</CardDescription>
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle className="text-base">Conversão por etapa</CardTitle>
+                      <CardDescription>Passagem, ganho, vazamento e permanência no período selecionado. A comparação é contra o período anterior do mesmo tamanho.</CardDescription>
+                    </div>
+                    <Select value={flowOwner} onValueChange={setFlowOwner}>
+                      <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os vendedores</SelectItem>
+                        {ownerOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </CardHeader>
                   <CardContent className="overflow-x-auto">
+                    <TooltipProvider>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Etapa</TableHead>
-                          <TableHead className="text-right">Entradas</TableHead>
-                          <TableHead className="text-right">Avanço</TableHead>
-                          <TableHead className="text-right">Passagem</TableHead>
-                          <TableHead className="text-right">Perda</TableHead>
-                          <TableHead className="text-right">Acumulada</TableHead>
-                          <TableHead className="text-right">Permanência</TableHead>
+                          {[
+                            { label: "Etapa", hint: "Nome da etapa do funil.", align: "" },
+                            { label: "Entradas", hint: "Negócios que entraram na etapa no período (criação ou movimentação).", align: "text-right" },
+                            { label: "Avanço", hint: "Quantidade que saiu da etapa para uma etapa posterior.", align: "text-right" },
+                            { label: "Ganho", hint: "Negócios marcados como ganho a partir desta etapa.", align: "text-right" },
+                            { label: "Passagem", hint: "(Avanço + Ganho) ÷ Entradas da etapa.", align: "text-right" },
+                            { label: "Perda", hint: "Perdidos a partir da etapa ÷ Entradas da etapa.", align: "text-right" },
+                            { label: "Acumulada", hint: "Entradas na etapa em relação às entradas da primeira etapa.", align: "text-right" },
+                            { label: "Permanência", hint: "Tempo médio, em dias, que os negócios ficaram na etapa antes de sair.", align: "text-right" },
+                          ].map((h) => (
+                            <TableHead key={h.label} className={h.align}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex cursor-help items-center gap-1 underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">
+                                    {h.label}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-[240px]">{h.hint}</TooltipContent>
+                              </Tooltip>
+                            </TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -871,6 +895,7 @@ export default function AcFunnelMetrics() {
                               <TableCell className="font-medium">{row.title}</TableCell>
                               <TableCell className="text-right tabular-nums">{row.entries}</TableCell>
                               <TableCell className="text-right tabular-nums">{row.advanced}</TableCell>
+                              <TableCell className="text-right tabular-nums">{row.won}</TableCell>
                               <TableCell className="text-right tabular-nums">
                                 <span>{formatPercent(row.passRate)}</span>
                                 <SmallDelta value={deltaPp(row.passRate, previous?.passRate ?? null)} suffix=" p.p." />
@@ -884,11 +909,13 @@ export default function AcFunnelMetrics() {
                             </TableRow>
                           );
                         })}
-                        {!stageFlow.length && <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Sem dados de movimentação no período</TableCell></TableRow>}
+                        {!stageFlow.length && <TableRow><TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Sem dados de movimentação no período</TableCell></TableRow>}
                       </TableBody>
                     </Table>
+                    </TooltipProvider>
                   </CardContent>
                 </Card>
+
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <Card><CardHeader><CardTitle className="text-base">Coorte de criação e fechamento</CardTitle><CardDescription>Fechados no período: criados no período versus safras anteriores.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead className="text-right">Criados</TableHead><TableHead className="text-right">Criado e fechado</TableHead><TableHead className="text-right">Safra anterior</TableHead><TableHead className="text-right">Conversão</TableHead><TableHead className="text-right">Ciclo médio</TableHead></TableRow></TableHeader><TableBody>
