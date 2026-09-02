@@ -91,10 +91,12 @@ export default function GoalsPage() {
     setGScope("company"); setGUser("none"); setGTeam("none"); setGCampaignId("none");
     setGStart(""); setGEnd(""); setGMrr(""); setGDeals(""); setGArpa(""); setGPct("");
     setGCategory("none");
+    setGOrigin("all");
     setEditingGoal(null);
   }
 
   function openEditDialog(goal: any) {
+
     setEditingGoal(goal);
     setGScope((goal.scope as GoalScope) || "company");
     setGUser(goal.user_id || "none");
