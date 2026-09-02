@@ -645,18 +645,18 @@ export function MetabaseTracking() {
    * (sem origem); com 4blue/Yampa só entram as metas cadastradas para a origem.
    * Sem meta específica, a linha aparece sem meta — nunca reaproveita a geral.
    */
-  const filteredGoals = useMemo(() => {
+  const originScopedGoals = useMemo(() => {
     return goals.filter((g) => {
       const goalOrigin = String((g as any).origem_cliente ?? "").trim().toLowerCase();
-      if (isOriginFiltered(originFilter)) {
-        if (goalOrigin !== originFilter) return false;
-      } else if (goalOrigin) {
-        return false;
-      }
-      return scopedFilter({ ...g });
+      return isOriginFiltered(originFilter) ? goalOrigin === originFilter : !goalOrigin;
     });
+  }, [goals, originFilter]);
+
+  const filteredGoals = useMemo(() => {
+    return originScopedGoals.filter((g) => scopedFilter({ ...g }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goals, scope, categoryId, teamId, userId, campaignId, originFilter]);
+  }, [originScopedGoals, scope, categoryId, teamId, userId, campaignId]);
+
 
 
   // Mapa de categorias virtuais (agrupadoras) → set de componentes
