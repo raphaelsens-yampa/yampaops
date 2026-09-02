@@ -84,14 +84,15 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   const rows = metrics
     .filter((m) => m.key !== "call_realizada")
     .map((m) => {
-      const target = resolveDailyTargetInfo(goals, m.id, userId, teamId, today);
+      const info = resolveDailyTargetInfo(goals, m.id, userId, teamId, today);
+      const target = info.value;
       const realized = daily.find((x) => x.user_id === userId && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const missing = Math.max(target - realized, 0);
       const streak = computeStreak(userId, m.id, target, daily, today);
       const monthBefore = realizedMonthBeforeToday(daily, m.id, [userId], today);
       const pacing = monthPacing(today, target, monthBefore);
-      return { m, target, realized, pct, missing, streak, pacing };
+      return { m, target, realized, pct, missing, streak, pacing, inherited: info.source === "inherited", inheritedFrom: info.goal };
     });
 
 
