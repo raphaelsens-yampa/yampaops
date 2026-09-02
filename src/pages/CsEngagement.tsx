@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Layout } from "@/components/Layout";
-import { ExternalLink, RefreshCw, Info } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 
 const APP_URL =
   "https://script.google.com/a/macros/yampa.com.br/s/AKfycbzmOvhYEgYPDb2RUMzqyRzSNPPVxEAKHoOimzF6DH6p1qlBkdlxERrDXPwUHjTbqvmRnw/exec";
@@ -36,14 +36,6 @@ export default function CsEngagement() {
           </div>
         </div>
 
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Requer conta Google @yampa.com.br</AlertTitle>
-          <AlertDescription>
-            Se o painel abaixo aparecer em branco ou pedir login, faça login com sua conta Google
-            corporativa neste navegador ou use "Abrir em nova aba".
-          </AlertDescription>
-        </Alert>
 
         <Card className="overflow-hidden">
           <CardContent className="p-0">
