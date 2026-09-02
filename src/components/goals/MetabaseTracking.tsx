@@ -407,40 +407,21 @@ export function MetabaseTracking() {
 
 
   // ===== Recorte por origem do cliente (4blue / Yampa) =====
-  // Única base com origem: `metas_price_daily` (por price ID, a partir de 07/08/2026).
-  const [originRows, setOriginRows] = useState<
-    { data: string; classificacao: string | null; origem_cliente: string | null; qtd_mtd: number | null; mrr_mtd: number | null }[]
-  >([]);
-
-  useEffect(() => {
-    if (!isOriginFiltered(originFilter)) {
-      setOriginRows([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("metas_price_daily")
-        .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
-        .not("origem_cliente", "is", null);
-      if (cancelled) return;
-      setOriginRows(((data as any[]) || []) as any);
-    })();
-    return () => { cancelled = true; };
-  }, [originFilter]);
-
-  /** Participação (0..1) de cada origem por dia/classificação. */
-  const originShares = useMemo(
-    () => buildOriginShares(originRows as any, originFilter),
-    [originRows, originFilter],
+  // Fonte canônica: base cliente-a-cliente de ativos pagantes (com
+  // `origem_cliente` desde 01/2026), via `origin_monthly_realized`.
+  // O valor é o REAL da origem — 4blue + Yampa = Visão Geral.
+  const { monthly: originMonthly } = useOriginRealized(
+    originFilter,
+    year,
+    historicalMode ? refDate : todayKey,
   );
 
-  /** category_id -> classificação com recorte por origem */
-  const classByCategoryId = useMemo(() => {
-    const map = new Map<string, OriginClassification>();
+  /** category_id -> métrica com recorte real por origem */
+  const originMetricByCategoryId = useMemo(() => {
+    const map = new Map<string, OriginMetric>();
     categories.forEach((c) => {
-      const cls = CATEGORY_SLUG_TO_CLASSIFICATION[(c as any).slug];
-      if (cls) map.set(c.id, cls);
+      const metric = CATEGORY_SLUG_TO_ORIGIN_METRIC[(c as any).slug];
+      if (metric) map.set(c.id, metric);
     });
     return map;
   }, [categories]);
@@ -481,52 +462,65 @@ export function MetabaseTracking() {
     return Array.from(grouped.values());
   }, [tacticalRetention, teamByUser, historicalMode, refDate, todayKey]);
 
+  /** Realizado por origem convertido para o formato de agregado mensal. */
+  const originAgg = useMemo<AggRow[]>(() => {
+    if (!isOriginFiltered(originFilter) || !originMonthly.size) return [];
+    const out: AggRow[] = [];
+    originMetricByCategoryId.forEach((metric, categoryId) => {
+      const cat = categories.find((c) => c.id === categoryId);
+      for (const [key, value] of originMonthly) {
+        const [month, m] = key.split("|");
+        if (m !== metric) continue;
+        if (month.slice(0, 4) !== String(year)) continue;
+        const isQty = metric === "ativos" || metric === "churn_qtd";
+        const isPct = metric === "churn_pct";
+        out.push({
+          year_month: `${month}-01`,
+          metric_key: `origin_${metric}`,
+          scope: "company",
+          team_id: null,
+          user_id: null,
+          campaign_id: null,
+          category_id: categoryId,
+          area: (cat as any)?.area ?? null,
+          realized_amount: isPct ? value.mrr : isQty ? value.qtd : value.mrr,
+          deals_count: value.qtd,
+        });
+      }
+    });
+    return out;
+  }, [originFilter, originMonthly, originMetricByCategoryId, categories, year]);
+
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
     if (!isOriginFiltered(originFilter)) return [...base, ...tacticalRetentionAgg];
     // Registros táticos de retenção são lançamentos da operação Yampa.
-    if (originFilter === "yampa") return [...base, ...tacticalRetentionAgg];
-    // Aplica a participação da origem sobre o realizado canônico:
-    // 4blue + Yampa = Visão Geral, e cada recorte <= total.
-    const out: AggRow[] = [];
-    for (const r of base) {
-      const cls = r.category_id ? classByCategoryId.get(r.category_id) : undefined;
-      if (!cls) continue; // categoria sem recorte por origem -> "—"
-      const asOf = `${r.year_month}-31` <= refDate ? `${r.year_month}-31` : refDate;
-      const sq = originShareAsOf(originShares, asOf, cls, "qtd");
-      const sm = originShareAsOf(originShares, asOf, cls, "mrr");
-      if (sq === null || sm === null) continue;
-      out.push({
-        ...r,
-        realized_amount: Number(r.realized_amount || 0) * sm,
-        deals_count: Number(r.deals_count || 0) * sq,
-      });
-    }
-    return out;
-  }, [originFilter, originShares, classByCategoryId, refDate, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
+    if (originFilter === "yampa") return [...originAgg, ...tacticalRetentionAgg];
+    return originAgg;
+  }, [originFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
     if (!isOriginFiltered(originFilter)) return false;
-    // Retenção é uma apuração operacional do painel tático: pertence à Yampa
-    // e não deve ser rateada pela base de price ID.
+    // Retenção é uma apuração operacional do painel tático: pertence à Yampa.
     if (id === RETENTION_CAT) return originFilter === "4blue";
     const cat = categories.find((c) => c.id === id);
     const slug = (cat as any)?.slug as string | undefined;
     if (!slug) return true;
-    if (CATEGORY_SLUG_TO_CLASSIFICATION[slug]) return false;
+    if (CATEGORY_SLUG_TO_ORIGIN_METRIC[slug]) return false;
     // virtuais agregadoras seguem disponíveis se seus componentes têm origem
     const comps = (cat as any)?.component_category_ids as string[] | null;
     if (comps?.length) {
       return !comps.some((cid) => {
         const s = (categories.find((c) => c.id === cid) as any)?.slug;
-        return s && CATEGORY_SLUG_TO_CLASSIFICATION[s];
+        return s && CATEGORY_SLUG_TO_ORIGIN_METRIC[s];
       });
     }
     return true;
   };
+
 
 
 
