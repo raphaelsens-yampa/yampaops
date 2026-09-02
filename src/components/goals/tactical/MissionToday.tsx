@@ -191,7 +191,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
       </div>
 
       <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-        {withGoal.map(({ m, target, realized, pct, missing, streak, pacing }) => {
+        {withGoal.map(({ m, target, realized, pct, missing, streak, pacing, inherited, inheritedFrom }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
           const behind = revisedView && pacing.adjusted > target + 0.05;
