@@ -9,6 +9,7 @@ import {
   monthPacing,
   motivationalCopy,
   realizedMonthBeforeToday,
+  formatPeriodBR,
   resolveDailyTarget,
   resolveDailyTargetInfo,
   toBRDateKey,

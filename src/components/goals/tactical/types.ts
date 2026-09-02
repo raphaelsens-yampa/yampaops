@@ -314,3 +314,12 @@ export function realizedBetween(
     )
     .reduce((s, x) => s + (x.value ?? 0), 0);
 }
+
+/** "01/08/2026 – 31/08/2026" a partir de datas YYYY-MM-DD. */
+export function formatPeriodBR(start: string, end: string): string {
+  const br = (s: string) => {
+    const [y, m, d] = String(s).slice(0, 10).split("-");
+    return y && m && d ? `${d}/${m}/${y}` : String(s);
+  };
+  return `${br(start)} – ${br(end)}`;
+}
