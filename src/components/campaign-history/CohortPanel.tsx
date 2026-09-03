@@ -559,7 +559,74 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                             <td className="px-2 py-2">{r.email_norm}</td>
                             <td className="px-2 py-2">{r.name ?? "—"}</td>
                             <td className="px-2 py-2">{res?.plan_name ?? res?.offer_name ?? r.offer ?? "—"}</td>
-                            <td className="px-2 py-2 text-right tabular-nums">{formatBRL(res?.mrr)}</td>
+                            <td className="px-2 py-2 text-right tabular-nums">
+                              {editing?.id === r.id ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <Input
+                                    className="h-8 w-28 text-right"
+                                    autoFocus
+                                    value={editing.value}
+                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") saveOverride();
+                                      if (e.key === "Escape") setEditing(null);
+                                    }}
+                                  />
+                                  <Input
+                                    className="h-8 w-40 text-xs"
+                                    placeholder="Observação (opcional)"
+                                    value={editing.note}
+                                    onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                                  />
+                                  <div className="flex gap-1">
+                                    <Button size="sm" className="h-7 px-2" onClick={saveOverride} disabled={savingOverride}>
+                                      Salvar
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEditing(null)}>
+                                      Cancelar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    className="rounded px-1 hover:bg-muted"
+                                    title="Ajustar MRR manualmente"
+                                    onClick={() =>
+                                      setEditing({
+                                        id: r.id,
+                                        email: r.email_norm,
+                                        value: String(res?.mrr ?? 0).replace(".", ","),
+                                        note: r.mrr_override_note ?? "",
+                                      })
+                                    }
+                                  >
+                                    {formatBRL(res?.mrr)}
+                                  </button>
+                                  {r.mrr_override != null && (
+                                    <>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px]"
+                                        title={`Original ${formatBRL(r.mrr_original)}${r.mrr_override_note ? ` · ${r.mrr_override_note}` : ""}`}
+                                      >
+                                        ajustado
+                                      </Badge>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        title="Remover ajuste manual"
+                                        onClick={() => clearOverride(r.id)}
+                                      >
+                                        <RotateCcw className="h-3 w-3" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </td>
                             <td className="px-2 py-2">
                               <Badge className={`text-xs ${STATUS_BADGE[status] ?? ""}`}>{STATUS_LABEL[status] ?? status}</Badge>
                             </td>
