@@ -1,41 +1,27 @@
-# Cohort — MRR líquido: simulação e caminho seguro
+# Edição manual do MRR no Cohort
 
-## Simulação feita (somente leitura, nada aplicado)
+Permitir que o usuário corrija pontualmente o MRR de um cliente na aba Cohort, sem que o ajuste seja perdido nos recálculos (Metabase/Stripe).
 
-Campanhas cadastradas em 08/2026 e efeito da regra "usar `mrr_net` do Stripe em vez do MRR do Metabase":
+## Como vai funcionar
 
-| Campanha | Contatos | MRR atual | MRR com net (regra simples) | Alterados | Delta |
-| --- | --- | --- | --- | --- | --- |
-| Black Friday 2025 | 53 | 5.507,86 | 3.927,00 | 8 | -1.580,86 |
-| Workshop 4blue & yampa (26/08) | 116 | 24.074,64 | 24.074,64 | 0 | 0 |
-| Workshop 4blue & yampa (25/08) | 55 | 21.084,49 | 21.084,49 | 0 | 0 |
-| Workshop FC (16 contatos) | 16 | 8.702,06 | 8.702,06 | 0 | 0 |
-| Workshop FC (12 contatos) | 12 | 3.348,24 | 3.198,22 | 1 | -150,02 |
-| Workshop FC (Aleks) | 37 | 9.870,16 | 10.084,18 | 1 | +214,02 |
-| Zero ao Lucro | 47 | 9.437,31 | 9.437,31 | 0 | 0 |
+- Na tabela "Clientes da campanha", a célula de MRR ganha um botão de lápis. Ao clicar, abre um campo/dialog para digitar o novo valor e uma observação curta opcional.
+- Valores ajustados aparecem com um selo "ajustado" e tooltip com o valor original e a nota.
+- Botão "Limpar ajuste" volta ao valor calculado automaticamente.
+- Todos os indicadores da aba (MRR ativo hoje, Receita Acumulada, LTV Real, LTV/CAC, ROI/payback, ARPA, curva de retenção, exportações CSV/XLSX) passam a usar o MRR efetivo (ajustado quando existir).
+- Recalcular cohort e Consultar Stripe **não** sobrescrevem os ajustes manuais.
 
-## O que a simulação revelou (e por que não devemos aplicar assim)
+## Detalhes técnicos
 
-Ao abrir os 10 contatos que mudariam, o resultado seria **errado**:
+Banco (migração):
+- Novas colunas em `campaign_cohort_results`: `mrr_override numeric`, `mrr_override_note text`, `mrr_override_by uuid`, `mrr_override_at timestamptz`.
+- Política de escrita: permitir update dessas colunas para os mesmos papéis que já leem a tabela (admin/tático), mantendo o padrão atual de RLS.
+- `campaign_cohort_refresh` e `campaign_cohort_stripe_fill`: nos `INSERT ... ON CONFLICT DO UPDATE`, preservar as 4 colunas de override (não incluí-las no SET).
+- `campaign_cohort_curve`: usar `COALESCE(mrr_override, mrr, 0)` no somatório de MRR.
+- Edge Function `cohort-stripe-live`: no upsert, não tocar nas colunas de override.
 
-- 7 clientes **ativos** ficariam com MRR **0,00**, porque a conversão correspondente no Stripe tem `mrr_net = 0` (líquido nunca calculado nesses registros antigos) — ex.: `felippeac@gmail.com`, hoje 292,78, iria a 0.
-- 3 casos apontam para uma assinatura **diferente da atual**: `diretoria@jebcontabil.com.br` (Metabase 65,00 → Stripe 279,02), `cdriomeier@gmail.com` (279,02 → 129,00), `santiagomotor@uol.com.br` (239,00 → 120,73). Aqui não é desconto, é outro plano/ciclo.
+Frontend:
+- `src/lib/campaignCohort.ts`: adicionar `mrr_override`/`mrr_override_note` ao tipo `CohortResult` e criar helper `effectiveMrr(res)`; substituir todos os usos de `res.mrr` (summarize, computeLifetimeRevenue, matriz de cohort, export) por `effectiveMrr`.
+- `src/components/campaign-history/CohortPanel.tsx`: edição inline do MRR (input + salvar/cancelar), selo "ajustado", ação de limpar ajuste, e refetch de `cohort-results` + `cohort-curve` após salvar.
+- Export CSV/XLSX: colunas "MRR" (efetivo) e "MRR original".
 
-Testei também a variante conservadora (usar `mrr_net` só quando `> 0` **e** quando o bruto do Stripe casa com o MRR do Metabase, indicando mesmo plano com cupom): o resultado é **zero alteração** em todas as campanhas. Ou seja, hoje não existe nenhum caso em que o líquido seja aproveitável para contatos vindos do Metabase.
-
-Base de apoio: `stripe_conversions` tem 685 registros, só 315 com `mrr_net` preenchido e 34 em que líquido ≠ bruto. `metas_ativos_pagantes_daily` não possui campo de MRR líquido.
-
-## Caminho proposto
-
-1. **Não** aplicar agora a troca na origem Metabase — como está, ela derrubaria MRR de clientes ativos.
-2. **Backfill do líquido no Stripe:** recalcular `mrr_net` das conversões (aplicando cupom/desconto da assinatura vigente) para todos os registros com `mrr_net` nulo ou zero e assinatura ativa.
-3. **Regra final do cohort** (após o backfill), aplicada via migração em `campaign_cohort_refresh`:
-   - usar `mrr_net` quando existir, for `> 0` e o bruto do Stripe corresponder à assinatura vigente do contato;
-   - senão, manter o MRR da origem que determinou o status (Metabase / histórico de churn / Stripe bruto).
-4. **Alinhar as demais origens:** `campaign_cohort_stripe_fill` e a Edge Function `cohort-stripe-live` passam a descontar cupom/desconto ativo, ficando coerentes com o líquido.
-5. **Reprocessar** o cohort das campanhas e repetir esta simulação para confirmar que só os casos com cupom real mudam.
-6. `CohortPanel.tsx` não muda — segue exibindo o campo `mrr`, que passa a ser líquido.
-
-## Decisão que preciso de você
-
-Confirma seguir por esse caminho (backfill do líquido primeiro, depois trocar a regra)? Se preferir, aplico a troca já com a salvaguarda "só quando líquido > 0 e mesmo plano" — mas hoje ela não altera nenhum valor.
+Sem mudança em outras telas — o override vale só para o Cohort da campanha.
