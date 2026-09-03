@@ -14,9 +14,11 @@ const service = createClient(
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 const MODEL = "openai/gpt-5.6-sol";
-const LOCK_MINUTES = 10;
-const BATCH = 4;
-const MAX_CONVERSATIONS_PER_RUN = 400;
+const LOCK_MINUTES = 4;
+const BATCH = 6;
+// Cada invocação processa um lote curto (limite de tempo do runtime) e se auto-encadeia.
+const MAX_CONVERSATIONS_PER_RUN = 60;
+const MAX_CHAIN = 40;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -172,6 +174,17 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (running) return json({ ok: false, busy: true, run_id: running.id }, 409);
 
+    // 2b) Varre execuções travadas (runtime encerrou antes de finalizar)
+    await service
+      .from("chatwoot_voice_runs")
+      .update({
+        status: "error",
+        message: "Execução interrompida pelo limite de tempo; retomada automática no próximo lote.",
+        finished_at: nowIso,
+      })
+      .eq("status", "running")
+      .lte("lock_expires_at", nowIso);
+
     // 3) Período (fuso São Paulo). Padrão do cron: dia anterior.
     const todaySp = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
     const yesterday = new Date(new Date(`${todaySp}T12:00:00Z`).getTime() - 86400_000);
@@ -325,7 +338,7 @@ Deno.serve(async (req) => {
           else {
             const msg = String((res.reason as any)?.message || res.reason);
             if (msg === "CREDITS_EXHAUSTED") pausedReason = "Créditos de IA esgotados";
-            else if (msg === "AI_BLOCKED") pausedReason = "IA bloqueada pela política do workspace";
+            else if (msg === "AI_BLOCKED") pausedReason = "Créditos de IA bloqueados/esgotados no workspace — recarregue os créditos e clique em Retomar";
             else if (msg === "RATE_LIMIT") rateLimitHits++;
             failed++;
             console.error("voice-extract fail:", msg);
@@ -362,6 +375,23 @@ Deno.serve(async (req) => {
         status: failed > 0 && processed === 0 ? "error" : "done",
         processed, failed, finished_at: new Date().toISOString(),
       }).eq("id", runId);
+
+      // Encadeia o próximo lote se o período ainda pode ter conversas pendentes
+      const chain = Number(body.chain || 0);
+      if (!probeOnly && processed > 0 && tasks.length >= hardLimit && chain < MAX_CHAIN) {
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/chatwoot-voice-extract`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ ...body, chain: chain + 1, resume: true, triggered_by: "chain" }),
+          });
+        } catch (e) {
+          console.error("chain invoke fail", e);
+        }
+      }
     };
 
     // @ts-ignore
