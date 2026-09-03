@@ -351,7 +351,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const baseName = `cohort-${campaign?.name ?? "campanha"}`.replace(/[^\w-]+/g, "-").toLowerCase();
 
   const exportCsv = () => {
-    const matrix = cohortRowsToMatrix(filtered);
+    const matrix = cohortRowsToMatrix(filtered, monthlyMrrQ.data);
     const csv = matrix.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
@@ -362,7 +362,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   };
 
   const exportXlsx = () => {
-    const ws = XLSX.utils.aoa_to_sheet(cohortRowsToMatrix(filtered));
+    const ws = XLSX.utils.aoa_to_sheet(cohortRowsToMatrix(filtered, monthlyMrrQ.data));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cohort");
     XLSX.writeFile(wb, `${baseName}.xlsx`);
