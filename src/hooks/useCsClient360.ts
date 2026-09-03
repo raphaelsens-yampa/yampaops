@@ -31,6 +31,7 @@ export function useCsClient360(email: string | null, portfolioId: string | null)
       const em = (email || "").toLowerCase();
 
       const [convRes, logsRes, dealsRes, csatRes] = await Promise.all([
+        // paged-ok: recorte por contato, limitado às 25 conversas mais recentes.
         supabase
           .from("chatwoot_conversations")
           .select(
@@ -67,8 +68,9 @@ export function useCsClient360(email: string | null, portfolioId: string | null)
         convIds.length
           ? supabase
               .from("chatwoot_conversation_audits")
+              // paged-ok: filtrado por até 25 conversation_ids do contato.
               .select("conversation_id, summary, churn_risk_score, severity")
-              .in("conversation_id", convIds)
+              .in("conversation_id", convIds).limit(50)
           : Promise.resolve({ data: [], error: null } as any),
         convIds.length
           ? supabase
