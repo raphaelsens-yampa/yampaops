@@ -16,6 +16,7 @@ import { ChurnHistoryDialog } from "./ChurnHistoryDialog";
 import { CohortRetentionChart } from "./CohortRetentionChart";
 import {
   buildCurve,
+  buildMonthlyMrrMap,
   cohortRowsToMatrix,
   computeLifetimeRevenue,
   formatBRL,
@@ -31,7 +32,9 @@ import {
   type CohortMrrOverride,
   type CohortResult,
   type CohortRow,
+  type MonthlyMrrRow,
 } from "@/lib/campaignCohort";
+
 import { campaignLabel, type HistoryCampaign } from "@/lib/campaignHistory";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -101,6 +104,18 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
+  const monthlyMrrQ = useQuery({
+    queryKey: ["cohort-monthly-mrr", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("campaign_cohort_mrr_by_month", {
+        p_campaign_id: campaignId,
+      });
+      if (error) throw error;
+      return buildMonthlyMrrMap((data ?? []) as MonthlyMrrRow[]);
+    },
+  });
+
   const overridesQ = useQuery({
     queryKey: ["cohort-mrr-overrides", campaignId],
     enabled: !!campaignId,
@@ -115,6 +130,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       return map;
     },
   });
+
 
   const rows: CohortRow[] = useMemo(() => {
     const results = resultsQ.data ?? new Map<string, CohortResult>();
@@ -176,7 +192,11 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
   const summary = useMemo(() => summarize(rows), [rows]);
 
-  const lifetime = useMemo(() => computeLifetimeRevenue(rows), [rows]);
+  const lifetime = useMemo(
+    () => computeLifetimeRevenue(rows, monthlyMrrQ.data),
+    [rows, monthlyMrrQ.data],
+  );
+
 
   const campaignValuesQ = useQuery({
     queryKey: ["cohort-campaign-values", campaignId],
@@ -331,7 +351,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const baseName = `cohort-${campaign?.name ?? "campanha"}`.replace(/[^\w-]+/g, "-").toLowerCase();
 
   const exportCsv = () => {
-    const matrix = cohortRowsToMatrix(filtered);
+    const matrix = cohortRowsToMatrix(filtered, monthlyMrrQ.data);
     const csv = matrix.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
@@ -342,7 +362,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   };
 
   const exportXlsx = () => {
-    const ws = XLSX.utils.aoa_to_sheet(cohortRowsToMatrix(filtered));
+    const ws = XLSX.utils.aoa_to_sheet(cohortRowsToMatrix(filtered, monthlyMrrQ.data));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cohort");
     XLSX.writeFile(wb, `${baseName}.xlsx`);
@@ -500,7 +520,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           </div>
 
 
-          <CohortRetentionChart curve={curveQ.data ?? []} rows={rows} />
+          <CohortRetentionChart curve={curveQ.data ?? []} rows={rows} monthlyMrr={monthlyMrrQ.data} />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">

@@ -319,6 +319,63 @@ export function summarizeCurve(curve: CurvePoint[], subscribers: number) {
   return { revenueAccumulated, ltvReal };
 }
 
+/* ===== MRR real mês a mês (snapshots) ===== */
+
+/** email_norm → "YYYY-MM" → MRR observado no snapshot daquele mês. */
+export type MonthlyMrrMap = Map<string, Map<string, number>>;
+
+export interface MonthlyMrrRow {
+  email_norm: string;
+  year_month: string;
+  mrr: number | string | null;
+}
+
+export function buildMonthlyMrrMap(raw: MonthlyMrrRow[] | null | undefined): MonthlyMrrMap {
+  const map: MonthlyMrrMap = new Map();
+  for (const r of raw ?? []) {
+    const email = String(r.email_norm ?? "").toLowerCase();
+    const key = String(r.year_month ?? "").slice(0, 7);
+    const mrr = Number(r.mrr ?? 0);
+    if (!email || key.length !== 7 || !isFinite(mrr)) continue;
+    const inner = map.get(email) ?? new Map<string, number>();
+    inner.set(key, mrr);
+    map.set(email, inner);
+  }
+  return map;
+}
+
+/** Converte índice absoluto de mês (ano*12 + mês-1) para a chave "YYYY-MM". */
+function monthKeyFromIndex(idx: number): string {
+  const y = Math.floor(idx / 12);
+  const m = idx - y * 12 + 1;
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * MRR de um cliente em um mês específico.
+ * Precedência: ajuste manual > snapshot do mês > MRR mais antigo conhecido do cliente (estimado) > valor atual (estimado).
+ */
+export function mrrForMonth(
+  monthly: MonthlyMrrMap | undefined,
+  emailNorm: string,
+  monthIdx: number,
+  fallback: number,
+  override?: number | null,
+): { value: number; estimated: boolean } {
+  if (override != null && isFinite(Number(override))) return { value: Number(override), estimated: false };
+  const inner = monthly?.get(String(emailNorm ?? "").toLowerCase());
+  if (inner && inner.size) {
+    const key = monthKeyFromIndex(monthIdx);
+    const exact = inner.get(key);
+    if (exact != null) return { value: Number(exact), estimated: false };
+    // Sem snapshot no mês: usa o valor mais antigo conhecido do próprio cliente.
+    const oldestKey = Array.from(inner.keys()).sort()[0];
+    return { value: Number(inner.get(oldestKey) ?? fallback), estimated: true };
+  }
+  return { value: Number(fallback ?? 0), estimated: true };
+}
+
+
 /**
  * Receita acumulada e LTV real cliente a cliente:
  * soma o MRR mês a mês da ativação até hoje (ativos) ou até o cancelamento (cancelados).
@@ -332,7 +389,7 @@ export interface LifetimeMonthPoint {
   revenue_cum: number;
 }
 
-export function computeLifetimeRevenue(rows: CohortRow[]) {
+export function computeLifetimeRevenue(rows: CohortRow[], monthly?: MonthlyMrrMap) {
   const now = new Date();
   const nowIdx = now.getFullYear() * 12 + now.getMonth();
 
@@ -344,7 +401,7 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
   let m0Revenue = 0;
 
 
-  const spans: { start: number; end: number; mrr: number }[] = [];
+  const spans: { start: number; end: number; mrr: number; email: string; override: number | null }[] = [];
 
   for (const r of rows) {
     const res = r.result;
@@ -356,29 +413,37 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
     const startIdx = monthIndex(startIso);
     const cancelIso = String(res.canceled_at ?? "").slice(0, 10);
-    const endIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : nowIdx;
+    const cancelIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    // Cancelamento anterior à ativação = assinatura antiga do mesmo e-mail: ignorado.
+    const endIdx = cancelIdx != null && cancelIdx >= startIdx ? cancelIdx : nowIdx;
     const end = Math.max(startIdx, Math.min(endIdx, nowIdx));
     const months = end - startIdx + 1;
-    const revenue = mrr * months;
+    const override = r.mrr_override ?? null;
+    let revenue = 0;
+    for (let m = startIdx; m <= end; m++) {
+      revenue += mrrForMonth(monthly, r.email_norm, m, mrr, override).value;
+    }
     revenueAccumulated += revenue;
     ltvSum += revenue;
     monthsSum += months;
     subscribers++;
-    m0Revenue += mrr;
-    spans.push({ start: startIdx, end, mrr });
+    m0Revenue += mrrForMonth(monthly, r.email_norm, startIdx, mrr, override).value;
+    spans.push({ start: startIdx, end, mrr, email: r.email_norm, override });
   }
 
 
-  const monthly: LifetimeMonthPoint[] = [];
+  const monthlyPoints: LifetimeMonthPoint[] = [];
   if (spans.length) {
     const base = Math.min(...spans.map((s) => s.start));
     const last = Math.max(...spans.map((s) => s.end));
     let cum = 0;
     for (let m = base; m <= last; m++) {
       let revenue = 0;
-      for (const s of spans) if (m >= s.start && m <= s.end) revenue += s.mrr;
+      for (const s of spans) {
+        if (m >= s.start && m <= s.end) revenue += mrrForMonth(monthly, s.email, m, s.mrr, s.override).value;
+      }
       cum += revenue;
-      monthly.push({ month_index: m - base, revenue, revenue_cum: cum });
+      monthlyPoints.push({ month_index: m - base, revenue, revenue_cum: cum });
     }
   }
 
@@ -391,10 +456,11 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     m0Revenue,
     // ARPA = receita do mês 0 dividida pelas vendas efetivas (clientes pagantes)
     arpa: subscribers > 0 ? m0Revenue / subscribers : null,
-    monthly,
+    monthly: monthlyPoints,
 
   };
 }
+
 
 
 /** Primeiro mês em que a receita acumulada iguala/supera o investimento realizado. */
@@ -421,6 +487,8 @@ export interface CohortMatrixCell {
   size: number;
   retention_pct: number;
   mrr: number;
+  /** Quantidade de clientes cujo MRR do mês foi estimado (sem snapshot). */
+  estimated: number;
 }
 
 export interface CohortMatrixRow {
@@ -444,15 +512,37 @@ function monthLabel(iso: string): string {
   return `${MONTHS_PT[m - 1] ?? "?"}/${y}`;
 }
 
+export interface CohortMatrixOptions {
+  maxOffset?: number;
+  /** MRR real por mês (snapshots). Quando ausente, cai no MRR atual projetado. */
+  monthly?: MonthlyMrrMap;
+}
+
 /**
  * Constrói a matriz clássica de cohort: cada linha é o mês de ativação,
  * cada coluna é o mês relativo (M0 em diante, sem teto) com a retenção do grupo.
+ *
+ * Quando há série mensal (snapshots), o ativo/MRR de cada mês vem do que foi
+ * efetivamente observado naquele mês; senão usa a data de cancelamento e o MRR atual.
  */
-export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): CohortMatrixRow[] {
+export function buildCohortMatrix(
+  rows: CohortRow[],
+  options?: number | CohortMatrixOptions,
+): CohortMatrixRow[] {
+  const opts: CohortMatrixOptions = typeof options === "number" ? { maxOffset: options } : (options ?? {});
+  const { maxOffset, monthly } = opts;
   const today = new Date();
   const nowIdx = today.getFullYear() * 12 + today.getMonth();
 
-  const groups = new Map<string, { start: number; canceled: number | null; mrr: number }[]>();
+  type Member = {
+    start: number;
+    canceled: number | null;
+    mrr: number;
+    email: string;
+    override: number | null;
+    hasSnapshots: boolean;
+  };
+  const groups = new Map<string, Member[]>();
 
   for (const r of rows) {
     const res = r.result;
@@ -460,10 +550,21 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): Cohort
     const startIso = (r.activated_at ?? res.started_at ?? "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
     const key = startIso.slice(0, 7);
+    const start = monthIndex(startIso);
     const cancelIso = (res.canceled_at ?? "").slice(0, 10);
-    const canceled = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    const cancelIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    // Cancelamento anterior à ativação = assinatura antiga do mesmo e-mail: ignorado.
+    const canceled = cancelIdx != null && cancelIdx >= start ? cancelIdx : null;
+    const email = String(r.email_norm ?? "").toLowerCase();
     const list = groups.get(key) ?? [];
-    list.push({ start: monthIndex(startIso), canceled, mrr: Number(res.mrr ?? 0) });
+    list.push({
+      start,
+      canceled,
+      mrr: Number(res.mrr ?? 0),
+      email,
+      override: r.mrr_override ?? null,
+      hasSnapshots: !!monthly?.get(email)?.size,
+    });
     groups.set(key, list);
   }
 
@@ -477,12 +578,21 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): Cohort
     for (let k = 0; k <= available; k++) {
       let active = 0;
       let mrr = 0;
+      let estimated = 0;
       for (const m of members) {
-        const stillActive = m.canceled == null || m.canceled > m.start + k;
-        if (stillActive) {
-          active++;
-          mrr += m.mrr;
-        }
+        const monthIdx = m.start + k;
+        const snapshot = m.hasSnapshots
+          ? monthly!.get(m.email)!.get(monthKeyFromIndex(monthIdx)) ?? null
+          : null;
+        // Com snapshots, ativo = observado como pagante naquele mês.
+        const stillActive = m.hasSnapshots
+          ? snapshot != null && Number(snapshot) > 0
+          : m.canceled == null || m.canceled > monthIdx;
+        if (!stillActive) continue;
+        const v = mrrForMonth(monthly, m.email, monthIdx, m.mrr, m.override);
+        active++;
+        mrr += v.value;
+        if (v.estimated) estimated++;
       }
       cells.push({
         offset: k,
@@ -490,8 +600,10 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): Cohort
         size: members.length,
         retention_pct: members.length ? (active / members.length) * 100 : 0,
         mrr,
+        estimated,
       });
     }
+
     out.push({ key, label: monthLabel(`${key}-01`), size: members.length, cells });
   }
   return out;
@@ -509,20 +621,26 @@ export function formatDateBR(v: string | null | undefined): string {
   return `${d[2]}/${d[1]}/${d[0]}`;
 }
 
-export function cohortRowsToMatrix(rows: CohortRow[]): (string | number)[][] {
+export function cohortRowsToMatrix(rows: CohortRow[], monthly?: MonthlyMrrMap): (string | number)[][] {
   const out: (string | number)[][] = [
-    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
+    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR no mês de ativação", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
   ];
   for (const r of rows) {
     const res = r.result;
+    const startIso = String(r.activated_at ?? res?.started_at ?? "").slice(0, 10);
+    const m0 = /^\d{4}-\d{2}-\d{2}$/.test(startIso)
+      ? mrrForMonth(monthly, r.email_norm, monthIndex(startIso), Number(res?.mrr ?? 0), r.mrr_override ?? null).value
+      : Number(res?.mrr ?? 0);
     out.push([
       r.email,
       r.name ?? "",
       res?.plan_name ?? "",
       res?.offer_name ?? r.offer ?? "",
       Number(res?.mrr ?? 0),
+      m0,
       Number(r.mrr_original ?? res?.mrr ?? 0),
       r.mrr_override != null ? r.mrr_override_note ?? "sim" : "",
+
       STATUS_LABEL[res?.status ?? "never"] ?? res?.status ?? "",
       r.activated_at ?? res?.started_at ?? "",
       res?.canceled_at ?? "",

@@ -9,7 +9,9 @@ import {
   type CohortMatrixCell,
   type CohortRow,
   type CurvePoint,
+  type MonthlyMrrMap,
 } from "@/lib/campaignCohort";
+
 
 type Mode = "retention" | "clients" | "mrr";
 
@@ -39,15 +41,24 @@ function cellStyle(cell: CohortMatrixCell) {
   };
 }
 
-export function CohortRetentionChart({ curve, rows }: { curve: CurvePoint[]; rows: CohortRow[] }) {
+export function CohortRetentionChart({
+  curve,
+  rows,
+  monthlyMrr,
+}: {
+  curve: CurvePoint[];
+  rows: CohortRow[];
+  monthlyMrr?: MonthlyMrrMap;
+}) {
   const [open, setOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("retention");
 
-  const matrix = useMemo(() => buildCohortMatrix(rows ?? []), [rows]);
+  const matrix = useMemo(() => buildCohortMatrix(rows ?? [], { monthly: monthlyMrr }), [rows, monthlyMrr]);
   const maxCols = useMemo(
     () => matrix.reduce((acc, r) => Math.max(acc, r.cells.length), 0),
     [matrix],
   );
+
   const cols = Array.from({ length: maxCols }, (_, i) => i);
 
 
@@ -110,7 +121,13 @@ export function CohortRetentionChart({ curve, rows }: { curve: CurvePoint[]; row
                                   <div>Retenção: {pct(cell.retention_pct)}</div>
                                   <div>Ativos: {cell.active} de {cell.size}</div>
                                   <div>MRR retido: {formatBRL(cell.mrr)}</div>
+                                  {cell.estimated > 0 ? (
+                                    <div className="text-muted-foreground">
+                                      {cell.estimated} cliente(s) com MRR estimado (sem snapshot do mês)
+                                    </div>
+                                  ) : null}
                                 </TooltipContent>
+
                               </Tooltip>
                             </td>
                           );
