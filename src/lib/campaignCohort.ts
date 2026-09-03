@@ -621,20 +621,26 @@ export function formatDateBR(v: string | null | undefined): string {
   return `${d[2]}/${d[1]}/${d[0]}`;
 }
 
-export function cohortRowsToMatrix(rows: CohortRow[]): (string | number)[][] {
+export function cohortRowsToMatrix(rows: CohortRow[], monthly?: MonthlyMrrMap): (string | number)[][] {
   const out: (string | number)[][] = [
-    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
+    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR no mês de ativação", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
   ];
   for (const r of rows) {
     const res = r.result;
+    const startIso = String(r.activated_at ?? res?.started_at ?? "").slice(0, 10);
+    const m0 = /^\d{4}-\d{2}-\d{2}$/.test(startIso)
+      ? mrrForMonth(monthly, r.email_norm, monthIndex(startIso), Number(res?.mrr ?? 0), r.mrr_override ?? null).value
+      : Number(res?.mrr ?? 0);
     out.push([
       r.email,
       r.name ?? "",
       res?.plan_name ?? "",
       res?.offer_name ?? r.offer ?? "",
       Number(res?.mrr ?? 0),
+      m0,
       Number(r.mrr_original ?? res?.mrr ?? 0),
       r.mrr_override != null ? r.mrr_override_note ?? "sim" : "",
+
       STATUS_LABEL[res?.status ?? "never"] ?? res?.status ?? "",
       r.activated_at ?? res?.started_at ?? "",
       res?.canceled_at ?? "",
