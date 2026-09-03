@@ -174,6 +174,17 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (running) return json({ ok: false, busy: true, run_id: running.id }, 409);
 
+    // 2b) Varre execuções travadas (runtime encerrou antes de finalizar)
+    await service
+      .from("chatwoot_voice_runs")
+      .update({
+        status: "error",
+        message: "Execução interrompida pelo limite de tempo; retomada automática no próximo lote.",
+        finished_at: nowIso,
+      })
+      .eq("status", "running")
+      .lte("lock_expires_at", nowIso);
+
     // 3) Período (fuso São Paulo). Padrão do cron: dia anterior.
     const todaySp = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
     const yesterday = new Date(new Date(`${todaySp}T12:00:00Z`).getTime() - 86400_000);
