@@ -49,11 +49,15 @@ describe("buildCohortMatrix com MRR mensal", () => {
     const m = buildCohortMatrix(rows, { maxOffset: 1, monthly });
     expect(m).toHaveLength(1);
     const [m0, m1] = m[0].cells;
-    expect(m0.mrr).toBe(549); // 349 + 200
-    expect(m0.active).toBe(2);
-    expect(m1.mrr).toBe(599);
-    expect(m1.active).toBe(1);
+    // a=349 (snapshot de março) + b=200 + c=100 (sem snapshot, projeta atual)
+    expect(m0.mrr).toBe(649);
+    expect(m0.active).toBe(3);
+    // b some do snapshot de abril; a sobe para 599; c segue projetado
+    expect(m1.mrr).toBe(699);
+    expect(m1.active).toBe(2);
+    expect(m1.estimated).toBe(1);
   });
+
 
   it("sem série mensal, projeta o MRR atual e ignora cancelamento pré-ativação", () => {
     const m = buildCohortMatrix(rows, { maxOffset: 1 });
