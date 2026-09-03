@@ -142,9 +142,7 @@ Deno.serve(async (req) => {
 Agrupe rótulos que significam a mesma coisa ("cobrança duplicada" e "cobraram 2x") num único tema canônico.
 Reaproveite estes temas canônicos já existentes quando couber: ${existingNames.length ? existingNames.join("; ") : "(nenhum ainda)"}.
 Todo rótulo recebido deve aparecer em exatamente um grupo. Nomes canônicos curtos, em português, minúsculos.`,
-      `Rótulos (com volume de conversas):
-${labels.map(([l, n]) => `- ${l} (${n})`).join("
-")}`,
+      `Rótulos (com volume de conversas):\n${labels.map(([l, n]) => `- ${l} (${n})`).join("\n")}`,
     )).groups || [];
 
     let updated = 0;
