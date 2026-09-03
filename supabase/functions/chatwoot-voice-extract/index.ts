@@ -109,7 +109,7 @@ async function callStructured(instructions: string, input: string, tool: any) {
     const { value, done } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\\n");
+    const lines = buffer.split("\n");
     buffer = lines.pop() || "";
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
