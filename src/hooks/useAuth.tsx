@@ -55,7 +55,7 @@ function defaultsForRole(role: AppRole): Permissions {
     return {
       overview: ro, goals: ro, conversions: ro, one_page_diretoria: ro, reports: ro,
       operations: ro, atendimentos: ro,
-      agent_activity: ro, auditoria_ia: ro, auditoria_ia_admin: ro, engajamento_cs: ro,
+      agent_activity: ro, auditoria_ia: ro, auditoria_ia_admin: ro, engajamento_cs: ro, voz_do_cliente: ro,
       sales: ro, sales_campaigns: ro, campaign_history: ro, link_builder: ro, precificacao: ro,
       gestao: ro, team: ro, users: none,
       integracoes: none, integration_stripe: none, integration_chatwoot: none,
@@ -68,7 +68,7 @@ function defaultsForRole(role: AppRole): Permissions {
   return {
     overview: ro, goals: ro, conversions: none, reports: none,
     operations: ro, atendimentos: ro,
-    agent_activity: none, auditoria_ia: ro, auditoria_ia_admin: none, engajamento_cs: ro,
+    agent_activity: none, auditoria_ia: ro, auditoria_ia_admin: none, engajamento_cs: ro, voz_do_cliente: none,
     sales: ro, sales_campaigns: none, campaign_history: none, link_builder: ro, precificacao: ro,
     gestao: none, team: none, users: none,
 

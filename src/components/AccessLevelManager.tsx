@@ -35,6 +35,7 @@ export const CRM_SECTIONS = [
       { key: "agent_activity", label: "Atividade de Agentes" },
       { key: "auditoria_ia", label: "Auditoria IA" },
       { key: "auditoria_ia_admin", label: "Auditoria IA — Revisão/Insights/Golden Set/Config" },
+      { key: "voz_do_cliente", label: "Voz do Cliente (temas e dores)" },
       { key: "engajamento_cs", label: "Engajamento CS" },
     ],
   },

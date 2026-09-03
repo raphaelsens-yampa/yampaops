@@ -1,7 +1,7 @@
 import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
-  FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator, HeartHandshake,
+  FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator, HeartHandshake, MessageSquareQuote,
   ChevronLeft, ChevronRight, Filter,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -243,6 +243,7 @@ export function AppSidebar() {
             ] : []),
           ],
         },
+        { title: "Voz do Cliente", url: "/atendimentos/voz-do-cliente", icon: MessageSquareQuote, area: "voz_do_cliente" },
         { title: "Engajamento CS", url: "/atendimentos/engajamento-cs", icon: HeartHandshake, area: "engajamento_cs" },
         // { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" }, // archived (AC-dependent)
       ],

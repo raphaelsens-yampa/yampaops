@@ -1386,6 +1386,86 @@ export type Database = {
           },
         ]
       }
+      chatwoot_conversation_themes: {
+        Row: {
+          analyzed_at: string
+          assignee_email: string | null
+          assignee_name: string | null
+          client_message_count: number
+          content_hash: string | null
+          conversation_id: number
+          created_at: string
+          day_sp: string | null
+          id: string
+          inbox_name: string | null
+          keywords: string[]
+          main_pain: string | null
+          model_used: string | null
+          primary_theme: string | null
+          primary_theme_canonical: string | null
+          run_id: string | null
+          sentiment: string | null
+          summary: string | null
+          themes: Json
+          updated_at: string
+          urgency: string | null
+        }
+        Insert: {
+          analyzed_at?: string
+          assignee_email?: string | null
+          assignee_name?: string | null
+          client_message_count?: number
+          content_hash?: string | null
+          conversation_id: number
+          created_at?: string
+          day_sp?: string | null
+          id?: string
+          inbox_name?: string | null
+          keywords?: string[]
+          main_pain?: string | null
+          model_used?: string | null
+          primary_theme?: string | null
+          primary_theme_canonical?: string | null
+          run_id?: string | null
+          sentiment?: string | null
+          summary?: string | null
+          themes?: Json
+          updated_at?: string
+          urgency?: string | null
+        }
+        Update: {
+          analyzed_at?: string
+          assignee_email?: string | null
+          assignee_name?: string | null
+          client_message_count?: number
+          content_hash?: string | null
+          conversation_id?: number
+          created_at?: string
+          day_sp?: string | null
+          id?: string
+          inbox_name?: string | null
+          keywords?: string[]
+          main_pain?: string | null
+          model_used?: string | null
+          primary_theme?: string | null
+          primary_theme_canonical?: string | null
+          run_id?: string | null
+          sentiment?: string | null
+          summary?: string | null
+          themes?: Json
+          updated_at?: string
+          urgency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatwoot_conversation_themes_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "chatwoot_voice_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatwoot_conversations: {
         Row: {
           assignee_email: string | null
@@ -1581,6 +1661,99 @@ export type Database = {
           sender_id?: number | null
           sender_name?: string | null
           sender_type?: string
+        }
+        Relationships: []
+      }
+      chatwoot_theme_catalog: {
+        Row: {
+          canonical_name: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          synonyms: string[]
+          updated_at: string
+        }
+        Insert: {
+          canonical_name: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          synonyms?: string[]
+          updated_at?: string
+        }
+        Update: {
+          canonical_name?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          synonyms?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chatwoot_voice_runs: {
+        Row: {
+          cancel_requested: boolean
+          created_at: string
+          failed: number
+          finished_at: string | null
+          id: string
+          kind: string
+          lock_expires_at: string | null
+          message: string | null
+          paused_reason: string | null
+          period_end: string | null
+          period_start: string | null
+          processed: number
+          skipped: number
+          started_at: string
+          status: string
+          total_conversations: number
+          triggered_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_requested?: boolean
+          created_at?: string
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          lock_expires_at?: string | null
+          message?: string | null
+          paused_reason?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          processed?: number
+          skipped?: number
+          started_at?: string
+          status?: string
+          total_conversations?: number
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_requested?: boolean
+          created_at?: string
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          lock_expires_at?: string | null
+          message?: string | null
+          paused_reason?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          processed?: number
+          skipped?: number
+          started_at?: string
+          status?: string
+          total_conversations?: number
+          triggered_by?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -5740,6 +5913,19 @@ export type Database = {
       campaign_cohort_stripe_fill: {
         Args: { p_campaign_id: string }
         Returns: Json
+      }
+      chatwoot_client_word_counts: {
+        Args: {
+          p_from: string
+          p_inbox?: string
+          p_limit?: number
+          p_to: string
+        }
+        Returns: {
+          conversations: number
+          occurrences: number
+          term: string
+        }[]
       }
       classify_stripe_conversion: {
         Args: {
