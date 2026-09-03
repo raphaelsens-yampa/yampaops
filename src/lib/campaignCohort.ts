@@ -319,6 +319,63 @@ export function summarizeCurve(curve: CurvePoint[], subscribers: number) {
   return { revenueAccumulated, ltvReal };
 }
 
+/* ===== MRR real mês a mês (snapshots) ===== */
+
+/** email_norm → "YYYY-MM" → MRR observado no snapshot daquele mês. */
+export type MonthlyMrrMap = Map<string, Map<string, number>>;
+
+export interface MonthlyMrrRow {
+  email_norm: string;
+  year_month: string;
+  mrr: number | string | null;
+}
+
+export function buildMonthlyMrrMap(raw: MonthlyMrrRow[] | null | undefined): MonthlyMrrMap {
+  const map: MonthlyMrrMap = new Map();
+  for (const r of raw ?? []) {
+    const email = String(r.email_norm ?? "").toLowerCase();
+    const key = String(r.year_month ?? "").slice(0, 7);
+    const mrr = Number(r.mrr ?? 0);
+    if (!email || key.length !== 7 || !isFinite(mrr)) continue;
+    const inner = map.get(email) ?? new Map<string, number>();
+    inner.set(key, mrr);
+    map.set(email, inner);
+  }
+  return map;
+}
+
+/** Converte índice absoluto de mês (ano*12 + mês-1) para a chave "YYYY-MM". */
+function monthKeyFromIndex(idx: number): string {
+  const y = Math.floor(idx / 12);
+  const m = idx - y * 12 + 1;
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * MRR de um cliente em um mês específico.
+ * Precedência: ajuste manual > snapshot do mês > MRR mais antigo conhecido do cliente (estimado) > valor atual (estimado).
+ */
+export function mrrForMonth(
+  monthly: MonthlyMrrMap | undefined,
+  emailNorm: string,
+  monthIdx: number,
+  fallback: number,
+  override?: number | null,
+): { value: number; estimated: boolean } {
+  if (override != null && isFinite(Number(override))) return { value: Number(override), estimated: false };
+  const inner = monthly?.get(String(emailNorm ?? "").toLowerCase());
+  if (inner && inner.size) {
+    const key = monthKeyFromIndex(monthIdx);
+    const exact = inner.get(key);
+    if (exact != null) return { value: Number(exact), estimated: false };
+    // Sem snapshot no mês: usa o valor mais antigo conhecido do próprio cliente.
+    const oldestKey = Array.from(inner.keys()).sort()[0];
+    return { value: Number(inner.get(oldestKey) ?? fallback), estimated: true };
+  }
+  return { value: Number(fallback ?? 0), estimated: true };
+}
+
+
 /**
  * Receita acumulada e LTV real cliente a cliente:
  * soma o MRR mês a mês da ativação até hoje (ativos) ou até o cancelamento (cancelados).
