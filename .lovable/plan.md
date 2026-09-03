@@ -34,3 +34,29 @@ Campanha Workshop FC de 03/2026 (ref. 2026-03-01), 16 contatos, todos com ativa�
 - `buildCohortMatrix` passa a receber um mapa `email_norm → {mês → mrr}`; `active`/`retention_pct` seguem a lógica atual (corrigida no item 4), só o MRR muda de fonte.
 - `computeLifetimeRevenue` e `summarizeCurve` consomem a mesma série mensal; `cohortRowsToMatrix` ganha coluna de MRR do mês de ativação.
 - Leituras via `fetchAllPaged`; nenhuma alteração nas Edge Functions de refresh/Stripe.
+
+## Simulação — Workshop FC 03/2026 (somente leitura)
+
+MRR do heatmap, hoje vs. modelo proposto (snapshot real de cada mês):
+
+| Coluna | Mês | Hoje (MRR atual projetado) | Proposto (MRR do mês) | Δ |
+|---|---|---|---|---|
+| M0 | mar/26 | R$ 8.523,41 | R$ 9.008,31 | +R$ 484,90 |
+| M1 | abr/26 | R$ 7.525,01 | R$ 7.525,01 | — |
+| M2 | mai/26 | R$ 7.525,01 | R$ 7.525,01 | — |
+| M3 | jun/26 | R$ 6.725,11 | R$ 5.990,21 | −R$ 734,90 |
+| M4 | jul/26 | R$ 5.925,21 | R$ 5.190,31 | −R$ 734,90 |
+| M5 | ago/26 | R$ 5.125,31 | R$ 5.925,21 | +R$ 799,90 |
+| M6 | set/26 | R$ 5.125,31 | R$ 5.125,31 | — |
+
+Clientes ativos por coluna no modelo proposto: 15, 13, 13, 12, 11, 11, 10 sobre 16 do cohort (94%, 81%, 81%, 75%, 69%, 69%, 63%).
+
+Por que muda:
+
+- `betofell@hotmail.com`: em março pagava **R$ 349** e subiu para R$ 599 em abril. Hoje o M0 mostra R$ 599 (upgrade projetado para trás).
+- `geovane_was@icloud.com`: em março pagava **R$ 799,90** e caiu para R$ 65 em abril. Hoje o M0 mostra R$ 65 (downsell projetado para trás).
+- `marcosmourasbs512@gmail.com`: oscilou 799,90 → **65** em jun/jul → volta a 799,90 em ago. Hoje aparece 799,90 em todos os meses — daí a queda de M3/M4 na simulação.
+- `leparada@gmail.com`: cancelou em ago/26, mas ainda constava pagante no snapshot de agosto. Hoje o modelo zera o cliente já no mês do cancelamento; no proposto ele conta em agosto (+R$ 799,90 em M5) e sai em setembro.
+- `diretoria@mybossdobrasil.com.br`: não aparece em nenhum snapshot desde março (assinatura antiga, cancelada em 12/2025). Continua fora da contagem de ativos, mas dentro do tamanho do cohort (por isso M0 = 94%).
+
+Resumo: o modelo atual acerta o total do mês corrente (M6 idêntico) e distorce os meses passados, achatando upgrades/downsells e antecipando saídas no mês do cancelamento. O proposto reproduz o MRR e a contagem de ativos efetivamente observados em cada mês.
