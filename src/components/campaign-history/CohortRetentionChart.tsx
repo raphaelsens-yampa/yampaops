@@ -39,15 +39,24 @@ function cellStyle(cell: CohortMatrixCell) {
   };
 }
 
-export function CohortRetentionChart({ curve, rows }: { curve: CurvePoint[]; rows: CohortRow[] }) {
+export function CohortRetentionChart({
+  curve,
+  rows,
+  monthlyMrr,
+}: {
+  curve: CurvePoint[];
+  rows: CohortRow[];
+  monthlyMrr?: MonthlyMrrMap;
+}) {
   const [open, setOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("retention");
 
-  const matrix = useMemo(() => buildCohortMatrix(rows ?? []), [rows]);
+  const matrix = useMemo(() => buildCohortMatrix(rows ?? [], { monthly: monthlyMrr }), [rows, monthlyMrr]);
   const maxCols = useMemo(
     () => matrix.reduce((acc, r) => Math.max(acc, r.cells.length), 0),
     [matrix],
   );
+
   const cols = Array.from({ length: maxCols }, (_, i) => i);
 
 
