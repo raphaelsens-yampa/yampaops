@@ -332,7 +332,7 @@ export interface LifetimeMonthPoint {
   revenue_cum: number;
 }
 
-export function computeLifetimeRevenue(rows: CohortRow[]) {
+export function computeLifetimeRevenue(rows: CohortRow[], monthly?: MonthlyMrrMap) {
   const now = new Date();
   const nowIdx = now.getFullYear() * 12 + now.getMonth();
 
@@ -344,7 +344,7 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
   let m0Revenue = 0;
 
 
-  const spans: { start: number; end: number; mrr: number }[] = [];
+  const spans: { start: number; end: number; mrr: number; email: string; override: number | null }[] = [];
 
   for (const r of rows) {
     const res = r.result;
@@ -356,29 +356,37 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
     const startIdx = monthIndex(startIso);
     const cancelIso = String(res.canceled_at ?? "").slice(0, 10);
-    const endIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : nowIdx;
+    const cancelIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    // Cancelamento anterior à ativação = assinatura antiga do mesmo e-mail: ignorado.
+    const endIdx = cancelIdx != null && cancelIdx >= startIdx ? cancelIdx : nowIdx;
     const end = Math.max(startIdx, Math.min(endIdx, nowIdx));
     const months = end - startIdx + 1;
-    const revenue = mrr * months;
+    const override = r.mrr_override ?? null;
+    let revenue = 0;
+    for (let m = startIdx; m <= end; m++) {
+      revenue += mrrForMonth(monthly, r.email_norm, m, mrr, override).value;
+    }
     revenueAccumulated += revenue;
     ltvSum += revenue;
     monthsSum += months;
     subscribers++;
-    m0Revenue += mrr;
-    spans.push({ start: startIdx, end, mrr });
+    m0Revenue += mrrForMonth(monthly, r.email_norm, startIdx, mrr, override).value;
+    spans.push({ start: startIdx, end, mrr, email: r.email_norm, override });
   }
 
 
-  const monthly: LifetimeMonthPoint[] = [];
+  const monthlyPoints: LifetimeMonthPoint[] = [];
   if (spans.length) {
     const base = Math.min(...spans.map((s) => s.start));
     const last = Math.max(...spans.map((s) => s.end));
     let cum = 0;
     for (let m = base; m <= last; m++) {
       let revenue = 0;
-      for (const s of spans) if (m >= s.start && m <= s.end) revenue += s.mrr;
+      for (const s of spans) {
+        if (m >= s.start && m <= s.end) revenue += mrrForMonth(monthly, s.email, m, s.mrr, s.override).value;
+      }
       cum += revenue;
-      monthly.push({ month_index: m - base, revenue, revenue_cum: cum });
+      monthlyPoints.push({ month_index: m - base, revenue, revenue_cum: cum });
     }
   }
 
@@ -391,10 +399,11 @@ export function computeLifetimeRevenue(rows: CohortRow[]) {
     m0Revenue,
     // ARPA = receita do mês 0 dividida pelas vendas efetivas (clientes pagantes)
     arpa: subscribers > 0 ? m0Revenue / subscribers : null,
-    monthly,
+    monthly: monthlyPoints,
 
   };
 }
+
 
 
 /** Primeiro mês em que a receita acumulada iguala/supera o investimento realizado. */
