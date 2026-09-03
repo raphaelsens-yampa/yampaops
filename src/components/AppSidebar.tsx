@@ -243,6 +243,7 @@ export function AppSidebar() {
             ] : []),
           ],
         },
+        { title: "Carteira de CS", url: "/atendimentos/carteira-cs", icon: Users, area: "carteira_cs" },
         { title: "Voz do Cliente", url: "/atendimentos/voz-do-cliente", icon: MessageSquareQuote, area: "voz_do_cliente" },
         { title: "Engajamento CS", url: "/atendimentos/engajamento-cs", icon: HeartHandshake, area: "engajamento_cs" },
         // { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" }, // archived (AC-dependent)

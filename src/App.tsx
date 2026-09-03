@@ -38,6 +38,7 @@ import ChatwootAuditInsights from "./pages/ChatwootAuditInsights";
 import ChatwootAuditGoldenSet from "./pages/ChatwootAuditGoldenSet";
 import ChatwootAuditMine from "./pages/ChatwootAuditMine";
 import CsEngagement from "./pages/CsEngagement";
+import CsPortfolio from "./pages/CsPortfolio";
 import ChatwootVoiceOfCustomer from "./pages/ChatwootVoiceOfCustomer";
 import SalesCampaigns from "./pages/SalesCampaigns";
 import SalesCampaignDetail from "./pages/SalesCampaignDetail";
@@ -124,6 +125,7 @@ function AppRoutes() {
       <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditGoldenSet /></RequireArea>} />
       <Route path="/atendimentos/auditoria/minhas" element={<RequireArea area="auditoria_ia"><ChatwootAuditMine /></RequireArea>} />
       <Route path="/atendimentos/voz-do-cliente" element={<RequireArea area="voz_do_cliente"><ChatwootVoiceOfCustomer /></RequireArea>} />
+      <Route path="/atendimentos/carteira-cs" element={<RequireArea area="carteira_cs"><CsPortfolio /></RequireArea>} />
       <Route path="/atendimentos/engajamento-cs" element={<RequireArea area="engajamento_cs"><CsEngagement /></RequireArea>} />
       <Route path="/reports" element={<RequireArea area="reports"><Reports /></RequireArea>} />
 
