@@ -5954,6 +5954,15 @@ export type Database = {
           mrr_total: number
         }[]
       }
+      campaign_cohort_mrr_by_month: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          email_norm: string
+          mrr: number
+          source: string
+          year_month: string
+        }[]
+      }
       campaign_cohort_refresh: {
         Args: { p_campaign_id: string }
         Returns: Json
