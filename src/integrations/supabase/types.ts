@@ -2477,6 +2477,315 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_assignment_rules: {
+        Row: {
+          created_at: string
+          cs_user_ids: string[]
+          id: string
+          is_active: boolean
+          mode: string
+          position: number
+          segment_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cs_user_ids?: string[]
+          id?: string
+          is_active?: boolean
+          mode?: string
+          position?: number
+          segment_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cs_user_ids?: string[]
+          id?: string
+          is_active?: boolean
+          mode?: string
+          position?: number
+          segment_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_assignment_rules_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "cs_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_client_enrichment: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          industry: string | null
+          notes: string | null
+          source: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          industry?: string | null
+          notes?: string | null
+          source?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          notes?: string | null
+          source?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      cs_contact_logs: {
+        Row: {
+          author_id: string
+          channel: string
+          chatwoot_conversation_id: number | null
+          contacted_at: string
+          created_at: string
+          email: string
+          id: string
+          note: string | null
+          outcome: string
+          portfolio_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string
+          channel?: string
+          chatwoot_conversation_id?: number | null
+          contacted_at?: string
+          created_at?: string
+          email: string
+          id?: string
+          note?: string | null
+          outcome?: string
+          portfolio_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          channel?: string
+          chatwoot_conversation_id?: number | null
+          contacted_at?: string
+          created_at?: string
+          email?: string
+          id?: string
+          note?: string | null
+          outcome?: string
+          portfolio_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_contact_logs_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "cs_portfolio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_engagement_config: {
+        Row: {
+          band_high: number
+          band_low: number
+          band_mid: number
+          created_at: string
+          id: string
+          updated_at: string
+          weight_churn_risk: number
+          weight_conversations: number
+          weight_csat: number
+          weight_recency: number
+          weight_tenure: number
+        }
+        Insert: {
+          band_high?: number
+          band_low?: number
+          band_mid?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          weight_churn_risk?: number
+          weight_conversations?: number
+          weight_csat?: number
+          weight_recency?: number
+          weight_tenure?: number
+        }
+        Update: {
+          band_high?: number
+          band_low?: number
+          band_mid?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          weight_churn_risk?: number
+          weight_conversations?: number
+          weight_csat?: number
+          weight_recency?: number
+          weight_tenure?: number
+        }
+        Relationships: []
+      }
+      cs_portfolio: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          assignment_source: string
+          cadence_days: number | null
+          churn_risk_score: number | null
+          company_name: string | null
+          conversations_90d: number
+          created_at: string
+          cs_user_id: string | null
+          data_inicio: string | null
+          email: string
+          engagement_band: string | null
+          engagement_score: number | null
+          id: string
+          industry: string | null
+          is_active: boolean
+          last_client_message_at: string | null
+          last_contact_at: string | null
+          last_snapshot: string | null
+          mrr: number
+          next_contact_due: string | null
+          nome_oferta: string | null
+          origem_cliente: string | null
+          plano: string | null
+          previous_mrr: number | null
+          recorrencia_pagamento: string | null
+          segment_id: string | null
+          stripe_price_id: string | null
+          tenure_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assignment_source?: string
+          cadence_days?: number | null
+          churn_risk_score?: number | null
+          company_name?: string | null
+          conversations_90d?: number
+          created_at?: string
+          cs_user_id?: string | null
+          data_inicio?: string | null
+          email: string
+          engagement_band?: string | null
+          engagement_score?: number | null
+          id?: string
+          industry?: string | null
+          is_active?: boolean
+          last_client_message_at?: string | null
+          last_contact_at?: string | null
+          last_snapshot?: string | null
+          mrr?: number
+          next_contact_due?: string | null
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          plano?: string | null
+          previous_mrr?: number | null
+          recorrencia_pagamento?: string | null
+          segment_id?: string | null
+          stripe_price_id?: string | null
+          tenure_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assignment_source?: string
+          cadence_days?: number | null
+          churn_risk_score?: number | null
+          company_name?: string | null
+          conversations_90d?: number
+          created_at?: string
+          cs_user_id?: string | null
+          data_inicio?: string | null
+          email?: string
+          engagement_band?: string | null
+          engagement_score?: number | null
+          id?: string
+          industry?: string | null
+          is_active?: boolean
+          last_client_message_at?: string | null
+          last_contact_at?: string | null
+          last_snapshot?: string | null
+          mrr?: number
+          next_contact_due?: string | null
+          nome_oferta?: string | null
+          origem_cliente?: string | null
+          plano?: string | null
+          previous_mrr?: number | null
+          recorrencia_pagamento?: string | null
+          segment_id?: string | null
+          stripe_price_id?: string | null
+          tenure_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_portfolio_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "cs_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_segments: {
+        Row: {
+          cadence_days: number
+          color: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          priority: number
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          cadence_days?: number
+          color?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          priority?: number
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          cadence_days?: number
+          color?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          priority?: number
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discount_clients: {
         Row: {
           cnpj: string | null
