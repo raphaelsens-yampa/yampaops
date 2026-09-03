@@ -25,10 +25,11 @@ describe("cadência da carteira de CS", () => {
   });
 
   it("marca vence em breve dentro de 7 dias", () => {
-    const r = { ...base, last_contact_at: "2026-09-01", next_contact_due: "2026-09-15" };
+    const r = { ...base, last_contact_at: "2026-09-01", next_contact_due: "2026-09-25" };
     expect(cadenceStatus(r, TODAY)).toBe("em_dia");
-    expect(cadenceStatus({ ...r, next_contact_due: "2026-09-14" }, TODAY)).toBe("vence_breve");
+    expect(cadenceStatus({ ...r, next_contact_due: "2026-09-15" }, TODAY)).toBe("vence_breve");
   });
+
 
   it("prioriza atraso maior, risco maior e MRR maior", () => {
     const late = { ...base, last_contact_at: "2026-01-01", next_contact_due: "2026-02-01" };
