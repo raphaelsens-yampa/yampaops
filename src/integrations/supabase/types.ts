@@ -6310,6 +6310,36 @@ export type Database = {
       }
       close_ativos_pagantes_month: { Args: { p_month?: string }; Returns: Json }
       commission_month_locked: { Args: { p_month: string }; Returns: boolean }
+      cs_match_rules: {
+        Args: { p_attrs: Json; p_rules: Json }
+        Returns: boolean
+      }
+      cs_portfolio_refresh: { Args: never; Returns: Json }
+      cs_segment_preview: {
+        Args: { p_rules: Json }
+        Returns: {
+          client_count: number
+          mrr_total: number
+        }[]
+      }
+      cs_snapshot_base: {
+        Args: never
+        Returns: {
+          area: string
+          data_inicio: string
+          email: string
+          gateway: string
+          mrr: number
+          nome_oferta: string
+          origem_cliente: string
+          plano: string
+          previous_mrr: number
+          recorrencia_pagamento: string
+          snapshot: string
+          stripe_price_id: string
+          tenure_days: number
+        }[]
+      }
       fill_snapshot_gaps: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
