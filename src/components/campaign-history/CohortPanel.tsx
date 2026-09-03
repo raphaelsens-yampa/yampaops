@@ -28,6 +28,7 @@ import {
   SOURCE_LABEL,
   STATUS_LABEL,
   type CohortContact,
+  type CohortMrrOverride,
   type CohortResult,
   type CohortRow,
 } from "@/lib/campaignCohort";
