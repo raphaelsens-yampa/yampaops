@@ -14,9 +14,11 @@ const service = createClient(
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 const MODEL = "openai/gpt-5.6-sol";
-const LOCK_MINUTES = 10;
-const BATCH = 4;
-const MAX_CONVERSATIONS_PER_RUN = 400;
+const LOCK_MINUTES = 4;
+const BATCH = 6;
+// Cada invocação processa um lote curto (limite de tempo do runtime) e se auto-encadeia.
+const MAX_CONVERSATIONS_PER_RUN = 60;
+const MAX_CHAIN = 40;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
