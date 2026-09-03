@@ -49,6 +49,59 @@ const TOOL_SCHEMA = {
   },
 };
 
+async function callCatalog(instructions: string, input: string) {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": LOVABLE_API_KEY,
+      "X-Lovable-AIG-SDK": "fetch",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      instructions,
+      input,
+      stream: true,
+      reasoning: { effort: "none", summary: "auto" },
+      tools: [{
+        type: "function",
+        name: TOOL_SCHEMA.function.name,
+        description: TOOL_SCHEMA.function.description,
+        parameters: TOOL_SCHEMA.function.parameters,
+        strict: true,
+      }],
+      tool_choice: { type: "function", name: TOOL_SCHEMA.function.name },
+    }),
+  });
+  if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
+  if (resp.status === 403) throw new Error("AI_BLOCKED");
+  if (resp.status === 429) throw new Error("RATE_LIMIT");
+  if (!resp.ok) throw new Error(`AI ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+  if (!resp.body) throw new Error("AI sem stream");
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let argumentsText = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (!raw || raw === "[DONE]") continue;
+      let event: any;
+      try { event = JSON.parse(raw); } catch { continue; }
+      if (event.type === "response.function_call_arguments.delta") argumentsText += event.delta || "";
+      if (event.type === "response.output_item.done" && event.item?.type === "function_call") argumentsText = event.item.arguments || argumentsText;
+    }
+  }
+  if (!argumentsText) throw new Error("AI sem function_call");
+  return JSON.parse(argumentsText);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -84,39 +137,15 @@ Deno.serve(async (req) => {
       .from("chatwoot_theme_catalog").select("canonical_name, synonyms").eq("is_active", true);
     const existingNames = (catalog || []).map((c) => c.canonical_name);
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${LOVABLE_API_KEY}` },
-      body: JSON.stringify({
-        model: MODEL,
-        reasoning_effort: "none",
-        messages: [
-          {
-            role: "system",
-            content: `Você organiza rótulos de tema de atendimento de uma fintech brasileira.
+    const groups: any[] = (await callCatalog(
+      `Você organiza rótulos de tema de atendimento de uma fintech brasileira.
 Agrupe rótulos que significam a mesma coisa ("cobrança duplicada" e "cobraram 2x") num único tema canônico.
 Reaproveite estes temas canônicos já existentes quando couber: ${existingNames.length ? existingNames.join("; ") : "(nenhum ainda)"}.
-Todo rótulo recebido deve aparecer em exatamente um grupo. Nomes canônicos curtos, em português, minúsculos.
-Chame a tool register_catalog obrigatoriamente.`,
-          },
-          {
-            role: "user",
-            content: `Rótulos (com volume de conversas):\n${labels.map(([l, n]) => `- ${l} (${n})`).join("\n")}`,
-          },
-        ],
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "function", function: { name: "register_catalog" } },
-      }),
-    });
-    if (resp.status === 402) return json({ error: "Créditos de IA esgotados" }, 402);
-    if (resp.status === 403) return json({ error: "IA bloqueada pela política do workspace" }, 403);
-    if (resp.status === 429) return json({ error: "Limite de requisições da IA; tente novamente em instantes" }, 429);
-    if (!resp.ok) return json({ error: `AI ${resp.status}: ${(await resp.text()).slice(0, 300)}` }, 500);
-
-    const j = await resp.json();
-    const args = j?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return json({ error: "AI sem tool_call" }, 500);
-    const groups: any[] = JSON.parse(args).groups || [];
+Todo rótulo recebido deve aparecer em exatamente um grupo. Nomes canônicos curtos, em português, minúsculos.`,
+      `Rótulos (com volume de conversas):
+${labels.map(([l, n]) => `- ${l} (${n})`).join("
+")}`,
+    )).groups || [];
 
     let updated = 0;
     for (const g of groups) {

@@ -71,8 +71,62 @@ const TOOL_SCHEMA = {
   },
 };
 
+async function callStructured(instructions: string, input: string, tool: any) {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": LOVABLE_API_KEY,
+      "X-Lovable-AIG-SDK": "fetch",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      instructions,
+      input,
+      stream: true,
+      reasoning: { effort: "none", summary: "auto" },
+      tools: [{
+        type: "function",
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+        strict: true,
+      }],
+      tool_choice: { type: "function", name: tool.function.name },
+    }),
+  });
+  if (resp.status === 429) throw new Error("RATE_LIMIT");
+  if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
+  if (resp.status === 403) throw new Error("AI_BLOCKED");
+  if (!resp.ok) throw new Error(`AI ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+  if (!resp.body) throw new Error("AI sem stream");
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let argumentsText = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (!raw || raw === "[DONE]") continue;
+      let event: any;
+      try { event = JSON.parse(raw); } catch { continue; }
+      if (event.type === "response.function_call_arguments.delta") argumentsText += event.delta || "";
+      if (event.type === "response.output_item.done" && event.item?.type === "function_call") argumentsText = event.item.arguments || argumentsText;
+    }
+  }
+  if (!argumentsText) throw new Error("AI sem function_call");
+  return JSON.parse(argumentsText);
+}
+
 async function analyze(clientText: string, auditContext: string) {
-  const sys = `Você analisa a VOZ DO CLIENTE de uma fintech brasileira.
+  const instructions = `Você analisa a VOZ DO CLIENTE de uma fintech brasileira.
 Você recebe SOMENTE as mensagens enviadas pelo CLIENTE (nunca as do atendente).
 Sua tarefa: identificar os temas conversados e as dores trazidas pelo cliente.
 
@@ -80,32 +134,8 @@ Regras:
 - Rótulos de tema curtos, em português, reutilizáveis entre conversas (ex.: "cobrança duplicada", "erro ao emitir nota", "dúvida sobre plano").
 - Nunca invente falas: os trechos citados devem ser literais.
 - Se a conversa for apenas saudação/sem conteúdo, use o tema "sem assunto identificado".
-${auditContext ? `\nContexto da auditoria de qualidade (apoio, não é fala do cliente):\n${auditContext}` : ""}
-
-Chame a tool register_themes obrigatoriamente.`;
-
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${LOVABLE_API_KEY}` },
-    body: JSON.stringify({
-      model: MODEL,
-      reasoning_effort: "none",
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: `Mensagens do cliente:\n\n${clientText}` },
-      ],
-      tools: [TOOL_SCHEMA],
-      tool_choice: { type: "function", function: { name: "register_themes" } },
-    }),
-  });
-  if (resp.status === 429) throw new Error("RATE_LIMIT");
-  if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
-  if (resp.status === 403) throw new Error("AI_BLOCKED");
-  if (!resp.ok) throw new Error(`AI ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
-  const j = await resp.json();
-  const call = j?.choices?.[0]?.message?.tool_calls?.[0];
-  if (!call?.function?.arguments) throw new Error("AI sem tool_call");
-  return JSON.parse(call.function.arguments);
+${auditContext ? `\nContexto da auditoria de qualidade (apoio, não é fala do cliente):\n${auditContext}` : ""}`;
+  return callStructured(instructions, `Mensagens do cliente:\n\n${clientText}`, TOOL_SCHEMA);
 }
 
 Deno.serve(async (req) => {
