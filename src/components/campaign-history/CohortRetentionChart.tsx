@@ -9,7 +9,9 @@ import {
   type CohortMatrixCell,
   type CohortRow,
   type CurvePoint,
+  type MonthlyMrrMap,
 } from "@/lib/campaignCohort";
+
 
 type Mode = "retention" | "clients" | "mrr";
 
