@@ -338,7 +338,7 @@ Deno.serve(async (req) => {
           else {
             const msg = String((res.reason as any)?.message || res.reason);
             if (msg === "CREDITS_EXHAUSTED") pausedReason = "Créditos de IA esgotados";
-            else if (msg === "AI_BLOCKED") pausedReason = "IA bloqueada pela política do workspace";
+            else if (msg === "AI_BLOCKED") pausedReason = "Créditos de IA bloqueados/esgotados no workspace — recarregue os créditos e clique em Retomar";
             else if (msg === "RATE_LIMIT") rateLimitHits++;
             failed++;
             console.error("voice-extract fail:", msg);
