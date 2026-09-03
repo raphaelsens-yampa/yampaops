@@ -104,6 +104,18 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
+  const monthlyMrrQ = useQuery({
+    queryKey: ["cohort-monthly-mrr", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("campaign_cohort_mrr_by_month", {
+        p_campaign_id: campaignId,
+      });
+      if (error) throw error;
+      return buildMonthlyMrrMap((data ?? []) as MonthlyMrrRow[]);
+    },
+  });
+
   const overridesQ = useQuery({
     queryKey: ["cohort-mrr-overrides", campaignId],
     enabled: !!campaignId,
@@ -118,6 +130,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       return map;
     },
   });
+
 
   const rows: CohortRow[] = useMemo(() => {
     const results = resultsQ.data ?? new Map<string, CohortResult>();
