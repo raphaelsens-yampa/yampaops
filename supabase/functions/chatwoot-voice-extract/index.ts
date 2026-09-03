@@ -375,6 +375,23 @@ Deno.serve(async (req) => {
         status: failed > 0 && processed === 0 ? "error" : "done",
         processed, failed, finished_at: new Date().toISOString(),
       }).eq("id", runId);
+
+      // Encadeia o próximo lote se o período ainda pode ter conversas pendentes
+      const chain = Number(body.chain || 0);
+      if (!probeOnly && processed > 0 && tasks.length >= hardLimit && chain < MAX_CHAIN) {
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/chatwoot-voice-extract`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ ...body, chain: chain + 1, resume: true, triggered_by: "chain" }),
+          });
+        } catch (e) {
+          console.error("chain invoke fail", e);
+        }
+      }
     };
 
     // @ts-ignore
