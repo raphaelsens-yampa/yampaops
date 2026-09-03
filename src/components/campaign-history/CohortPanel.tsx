@@ -16,6 +16,7 @@ import { ChurnHistoryDialog } from "./ChurnHistoryDialog";
 import { CohortRetentionChart } from "./CohortRetentionChart";
 import {
   buildCurve,
+  buildMonthlyMrrMap,
   cohortRowsToMatrix,
   computeLifetimeRevenue,
   formatBRL,
@@ -31,7 +32,9 @@ import {
   type CohortMrrOverride,
   type CohortResult,
   type CohortRow,
+  type MonthlyMrrRow,
 } from "@/lib/campaignCohort";
+
 import { campaignLabel, type HistoryCampaign } from "@/lib/campaignHistory";
 
 const STATUS_BADGE: Record<string, string> = {
