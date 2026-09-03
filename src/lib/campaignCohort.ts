@@ -36,7 +36,21 @@ export interface CohortResult {
 }
 
 export interface CohortRow extends CohortContact {
+  /** O MRR aqui já é o efetivo (ajuste manual quando existir). */
   result: CohortResult | null;
+  /** Ajuste manual de MRR aplicado (null = sem ajuste). */
+  mrr_override?: number | null;
+  mrr_override_note?: string | null;
+  /** MRR calculado automaticamente, antes do ajuste. */
+  mrr_original?: number | null;
+}
+
+export interface CohortMrrOverride {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  mrr: number;
+  note: string | null;
 }
 
 export const STATUS_LABEL: Record<string, string> = {
@@ -497,7 +511,7 @@ export function formatDateBR(v: string | null | undefined): string {
 
 export function cohortRowsToMatrix(rows: CohortRow[]): (string | number)[][] {
   const out: (string | number)[][] = [
-    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
+    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
   ];
   for (const r of rows) {
     const res = r.result;
@@ -507,6 +521,8 @@ export function cohortRowsToMatrix(rows: CohortRow[]): (string | number)[][] {
       res?.plan_name ?? "",
       res?.offer_name ?? r.offer ?? "",
       Number(res?.mrr ?? 0),
+      Number(r.mrr_original ?? res?.mrr ?? 0),
+      r.mrr_override != null ? r.mrr_override_note ?? "sim" : "",
       STATUS_LABEL[res?.status ?? "never"] ?? res?.status ?? "",
       r.activated_at ?? res?.started_at ?? "",
       res?.canceled_at ?? "",

@@ -556,6 +556,54 @@ export type Database = {
           },
         ]
       }
+      campaign_cohort_mrr_overrides: {
+        Row: {
+          campaign_id: string
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          mrr: number
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mrr: number
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mrr?: number
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_cohort_mrr_overrides_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_cohort_mrr_overrides_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "campaign_cohort_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_cohort_results: {
         Row: {
           campaign_id: string

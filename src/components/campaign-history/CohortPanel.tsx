@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileSpreadsheet, History, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { Download, FileSpreadsheet, History, RefreshCw, RotateCcw, Search, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CollapseToggle } from "@/components/goals/tactical/CollapseToggle";
@@ -28,6 +28,7 @@ import {
   SOURCE_LABEL,
   STATUS_LABEL,
   type CohortContact,
+  type CohortMrrOverride,
   type CohortResult,
   type CohortRow,
 } from "@/lib/campaignCohort";
@@ -100,10 +101,78 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
+  const overridesQ = useQuery({
+    queryKey: ["cohort-mrr-overrides", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_cohort_mrr_overrides")
+        .select("id, campaign_id, contact_id, mrr, note")
+        .eq("campaign_id", campaignId);
+      if (error) throw error;
+      const map = new Map<string, CohortMrrOverride>();
+      for (const o of (data ?? []) as unknown as CohortMrrOverride[]) map.set(o.contact_id, o);
+      return map;
+    },
+  });
+
   const rows: CohortRow[] = useMemo(() => {
     const results = resultsQ.data ?? new Map<string, CohortResult>();
-    return (contactsQ.data ?? []).map((c) => ({ ...c, result: results.get(c.id) ?? null }));
-  }, [contactsQ.data, resultsQ.data]);
+    const overrides = overridesQ.data ?? new Map<string, CohortMrrOverride>();
+    return (contactsQ.data ?? []).map((c) => {
+      const res = results.get(c.id) ?? null;
+      const ov = overrides.get(c.id) ?? null;
+      const overrideMrr = ov ? Number(ov.mrr) : null;
+      return {
+        ...c,
+        result: res ? { ...res, mrr: overrideMrr ?? res.mrr } : res,
+        mrr_override: overrideMrr,
+        mrr_override_note: ov?.note ?? null,
+        mrr_original: res?.mrr ?? null,
+      };
+    });
+  }, [contactsQ.data, resultsQ.data, overridesQ.data]);
+
+  const [editing, setEditing] = useState<{ id: string; email: string; value: string; note: string } | null>(null);
+  const [savingOverride, setSavingOverride] = useState(false);
+
+  const saveOverride = async () => {
+    if (!editing || !campaignId) return;
+    const parsed = Number(editing.value.replace(/\./g, "").replace(",", "."));
+    if (!isFinite(parsed) || parsed < 0) {
+      toast({ title: "Valor inválido", description: "Informe um MRR numérico maior ou igual a zero.", variant: "destructive" });
+      return;
+    }
+    setSavingOverride(true);
+    const { error } = await supabase
+      .from("campaign_cohort_mrr_overrides")
+      .upsert(
+        {
+          campaign_id: campaignId,
+          contact_id: editing.id,
+          mrr: parsed,
+          note: editing.note.trim() || null,
+        } as any,
+        { onConflict: "contact_id" },
+      );
+    setSavingOverride(false);
+    if (error) {
+      toast({ title: "Erro ao salvar ajuste", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditing(null);
+    await Promise.all([overridesQ.refetch(), curveQ.refetch()]);
+    toast({ title: "MRR ajustado", description: "O ajuste é preservado nos próximos recálculos." });
+  };
+
+  const clearOverride = async (contactId: string) => {
+    const { error } = await supabase.from("campaign_cohort_mrr_overrides").delete().eq("contact_id", contactId);
+    if (error) {
+      toast({ title: "Erro ao limpar ajuste", description: error.message, variant: "destructive" });
+      return;
+    }
+    await Promise.all([overridesQ.refetch(), curveQ.refetch()]);
+  };
 
   const summary = useMemo(() => summarize(rows), [rows]);
 
@@ -490,7 +559,74 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                             <td className="px-2 py-2">{r.email_norm}</td>
                             <td className="px-2 py-2">{r.name ?? "—"}</td>
                             <td className="px-2 py-2">{res?.plan_name ?? res?.offer_name ?? r.offer ?? "—"}</td>
-                            <td className="px-2 py-2 text-right tabular-nums">{formatBRL(res?.mrr)}</td>
+                            <td className="px-2 py-2 text-right tabular-nums">
+                              {editing?.id === r.id ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <Input
+                                    className="h-8 w-28 text-right"
+                                    autoFocus
+                                    value={editing.value}
+                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") saveOverride();
+                                      if (e.key === "Escape") setEditing(null);
+                                    }}
+                                  />
+                                  <Input
+                                    className="h-8 w-40 text-xs"
+                                    placeholder="Observação (opcional)"
+                                    value={editing.note}
+                                    onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                                  />
+                                  <div className="flex gap-1">
+                                    <Button size="sm" className="h-7 px-2" onClick={saveOverride} disabled={savingOverride}>
+                                      Salvar
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEditing(null)}>
+                                      Cancelar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    className="rounded px-1 hover:bg-muted"
+                                    title="Ajustar MRR manualmente"
+                                    onClick={() =>
+                                      setEditing({
+                                        id: r.id,
+                                        email: r.email_norm,
+                                        value: String(res?.mrr ?? 0).replace(".", ","),
+                                        note: r.mrr_override_note ?? "",
+                                      })
+                                    }
+                                  >
+                                    {formatBRL(res?.mrr)}
+                                  </button>
+                                  {r.mrr_override != null && (
+                                    <>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px]"
+                                        title={`Original ${formatBRL(r.mrr_original)}${r.mrr_override_note ? ` · ${r.mrr_override_note}` : ""}`}
+                                      >
+                                        ajustado
+                                      </Badge>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        title="Remover ajuste manual"
+                                        onClick={() => clearOverride(r.id)}
+                                      >
+                                        <RotateCcw className="h-3 w-3" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </td>
                             <td className="px-2 py-2">
                               <Badge className={`text-xs ${STATUS_BADGE[status] ?? ""}`}>{STATUS_LABEL[status] ?? status}</Badge>
                             </td>
