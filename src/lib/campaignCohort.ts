@@ -511,7 +511,7 @@ export function formatDateBR(v: string | null | undefined): string {
 
 export function cohortRowsToMatrix(rows: CohortRow[]): (string | number)[][] {
   const out: (string | number)[][] = [
-    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
+    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
   ];
   for (const r of rows) {
     const res = r.result;
@@ -521,6 +521,8 @@ export function cohortRowsToMatrix(rows: CohortRow[]): (string | number)[][] {
       res?.plan_name ?? "",
       res?.offer_name ?? r.offer ?? "",
       Number(res?.mrr ?? 0),
+      Number(r.mrr_original ?? res?.mrr ?? 0),
+      r.mrr_override != null ? r.mrr_override_note ?? "sim" : "",
       STATUS_LABEL[res?.status ?? "never"] ?? res?.status ?? "",
       r.activated_at ?? res?.started_at ?? "",
       res?.canceled_at ?? "",
