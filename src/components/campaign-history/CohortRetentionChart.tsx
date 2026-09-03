@@ -121,7 +121,13 @@ export function CohortRetentionChart({
                                   <div>Retenção: {pct(cell.retention_pct)}</div>
                                   <div>Ativos: {cell.active} de {cell.size}</div>
                                   <div>MRR retido: {formatBRL(cell.mrr)}</div>
+                                  {cell.estimated > 0 ? (
+                                    <div className="text-muted-foreground">
+                                      {cell.estimated} cliente(s) com MRR estimado (sem snapshot do mês)
+                                    </div>
+                                  ) : null}
                                 </TooltipContent>
+
                               </Tooltip>
                             </td>
                           );
