@@ -100,10 +100,78 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
+  const overridesQ = useQuery({
+    queryKey: ["cohort-mrr-overrides", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaign_cohort_mrr_overrides")
+        .select("id, campaign_id, contact_id, mrr, note")
+        .eq("campaign_id", campaignId);
+      if (error) throw error;
+      const map = new Map<string, CohortMrrOverride>();
+      for (const o of (data ?? []) as unknown as CohortMrrOverride[]) map.set(o.contact_id, o);
+      return map;
+    },
+  });
+
   const rows: CohortRow[] = useMemo(() => {
     const results = resultsQ.data ?? new Map<string, CohortResult>();
-    return (contactsQ.data ?? []).map((c) => ({ ...c, result: results.get(c.id) ?? null }));
-  }, [contactsQ.data, resultsQ.data]);
+    const overrides = overridesQ.data ?? new Map<string, CohortMrrOverride>();
+    return (contactsQ.data ?? []).map((c) => {
+      const res = results.get(c.id) ?? null;
+      const ov = overrides.get(c.id) ?? null;
+      const overrideMrr = ov ? Number(ov.mrr) : null;
+      return {
+        ...c,
+        result: res ? { ...res, mrr: overrideMrr ?? res.mrr } : res,
+        mrr_override: overrideMrr,
+        mrr_override_note: ov?.note ?? null,
+        mrr_original: res?.mrr ?? null,
+      };
+    });
+  }, [contactsQ.data, resultsQ.data, overridesQ.data]);
+
+  const [editing, setEditing] = useState<{ id: string; email: string; value: string; note: string } | null>(null);
+  const [savingOverride, setSavingOverride] = useState(false);
+
+  const saveOverride = async () => {
+    if (!editing || !campaignId) return;
+    const parsed = Number(editing.value.replace(/\./g, "").replace(",", "."));
+    if (!isFinite(parsed) || parsed < 0) {
+      toast({ title: "Valor inválido", description: "Informe um MRR numérico maior ou igual a zero.", variant: "destructive" });
+      return;
+    }
+    setSavingOverride(true);
+    const { error } = await supabase
+      .from("campaign_cohort_mrr_overrides")
+      .upsert(
+        {
+          campaign_id: campaignId,
+          contact_id: editing.id,
+          mrr: parsed,
+          note: editing.note.trim() || null,
+        } as any,
+        { onConflict: "contact_id" },
+      );
+    setSavingOverride(false);
+    if (error) {
+      toast({ title: "Erro ao salvar ajuste", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditing(null);
+    await Promise.all([overridesQ.refetch(), curveQ.refetch()]);
+    toast({ title: "MRR ajustado", description: "O ajuste é preservado nos próximos recálculos." });
+  };
+
+  const clearOverride = async (contactId: string) => {
+    const { error } = await supabase.from("campaign_cohort_mrr_overrides").delete().eq("contact_id", contactId);
+    if (error) {
+      toast({ title: "Erro ao limpar ajuste", description: error.message, variant: "destructive" });
+      return;
+    }
+    await Promise.all([overridesQ.refetch(), curveQ.refetch()]);
+  };
 
   const summary = useMemo(() => summarize(rows), [rows]);
 
