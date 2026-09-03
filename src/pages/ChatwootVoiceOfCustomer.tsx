@@ -288,7 +288,7 @@ export default function ChatwootVoiceOfCustomer() {
     qc.invalidateQueries({ queryKey: ["voc-runs"] });
   };
 
-  const updateCatalog = async (id: string, patch: Record<string, unknown>) => {
+  const updateCatalog = async (id: string, patch: { canonical_name?: string; is_active?: boolean; description?: string }) => {
     const { error } = await supabase.from("chatwoot_theme_catalog").update(patch).eq("id", id);
     if (error) toast({ title: "Erro ao salvar tema", description: error.message, variant: "destructive" });
     qc.invalidateQueries({ queryKey: ["voc-catalog"] });
