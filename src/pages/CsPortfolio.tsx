@@ -131,7 +131,7 @@ export default function CsPortfolio() {
                     try {
                       const res = await refresh.mutateAsync();
                       toast.success(
-                        `Carteira atualizada: ${res?.active ?? 0} ativos, ${res?.deactivated ?? 0} inativados`,
+                        `Carteira atualizada: ${res?.upserted ?? 0} clientes, ${res?.assigned ?? 0} encarteirados, ${res?.deactivated ?? 0} inativados`,
                       );
                     } catch (e: any) {
                       toast.error(e.message || "Falha ao atualizar carteira");
