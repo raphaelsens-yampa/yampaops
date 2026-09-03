@@ -487,6 +487,8 @@ export interface CohortMatrixCell {
   size: number;
   retention_pct: number;
   mrr: number;
+  /** Quantidade de clientes cujo MRR do mês foi estimado (sem snapshot). */
+  estimated: number;
 }
 
 export interface CohortMatrixRow {
@@ -510,15 +512,37 @@ function monthLabel(iso: string): string {
   return `${MONTHS_PT[m - 1] ?? "?"}/${y}`;
 }
 
+export interface CohortMatrixOptions {
+  maxOffset?: number;
+  /** MRR real por mês (snapshots). Quando ausente, cai no MRR atual projetado. */
+  monthly?: MonthlyMrrMap;
+}
+
 /**
  * Constrói a matriz clássica de cohort: cada linha é o mês de ativação,
  * cada coluna é o mês relativo (M0 em diante, sem teto) com a retenção do grupo.
+ *
+ * Quando há série mensal (snapshots), o ativo/MRR de cada mês vem do que foi
+ * efetivamente observado naquele mês; senão usa a data de cancelamento e o MRR atual.
  */
-export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): CohortMatrixRow[] {
+export function buildCohortMatrix(
+  rows: CohortRow[],
+  options?: number | CohortMatrixOptions,
+): CohortMatrixRow[] {
+  const opts: CohortMatrixOptions = typeof options === "number" ? { maxOffset: options } : (options ?? {});
+  const { maxOffset, monthly } = opts;
   const today = new Date();
   const nowIdx = today.getFullYear() * 12 + today.getMonth();
 
-  const groups = new Map<string, { start: number; canceled: number | null; mrr: number }[]>();
+  type Member = {
+    start: number;
+    canceled: number | null;
+    mrr: number;
+    email: string;
+    override: number | null;
+    hasSnapshots: boolean;
+  };
+  const groups = new Map<string, Member[]>();
 
   for (const r of rows) {
     const res = r.result;
@@ -526,10 +550,21 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): Cohort
     const startIso = (r.activated_at ?? res.started_at ?? "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startIso)) continue;
     const key = startIso.slice(0, 7);
+    const start = monthIndex(startIso);
     const cancelIso = (res.canceled_at ?? "").slice(0, 10);
-    const canceled = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    const cancelIdx = /^\d{4}-\d{2}-\d{2}$/.test(cancelIso) ? monthIndex(cancelIso) : null;
+    // Cancelamento anterior à ativação = assinatura antiga do mesmo e-mail: ignorado.
+    const canceled = cancelIdx != null && cancelIdx >= start ? cancelIdx : null;
+    const email = String(r.email_norm ?? "").toLowerCase();
     const list = groups.get(key) ?? [];
-    list.push({ start: monthIndex(startIso), canceled, mrr: Number(res.mrr ?? 0) });
+    list.push({
+      start,
+      canceled,
+      mrr: Number(res.mrr ?? 0),
+      email,
+      override: r.mrr_override ?? null,
+      hasSnapshots: !!monthly?.get(email)?.size,
+    });
     groups.set(key, list);
   }
 
@@ -543,12 +578,21 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): Cohort
     for (let k = 0; k <= available; k++) {
       let active = 0;
       let mrr = 0;
+      let estimated = 0;
       for (const m of members) {
-        const stillActive = m.canceled == null || m.canceled > m.start + k;
-        if (stillActive) {
-          active++;
-          mrr += m.mrr;
-        }
+        const monthIdx = m.start + k;
+        const snapshot = m.hasSnapshots
+          ? monthly!.get(m.email)!.get(monthKeyFromIndex(monthIdx)) ?? null
+          : null;
+        // Com snapshots, ativo = observado como pagante naquele mês.
+        const stillActive = m.hasSnapshots
+          ? snapshot != null && Number(snapshot) > 0
+          : m.canceled == null || m.canceled > monthIdx;
+        if (!stillActive) continue;
+        const v = mrrForMonth(monthly, m.email, monthIdx, m.mrr, m.override);
+        active++;
+        mrr += v.value;
+        if (v.estimated) estimated++;
       }
       cells.push({
         offset: k,
@@ -556,8 +600,10 @@ export function buildCohortMatrix(rows: CohortRow[], maxOffset?: number): Cohort
         size: members.length,
         retention_pct: members.length ? (active / members.length) * 100 : 0,
         mrr,
+        estimated,
       });
     }
+
     out.push({ key, label: monthLabel(`${key}-01`), size: members.length, cells });
   }
   return out;
