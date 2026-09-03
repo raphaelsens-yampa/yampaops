@@ -36,7 +36,21 @@ export interface CohortResult {
 }
 
 export interface CohortRow extends CohortContact {
+  /** O MRR aqui já é o efetivo (ajuste manual quando existir). */
   result: CohortResult | null;
+  /** Ajuste manual de MRR aplicado (null = sem ajuste). */
+  mrr_override?: number | null;
+  mrr_override_note?: string | null;
+  /** MRR calculado automaticamente, antes do ajuste. */
+  mrr_original?: number | null;
+}
+
+export interface CohortMrrOverride {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  mrr: number;
+  note: string | null;
 }
 
 export const STATUS_LABEL: Record<string, string> = {
