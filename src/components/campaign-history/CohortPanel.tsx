@@ -192,7 +192,11 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
   const summary = useMemo(() => summarize(rows), [rows]);
 
-  const lifetime = useMemo(() => computeLifetimeRevenue(rows), [rows]);
+  const lifetime = useMemo(
+    () => computeLifetimeRevenue(rows, monthlyMrrQ.data),
+    [rows, monthlyMrrQ.data],
+  );
+
 
   const campaignValuesQ = useQuery({
     queryKey: ["cohort-campaign-values", campaignId],
