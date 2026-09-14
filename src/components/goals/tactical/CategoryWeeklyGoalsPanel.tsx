@@ -272,7 +272,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           return Math.max(0, cur - base);
         };
 
-        const rows: WeekRow[] = weeks.map((w) => {
+        const rows: WeekRow[] = weeks.map((w, wi) => {
           const startKey = toBRDateKey(w.start);
           const endKey = toBRDateKey(w.end);
           const isCurrent = todayKey >= startKey && todayKey <= endKey;
@@ -288,21 +288,14 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               for (const id of componentIds) {
                 const leaf = catById.get(id);
                 if (!leaf) continue;
-                const v = leafRealized(leaf, w, isCurrent, cutKey);
+                const v = leafRealized(leaf, w, wi, isCurrent, cutKey);
                 if (v === null) continue;
                 any = true;
                 sum += Math.abs(v);
               }
               realized = any ? sum : null;
             } else if (tacticalMetricId) {
-              const end = new Date(w.end);
-              if (isCurrent) end.setTime(today.getTime());
-              realized = withCoupon(
-                realizedBetween(daily, tacticalMetricId, [], w.start, end),
-                cat,
-                startKey,
-                cutKey,
-              );
+              realized = tacticalWeekly(cat, tacticalMetricId)[wi] ?? null;
             } else if (isStock) {
               realized = valueAsOf(points, cutKey, monthStartKey);
             } else {
