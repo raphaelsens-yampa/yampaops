@@ -32,10 +32,8 @@ import {
   COUPON_NO_SPLIT_HINT,
   COUPON_OPTIONS,
   CATEGORY_SLUG_TO_COUPON_CLASS,
-  applyCouponMode,
   couponCampaignValueBetween,
   couponLabel,
-  couponShareBetween,
   isCouponFiltered,
   type CouponFilter,
 } from "./campaignCoupons";
