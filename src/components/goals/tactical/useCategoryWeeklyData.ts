@@ -293,7 +293,10 @@ export function useCategoryWeeklyData(
           const kind = cat.metric_type === "count" ? "qtd" : "mrr";
           const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : 1));
           let prevRaw: number | null = null;
-          let acc = 0;
+          /** movimento canônico acumulado no mês (denominador do recorte) */
+          let accTotal = 0;
+          /** valor de cupom acumulado no mês (numerador bruto, pode ter lag) */
+          let accCouponRaw = 0;
           let anySplit = false;
           const out: CategorySnapPoint[] = [];
           for (const p of sorted) {
@@ -305,6 +308,7 @@ export function useCategoryWeeklyData(
             }
             const delta = Math.max(0, p.value - prevRaw);
             prevRaw = p.value;
+            accTotal += delta;
             // O filtro "Não-campanha" precisa ser o complemento da visão
             // canônica já recortada por origem. Assim, em Visão Geral, 4blue e
             // qualquer valor sem cupom ficam em Não-campanha; no filtro Yampa ou
@@ -313,19 +317,18 @@ export function useCategoryWeeklyData(
               origin === "4blue"
                 ? 0
                 : couponCampaignValueBetween(couponShares, p.date, p.date, cls, kind) ?? 0;
-            // INVARIANTE: Tudo = Campanha + Não-campanha, e nenhum recorte pode
-            // superar o Tudo. O valor do cupom na Stripe é apenas o numerador; o
-            // denominador é sempre o delta canônico do snapshot, então limitamos
-            // a fatia de campanha ao movimento do dia.
-            const campaignPart = Math.min(Math.max(directCampaign, 0), delta);
-            if (coupon === "campaign") {
-              anySplit = true;
-              acc += campaignPart;
-            } else if (coupon === "non_campaign") {
-              anySplit = true;
-              acc += delta - campaignPart;
-            }
-            out.push({ date: p.date, value: acc });
+            accCouponRaw += Math.max(directCampaign, 0);
+            // INVARIANTES: Tudo = Campanha + Não-campanha e nenhum recorte pode
+            // superar o Tudo. O cupom da Stripe é só o numerador; o denominador é
+            // sempre o movimento canônico do snapshot. O teto é aplicado no
+            // ACUMULADO do mês (não no dia), para não perder a venda de campanha
+            // quando o snapshot registra o movimento um ou dois dias depois.
+            const campaignAcc = Math.min(accCouponRaw, accTotal);
+            anySplit = true;
+            out.push({
+              date: p.date,
+              value: coupon === "campaign" ? campaignAcc : accTotal - campaignAcc,
+            });
           }
           if (!anySplit) {
             unsupported.add(catId);
