@@ -23,6 +23,7 @@ import {
 } from "./types";
 import {
   CATEGORY_TACTICAL_METRIC,
+  REAL_MRR_FLOW_SLUGS,
   STOCK_CATEGORY_SLUGS,
   useCategoryWeeklyData,
   type CategorySnapPoint,
@@ -106,7 +107,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
     } catch {}
   };
 
-  const { categories, targets, series, noOriginSplit, couponShares, loading } = useCategoryWeeklyData(
+  const { categories, targets, series, noOriginSplit, couponShares, actualSnapshotDate, loading } = useCategoryWeeklyData(
     today,
     refreshKey,
     origin,
@@ -244,6 +245,15 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           isCurrent: boolean,
           cutKey: string,
         ): number | null => {
+          if (REAL_MRR_FLOW_SLUGS.has(leaf.slug)) {
+            const leafPoints = series.get(leaf.id);
+            const cur = valueAsOf(leafPoints, cutKey, monthStartKey);
+            if (cur === null) return null;
+            const prevKey = toBRDateKey(
+              new Date(w.start.getFullYear(), w.start.getMonth(), w.start.getDate() - 1),
+            );
+            return Math.max(0, cur - (valueAsOf(leafPoints, prevKey, monthStartKey) ?? 0));
+          }
           const leafMetricId = CATEGORY_TACTICAL_METRIC[leaf.slug];
           if (leafMetricId) {
             return tacticalWeekly(leaf, leafMetricId)[wi] ?? null;
@@ -281,9 +291,11 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
                 const v = leafRealized(leaf, w, wi, isCurrent, cutKey);
                 if (v === null) continue;
                 any = true;
-                sum += Math.abs(v);
+                sum += v;
               }
               realized = any ? sum : null;
+            } else if (REAL_MRR_FLOW_SLUGS.has(cat.slug)) {
+              realized = leafRealized(cat, w, wi, isCurrent, cutKey);
             } else if (tacticalMetricId) {
               realized = tacticalWeekly(cat, tacticalMetricId)[wi] ?? null;
             } else if (isStock) {
@@ -369,10 +381,16 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           unrecovered,
           realizedTotal,
           partialOrigin,
-          source: isAggregate ? "soma das componentes" : tacticalMetricId ? "tático" : "snapshot",
+          source: isAggregate
+            ? "ativações reais"
+            : REAL_MRR_FLOW_SLUGS.has(cat.slug)
+              ? "ativos pagantes"
+              : tacticalMetricId
+                ? "tático"
+                : "snapshot",
         };
       });
-  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, originFiltered, couponFiltered, couponShares, noOriginSplit, revised]);
+  }, [effectiveIds, available, catById, targets, series, weeks, todayKey, daily, businessDaysInMonth, monthStartKey, today, origin, originFiltered, coupon, couponFiltered, couponShares, noOriginSplit, revised]);
 
 
 
@@ -493,7 +511,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
           A meta mensal é rateada por dias úteis de cada semana. Categorias de estoque (MRR total,
           ativos, churn %) comparam o nível do fim da semana com a meta do mês.
-          {couponFiltered && ` Recorte "${couponLabel(coupon)}": Campanha usa os cupons marcados; Não-campanha é o complemento da visão canônica no recorte de origem atual; as metas seguem as cadastradas.`}
+           {actualSnapshotDate && ` Fluxos de MRR fechados por cliente e data de ativação na fotografia de ${actualSnapshotDate.split("-").reverse().join("/")}.`}
+           {couponFiltered && ` Recorte "${couponLabel(coupon)}": cada cliente é classificado pelo vínculo real entre sua ativação e um cupom marcado como campanha; as metas seguem as cadastradas.`}
           {revised && " Na visão Revisada, o saldo entre a meta do mês e o realizado das semanas fechadas é redistribuído nas semanas futuras por dias úteis — a soma das metas semanais pode então diferir da meta original do mês."}
         </p>
       </CardHeader>

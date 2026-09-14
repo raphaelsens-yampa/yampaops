@@ -17,6 +17,7 @@ import {
 } from "@/components/goals/tactical/types";
 import {
   STOCK_CATEGORY_SLUGS,
+  REAL_MRR_FLOW_SLUGS,
   useCategoryWeeklyData,
   type CategorySnapPoint,
 } from "@/components/goals/tactical/useCategoryWeeklyData";
@@ -159,7 +160,7 @@ export function CategoryWeeklyMatrix() {
                 const v = snapRealized(series.get(leaf.id), leaf.slug, w, cutKey);
                 if (v === null) continue;
                 any = true;
-                sum += Math.abs(v);
+                sum += v;
               }
               realized = any ? sum : null;
             } else {
