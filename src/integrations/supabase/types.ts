@@ -5551,6 +5551,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tactical_campaign_manual_links: {
+        Row: {
+          activation_date: string
+          coupon_id: string | null
+          created_at: string
+          created_by: string | null
+          email_norm: string
+          id: string
+          is_campaign: boolean
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          activation_date: string
+          coupon_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_norm: string
+          id?: string
+          is_campaign?: boolean
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activation_date?: string
+          coupon_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_norm?: string
+          id?: string
+          is_campaign?: boolean
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tactical_goals: {
         Row: {
           created_at: string
@@ -6417,6 +6453,20 @@ export type Database = {
       scc_refresh_first_contact: {
         Args: { p_campaign_id: string }
         Returns: number
+      }
+      tactical_campaign_match_gaps: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          activation_date: string
+          classification: string
+          converted_at: string
+          coupon_id: string
+          coupon_name: string
+          email: string
+          gap_type: string
+          manual_is_campaign: boolean
+          mrr: number
+        }[]
       }
       tactical_weekly_mrr_actual: {
         Args: { p_as_of: string; p_from: string; p_to: string }

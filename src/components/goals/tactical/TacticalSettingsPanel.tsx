@@ -5,6 +5,7 @@ import { StripeBackupPanel } from "./StripeBackupPanel";
 import { TacticalGoalsManager } from "./TacticalGoalsManager";
 import { RecoveryReasonsConfig } from "./RecoveryReasonsConfig";
 import { CampaignCouponsConfig } from "./CampaignCouponsConfig";
+import { CampaignMatchGaps } from "./CampaignMatchGaps";
 import { GrowthBaselineConfig } from "@/components/goals/GrowthBaselineConfig";
 
 /**
@@ -43,6 +44,8 @@ export function TacticalSettingsPanel() {
       <RecoveryReasonsConfig reasons={reasons} onChanged={reloadReasons} />
 
       <CampaignCouponsConfig />
+
+      <CampaignMatchGaps />
     </div>
   );
 }
