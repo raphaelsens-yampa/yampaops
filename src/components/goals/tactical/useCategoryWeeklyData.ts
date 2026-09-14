@@ -313,16 +313,17 @@ export function useCategoryWeeklyData(
               origin === "4blue"
                 ? 0
                 : couponCampaignValueBetween(couponShares, p.date, p.date, cls, kind) ?? 0;
-            // Campanha deve usar o valor bruto do cupom na Stripe. Não limitamos
-            // pelo delta canônico do snapshot, porque a base canônica pode ter lag
-            // ou recorte de origem diferente e isso corta vendas válidas.
-            const campaignRaw = Math.max(directCampaign, 0);
+            // INVARIANTE: Tudo = Campanha + Não-campanha, e nenhum recorte pode
+            // superar o Tudo. O valor do cupom na Stripe é apenas o numerador; o
+            // denominador é sempre o delta canônico do snapshot, então limitamos
+            // a fatia de campanha ao movimento do dia.
+            const campaignPart = Math.min(Math.max(directCampaign, 0), delta);
             if (coupon === "campaign") {
               anySplit = true;
-              acc += campaignRaw;
+              acc += campaignPart;
             } else if (coupon === "non_campaign") {
               anySplit = true;
-              acc += Math.max(delta - campaignRaw, 0);
+              acc += delta - campaignPart;
             }
             out.push({ date: p.date, value: acc });
           }
