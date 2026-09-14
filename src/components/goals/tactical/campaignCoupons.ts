@@ -316,6 +316,17 @@ export function applyCouponMode(value: number, share: number, coupon: CouponFilt
   return value;
 }
 
+/**
+ * Divide um movimento canônico entre campanha e não-campanha sem transportar
+ * sobra entre períodos. Isso garante, em cada dia/semana:
+ *   campanha + não-campanha = tudo.
+ */
+export function splitCanonicalCouponValue(canonical: number, campaignRaw: number) {
+  const total = Math.max(Number(canonical) || 0, 0);
+  const campaign = Math.min(Math.max(Number(campaignRaw) || 0, 0), total);
+  return { campaign, nonCampaign: total - campaign };
+}
+
 /** Cadastro de cupons marcados como campanha. */
 export function useCampaignCoupons() {
   const [coupons, setCoupons] = useState<CampaignCoupon[]>([]);

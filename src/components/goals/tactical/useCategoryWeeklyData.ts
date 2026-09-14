@@ -22,6 +22,7 @@ import {
   fetchCampaignCouponIds,
   isCouponFiltered,
   normalizeEmail,
+  splitCanonicalCouponValue,
   type CouponFilter,
   type CouponShares,
 } from "./campaignCoupons";
@@ -293,10 +294,7 @@ export function useCategoryWeeklyData(
           const kind = cat.metric_type === "count" ? "qtd" : "mrr";
           const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : 1));
           let prevRaw: number | null = null;
-          /** movimento canônico acumulado no mês (denominador do recorte) */
-          let accTotal = 0;
-          /** valor de cupom acumulado no mês (numerador bruto, pode ter lag) */
-          let accCouponRaw = 0;
+           let accSelected = 0;
           let anySplit = false;
           const out: CategorySnapPoint[] = [];
           for (const p of sorted) {
@@ -308,7 +306,6 @@ export function useCategoryWeeklyData(
             }
             const delta = Math.max(0, p.value - prevRaw);
             prevRaw = p.value;
-            accTotal += delta;
             // O filtro "Não-campanha" precisa ser o complemento da visão
             // canônica já recortada por origem. Assim, em Visão Geral, 4blue e
             // qualquer valor sem cupom ficam em Não-campanha; no filtro Yampa ou
@@ -317,17 +314,15 @@ export function useCategoryWeeklyData(
               origin === "4blue"
                 ? 0
                 : couponCampaignValueBetween(couponShares, p.date, p.date, cls, kind) ?? 0;
-            accCouponRaw += Math.max(directCampaign, 0);
-            // INVARIANTES: Tudo = Campanha + Não-campanha e nenhum recorte pode
-            // superar o Tudo. O cupom da Stripe é só o numerador; o denominador é
-            // sempre o movimento canônico do snapshot. O teto é aplicado no
-            // ACUMULADO do mês (não no dia), para não perder a venda de campanha
-            // quando o snapshot registra o movimento um ou dois dias depois.
-            const campaignAcc = Math.min(accCouponRaw, accTotal);
+             // A divisão acontece no próprio dia. Transportar sobra de cupom para
+             // dias seguintes reclassificava valores já lançados em Não-campanha
+             // e quebrava a igualdade entre os três filtros na quebra semanal.
+             const split = splitCanonicalCouponValue(delta, directCampaign);
+             accSelected += coupon === "campaign" ? split.campaign : split.nonCampaign;
             anySplit = true;
             out.push({
               date: p.date,
-              value: coupon === "campaign" ? campaignAcc : accTotal - campaignAcc,
+               value: accSelected,
             });
           }
           if (!anySplit) {
