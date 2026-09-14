@@ -190,67 +190,73 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
         const isAggregate = componentIds.length > 0;
 
         /**
-         * Recorte por cupom nos realizados que vêm das métricas táticas
-         * (`daily`) — o rateio do snapshot já é aplicado no hook.
+         * Recorte por cupom nas métricas táticas (`daily`) — o rateio do
+         * snapshot já é aplicado no hook.
+         *
+         * INVARIANTES (iguais aos do snapshot):
+         *   Tudo = Campanha + Não-campanha, e nenhum recorte pode superar o Tudo.
+         * O valor do cupom é apenas o NUMERADOR; o denominador é sempre o
+         * realizado canônico (tático). O teto é aplicado no ACUMULADO do mês —
+         * não semana a semana — para não perder a venda de campanha quando a
+         * base canônica registra o movimento alguns dias depois.
          */
-        const withCoupon = (
-          value: number | null,
-          leaf: GoalCategory,
-          startKey: string,
-          cutKey: string,
-        ): number | null => {
-          if (value === null || !couponShares) return value;
+        const tacticalSplitCache = new Map<string, (number | null)[]>();
+        const tacticalWeekly = (leaf: GoalCategory, metricId: string): (number | null)[] => {
+          const cached = tacticalSplitCache.get(leaf.id);
+          if (cached) return cached;
           const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
-          if (!cls) return null;
-          const campaignValue =
-            origin === "4blue"
-              ? 0
-              : couponCampaignValueBetween(
-                  couponShares,
-                  startKey,
-                  cutKey,
-                  cls,
-                  leaf.metric_type === "count" ? "qtd" : "mrr",
-                ) ?? 0;
-          // Campanha precisa ser o valor bruto apurado pela Stripe/cupom.
-          // Não limitamos pelo snapshot/tático canônico porque há lag e diferenças
-          // de origem entre as bases; limitar aqui cortava vendas válidas da campanha.
-          const campaignRawValue = Math.max(campaignValue, 0);
-          if (coupon === "campaign") {
-            return campaignRawValue;
+          const kind = leaf.metric_type === "count" ? "qtd" : "mrr";
+          const out: (number | null)[] = [];
+          let accTotal = 0;
+          let accCampaignRaw = 0;
+          let accEmitted = 0;
+          for (const w of weeks) {
+            const wStartKey = toBRDateKey(w.start);
+            const wEndKey = toBRDateKey(w.end);
+            const wIsCurrent = todayKey >= wStartKey && todayKey <= wEndKey;
+            if (wStartKey > todayKey) {
+              out.push(null);
+              continue;
+            }
+            const wCutKey = wIsCurrent && todayKey < wEndKey ? todayKey : wEndKey;
+            const end = new Date(w.end);
+            if (wIsCurrent) end.setTime(today.getTime());
+            const canonical = realizedBetween(daily, metricId, [], w.start, end);
+            if (!couponShares) {
+              out.push(canonical);
+              continue;
+            }
+            if (!cls) {
+              out.push(null);
+              continue;
+            }
+            accTotal += Math.max(canonical ?? 0, 0);
+            const raw =
+              origin === "4blue"
+                ? 0
+                : couponCampaignValueBetween(couponShares, wStartKey, wCutKey, cls, kind) ?? 0;
+            accCampaignRaw += Math.max(raw, 0);
+            const campaignAcc = Math.min(accCampaignRaw, accTotal);
+            const wantedAcc = coupon === "campaign" ? campaignAcc : accTotal - campaignAcc;
+            const inc = Math.max(wantedAcc - accEmitted, 0);
+            accEmitted += inc;
+            out.push(inc);
           }
-          if (coupon === "non_campaign") {
-            return Math.max(value - campaignRawValue, 0);
-          }
-          // Participação da JANELA da semana (não do mês acumulado).
-          const share = couponShareBetween(
-            couponShares,
-            startKey,
-            cutKey,
-            cls,
-            leaf.metric_type === "count" ? "qtd" : "mrr",
-          );
-          if (share === null) return null;
-          return applyCouponMode(value, share, coupon);
+          tacticalSplitCache.set(leaf.id, out);
+          return out;
         };
 
         /** Realizado de uma categoria "folha" (com snapshot ou métrica tática) na semana. */
         const leafRealized = (
           leaf: GoalCategory,
           w: (typeof weeks)[number],
+          wi: number,
           isCurrent: boolean,
           cutKey: string,
         ): number | null => {
           const leafMetricId = CATEGORY_TACTICAL_METRIC[leaf.slug];
           if (leafMetricId) {
-            const end = new Date(w.end);
-            if (isCurrent) end.setTime(today.getTime());
-            return withCoupon(
-              realizedBetween(daily, leafMetricId, [], w.start, end),
-              leaf,
-              toBRDateKey(w.start),
-              cutKey,
-            );
+            return tacticalWeekly(leaf, leafMetricId)[wi] ?? null;
           }
           const leafPoints = series.get(leaf.id);
           if (STOCK_CATEGORY_SLUGS.has(leaf.slug)) {
