@@ -6418,6 +6418,18 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: number
       }
+      tactical_weekly_mrr_actual: {
+        Args: { p_as_of: string; p_from: string; p_to: string }
+        Returns: {
+          activation_date: string
+          classification: string
+          customers: number
+          is_campaign: boolean
+          mrr: number
+          origin: string
+          snapshot_date: string
+        }[]
+      }
       validate_stripe_net_amount: { Args: { p_id: string }; Returns: string[] }
       validate_stripe_net_amount_range: {
         Args: { p_from?: string; p_to?: string }

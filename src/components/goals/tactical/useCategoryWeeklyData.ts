@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GoalCategory } from "@/lib/goalCategories";
 import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "./useTacticalData";
+import { toBRDateKey } from "./types";
 import { applyScenarioToGoals } from "@/lib/goalScenario";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import { useScenarioBaseline } from "@/hooks/useScenarioBaseline";
@@ -11,6 +12,7 @@ import {
   buildOriginShares,
   CATEGORY_SLUG_TO_CLASSIFICATION,
   isOriginFiltered,
+  matchesOrigin,
   originShareAsOf,
   type OriginFilter,
 } from "@/lib/origins";
@@ -50,6 +52,16 @@ export const STOCK_CATEGORY_SLUGS = new Set([
   "churn-rate-logos",
 ]);
 
+/** Fluxos de MRR fechados cliente a cliente pela data real de ativação. */
+export const REAL_MRR_FLOW_SLUGS = new Set(["new_mrr", "recuperados", "upsell", "downsell"]);
+
+const REAL_MRR_CLASS_BY_SLUG: Record<string, string> = {
+  new_mrr: "novo pagante",
+  recuperados: "recuperado",
+  upsell: "upsell",
+  downsell: "downsell",
+};
+
 /** Categoria → métrica tática (realizado em tempo real). */
 export const CATEGORY_TACTICAL_METRIC: Record<string, string> = {
   new_mrr: VIRTUAL_MRR_SALES,
@@ -78,6 +90,8 @@ export interface CategoryWeeklyData {
   noOriginSplit: Set<string>;
   /** participações de campanha por cupom (null quando o filtro está em "Tudo") */
   couponShares: CouponShares | null;
+  /** fotografia da base cliente a cliente usada no fechamento dos fluxos de MRR */
+  actualSnapshotDate: string | null;
   loading: boolean;
 }
 
@@ -118,6 +132,7 @@ export function useCategoryWeeklyData(
   const [series, setSeries] = useState<Map<string, CategorySnapPoint[]>>(new Map());
   const [noOriginSplit, setNoOriginSplit] = useState<Set<string>>(new Set());
   const [couponShares, setCouponShares] = useState<CouponShares | null>(null);
+  const [actualSnapshotDate, setActualSnapshotDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { growthPct: scenarioPct } = useGoalScenario();
   const scenarioBaseline = useScenarioBaseline();
@@ -128,10 +143,12 @@ export function useCategoryWeeklyData(
     (async () => {
       setLoading(true);
       const { startKey, endKey, prevEndKey } = monthBounds(refDate);
+      const todayKey = toBRDateKey(new Date());
+      const asOfKey = endKey < todayKey ? endKey : todayKey;
 
       const originFiltered = isOriginFiltered(origin);
       const couponFiltered = isCouponFiltered(coupon);
-      const [catRes, goalsRes, snapRes, originRes, convRes, churnRes, campaignIds] = await Promise.all([
+      const [catRes, goalsRes, snapRes, originRes, convRes, churnRes, campaignIds, actualRes] = await Promise.all([
         supabase.from("goal_categories").select("*").eq("is_active", true).order("area").order("name"),
         supabase
           .from("goals")
@@ -166,6 +183,11 @@ export function useCategoryWeeklyData(
               .lte("data_cancelamento", endKey)
           : Promise.resolve({ data: [] as any[] }),
         couponFiltered ? fetchCampaignCouponIds() : Promise.resolve(new Set<string>()),
+        supabase.rpc("tactical_weekly_mrr_actual", {
+          p_from: startKey,
+          p_to: endKey,
+          p_as_of: asOfKey,
+        }),
       ]);
 
 
@@ -270,6 +292,41 @@ export function useCategoryWeeklyData(
           }
         }
       }
+
+      // Substitui os fluxos de MRR por um único fechamento cliente a cliente.
+      // Cada linha já vem deduplicada, classificada pela data real de ativação e
+      // marcada como campanha apenas quando há evidência correspondente na Stripe.
+      const actualRows = ((actualRes.data as any[]) || []) as Array<{
+        activation_date: string;
+        classification: string;
+        origin: string;
+        is_campaign: boolean;
+        customers: number;
+        mrr: number;
+        snapshot_date: string;
+      }>;
+      setActualSnapshotDate(actualRows[0]?.snapshot_date ?? null);
+      for (const cat of cats) {
+        const classification = REAL_MRR_CLASS_BY_SLUG[cat.slug];
+        if (!classification) continue;
+        const byDate = new Map<string, number>();
+        for (const row of actualRows) {
+          if (row.classification !== classification) continue;
+          if (originFiltered && !matchesOrigin(row.origin, origin)) continue;
+          if (coupon === "campaign" && !row.is_campaign) continue;
+          if (coupon === "non_campaign" && row.is_campaign) continue;
+          const value = cat.metric_type === "count" ? Number(row.customers || 0) : Number(row.mrr || 0);
+          byDate.set(row.activation_date, (byDate.get(row.activation_date) ?? 0) + value);
+        }
+        let accumulated = 0;
+        const actualPoints: CategorySnapPoint[] = [{ date: prevEndKey, value: 0 }];
+        for (const date of Array.from(byDate.keys()).sort()) {
+          accumulated += byDate.get(date) ?? 0;
+          actualPoints.push({ date, value: accumulated });
+        }
+        s.set(cat.id, actualPoints);
+        unsupported.delete(cat.id);
+      }
       if (couponShares) {
         for (const c of cats) {
           if (!CATEGORY_SLUG_TO_COUPON_CLASS[c.slug] && !(c.component_category_ids ?? []).length) {
@@ -285,6 +342,7 @@ export function useCategoryWeeklyData(
       if (couponShares) {
         for (const [catId, list] of Array.from(s.entries())) {
           const cat = byId.get(catId);
+          if (cat && REAL_MRR_FLOW_SLUGS.has(cat.slug)) continue;
           const cls = cat ? CATEGORY_SLUG_TO_COUPON_CLASS[cat.slug] : undefined;
           if (!cat || !cls) {
             unsupported.add(catId);
@@ -407,5 +465,5 @@ export function useCategoryWeeklyData(
     };
   }, [refDate.getFullYear(), refDate.getMonth(), refreshKey, origin, includeYampa20, coupon, scenarioPct, scenarioBaseline?.month, scenarioBaseline?.value, growthBaselines]);
 
-  return { categories, targets, series, noOriginSplit, couponShares, loading };
+  return { categories, targets, series, noOriginSplit, couponShares, actualSnapshotDate, loading };
 }
