@@ -35,6 +35,7 @@ import {
   couponCampaignValueBetween,
   couponLabel,
   isCouponFiltered,
+  splitCanonicalCouponValue,
   type CouponFilter,
 } from "./campaignCoupons";
 import { computeRevisedWeeklyTargets, type WeekStatus } from "@/lib/revisedGoals";
@@ -194,9 +195,8 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
          * INVARIANTES (iguais aos do snapshot):
          *   Tudo = Campanha + Não-campanha, e nenhum recorte pode superar o Tudo.
          * O valor do cupom é apenas o NUMERADOR; o denominador é sempre o
-         * realizado canônico (tático). O teto é aplicado no ACUMULADO do mês —
-         * não semana a semana — para não perder a venda de campanha quando a
-         * base canônica registra o movimento alguns dias depois.
+         * realizado canônico (tático). A divisão é feita na própria semana para
+         * que os dois recortes sejam complementares também em cada linha.
          */
         const tacticalSplitCache = new Map<string, (number | null)[]>();
         const tacticalWeekly = (leaf: GoalCategory, metricId: string): (number | null)[] => {
@@ -205,9 +205,6 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           const cls = CATEGORY_SLUG_TO_COUPON_CLASS[leaf.slug];
           const kind = leaf.metric_type === "count" ? "qtd" : "mrr";
           const out: (number | null)[] = [];
-          let accTotal = 0;
-          let accCampaignRaw = 0;
-          let accEmitted = 0;
           for (const w of weeks) {
             const wStartKey = toBRDateKey(w.start);
             const wEndKey = toBRDateKey(w.end);
@@ -228,17 +225,12 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
               out.push(null);
               continue;
             }
-            accTotal += Math.max(canonical ?? 0, 0);
             const raw =
               origin === "4blue"
                 ? 0
                 : couponCampaignValueBetween(couponShares, wStartKey, wCutKey, cls, kind) ?? 0;
-            accCampaignRaw += Math.max(raw, 0);
-            const campaignAcc = Math.min(accCampaignRaw, accTotal);
-            const wantedAcc = coupon === "campaign" ? campaignAcc : accTotal - campaignAcc;
-            const inc = Math.max(wantedAcc - accEmitted, 0);
-            accEmitted += inc;
-            out.push(inc);
+             const split = splitCanonicalCouponValue(canonical ?? 0, raw);
+             out.push(coupon === "campaign" ? split.campaign : split.nonCampaign);
           }
           tacticalSplitCache.set(leaf.id, out);
           return out;
