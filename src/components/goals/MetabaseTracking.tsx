@@ -206,6 +206,21 @@ export function MetabaseTracking() {
 
 
 
+  // Recorte de campanha aplicado APENAS aos cards de "% de Crescimento a.m."
+  const GROWTH_CAMPAIGN_KEY = "metabase_growth_campaign_v1";
+  const [growthCampaign, setGrowthCampaign] = useState<GrowthCampaignFilter>(() => {
+    try {
+      const v = localStorage.getItem(GROWTH_CAMPAIGN_KEY);
+      return v === "campaign" || v === "non_campaign" ? v : "all";
+    } catch {
+      return "all";
+    }
+  });
+  const changeGrowthCampaign = (v: GrowthCampaignFilter) => {
+    setGrowthCampaign(v);
+    try { localStorage.setItem(GROWTH_CAMPAIGN_KEY, v); } catch {}
+  };
+
   const [productScope, setProductScope] = useState<ProductScope>("yampafin");
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [scope, setScope] = useState<string>("all");
