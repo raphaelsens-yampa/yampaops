@@ -1657,9 +1657,30 @@ export function MetabaseTracking() {
             )}
             {kpiView === "month" ? (
               <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Crescimento:</span>
+                  <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
+                    {growthCampaignOptions.map((o) => (
+                      <Button
+                        key={o.value}
+                        size="sm"
+                        variant={growthCampaign === o.value ? "default" : "ghost"}
+                        className="h-7 px-3 text-xs"
+                        onClick={() => changeGrowthCampaign(o.value)}
+                      >
+                        {o.label}
+                      </Button>
+                    ))}
+                  </div>
+                  {growthCampaign !== "all" && campaignEntries.loading && (
+                    <span className="text-[10px] text-muted-foreground">carregando entradas de campanha...</span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <Card><CardContent className="p-3 sm:p-4">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% de Crescimento MRR a.m.</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                      % de Crescimento MRR a.m.{growthCampaign === "campaign" ? " · campanha" : growthCampaign === "non_campaign" ? " · não-campanha" : ""}
+                    </p>
                     {growthPct === null ? (
                       <p className="text-xl sm:text-2xl font-bold text-muted-foreground">—</p>
                     ) : (
@@ -1668,13 +1689,19 @@ export function MetabaseTracking() {
                           {growthPct > 0 ? "+" : "−"}{Math.abs(growthPct).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                         </p>
                         <p className="text-[10px] text-muted-foreground mt-1">
-                          {prevMonthIdx >= 0 ? `${MONTHS[currentMonthIdx]} R$ ${(curMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} · vs ${MONTHS[prevMonthIdx]} R$ ${(prevMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}` : ""}
+                          {prevMonthIdx < 0
+                            ? ""
+                            : growthCampaign === "campaign"
+                              ? `${MONTHS[currentMonthIdx]} entradas R$ ${campMrrEntry.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} · base ${MONTHS[prevMonthIdx]} R$ ${(prevMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`
+                              : `${MONTHS[currentMonthIdx]} R$ ${((growthCampaign === "non_campaign" ? curMrr - campMrrEntry : curMrr) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} · vs ${MONTHS[prevMonthIdx]} R$ ${(prevMrr || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`}
                         </p>
                       </>
                     )}
                   </CardContent></Card>
                   <Card><CardContent className="p-3 sm:p-4">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">% de Crescimento Ativos Pagantes a.m.</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                      % de Crescimento Ativos Pagantes a.m.{growthCampaign === "campaign" ? " · campanha" : growthCampaign === "non_campaign" ? " · não-campanha" : ""}
+                    </p>
                     {growthPctAtivos === null ? (
                       <p className="text-xl sm:text-2xl font-bold text-muted-foreground">—</p>
                     ) : (
@@ -1683,7 +1710,11 @@ export function MetabaseTracking() {
                           {growthPctAtivos > 0 ? "+" : "−"}{Math.abs(growthPctAtivos).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                         </p>
                         <p className="text-[10px] text-muted-foreground mt-1">
-                          {prevMonthIdx >= 0 ? `${MONTHS[currentMonthIdx]} ${(curAtivos || 0).toLocaleString("pt-BR")} · vs ${MONTHS[prevMonthIdx]} ${(prevAtivos || 0).toLocaleString("pt-BR")}` : ""}
+                          {prevMonthIdx < 0
+                            ? ""
+                            : growthCampaign === "campaign"
+                              ? `${MONTHS[currentMonthIdx]} entradas ${campAtivosEntry.toLocaleString("pt-BR")} · base ${MONTHS[prevMonthIdx]} ${(prevAtivos || 0).toLocaleString("pt-BR")}`
+                              : `${MONTHS[currentMonthIdx]} ${((growthCampaign === "non_campaign" ? curAtivos - campAtivosEntry : curAtivos) || 0).toLocaleString("pt-BR")} · vs ${MONTHS[prevMonthIdx]} ${(prevAtivos || 0).toLocaleString("pt-BR")}`}
                         </p>
                       </>
                     )}
