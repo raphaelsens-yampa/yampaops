@@ -1552,10 +1552,30 @@ export function MetabaseTracking() {
         const combineRef = productScope === "all" && !!baseStockByMonth.has20[currentMonthIdx];
         const curMrr = mrrByMonth[currentMonthIdx] || 0;
         const prevMrr = (combineRef ? baseStockByMonth.mrr[prevMonthIdx] : mrrByMonth[prevMonthIdx]) || 0;
-        const growthPct = prevMrr > 0 ? (curMrr / prevMrr - 1) * 100 : null;
         const curAtivos = ativosByMonth[currentMonthIdx] || 0;
         const prevAtivos = (combineRef ? baseStockByMonth.ativos[prevMonthIdx] : ativosByMonth[prevMonthIdx]) || 0;
-        const growthPctAtivos = prevAtivos > 0 ? (curAtivos / prevAtivos - 1) * 100 : null;
+        /**
+         * Recorte de campanha: a base (mês anterior) é sempre a mesma; muda a
+         * parcela do mês atual. Assim, Campanha + Não-campanha = Tudo.
+         *   Tudo         = cur/prev - 1
+         *   Campanha     = entradasCampanha/prev
+         *   Não-campanha = (cur - entradasCampanha)/prev - 1
+         */
+        const campMrrEntry = campaignEntries.mrrByMonth[currentMonthIdx] || 0;
+        const campAtivosEntry = campaignEntries.ativosByMonth[currentMonthIdx] || 0;
+        const growthOf = (cur: number, prev: number, campEntry: number) => {
+          if (!(prev > 0)) return null;
+          if (growthCampaign === "campaign") return (campEntry / prev) * 100;
+          if (growthCampaign === "non_campaign") return ((cur - campEntry) / prev - 1) * 100;
+          return (cur / prev - 1) * 100;
+        };
+        const growthPct = growthOf(curMrr, prevMrr, campMrrEntry);
+        const growthPctAtivos = growthOf(curAtivos, prevAtivos, campAtivosEntry);
+        const growthCampaignOptions: { value: GrowthCampaignFilter; label: string }[] = [
+          { value: "all", label: "Tudo" },
+          { value: "campaign", label: "Campanha" },
+          { value: "non_campaign", label: "Não-campanha" },
+        ];
 
         const monthLabel = MONTHS[currentMonthIdx];
         const revisedDeltaInWindow = chartData.reduce(
