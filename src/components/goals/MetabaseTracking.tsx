@@ -436,6 +436,13 @@ export function MetabaseTracking() {
     historicalMode ? refDate : todayKey,
   );
 
+  // Entradas de campanha por mês (base do recorte dos cards de crescimento).
+  const campaignEntries = useCampaignEntriesMonthly(
+    year,
+    historicalMode ? refDate : todayKey,
+    growthCampaign !== "all",
+  );
+
   /** category_id -> métrica com recorte real por origem */
   const originMetricByCategoryId = useMemo(() => {
     const map = new Map<string, OriginMetric>();
