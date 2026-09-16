@@ -28,6 +28,7 @@ import {
   type OriginMetric,
 } from "@/lib/origins";
 import { useOriginRealized } from "@/components/goals/useOriginRealized";
+import { useCampaignEntriesMonthly, type GrowthCampaignFilter } from "@/components/goals/useCampaignEntriesMonthly";
 import { CategoryWeeklyMatrix } from "@/components/goals/CategoryWeeklyMatrix";
 
 
