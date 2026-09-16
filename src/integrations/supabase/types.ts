@@ -6393,6 +6393,15 @@ export type Database = {
         Returns: boolean
       }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      metabase_campaign_entries_monthly: {
+        Args: { p_as_of: string; p_year: number }
+        Returns: {
+          customers: number
+          mrr: number
+          snapshot_date: string
+          year_month: string
+        }[]
+      }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
       origin_monthly_realized: {
         Args: { p_as_of: string; p_from: string; p_to: string }
