@@ -1031,9 +1031,26 @@ export default function StripeConversions() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>
-                          {r.area}
-                        </Badge>
+                        <button
+                          type="button"
+                          title="Clique para definir a área"
+                          onClick={() => setAreaEdit({
+                            conversion_id: r.id,
+                            email: r.customer_email,
+                            area: r.area,
+                            price_id: r.stripe_price_id,
+                            product_name: r.product_name,
+                            plan_name: r.plan_name,
+                          })}
+                          className="rounded-full transition-opacity hover:opacity-80"
+                        >
+                          <Badge
+                            style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}
+                            className="cursor-pointer"
+                          >
+                            {r.area}
+                          </Badge>
+                        </button>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{r.product_name || "—"}</div>
