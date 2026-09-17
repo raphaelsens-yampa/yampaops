@@ -165,6 +165,15 @@ async function syncTasks(
 }
 
 /** Busca TODOS os negócios do funil, paginando até a API não retornar novos ids. */
+/** Menor timestamp ISO entre os sinais informados. */
+function earliest(...vals: (string | null | undefined)[]): string | null {
+  const norm = vals
+    .filter((v): v is string => !!v)
+    .map((v) => new Date(v).toISOString())
+    .sort();
+  return norm[0] ?? null;
+}
+
 async function fetchAllAcDeals(groupId: string): Promise<{ deals: any[]; contacts: Record<string, any> }> {
   const byId = new Map<string, any>();
   const contacts: Record<string, any> = {};
@@ -195,7 +204,7 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
 
   const { data: storedRows, error: storedErr } = await db
     .from("ac_funnel_deals")
-    .select("ac_deal_id, ac_group_id, ac_stage_id, status, value, contact_email, owner_name")
+    .select("ac_deal_id, ac_group_id, ac_stage_id, status, value, contact_email, owner_name, closed_at")
     .eq("ac_group_id", groupId);
   if (storedErr) throw new Error(`load stored deals: ${storedErr.message}`);
   const stored = new Map<string, StoredDeal>();
@@ -244,7 +253,17 @@ async function syncFunnel(db: ReturnType<typeof admin>, groupId: string, owners:
       deal_created_at: next.deal_created_at,
       deal_updated_at: iso(d.mdate),
       stage_changed_at: prev && (prev.ac_stage_id ?? "") !== (next.ac_stage_id ?? "") ? next.occurred_at : undefined,
-      closed_at: next.status === 1 || next.status === 2 ? (iso(d.mdate) ?? nowIso) : null,
+      // Data real de fechamento: o fechamento nunca é posterior à última alteração
+      // no AC nem ao momento em que o sync percebeu, então usamos o menor sinal
+      // disponível — jamais o horário da execução quando há data melhor.
+      closed_at:
+        next.status === 1 || next.status === 2
+          ? earliest(
+              prev && num(prev.status) === next.status ? prev.closed_at : null,
+              iso(d.mdate),
+              next.occurred_at,
+            )
+          : null,
       loss_reason: lossReasons.get(id) ?? null,
     });
     dealStage.set(id, next.ac_stage_id);
@@ -428,6 +447,78 @@ Deno.serve(async (req) => {
         return json({ ok: true, connected, result });
       }
       return json({ ok: true, connected });
+    }
+
+    // Corrige a data real de fechamento: usa o menor sinal disponível
+    // (data já registrada, última alteração no AC e primeiro evento de fechamento),
+    // eliminando datas de "lote" gravadas no momento em que o sync percebeu o fechamento.
+    if (action === "repair_closed_at") {
+      const groupId = String(body.groupId ?? "");
+      if (!groupId) return json({ error: "groupId obrigatório" }, 400);
+
+      const { deals: acDeals } = await fetchAllAcDeals(groupId);
+      const { data: stored, error: sErr } = await db
+        .from("ac_funnel_deals")
+        .select("ac_deal_id, status, closed_at")
+        .eq("ac_group_id", groupId)
+        .in("status", [1, 2]);
+      if (sErr) return json({ error: sErr.message }, 400);
+
+      const { data: evs, error: eErr } = await db
+        .from("ac_funnel_stage_events")
+        .select("ac_deal_id, occurred_at")
+        .eq("ac_group_id", groupId)
+        .in("event_type", ["won", "lost"]);
+      if (eErr) return json({ error: eErr.message }, 400);
+      const firstEvent = new Map<string, string>();
+      for (const e of evs ?? []) {
+        const id = String((e as any).ac_deal_id);
+        const at = String((e as any).occurred_at);
+        const cur = firstEvent.get(id);
+        if (!cur || at < cur) firstEvent.set(id, at);
+      }
+
+      const mdateById = new Map<string, string>();
+      for (const d of acDeals) {
+        const md = iso((d as any).mdate);
+        if (md) mdateById.set(String((d as any).id), md);
+      }
+
+      // Datas repetidas em muitos negócios são artefato de execução em lote do sync,
+      // não fechamento real: nesses casos a data de alteração no AC é mais fiel.
+      const bulk = new Map<string, number>();
+      for (const row of stored ?? []) {
+        const cur = (row as any).closed_at ? new Date(String((row as any).closed_at)).toISOString() : null;
+        if (cur) bulk.set(cur, (bulk.get(cur) ?? 0) + 1);
+      }
+
+      let updated = 0;
+      for (const row of stored ?? []) {
+        const id = String((row as any).ac_deal_id);
+        const cur = (row as any).closed_at ? new Date(String((row as any).closed_at)).toISOString() : null;
+        const isBulk = !!cur && (bulk.get(cur) ?? 0) >= 5;
+        const md = mdateById.get(id) ?? null;
+        let best: string | null;
+        if (isBulk && md) {
+          best = md;
+        } else {
+          const candidates = [
+            cur,
+            md,
+            firstEvent.get(id) ? new Date(String(firstEvent.get(id))).toISOString() : null,
+          ].filter((v): v is string => !!v);
+          if (!candidates.length) continue;
+          best = candidates.sort()[0];
+        }
+        if (!best || best === cur) continue;
+        const { error: uErr } = await db
+          .from("ac_funnel_deals")
+          .update({ closed_at: best })
+          .eq("ac_group_id", groupId)
+          .eq("ac_deal_id", id);
+        if (!uErr) updated += 1;
+      }
+      return json({ ok: true, checked: (stored ?? []).length, updated });
     }
 
     // Reconstrói eventos de Ganho/Perda a partir do snapshot de negócios (status + closed_at).

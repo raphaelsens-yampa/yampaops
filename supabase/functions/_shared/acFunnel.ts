@@ -51,6 +51,7 @@ export type StoredDeal = {
   value: number;
   contact_email: string | null;
   owner_name: string | null;
+  closed_at?: string | null;
 };
 
 /** Grava eventos (idempotente) comparando o estado novo com o armazenado. */
@@ -116,7 +117,26 @@ export async function writeEvents(
   }
 
   if (!rows.length) return 0;
-  const { error } = await db.from("ac_funnel_stage_events").upsert(rows, {
+
+  // Fechamento (ganho/perda) é único por negócio, tipo e dia: nunca duplicar.
+  const closures = rows.filter((r) => r.event_type === "won" || r.event_type === "lost");
+  let toWrite = rows;
+  if (closures.length) {
+    const { data: existing } = await db
+      .from("ac_funnel_stage_events")
+      .select("event_type, occurred_at")
+      .eq("ac_deal_id", next.ac_deal_id)
+      .in("event_type", ["won", "lost"]);
+    const seen = new Set((existing ?? []).map((e: any) => `${e.event_type}|${spDay(e.occurred_at)}`));
+    toWrite = rows.filter(
+      (r) =>
+        !(r.event_type === "won" || r.event_type === "lost") ||
+        !seen.has(`${r.event_type}|${spDay(String(r.occurred_at))}`),
+    );
+  }
+  if (!toWrite.length) return 0;
+
+  const { error } = await db.from("ac_funnel_stage_events").upsert(toWrite, {
     onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
     ignoreDuplicates: true,
   });
@@ -124,5 +144,11 @@ export async function writeEvents(
     console.error("writeEvents error:", error.message);
     return 0;
   }
-  return rows.length;
+  return toWrite.length;
+}
+
+/** Dia (YYYY-MM-DD) no fuso America/Sao_Paulo. */
+export function spDay(isoStr: string | null | undefined): string {
+  if (!isoStr) return "";
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date(isoStr));
 }

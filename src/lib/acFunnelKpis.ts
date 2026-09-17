@@ -19,6 +19,7 @@ export type KpiStage = { ac_stage_id: string; title: string; position: number };
 
 export type KpiDeal = {
   ac_deal_id: string;
+  ac_stage_id?: string | null;
   owner_name: string | null;
   status: number;
   value: number;
@@ -47,6 +48,45 @@ export function previousRange(from: string, to: string): { from: string; to: str
   const len = daysBetween(from, to) + 1;
   const prevTo = shiftDay(from, -1);
   return { from: shiftDay(prevTo, -(len - 1)), to: prevTo };
+}
+
+/**
+ * Fechamentos canônicos do período: um registro por negócio, na data real de
+ * fechamento (`closed_at` do ActiveCampaign). Evita a dupla contagem que o
+ * histórico de eventos pode conter (mesmo fechamento gravado em dois momentos).
+ */
+export function buildClosureEvents(deals: KpiDeal[], from: string, to: string): KpiEvent[] {
+  const out: KpiEvent[] = [];
+  const seen = new Set<string>();
+  for (const d of deals) {
+    if (d.status !== 1 && d.status !== 2) continue;
+    if (seen.has(d.ac_deal_id)) continue;
+    const at = d.closed_at;
+    if (!at) continue;
+    const day = spDay(at);
+    if (!day || day < from || day > to) continue;
+    seen.add(d.ac_deal_id);
+    const stage = d.ac_stage_id ?? "";
+    out.push({
+      ac_deal_id: d.ac_deal_id,
+      event_type: d.status === 1 ? "won" : "lost",
+      from_stage_id: stage,
+      to_stage_id: stage,
+      deal_value: Number(d.value || 0),
+      owner_name: d.owner_name,
+      occurred_at: at,
+    });
+  }
+  return out.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at));
+}
+
+/**
+ * Lista canônica de eventos do período: movimentações vindas do histórico +
+ * fechamentos derivados do estado atual dos negócios (fonte da verdade).
+ */
+export function canonicalEvents(events: KpiEvent[], deals: KpiDeal[], from: string, to: string): KpiEvent[] {
+  const moves = events.filter((e) => e.event_type !== "won" && e.event_type !== "lost");
+  return [...moves, ...buildClosureEvents(deals, from, to)];
 }
 
 export type ConversionKpis = {
