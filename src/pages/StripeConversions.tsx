@@ -1177,6 +1177,18 @@ export default function StripeConversions() {
           onSaved={() => refetch()}
         />
 
+        <EditAreaDialog
+          open={!!areaEdit}
+          onOpenChange={(o) => { if (!o) setAreaEdit(null); }}
+          target={areaEdit}
+          areas={areaOptions}
+          onSaved={() => {
+            refetch();
+            qc.invalidateQueries({ queryKey: ["price-map-areas"] });
+            qc.invalidateQueries({ queryKey: ["price-map-canonical"] });
+          }}
+        />
+
         <Dialog open={!!netEdit} onOpenChange={(open) => { if (!open && !savingNet) setNetEdit(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
