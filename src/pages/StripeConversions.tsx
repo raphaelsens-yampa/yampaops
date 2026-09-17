@@ -154,6 +154,7 @@ export default function StripeConversions() {
   const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
+  const [areaEdit, setAreaEdit] = useState<AreaTarget | null>(null);
   const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number; mapId: string | null; mappedMrr: number | null } | null>(null);
   const [netEditValue, setNetEditValue] = useState("");
   const [savingNet, setSavingNet] = useState(false);
