@@ -136,15 +136,22 @@ export async function writeEvents(
   }
   if (!toWrite.length) return 0;
 
-  const { error } = await db.from("ac_funnel_stage_events").upsert(toWrite, {
-    onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
-    ignoreDuplicates: true,
-  });
-  if (error) {
-    console.error("writeEvents error:", error.message);
-    return 0;
+  let written = 0;
+  // Grava linha a linha: o índice único parcial de fechamento (ac_deal_id, event_type, dia)
+  // não é compatível com onConflict, então tratamos a violação como "já existe".
+  for (const row of toWrite) {
+    const { error } = await db.from("ac_funnel_stage_events").upsert([row], {
+      onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
+      ignoreDuplicates: true,
+    });
+    if (error) {
+      if ((error as any).code === "23505" || /duplicate key/i.test(error.message)) continue;
+      console.error("writeEvents error:", error.message);
+      continue;
+    }
+    written++;
   }
-  return toWrite.length;
+  return written;
 }
 
 /** Dia (YYYY-MM-DD) no fuso America/Sao_Paulo. */
