@@ -6,6 +6,7 @@ import {
   admin,
   corsHeaders,
   iso,
+  insertEventsSafe,
   num,
   writeEvents,
   type StoredDeal,
@@ -555,16 +556,7 @@ Deno.serve(async (req) => {
         source: "backfill_closures",
       }));
 
-      let written = 0;
-      for (let i = 0; i < rows.length; i += 500) {
-        const chunk = rows.slice(i, i + 500);
-        const { error } = await db.from("ac_funnel_stage_events").upsert(chunk, {
-          onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
-          ignoreDuplicates: true,
-        });
-        if (error) return json({ error: error.message }, 400);
-        written += chunk.length;
-      }
+      const written = await insertEventsSafe(db, rows);
 
       return json({
         ok: true,
@@ -659,15 +651,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      for (let i = 0; i < rows.length; i += 500) {
-        const chunk = rows.slice(i, i + 500);
-        const { error } = await db.from("ac_funnel_stage_events").upsert(chunk, {
-          onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
-          ignoreDuplicates: true,
-        });
-        if (error) console.error("backfill upsert error:", error.message);
-        else written += chunk.length;
-      }
+      written += await insertEventsSafe(db, rows);
 
       const nextIndex = startIdx + slice.length;
       return json({ ok: true, scanned, candidates: rows.length, written, type_counts: typeCounts, total_deals: dealIds.length, next_index: nextIndex, done: nextIndex >= dealIds.length });

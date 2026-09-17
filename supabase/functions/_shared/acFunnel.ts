@@ -159,3 +159,32 @@ export function spDay(isoStr: string | null | undefined): string {
   if (!isoStr) return "";
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date(isoStr));
 }
+
+/** Insere eventos tolerando o índice único parcial de fechamento (dia). */
+export async function insertEventsSafe(
+  db: SupabaseClient,
+  rows: Record<string, unknown>[],
+): Promise<number> {
+  const opts = {
+    onConflict: "ac_deal_id,event_type,from_stage_id,to_stage_id,occurred_at",
+    ignoreDuplicates: true,
+  } as const;
+  let written = 0;
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    const { error } = await db.from("ac_funnel_stage_events").upsert(chunk, opts);
+    if (!error) {
+      written += chunk.length;
+      continue;
+    }
+    // Fallback linha a linha: ignora violações do índice único de fechamento.
+    for (const row of chunk) {
+      const { error: e2 } = await db.from("ac_funnel_stage_events").upsert([row], opts);
+      if (!e2) written++;
+      else if ((e2 as any).code !== "23505" && !/duplicate key/i.test(e2.message)) {
+        console.error("insertEventsSafe error:", e2.message);
+      }
+    }
+  }
+  return written;
+}
