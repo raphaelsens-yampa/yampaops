@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -53,9 +54,11 @@ import {
   computeOwnerConversion,
   computeStageFlow,
   computeStagePairByOwner,
+  canonicalEvents,
   deltaPct,
   deltaPp,
   previousRange,
+  type KpiDeal,
   type KpiEvent,
   type KpiTask,
 } from "@/lib/acFunnelKpis";
@@ -180,33 +183,36 @@ export default function AcFunnelMetrics() {
     setGroupId(gid);
 
     if (gid) {
+      const prev = previousRange(from, to);
+      const eventsRange = (a: string, b: string) =>
+        fetchAllPaged<Event>(() =>
+          supabase
+            .from("ac_funnel_stage_events")
+            .select("*")
+            .eq("ac_group_id", gid)
+            .gte("occurred_at", `${a}T00:00:00-03:00`)
+            .lte("occurred_at", `${b}T23:59:59-03:00`)
+            .order("occurred_at", { ascending: false })
+            .order("id", { ascending: true }) as any,
+        );
+
       const [s, d, e, pe, t] = await Promise.all([
         supabase.from("ac_funnel_stages").select("*").eq("ac_group_id", gid).order("position"),
-        supabase.from("ac_funnel_deals").select("*").eq("ac_group_id", gid).limit(5000),
-        supabase
-          .from("ac_funnel_stage_events")
-          .select("*")
-          .eq("ac_group_id", gid)
-          .gte("occurred_at", `${from}T00:00:00-03:00`)
-          .lte("occurred_at", `${to}T23:59:59-03:00`)
-          .order("occurred_at", { ascending: false })
-          .limit(20000),
-        supabase
-          .from("ac_funnel_stage_events")
-          .select("*")
-          .eq("ac_group_id", gid)
-          .gte("occurred_at", `${previousRange(from, to).from}T00:00:00-03:00`)
-          .lte("occurred_at", `${previousRange(from, to).to}T23:59:59-03:00`)
-          .order("occurred_at", { ascending: false })
-          .limit(20000),
-        supabase.from("ac_funnel_deal_tasks").select("*").eq("ac_group_id", gid).limit(20000),
+        fetchAllPaged<Deal>(() =>
+          supabase.from("ac_funnel_deals").select("*").eq("ac_group_id", gid).order("ac_deal_id") as any,
+        ),
+        eventsRange(from, to),
+        eventsRange(prev.from, prev.to),
+        fetchAllPaged<Task>(() =>
+          supabase.from("ac_funnel_deal_tasks").select("*").eq("ac_group_id", gid).order("ac_task_id") as any,
+        ),
       ]);
       // "Triagem Backlog" foi uma etapa pontual de limpeza do CRM: não exibir na tela
       setStages(((s.data ?? []) as Stage[]).filter((st) => !/triagem\s*backlog/i.test(st.title ?? "")));
-      setAllDeals((d.data ?? []) as Deal[]);
-      setAllEvents((e.data ?? []) as Event[]);
-      setPreviousEvents((pe.data ?? []) as Event[]);
-      setAllTasks((t.data ?? []) as Task[]);
+      setAllDeals(d.data as Deal[]);
+      setAllEvents(e.data as Event[]);
+      setPreviousEvents(pe.data as Event[]);
+      setAllTasks(t.data as Task[]);
     } else {
       setStages([]);
       setAllDeals([]);
@@ -245,8 +251,23 @@ export default function AcFunnelMetrics() {
   const matchOwner = (name: string | null) => owner === "__all__" || (name ?? "—") === owner;
 
   const deals = useMemo(() => allDeals.filter((d) => matchOwner(d.owner_name)), [allDeals, owner]);
-  const events = useMemo(() => allEvents.filter((e) => matchOwner(e.owner_name)), [allEvents, owner]);
-  const previousEventsFiltered = useMemo(() => previousEvents.filter((e) => matchOwner(e.owner_name)), [previousEvents, owner]);
+  /**
+   * Eventos canônicos: movimentações vêm do histórico e os fechamentos vêm do
+   * estado atual do negócio (um por negócio, na data real de fechamento).
+   */
+  const events = useMemo(
+    () => canonicalEvents(allEvents.filter((e) => matchOwner(e.owner_name)) as KpiEvent[], deals as KpiDeal[], from, to),
+    [allEvents, deals, owner, from, to],
+  );
+  const previousEventsFiltered = useMemo(() => {
+    const prev = previousRange(from, to);
+    return canonicalEvents(
+      previousEvents.filter((e) => matchOwner(e.owner_name)) as KpiEvent[],
+      deals as KpiDeal[],
+      prev.from,
+      prev.to,
+    );
+  }, [previousEvents, deals, owner, from, to]);
   const tasks = useMemo(() => allTasks.filter((t) => matchOwner(t.owner_name)), [allTasks, owner]);
 
   const inPeriod = (iso: string | null) => {
@@ -259,7 +280,7 @@ export default function AcFunnelMetrics() {
 
   /** Ranking de motivos de perda (campo "Deal - Sales - Motivo de perda"). */
   const lossRanking = useMemo(() => {
-    const lost = deals.filter((d) => d.status === 2 && inPeriod(d.closed_at ?? d.stage_changed_at ?? d.deal_created_at));
+    const lost = deals.filter((d) => d.status === 2 && inPeriod(d.closed_at));
     const map = new Map<string, { reason: string; qtd: number; valor: number }>();
     lost.forEach((d) => {
       const key = (d.loss_reason ?? "").trim() || "Sem motivo informado";
@@ -806,11 +827,11 @@ export default function AcFunnelMetrics() {
                     tooltip="Valor médio dos negócios marcados como ganho no período filtrado."
                   />
                   <KpiCard
-                    icon={<Clock className="h-4 w-4" />}
-                    label="Ciclo médio de fechamento"
-                    value={formatDays(conversionKpis.cycleDays)}
-                    hint={formatDelta(conversionDelta.cycleDays)}
-                    tooltip="Tempo médio, em dias, entre a criação do negócio e o fechamento como ganho."
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    label="MRR gerado"
+                    value={brl(kpis.wonValue)}
+                    hint={`${kpis.won} negócios ganhos`}
+                    tooltip="Soma dos valores dos negócios ganhos (fechados) no período, na data real de fechamento."
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -822,11 +843,11 @@ export default function AcFunnelMetrics() {
                     tooltip="Quantidade de negócios criados dentro do período filtrado. O complemento mostra quantos ainda estão em aberto."
                   />
                   <KpiCard
-                    icon={<ArrowRight className="h-4 w-4" />}
-                    label="Movimentações"
-                    value={String(kpis.moves)}
-                    hint="mudanças de etapa"
-                    tooltip="Total de mudanças de etapa registradas no funil durante o período."
+                    icon={<Clock className="h-4 w-4" />}
+                    label="Ciclo médio de fechamento"
+                    value={formatDays(conversionKpis.cycleDays)}
+                    hint={formatDelta(conversionDelta.cycleDays)}
+                    tooltip="Tempo médio, em dias, entre a criação do negócio e o fechamento como ganho."
                   />
                   <KpiCard
                     icon={<Trophy className="h-4 w-4" />}

@@ -6,6 +6,7 @@ import {
   computeOwnerConversion,
   computeStageFlow,
   computeStagePairByOwner,
+  canonicalEvents,
   deltaPct,
   deltaPp,
   previousRange,
@@ -146,5 +147,35 @@ describe("deltas", () => {
     expect(deltaPp(50, null)).toBeNull();
     expect(deltaPct(120, 100)).toBe(20);
     expect(deltaPct(120, 0)).toBeNull();
+  });
+});
+
+describe("canonicalEvents", () => {
+  const deals: KpiDeal[] = [
+    { ac_deal_id: "a", ac_stage_id: "3", owner_name: "Ana", status: 1, value: 1000, deal_created_at: "2026-09-01T12:00:00Z", closed_at: "2026-09-04T12:00:00Z", stage_changed_at: null },
+    { ac_deal_id: "b", ac_stage_id: "1", owner_name: "Bia", status: 2, value: 200, deal_created_at: "2026-09-01T12:00:00Z", closed_at: "2026-09-05T12:00:00Z", stage_changed_at: null },
+    { ac_deal_id: "c", ac_stage_id: "2", owner_name: "Bia", status: 0, value: 300, deal_created_at: "2026-09-02T12:00:00Z", closed_at: null, stage_changed_at: null },
+  ];
+
+  it("conta um fechamento por negócio mesmo com evento duplicado no histórico", () => {
+    const raw: KpiEvent[] = [
+      ev({ ac_deal_id: "a", event_type: "created", from_stage_id: "", to_stage_id: "1", occurred_at: "2026-09-01T12:00:00Z" }),
+      ev({ ac_deal_id: "a", event_type: "won", from_stage_id: "3", to_stage_id: "3", deal_value: 1000, occurred_at: "2026-09-04T12:00:00Z" }),
+      ev({ ac_deal_id: "a", event_type: "won", from_stage_id: "3", to_stage_id: "3", deal_value: 1000, occurred_at: "2026-09-06T12:00:00Z" }),
+      ev({ ac_deal_id: "b", event_type: "lost", from_stage_id: "1", to_stage_id: "1", occurred_at: "2026-09-05T12:00:00Z" }),
+      ev({ ac_deal_id: "b", event_type: "lost", from_stage_id: "1", to_stage_id: "1", occurred_at: "2026-09-07T12:00:00Z" }),
+    ];
+    const canon = canonicalEvents(raw, deals, "2026-09-01", "2026-09-30");
+    const k = computeConversionKpis(canon, deals, stages);
+    expect(k.won).toBe(1);
+    expect(k.lost).toBe(1);
+    expect(k.wonValue).toBe(1000);
+    expect(k.winRate).toBe(50);
+  });
+
+  it("ignora fechamentos fora do período e negócios em aberto", () => {
+    const canon = canonicalEvents([], deals, "2026-09-01", "2026-09-04");
+    expect(canon.filter((e) => e.event_type === "won")).toHaveLength(1);
+    expect(canon.filter((e) => e.event_type === "lost")).toHaveLength(0);
   });
 });
