@@ -6,6 +6,7 @@ import {
   admin,
   corsHeaders,
   iso,
+  insertEventsSafe,
   num,
   writeEvents,
   type StoredDeal,
