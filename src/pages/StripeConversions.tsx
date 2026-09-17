@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +18,7 @@ import { PieChart as PieChartIcon, Download, Pencil, RefreshCw, RotateCcw } from
 import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
+import { EditAreaDialog, type AreaTarget } from "@/components/stripe/EditAreaDialog";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 
 
@@ -154,6 +155,8 @@ export default function StripeConversions() {
   const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
+  const [areaEdit, setAreaEdit] = useState<AreaTarget | null>(null);
+  const qc = useQueryClient();
   const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number; mapId: string | null; mappedMrr: number | null } | null>(null);
   const [netEditValue, setNetEditValue] = useState("");
   const [savingNet, setSavingNet] = useState(false);
@@ -1031,9 +1034,26 @@ export default function StripeConversions() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}>
-                          {r.area}
-                        </Badge>
+                        <button
+                          type="button"
+                          title="Clique para definir a área"
+                          onClick={() => setAreaEdit({
+                            conversion_id: r.id,
+                            email: r.customer_email,
+                            area: r.area,
+                            price_id: r.stripe_price_id,
+                            product_name: r.product_name,
+                            plan_name: r.plan_name,
+                          })}
+                          className="rounded-full transition-opacity hover:opacity-80"
+                        >
+                          <Badge
+                            style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}
+                            className="cursor-pointer"
+                          >
+                            {r.area}
+                          </Badge>
+                        </button>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{r.product_name || "—"}</div>
@@ -1156,6 +1176,18 @@ export default function StripeConversions() {
           onOpenChange={(o) => { if (!o) setEditing(null); }}
           conversion={editing}
           onSaved={() => refetch()}
+        />
+
+        <EditAreaDialog
+          open={!!areaEdit}
+          onOpenChange={(o) => { if (!o) setAreaEdit(null); }}
+          target={areaEdit}
+          areas={areaOptions}
+          onSaved={() => {
+            refetch();
+            qc.invalidateQueries({ queryKey: ["price-map-areas"] });
+            qc.invalidateQueries({ queryKey: ["price-map-canonical"] });
+          }}
         />
 
         <Dialog open={!!netEdit} onOpenChange={(open) => { if (!open && !savingNet) setNetEdit(null); }}>
