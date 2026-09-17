@@ -144,7 +144,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
         }
 
         if (applyAll) {
-          const convUpdate: Record<string, unknown> = { area: form.area };
+          const convUpdate: { area: string; product_name?: string; plan_name?: string } = { area: form.area };
           if (form.offer_name.trim()) convUpdate.product_name = form.offer_name.trim();
           if (form.plan_name.trim()) convUpdate.plan_name = form.plan_name.trim();
           const { error, count } = await supabase
@@ -157,7 +157,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
           toast.success("Cadastro do price atualizado");
         }
       } else {
-        const convUpdate: Record<string, unknown> = { area: form.area };
+        const convUpdate: { area: string; product_name?: string; plan_name?: string } = { area: form.area };
         if (form.offer_name.trim()) convUpdate.product_name = form.offer_name.trim();
         if (form.plan_name.trim()) convUpdate.plan_name = form.plan_name.trim();
         const { error } = await supabase
