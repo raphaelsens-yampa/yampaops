@@ -18,7 +18,7 @@ import { PieChart as PieChartIcon, Download, Pencil, RefreshCw, RotateCcw } from
 import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
-import { EditAreaDialog, type AreaTarget } from "@/components/stripe/EditAreaDialog";
+import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 
 
@@ -155,7 +155,7 @@ export default function StripeConversions() {
   const [mrrMode, setMrrMode] = useState<"net" | "gross">("net");
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState<import("@/components/stripe/EditConversionDialog").ConversionToEdit | null>(null);
-  const [areaEdit, setAreaEdit] = useState<AreaTarget | null>(null);
+  const [areaEdit, setAreaEdit] = useState<PriceEditTarget | null>(null);
   const qc = useQueryClient();
   const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number; mapId: string | null; mappedMrr: number | null } | null>(null);
   const [netEditValue, setNetEditValue] = useState("");
@@ -1036,7 +1036,7 @@ export default function StripeConversions() {
                       <TableCell>
                         <button
                           type="button"
-                          title="Clique para definir a área"
+                          title="Clique para editar o price (área, oferta, plano, comissão)"
                           onClick={() => setAreaEdit({
                             conversion_id: r.id,
                             email: r.customer_email,
@@ -1178,7 +1178,7 @@ export default function StripeConversions() {
           onSaved={() => refetch()}
         />
 
-        <EditAreaDialog
+        <EditPriceDialog
           open={!!areaEdit}
           onOpenChange={(o) => { if (!o) setAreaEdit(null); }}
           target={areaEdit}
