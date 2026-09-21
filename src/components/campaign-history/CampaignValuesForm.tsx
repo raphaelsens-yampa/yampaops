@@ -73,7 +73,6 @@ export function CampaignValuesForm({
     });
 
   const save = async () => {
-    setSaving(true);
     const payload = metrics.map((m) => {
       const r = rows[m.id] || { target: "", actual: "", funnelTarget: "", funnelActual: "" };
       return {
@@ -85,14 +84,50 @@ export function CampaignValuesForm({
         funnel_actual_pct: m.is_funnel ? parseNumberBR(r.funnelActual) : null,
       };
     });
+
+    // Diferenças em relação ao que já estava salvo (edição depois de criada a campanha).
+    const changes = diffFields(
+      payload.flatMap((p) => {
+        const m = metrics.find((mm) => mm.id === p.metric_id)!;
+        const prev = values.get(`${campaign.id}|${p.metric_id}`);
+        return [
+          { field: `${m.label} — Meta`, before: prev?.target_value ?? null, after: p.target_value },
+          { field: `${m.label} — Realizado`, before: prev?.actual_value ?? null, after: p.actual_value },
+          { field: `${m.label} — % Meta Funil`, before: prev?.funnel_target_pct ?? null, after: p.funnel_target_pct },
+          { field: `${m.label} — % Realizado Funil`, before: prev?.funnel_actual_pct ?? null, after: p.funnel_actual_pct },
+        ];
+      }),
+    );
+
+    if (changes.length && reason.trim().length < 5) {
+      toast({
+        title: "Justifique a alteração",
+        description: "Descreva o motivo com pelo menos 5 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
     const { error } = await supabase
       .from("campaign_history_values")
       .upsert(payload, { onConflict: "campaign_id,metric_id" });
-    setSaving(false);
     if (error) {
+      setSaving(false);
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
+    if (changes.length) {
+      const logError = await logCampaignChange({
+        campaignId: campaign.id,
+        changeType: "values",
+        reason,
+        changes,
+      });
+      if (logError) toast({ title: "Valores salvos, mas o log falhou", description: logError, variant: "destructive" });
+    }
+    setSaving(false);
+    setReason("");
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
     toast({ title: "Valores salvos" });
     onSaved();
