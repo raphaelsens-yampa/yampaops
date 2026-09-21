@@ -22,6 +22,8 @@ import { MetricEvolutionChart } from "@/components/campaign-history/MetricEvolut
 import { CampaignCompare } from "@/components/campaign-history/CampaignCompare";
 import { MetricsConfig } from "@/components/campaign-history/MetricsConfig";
 import { CohortPanel } from "@/components/campaign-history/CohortPanel";
+import { CampaignChangeLog } from "@/components/campaign-history/CampaignChangeLog";
+import { diffFields, logCampaignChange } from "@/lib/campaignHistoryAudit";
 
 import { buildCampaignHistoryPdf } from "@/lib/campaignHistoryPdf";
 import {
@@ -215,6 +217,20 @@ function CampaignDialog({
             <Label>Observações</Label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           </div>
+          {campaign && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
+              <Label>Motivo da alteração *</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={2}
+                placeholder="Ex.: Correção do período informado pelo marketing"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Obrigatório. Fica registrado na aba Log de Alterações.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
