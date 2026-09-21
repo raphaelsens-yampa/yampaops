@@ -736,6 +736,44 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_history_audit: {
+        Row: {
+          campaign_id: string
+          change_type: string
+          changed_by: string | null
+          changes: Json
+          created_at: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          campaign_id: string
+          change_type: string
+          changed_by?: string | null
+          changes?: Json
+          created_at?: string
+          id?: string
+          reason: string
+        }
+        Update: {
+          campaign_id?: string
+          change_type?: string
+          changed_by?: string | null
+          changes?: Json
+          created_at?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_history_audit_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_history_metrics: {
         Row: {
           created_at: string

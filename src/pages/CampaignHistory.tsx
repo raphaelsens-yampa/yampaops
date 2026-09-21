@@ -22,6 +22,8 @@ import { MetricEvolutionChart } from "@/components/campaign-history/MetricEvolut
 import { CampaignCompare } from "@/components/campaign-history/CampaignCompare";
 import { MetricsConfig } from "@/components/campaign-history/MetricsConfig";
 import { CohortPanel } from "@/components/campaign-history/CohortPanel";
+import { CampaignChangeLog } from "@/components/campaign-history/CampaignChangeLog";
+import { diffFields, logCampaignChange } from "@/lib/campaignHistoryAudit";
 
 import { buildCampaignHistoryPdf } from "@/lib/campaignHistoryPdf";
 import {
@@ -77,10 +79,28 @@ function CampaignDialog({
       : emptyForm,
   );
   const [saving, setSaving] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const FIELD_LABELS: Record<string, string> = {
+    name: "Nome",
+    ref_month: "Mês de referência",
+    start_date: "Início",
+    end_date: "Fim",
+    channel: "Canal",
+    notes: "Observações",
+    theme: "Tema da campanha",
+    workshop_duration: "Duração do workshop",
+    main_offer: "Oferta principal",
+    downsell_offer: "Downsell",
+  };
 
   const submit = async () => {
     if (!form.name.trim()) {
       toast({ title: "Informe o nome da campanha", variant: "destructive" });
+      return;
+    }
+    if (campaign && reason.trim().length < 5) {
+      toast({ title: "Justifique a alteração", description: "Descreva o motivo com pelo menos 5 caracteres.", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -96,14 +116,34 @@ function CampaignDialog({
       main_offer: form.main_offer || null,
       downsell_offer: form.downsell_offer || null,
     };
+    const changes = campaign
+      ? diffFields(
+          Object.keys(FIELD_LABELS).map((k) => ({
+            field: FIELD_LABELS[k],
+            before: (campaign as any)[k] === undefined ? null : (campaign as any)[k],
+            after: (payload as any)[k],
+          })),
+        )
+      : [];
     const { error } = campaign
       ? await supabase.from("campaign_history").update(payload).eq("id", campaign.id)
       : await supabase.from("campaign_history").insert(payload);
-    setSaving(false);
     if (error) {
+      setSaving(false);
       toast({ title: "Erro ao salvar campanha", description: error.message, variant: "destructive" });
       return;
     }
+    if (campaign) {
+      const logError = await logCampaignChange({
+        campaignId: campaign.id,
+        changeType: "campaign",
+        reason,
+        changes,
+      });
+      if (logError) toast({ title: "Alteração salva, mas o log falhou", description: logError, variant: "destructive" });
+    }
+    setSaving(false);
+    setReason("");
     onSaved();
     onOpenChange(false);
   };
@@ -177,6 +217,20 @@ function CampaignDialog({
             <Label>Observações</Label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
           </div>
+          {campaign && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
+              <Label>Motivo da alteração *</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={2}
+                placeholder="Ex.: Correção do período informado pelo marketing"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Obrigatório. Fica registrado na aba Log de Alterações.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -404,6 +458,7 @@ export default function CampaignHistory() {
               <TabsTrigger value="evolucao">Evolução</TabsTrigger>
               <TabsTrigger value="comparar">Comparar</TabsTrigger>
               <TabsTrigger value="cohort">Cohort</TabsTrigger>
+              <TabsTrigger value="log">Log de Alterações</TabsTrigger>
               <TabsTrigger value="config">Configurações</TabsTrigger>
             </TabsList>
 
@@ -549,6 +604,14 @@ export default function CampaignHistory() {
 
             <TabsContent value="cohort" className="pt-4">
               <CohortPanel campaigns={campaigns} campaign={selected} onChangeCampaign={setSelectedId} />
+            </TabsContent>
+
+            <TabsContent value="log" className="pt-4">
+              <CampaignChangeLog
+                campaigns={campaigns}
+                campaignId={selected?.id ?? ""}
+                onCampaignChange={setSelectedId}
+              />
             </TabsContent>
 
             <TabsContent value="config" className="pt-4">
