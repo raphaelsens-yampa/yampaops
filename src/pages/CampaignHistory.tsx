@@ -458,6 +458,7 @@ export default function CampaignHistory() {
               <TabsTrigger value="evolucao">Evolução</TabsTrigger>
               <TabsTrigger value="comparar">Comparar</TabsTrigger>
               <TabsTrigger value="cohort">Cohort</TabsTrigger>
+              <TabsTrigger value="log">Log de Alterações</TabsTrigger>
               <TabsTrigger value="config">Configurações</TabsTrigger>
             </TabsList>
 
@@ -603,6 +604,14 @@ export default function CampaignHistory() {
 
             <TabsContent value="cohort" className="pt-4">
               <CohortPanel campaigns={campaigns} campaign={selected} onChangeCampaign={setSelectedId} />
+            </TabsContent>
+
+            <TabsContent value="log" className="pt-4">
+              <CampaignChangeLog
+                campaigns={campaigns}
+                campaignId={selected?.id ?? ""}
+                onCampaignChange={setSelectedId}
+              />
             </TabsContent>
 
             <TabsContent value="config" className="pt-4">
