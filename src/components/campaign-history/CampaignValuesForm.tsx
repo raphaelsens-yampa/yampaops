@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { groupBySection, parseNumberBR, type HistoryCampaign, type HistoryMetric, type HistoryValue } from "@/lib/campaignHistory";
+import { diffFields, logCampaignChange } from "@/lib/campaignHistoryAudit";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface RowState {
   target: string;
@@ -34,6 +37,7 @@ export function CampaignValuesForm({
   const { toast } = useToast();
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [saving, setSaving] = useState(false);
+  const [reason, setReason] = useState("");
   const draftKey = `campaign-history-draft:${campaign.id}`;
   const hydratedFor = useRef<string | null>(null);
 
