@@ -185,6 +185,18 @@ export function CampaignValuesForm({
             ))}
           </TableBody>
         </Table>
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
+          <Label>Motivo da alteração *</Label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            placeholder="Ex.: Ajuste do realizado após fechamento do mês"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Obrigatório quando algum valor muda. Fica registrado na aba Log de Alterações.
+          </p>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar valores"}</Button>
