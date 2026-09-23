@@ -95,13 +95,16 @@ Deno.serve(async (req) => {
   if (cErr) return json({ error: cErr.message }, 500);
 
   let targets = contacts ?? [];
+  const { data: existing } = await admin
+    .from("campaign_cohort_results")
+    .select("contact_id, status, source")
+    .eq("campaign_id", campaign_id);
+  // Metabase é a fonte canônica (status e MRR líquido): nunca sobrescrever com Stripe ao vivo.
+  const fromMetabase = new Set((existing ?? []).filter((r: any) => r.source === "metabase").map((r: any) => r.contact_id));
+  targets = targets.filter((c: any) => !fromMetabase.has(c.id));
   if (mode === "missing") {
-    const { data: res } = await admin
-      .from("campaign_cohort_results")
-      .select("contact_id, status")
-      .eq("campaign_id", campaign_id);
     const identified = new Set(
-      (res ?? []).filter((r: any) => r.status && !["never", "unknown"].includes(r.status)).map((r: any) => r.contact_id),
+      (existing ?? []).filter((r: any) => r.status && !["never", "unknown"].includes(r.status)).map((r: any) => r.contact_id),
     );
     targets = targets.filter((c: any) => !identified.has(c.id));
   }
