@@ -48,7 +48,7 @@ function PaybackTooltip({ active, payload }: { active?: boolean; payload?: Toolt
       <p className="mb-1 font-semibold">M{point.month_index} · {monthLabel(point.month_key)}</p>
       {actual != null ? <p>Receita acumulada real: {formatBRL(actual)}</p> : null}
       {actual == null && projected != null ? <p>Receita acumulada prevista: {formatBRL(projected)}</p> : null}
-      <p className="text-muted-foreground">Investimento: {formatBRL(point.investment)}</p>
+      <p className="text-muted-foreground">Investimento Líquido: {formatBRL(point.investment)}</p>
     </div>
   );
 }
@@ -107,7 +107,7 @@ export function PaybackEvolutionChart({
                       y={Number(investment)}
                       stroke="hsl(var(--destructive))"
                       strokeDasharray="5 4"
-                      label={{ value: "Investimento", position: "insideTopRight", fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      label={{ value: "Investimento Líquido", position: "insideTopRight", fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                     />
                     <Line
                       type="monotone"

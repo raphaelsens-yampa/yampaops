@@ -414,9 +414,9 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
             ? `M${payback.offset} · ${payback.months} ${payback.months === 1 ? "mês" : "meses"}`
             : "Não se pagou ainda",
       sub:
-        tempoRoiProjetado == null
-          ? "Sem Tempo de ROI projetado"
-          : `Previsto: ${tempoRoiProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${tempoRoiProjetado === 1 ? "mês" : "meses"}`,
+        investimentoReal == null
+          ? "Sem Investimento Líquido cadastrado"
+          : `Investimento Líquido: ${formatBRL(investimentoReal)}${tempoRoiProjetado == null ? "" : ` · Previsto: ${tempoRoiProjetado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${tempoRoiProjetado === 1 ? "mês" : "meses"}`}`,
     },
     {
       label: "ARPA",
