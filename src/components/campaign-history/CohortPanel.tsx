@@ -14,6 +14,7 @@ import { CollapseToggle } from "@/components/goals/tactical/CollapseToggle";
 import { CohortListDialog } from "./CohortListDialog";
 import { ChurnHistoryDialog } from "./ChurnHistoryDialog";
 import { CohortRetentionChart } from "./CohortRetentionChart";
+import { PaybackEvolutionChart } from "./PaybackEvolutionChart";
 import {
   buildCurve,
   buildMonthlyMrrMap,
@@ -521,6 +522,12 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
 
 
           <CohortRetentionChart curve={curveQ.data ?? []} rows={rows} monthlyMrr={monthlyMrrQ.data} />
+
+          <PaybackEvolutionChart
+            monthly={lifetime.monthly}
+            investment={investimentoReal}
+            activeMrr={summary.mrrActive}
+          />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
