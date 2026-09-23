@@ -581,13 +581,20 @@ export function buildCohortMatrix(
       let estimated = 0;
       for (const m of members) {
         const monthIdx = m.start + k;
-        const snapshot = m.hasSnapshots
-          ? monthly!.get(m.email)!.get(monthKeyFromIndex(monthIdx)) ?? null
-          : null;
-        // Com snapshots, ativo = observado como pagante naquele mês.
-        const stillActive = m.hasSnapshots
-          ? snapshot != null && Number(snapshot) > 0
-          : m.canceled == null || m.canceled > monthIdx;
+        const inner = m.hasSnapshots ? monthly!.get(m.email)! : null;
+        const snapshot = inner ? inner.get(monthKeyFromIndex(monthIdx)) ?? null : null;
+        let stillActive: boolean;
+        if (snapshot != null) {
+          // Status real do último snapshot do mês (cancelado = 0).
+          stillActive = Number(snapshot) > 0;
+        } else if (inner) {
+          const keys = Array.from(inner.keys()).sort();
+          const key = monthKeyFromIndex(monthIdx);
+          // Antes do primeiro snapshot do cliente: usa a data de cancelamento; depois: sumiu da base = não retido.
+          stillActive = key < keys[0] ? m.canceled == null || m.canceled > monthIdx : false;
+        } else {
+          stillActive = m.canceled == null || m.canceled > monthIdx;
+        }
         if (!stillActive) continue;
         const v = mrrForMonth(monthly, m.email, monthIdx, m.mrr, m.override);
         active++;

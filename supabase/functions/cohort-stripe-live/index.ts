@@ -95,13 +95,16 @@ Deno.serve(async (req) => {
   if (cErr) return json({ error: cErr.message }, 500);
 
   let targets = contacts ?? [];
+  const { data: existing } = await admin
+    .from("campaign_cohort_results")
+    .select("contact_id, status, source")
+    .eq("campaign_id", campaign_id);
+  // Metabase é a fonte canônica (status e MRR líquido): nunca sobrescrever com Stripe ao vivo.
+  const fromMetabase = new Set((existing ?? []).filter((r: any) => r.source === "metabase").map((r: any) => r.contact_id));
+  targets = targets.filter((c: any) => !fromMetabase.has(c.id));
   if (mode === "missing") {
-    const { data: res } = await admin
-      .from("campaign_cohort_results")
-      .select("contact_id, status")
-      .eq("campaign_id", campaign_id);
     const identified = new Set(
-      (res ?? []).filter((r: any) => r.status && !["never", "unknown"].includes(r.status)).map((r: any) => r.contact_id),
+      (existing ?? []).filter((r: any) => r.status && !["never", "unknown"].includes(r.status)).map((r: any) => r.contact_id),
     );
     targets = targets.filter((c: any) => !identified.has(c.id));
   }
@@ -154,7 +157,12 @@ Deno.serve(async (req) => {
           const price: any = sub.items?.data?.[0]?.price ?? null;
           const product: any = price?.product ?? null;
           const plan = (typeof product === "object" ? product?.name : null) ?? price?.nickname ?? null;
-          const mrr = mrrFromPrice(price) * Number(sub.items?.data?.[0]?.quantity ?? 1);
+          const gross = mrrFromPrice(price) * Number(sub.items?.data?.[0]?.quantity ?? 1);
+          // MRR líquido: aplica cupom/desconto da assinatura.
+          const coupon: any = (sub as any).discount?.coupon ?? (sub as any).discounts?.[0]?.coupon ?? null;
+          let mrr = gross;
+          if (coupon?.percent_off) mrr = gross * (1 - Number(coupon.percent_off) / 100);
+          else if (coupon?.amount_off) mrr = Math.max(0, gross - Number(coupon.amount_off) / 100);
           const st = String(sub.status);
           const mapped = st === "active" || st === "past_due" || st === "unpaid" ? "active" : st === "trialing" ? "trial" : "canceled";
           const cand = {
