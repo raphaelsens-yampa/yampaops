@@ -207,7 +207,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
         supabase
           .from("campaign_history_metrics")
           .select("id, slug")
-          .in("slug", ["cac", "cac_liquido", "investimento", "ltv_cac", "tempo_roi"]),
+          .in("slug", ["cac", "cac_liquido", "investimento", "investimento_liquido", "ltv_cac", "tempo_roi"]),
         supabase
           .from("campaign_history_values")
           .select("metric_id, actual_value, target_value")
@@ -237,7 +237,15 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const cacSource: "liquido" | "geral" | null =
     cacLiquido != null && cacLiquido > 0 ? "liquido" : cacGeral != null && cacGeral > 0 ? "geral" : null;
   const cacReal = cacSource === "liquido" ? cacLiquido : cacSource === "geral" ? cacGeral : null;
-  const investimentoReal = campaignValuesQ.data?.actual.get("investimento") ?? null;
+  // Investimento líquido quando existir e for > 0; caso contrário, investimento geral.
+  const investimentoLiquido = campaignValuesQ.data?.actual.get("investimento_liquido") ?? null;
+  const investimentoGeral = campaignValuesQ.data?.actual.get("investimento") ?? null;
+  const investimentoReal =
+    investimentoLiquido != null && investimentoLiquido > 0
+      ? investimentoLiquido
+      : investimentoGeral != null && investimentoGeral > 0
+        ? investimentoGeral
+        : null;
   // Projetados no cadastro: realizado (actual) primeiro, com fallback para meta (target).
   const ltvCacProjetado =
     campaignValuesQ.data?.actual.get("ltv_cac") ?? campaignValuesQ.data?.target.get("ltv_cac") ?? null;
