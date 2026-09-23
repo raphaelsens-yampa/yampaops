@@ -385,6 +385,8 @@ export function mrrForMonth(
 export interface LifetimeMonthPoint {
   /** Offset em relação ao mês de ativação mais antigo da campanha (M0). */
   month_index: number;
+  /** Mês calendário no formato YYYY-MM. */
+  month_key: string;
   revenue: number;
   revenue_cum: number;
 }
@@ -443,7 +445,7 @@ export function computeLifetimeRevenue(rows: CohortRow[], monthly?: MonthlyMrrMa
         if (m >= s.start && m <= s.end) revenue += mrrForMonth(monthly, s.email, m, s.mrr, s.override).value;
       }
       cum += revenue;
-      monthlyPoints.push({ month_index: m - base, revenue, revenue_cum: cum });
+      monthlyPoints.push({ month_index: m - base, month_key: monthKeyFromIndex(m), revenue, revenue_cum: cum });
     }
   }
 
@@ -474,6 +476,84 @@ export function paybackMonth(
     if (p.revenue_cum >= inv) return { offset: p.month_index, months: p.month_index + 1 };
   }
   return null;
+}
+
+export interface PaybackChartPoint {
+  month_index: number;
+  month_key: string;
+  actual: number | null;
+  projected: number | null;
+  investment: number;
+}
+
+export interface PaybackProjection {
+  points: PaybackChartPoint[];
+  milestone: { offset: number; month_key: string; value: number; projected: boolean } | null;
+  status: "invalid_investment" | "achieved" | "projected" | "no_active_mrr";
+}
+
+/** Monta a curva real e, quando necessário, projeta o payback repetindo o MRR ativo atual. */
+export function buildPaybackProjection(
+  monthly: LifetimeMonthPoint[],
+  investment: number | null | undefined,
+  activeMrr: number,
+): PaybackProjection {
+  const inv = Number(investment ?? 0);
+  if (!isFinite(inv) || inv <= 0) return { points: [], milestone: null, status: "invalid_investment" };
+
+  const points: PaybackChartPoint[] = monthly.map((point) => ({
+    month_index: point.month_index,
+    month_key: point.month_key,
+    actual: point.revenue_cum,
+    projected: null,
+    investment: inv,
+  }));
+  const achieved = monthly.find((point) => point.revenue_cum >= inv);
+  if (achieved) {
+    return {
+      points,
+      milestone: {
+        offset: achieved.month_index,
+        month_key: achieved.month_key,
+        value: achieved.revenue_cum,
+        projected: false,
+      },
+      status: "achieved",
+    };
+  }
+
+  const mrr = Number(activeMrr ?? 0);
+  if (!monthly.length || !isFinite(mrr) || mrr <= 0) {
+    return { points, milestone: null, status: "no_active_mrr" };
+  }
+
+  const last = monthly[monthly.length - 1];
+  points[points.length - 1] = { ...points[points.length - 1], projected: last.revenue_cum };
+  const missing = Math.max(0, inv - last.revenue_cum);
+  const monthsNeeded = Math.max(1, Math.ceil(missing / mrr));
+  const lastCalendarIndex = monthIndex(`${last.month_key}-01`);
+
+  for (let step = 1; step <= monthsNeeded; step++) {
+    points.push({
+      month_index: last.month_index + step,
+      month_key: monthKeyFromIndex(lastCalendarIndex + step),
+      actual: null,
+      projected: last.revenue_cum + mrr * step,
+      investment: inv,
+    });
+  }
+
+  const finalPoint = points[points.length - 1];
+  return {
+    points,
+    milestone: {
+      offset: finalPoint.month_index,
+      month_key: finalPoint.month_key,
+      value: Number(finalPoint.projected ?? 0),
+      projected: true,
+    },
+    status: "projected",
+  };
 }
 
 
