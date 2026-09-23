@@ -154,7 +154,12 @@ Deno.serve(async (req) => {
           const price: any = sub.items?.data?.[0]?.price ?? null;
           const product: any = price?.product ?? null;
           const plan = (typeof product === "object" ? product?.name : null) ?? price?.nickname ?? null;
-          const mrr = mrrFromPrice(price) * Number(sub.items?.data?.[0]?.quantity ?? 1);
+          const gross = mrrFromPrice(price) * Number(sub.items?.data?.[0]?.quantity ?? 1);
+          // MRR líquido: aplica cupom/desconto da assinatura.
+          const coupon: any = (sub as any).discount?.coupon ?? (sub as any).discounts?.[0]?.coupon ?? null;
+          let mrr = gross;
+          if (coupon?.percent_off) mrr = gross * (1 - Number(coupon.percent_off) / 100);
+          else if (coupon?.amount_off) mrr = Math.max(0, gross - Number(coupon.amount_off) / 100);
           const st = String(sub.status);
           const mapped = st === "active" || st === "past_due" || st === "unpaid" ? "active" : st === "trialing" ? "trial" : "canceled";
           const cand = {
