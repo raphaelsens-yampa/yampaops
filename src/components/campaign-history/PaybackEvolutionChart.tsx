@@ -92,7 +92,7 @@ export function PaybackEvolutionChart({
             <>
               <div className="h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={projection.points} margin={{ top: 22, right: 30, bottom: 8, left: 8 }}>
+                  <LineChart data={projection.points} margin={{ top: 28, right: 96, bottom: 8, left: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis
                       dataKey="month_index"
