@@ -228,10 +228,11 @@ export function useTacticalData(
         const targetMetricId =
           retained && retainedMetric && recoveryMetricIds.has(metricId) ? retainedMetric.id : metricId;
         bump((m as any).user_id, targetMetricId, (m as any).entry_date, Number((m as any).value || 0));
-        // MRR recuperado/retido manualmente no CS soma ao MRR do dia
+        // MRR recuperado manualmente no CS soma ao MRR do dia.
+        // Retido NÃO soma: é MRR que não chegou a sair (não é acréscimo).
         if (Number((m as any).mrr_value || 0) > 0) {
           const v = Number((m as any).mrr_value || 0);
-          if (mrrMetricId) bump((m as any).user_id, mrrMetricId, (m as any).entry_date, v);
+          if (!retained && mrrMetricId) bump((m as any).user_id, mrrMetricId, (m as any).entry_date, v);
           bump(
             (m as any).user_id,
             retained ? VIRTUAL_MRR_RETENTION : VIRTUAL_MRR_RECOVERY,
@@ -255,7 +256,8 @@ export function useTacticalData(
         }
         const mrr = Number((r as any).mrr || 0);
         if (mrr > 0) {
-          if (mrrMetricId) bump(seller, mrrMetricId, dateKey, mrr);
+          // Retido não entra no MRR do dia (o cliente nunca saiu); só recuperado soma.
+          if (!retained && mrrMetricId) bump(seller, mrrMetricId, dateKey, mrr);
           bump(seller, retained ? VIRTUAL_MRR_RETENTION : VIRTUAL_MRR_RECOVERY, dateKey, mrr);
         }
       }
