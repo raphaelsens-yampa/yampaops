@@ -566,6 +566,33 @@ try {
       ativos.push(linha);
     }
 
+    // ---- Reconciliação com card 151 (ativos_pagantes oficial do dia) ----
+    const reconciliacao: {
+      ativos_lidos: number;
+      ativos_oficiais: number | null;
+      diferenca: number | null;
+      tolerancia: number | null;
+      ok: boolean | null;
+    } = { ativos_lidos: ativos.length, ativos_oficiais: null, diferenca: null, tolerancia: null, ok: null };
+    try {
+      const serie = await metabase('/api/card/151/query/json', apiKey);
+      const linhaOficial = serie.find((r) => String(r['data_ref_analise: Dia'] ?? '').slice(0, 10) === dataSnapshot);
+      const oficial = linhaOficial ? Number(linhaOficial['ativos_pagantes']) : NaN;
+      if (linhaOficial && Number.isFinite(oficial)) {
+        const diferenca = ativos.length - oficial;
+        const tolerancia = Math.max(Math.ceil(oficial * 0.01), 10);
+        reconciliacao.ativos_oficiais = oficial;
+        reconciliacao.diferenca = diferenca;
+        reconciliacao.tolerancia = tolerancia;
+        reconciliacao.ok = Math.abs(diferenca) <= tolerancia;
+      } else {
+        avisos.push(`Reconciliação não pôde ser feita: card 151 não trouxe a data ${dataSnapshot}.`);
+      }
+    } catch (e) {
+      avisos.push(`Reconciliação não pôde ser feita: falha ao consultar card 151 (${(e as Error).message?.slice(0, 200)}).`);
+    }
+
+
 
     // ---- Fonte 2: cancelados do mês ----
     const churnRaw = await metabase('/api/card/181/query/json', apiKey);
@@ -737,11 +764,25 @@ try {
         ignoradas_sem_chave: churnDailyInvalidas,
         por_mes: churnDailyPorMes,
       },
+      reconciliacao,
       avisos,
     };
 
     if (dryRun) {
       return json({ ...base, gravados: { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0, churn_daily: 0 } });
+    }
+
+    // Guarda de reconciliação: aborta ANTES de gravar qualquer grupo.
+    if (reconciliacao.ok === false) {
+      return json({
+        ...base,
+        error: `Leitura do card 103 incompleta: ${reconciliacao.ativos_lidos} ativos lidos vs ${reconciliacao.ativos_oficiais} oficiais (card 151) em ${dataSnapshot}. Nada foi gravado.`,
+        data_snapshot: dataSnapshot,
+        ativos_lidos: reconciliacao.ativos_lidos,
+        ativos_oficiais: reconciliacao.ativos_oficiais,
+        diferenca: reconciliacao.diferenca,
+        base,
+      }, 409);
     }
 
     const gravados = { ativo: 0, cancelado: 0, trial: 0, churn_historico: 0, churn_daily: 0 };
