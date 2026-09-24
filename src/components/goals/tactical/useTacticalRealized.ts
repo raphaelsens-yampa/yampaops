@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { toBRDateKey } from "./types";
 
 /**
@@ -68,13 +69,17 @@ export async function markAlreadyActive(
   const maxDate = target.reduce((m, r) => (r.date > m ? r.date : m), target[0].date);
   const active = new Map<string, string[]>();
   for (let i = 0; i < emails.length; i += 200) {
-    const { data } = await supabase
-      .from("metas_ativos_pagantes_daily")
-      .select("email, data_snapshot")
-      .eq("status_assinatura", "ativo")
-      .in("email", emails.slice(i, i + 200))
-      .gte("data_snapshot", addDays(minDate, -7))
-      .lt("data_snapshot", maxDate);
+    const data = await fetchAllPaged<any>(() =>
+      supabase
+        .from("metas_ativos_pagantes_daily")
+        .select("email, data_snapshot")
+        .eq("status_assinatura", "ativo")
+        .in("email", emails.slice(i, i + 200))
+        .gte("data_snapshot", addDays(minDate, -7))
+        .lt("data_snapshot", maxDate)
+        .order("data_snapshot", { ascending: true })
+        .order("email", { ascending: true }) as any,
+    );
     for (const r of (data as any[]) || []) {
       const e = String(r.email || "").toLowerCase();
       const list = active.get(e) ?? [];
