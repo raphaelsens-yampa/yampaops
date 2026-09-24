@@ -6,6 +6,7 @@ import { TacticalMetric, TacticalGoal, DailyDatum, Team, Profile, toBRDateKey } 
 import {
   fetchRealizedSources,
   resolveRealized,
+  markAlreadyActive,
   type RealizedOrigin,
   type StripeDayRow,
   type MetabaseDayValue,
@@ -72,7 +73,7 @@ export function useTacticalData(
         supabase.from("teams").select("id, name").order("name"),
         supabase.from("team_members").select("team_id, user_id"),
         supabase.from("activities").select("user_id, type, created_at").gte("created_at", fromISO.toISOString()).lte("created_at", toISO.toISOString()),
-        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
+        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation, customer_email, conversion_type").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
         supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
         supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
         fetchRealizedSources(fromISO, toISO),
@@ -133,6 +134,8 @@ export function useTacticalData(
           date: toBRDateKey(parseDateBR((c as any).converted_at)),
           mrr: value,
           isReactivation: Boolean((c as any).is_reactivation),
+          email: String((c as any).customer_email || "").trim().toLowerCase() || undefined,
+          conversionType: (c as any).conversion_type ?? null,
         });
       }
 
@@ -142,6 +145,10 @@ export function useTacticalData(
       }
       const todayReal = new Date();
       const todayKey = toBRDateKey(todayReal);
+
+      // Fallback Stripe para dias passados sem dado do Metabase: antes de
+      // contar, confere se o cliente já estava ativo na base (não é venda nova).
+      await markAlreadyActive(stripeRows, sources, todayKey);
 
       // ---- Recorte por origem (4blue / Yampa) ----
       // O realizado continua vindo das fontes canônicas (Stripe hoje / Metabase
