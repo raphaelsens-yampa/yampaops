@@ -80,7 +80,7 @@ export async function markAlreadyActive(
         .order("data_snapshot", { ascending: true })
         .order("email", { ascending: true }) as any,
     );
-    for (const r of (data as any[]) || []) {
+    for (const r of (data.data as any[]) || []) {
       const e = String(r.email || "").toLowerCase();
       const list = active.get(e) ?? [];
       list.push(String(r.data_snapshot));
