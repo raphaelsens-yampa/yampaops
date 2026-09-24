@@ -28,6 +28,65 @@ export interface StripeDayRow {
   date: string;
   mrr: number;
   isReactivation: boolean;
+  email?: string;
+  conversionType?: string | null;
+  /** Cliente já estava ativo na base do Metabase antes do dia (não é venda nova). */
+  alreadyActive?: boolean;
+}
+
+const NON_SALE_TYPES = new Set(["upsell", "downgrade", "renewal"]);
+
+/** Dia passado sem dado do Metabase para vendas/recuperados => usa fallback Stripe. */
+function needsStripeFallback(sources: RealizedSources, date: string): boolean {
+  const v = sources.metabase.get(`${date}|vendas_dia`);
+  const r = sources.metabase.get(`${date}|recuperados_ft`);
+  const empty = (x?: MetabaseDayValue) => !x || (!x.qtd && !x.mrr);
+  return empty(v) && empty(r);
+}
+
+function addDays(dateKey: string, n: number) {
+  const d = new Date(`${dateKey}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Análise prévia do fallback: marca como `alreadyActive` as conversões Stripe
+ * cujo e-mail já constava como ativo na base do Metabase nos 7 dias anteriores.
+ */
+export async function markAlreadyActive(
+  rows: StripeDayRow[],
+  sources: RealizedSources,
+  todayKey: string,
+): Promise<void> {
+  const target = rows.filter(
+    (r) => r.date < todayKey && r.email && needsStripeFallback(sources, r.date),
+  );
+  if (!target.length) return;
+  const emails = Array.from(new Set(target.map((r) => r.email!)));
+  const minDate = target.reduce((m, r) => (r.date < m ? r.date : m), target[0].date);
+  const maxDate = target.reduce((m, r) => (r.date > m ? r.date : m), target[0].date);
+  const active = new Map<string, string[]>();
+  for (let i = 0; i < emails.length; i += 200) {
+    const { data } = await supabase
+      .from("metas_ativos_pagantes_daily")
+      .select("email, data_snapshot")
+      .eq("status_assinatura", "ativo")
+      .in("email", emails.slice(i, i + 200))
+      .gte("data_snapshot", addDays(minDate, -7))
+      .lt("data_snapshot", maxDate);
+    for (const r of (data as any[]) || []) {
+      const e = String(r.email || "").toLowerCase();
+      const list = active.get(e) ?? [];
+      list.push(String(r.data_snapshot));
+      active.set(e, list);
+    }
+  }
+  for (const r of target) {
+    const snaps = active.get(r.email!) ?? [];
+    const from = addDays(r.date, -7);
+    r.alreadyActive = snaps.some((s) => s >= from && s < r.date);
+  }
 }
 
 export interface MetabaseDayValue {
@@ -238,6 +297,28 @@ export function resolveRealized({ sources, stripe, dates, todayKey }: ResolveArg
 
       const mb = sources.metabase.get(k);
       if (!mb || (!mb.qtd && !mb.mrr)) {
+        // Fallback: Metabase ausente/incompleto no dia => vendas registradas no
+        // sistema (Stripe), apenas as verificadas como realmente novas.
+        if (metric !== "upsell_dia" && date < todayKey && needsStripeFallback(sources, date)) {
+          const wanted = dayStripe.filter(
+            (r) =>
+              !r.alreadyActive &&
+              !NON_SALE_TYPES.has(String(r.conversionType || "")) &&
+              (metric === "recuperados_ft" ? r.isReactivation : !r.isReactivation),
+          );
+          if (wanted.length) {
+            origins.set(k, "stripe");
+            const agg = new Map<string, { qtd: number; mrr: number }>();
+            for (const r of wanted) {
+              const prev = agg.get(r.user_id) ?? { qtd: 0, mrr: 0 };
+              agg.set(r.user_id, { qtd: prev.qtd + 1, mrr: prev.mrr + (r.mrr || 0) });
+            }
+            for (const [user_id, v] of agg) {
+              entries.push({ user_id, metric_key: metric, date, qtd: v.qtd, mrr: v.mrr, origin: "stripe" });
+            }
+            continue;
+          }
+        }
         origins.set(k, "none");
         continue;
       }
