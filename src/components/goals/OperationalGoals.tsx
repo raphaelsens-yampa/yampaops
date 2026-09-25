@@ -12,6 +12,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { isBetterBelow } from "@/lib/goalCategories";
 import { useDb } from "@/integrations/dbContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { TvLinksDialog } from "./TvLinksDialog";
 import { toBRDateKey, weeksOfMonth } from "./tactical/types";
 import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
@@ -46,7 +48,8 @@ function clampProgress(realized: number | null, target: number): number {
 }
 
 export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) {
-  const { canView, role } = useAuth();
+  const { canView, role, user } = useAuth();
+  const canEditSalesRef = !tvArea && (user?.email ?? "").toLowerCase() === "raphael@yampa.com.br";
   const supabase = useDb();
   const canViewSales = tvArea ? tvArea === "sales" : canView("goals_operational_sales");
   const canViewCs = tvArea ? tvArea === "cs" : canView("goals_operational_cs");
@@ -63,7 +66,27 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   const [refMonth, setRefMonth] = useState(() => new Date(realToday.getFullYear(), realToday.getMonth(), 1));
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState(toBRDateKey(realToday));
-  const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(refMonth);
+  const refMonthKey = toBRDateKey(new Date(refMonth.getFullYear(), refMonth.getMonth(), 1));
+  const [salesRefPct, setSalesRefPct] = useState<number | null>(null);
+  const [refReloadKey, setRefReloadKey] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (supabase as any)
+      .from("operational_goal_overrides")
+      .select("growth_pct")
+      .eq("area", "sales")
+      .eq("year_month", refMonthKey)
+      .maybeSingle()
+      .then(({ data }: { data: { growth_pct: number } | null }) => {
+        if (!cancelled) setSalesRefPct(data ? Number(data.growth_pct) : null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refMonthKey, supabase, refReloadKey]);
+  const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(
+    refMonth, 0, "all", false, "all", area === "sales" ? salesRefPct : null,
+  );
   const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
   const [monthlyLoading, setMonthlyLoading] = useState(true);
 
@@ -309,6 +332,14 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                   </div>
                 </div>
               </div>
+              {area === "sales" && (salesRefPct || canEditSalesRef) && (
+                <SalesReferenceEditor
+                  pct={salesRefPct}
+                  editable={canEditSalesRef}
+                  monthKey={refMonthKey}
+                  onSaved={() => setRefReloadKey((k) => k + 1)}
+                />
+              )}
             </section>
           </CardContent>
           <div className="flex items-center justify-between border-t bg-muted/35 px-4 py-3 text-xs text-muted-foreground sm:px-6">
@@ -319,5 +350,40 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       </div>
       {!tvArea && <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} />}
     </TooltipProvider>
+  );
+}
+function SalesReferenceEditor({ pct, editable, monthKey, onSaved }: { pct: number | null; editable: boolean; monthKey: string; onSaved: () => void }) {
+  const { user } = useAuth();
+  const [value, setValue] = useState(pct ? String(pct).replace(".", ",") : "");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setValue(pct ? String(pct).replace(".", ",") : ""), [pct]);
+
+  const save = async (next: number | null) => {
+    setSaving(true);
+    const table = (supabase as any).from("operational_goal_overrides");
+    const { error } = next === null
+      ? await table.delete().eq("area", "sales").eq("year_month", monthKey)
+      : await table.upsert({ area: "sales", year_month: monthKey, growth_pct: next, updated_by: user?.id }, { onConflict: "area,year_month" });
+    setSaving(false);
+    if (error) return toast.error("Não foi possível salvar a meta de referência");
+    toast.success(next === null ? "Voltou para a meta cadastrada" : "Meta de referência atualizada");
+    onSaved();
+  };
+
+  const label = pct ? `Meta de referência: ${pct.toLocaleString("pt-BR")}% a.m.` : "Meta cadastrada (padrão)";
+  if (!editable) return <p className="mt-5 text-xs text-muted-foreground">{label}</p>;
+
+  const parsed = Number(value.replace(",", "."));
+  const valid = isFinite(parsed) && parsed > 0 && parsed <= 100;
+  return (
+    <div className="mt-6 flex flex-col gap-2 rounded-md border border-dashed p-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-2">
+        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Ex.: 5" inputMode="decimal" className="h-8 w-20 text-right" aria-label="Crescimento % ao mês" />
+        <span className="text-xs text-muted-foreground">% a.m.</span>
+        <Button size="sm" className="h-8" disabled={!valid || saving} onClick={() => save(parsed)}>Aplicar</Button>
+        {pct !== null && <Button size="sm" variant="ghost" className="h-8" disabled={saving} onClick={() => save(null)}>Usar padrão</Button>}
+      </div>
+    </div>
   );
 }
