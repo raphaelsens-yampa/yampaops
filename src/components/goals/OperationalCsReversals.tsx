@@ -64,14 +64,14 @@ export function OperationalCsReversals({ monthStartKey, monthEndKey }: { monthSt
               .in("metric_id", metricIds)
               .gte("entry_date", monthStartKey).lte("entry_date", monthEndKey)
               .order("id") as any)
-          : Promise.resolve([] as any[]),
+          : Promise.resolve({ data: [] as any[] }),
         supabase.from("tactical_recovery_reasons").select("id, name"),
       ]);
 
-      const reasonName = new Map(((reasonsRes as any).data || []).map((r: any) => [r.id, r.name]));
+      const reasonName = new Map<string, string>(((reasonsRes as any).data || []).map((r: any) => [r.id, r.name]));
       const list: Row[] = [];
 
-      for (const c of convRes || []) {
+      for (const c of convRes.data || []) {
         const mrr = Number(c.mrr_net ?? c.mrr ?? 0);
         if (mrr <= 0) continue;
         list.push({
@@ -87,7 +87,7 @@ export function OperationalCsReversals({ monthStartKey, monthEndKey }: { monthSt
           mrr,
         });
       }
-      for (const r of recRes || []) {
+      for (const r of recRes.data || []) {
         list.push({
           key: `r-${r.id}`,
           date: String(r.recovered_at).slice(0, 10),
@@ -101,7 +101,7 @@ export function OperationalCsReversals({ monthStartKey, monthEndKey }: { monthSt
           mrr: Number(r.mrr || 0),
         });
       }
-      for (const e of manualRes || []) {
+      for (const e of (manualRes as any).data || []) {
         list.push({
           key: `m-${e.id}`,
           date: String(e.entry_date).slice(0, 10),
