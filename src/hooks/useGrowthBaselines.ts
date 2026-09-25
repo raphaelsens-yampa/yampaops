@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useDb } from "@/integrations/dbContext";
 import type { GrowthBaseline } from "@/lib/goalScenario";
 
 export const GROWTH_BASELINES_EVENT = "goal-growth-baselines-change";
@@ -9,6 +9,7 @@ type GrowthBaselineRow = GrowthBaseline & { id: string; effective_month: string;
 export function useGrowthBaselines() {
   const [baselines, setBaselines] = useState<GrowthBaselineRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const supabase = useDb();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -18,7 +19,7 @@ export function useGrowthBaselines() {
       .order("effective_month", { ascending: true });
     setBaselines((data as GrowthBaselineRow[]) || []);
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     void load();

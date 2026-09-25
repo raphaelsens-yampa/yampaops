@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useDb } from "@/integrations/dbContext";
 import type { GoalCategory } from "@/lib/goalCategories";
 import { VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_SALES } from "./useTacticalData";
 import { toBRDateKey } from "./types";
@@ -158,6 +158,7 @@ export function useCategoryWeeklyData(
   const { growthPct: scenarioPct } = useGoalScenario();
   const scenarioBaseline = useScenarioBaseline();
   const { baselines: growthBaselines } = useGrowthBaselines();
+  const supabase = useDb();
 
   useEffect(() => {
     let cancelled = false;
