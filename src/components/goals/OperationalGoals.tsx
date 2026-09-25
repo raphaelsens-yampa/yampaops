@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toBRDateKey, weeksOfMonth } from "./tactical/types";
 import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
 import { buildOperationalPeriodModel } from "./operationalGoalsModel";
+import { OperationalMonthReport } from "./OperationalMonthReport";
 
 type OperationalArea = "sales" | "cs";
 
@@ -306,6 +307,7 @@ export function OperationalGoals() {
           </div>
         </Card>
       </div>
+      <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} />
     </TooltipProvider>
   );
 }
