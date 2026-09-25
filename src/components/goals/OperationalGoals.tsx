@@ -46,7 +46,8 @@ function clampProgress(realized: number | null, target: number): number {
 }
 
 export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) {
-  const { canView, role } = useAuth();
+  const { canView, role, user } = useAuth();
+  const canEditSalesRef = !tvArea && (user?.email ?? "").toLowerCase() === "raphael@yampa.com.br";
   const supabase = useDb();
   const canViewSales = tvArea ? tvArea === "sales" : canView("goals_operational_sales");
   const canViewCs = tvArea ? tvArea === "cs" : canView("goals_operational_cs");
@@ -63,7 +64,27 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   const [refMonth, setRefMonth] = useState(() => new Date(realToday.getFullYear(), realToday.getMonth(), 1));
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState(toBRDateKey(realToday));
-  const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(refMonth);
+  const refMonthKey = toBRDateKey(new Date(refMonth.getFullYear(), refMonth.getMonth(), 1));
+  const [salesRefPct, setSalesRefPct] = useState<number | null>(null);
+  const [refReloadKey, setRefReloadKey] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (supabase as any)
+      .from("operational_goal_overrides")
+      .select("growth_pct")
+      .eq("area", "sales")
+      .eq("year_month", refMonthKey)
+      .maybeSingle()
+      .then(({ data }: { data: { growth_pct: number } | null }) => {
+        if (!cancelled) setSalesRefPct(data ? Number(data.growth_pct) : null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refMonthKey, supabase, refReloadKey]);
+  const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(
+    refMonth, 0, "all", false, "all", area === "sales" ? salesRefPct : null,
+  );
   const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
   const [monthlyLoading, setMonthlyLoading] = useState(true);
 

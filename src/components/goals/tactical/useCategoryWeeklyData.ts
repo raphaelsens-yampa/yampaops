@@ -147,6 +147,8 @@ export function useCategoryWeeklyData(
   includeYampa20 = false,
   /** Recorte por cupom de campanha da Stripe. */
   coupon: CouponFilter = "all",
+  /** Crescimento % a.m. que substitui o cenário (ex.: meta de referência do placar de Sales). */
+  growthPctOverride: number | null = null,
 ): CategoryWeeklyData {
   const [categories, setCategories] = useState<GoalCategory[]>([]);
   const [targets, setTargets] = useState<Map<string, number>>(new Map());
@@ -155,7 +157,8 @@ export function useCategoryWeeklyData(
   const [couponShares, setCouponShares] = useState<CouponShares | null>(null);
   const [actualSnapshotDate, setActualSnapshotDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const { growthPct: scenarioPct } = useGoalScenario();
+  const { growthPct: storedScenarioPct } = useGoalScenario();
+  const scenarioPct = growthPctOverride && growthPctOverride > 0 ? growthPctOverride : storedScenarioPct;
   const scenarioBaseline = useScenarioBaseline();
   const { baselines: growthBaselines } = useGrowthBaselines();
   const supabase = useDb();

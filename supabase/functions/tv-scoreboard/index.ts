@@ -9,6 +9,7 @@ const ALLOWED_TABLES = new Set([
   "metas_snapshot_diario",
   "metabase_monthly_agg",
   "goal_growth_baselines",
+  "operational_goal_overrides",
 ]);
 const ALLOWED_RPCS = new Set(["tactical_weekly_mrr_actual"]);
 
