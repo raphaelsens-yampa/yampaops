@@ -189,7 +189,7 @@ export function OperationalGoals() {
   const monthStatus = model.monthRealized === null || model.monthTarget <= 0
     ? "Sem dados"
     : monthEndKey < todayKey
-      ? Math.abs(model.monthRealized - model.monthTarget) < 0.5 ? "Atingido"
+      ? Math.abs(model.monthRealized - model.monthTarget) <= model.monthTarget * 0.02 ? "Atingido"
         : model.monthRealized > model.monthTarget ? "Acima" : "Abaixo"
       : model.lowerIsBetter
         ? model.monthRealized <= model.monthTarget ? "Sob controle" : "Acima do limite"
@@ -244,7 +244,7 @@ export function OperationalGoals() {
                     </div>
                   </div>
                 </div>
-                <span className={cn("rounded-sm px-2 py-1 text-xs font-semibold", monthStatus === "Acima do limite" ? "bg-destructive/10 text-destructive" : monthStatus === "Em andamento" ? "bg-warning/10 text-warning" : "bg-success/10 text-success")}>
+                <span className={cn("rounded-sm px-2 py-1 text-xs font-semibold", monthStatus === "Acima do limite" || (monthStatus === "Acima" && model.lowerIsBetter) || (monthStatus === "Abaixo" && !model.lowerIsBetter) ? "bg-destructive/10 text-destructive" : monthStatus === "Em andamento" ? "bg-warning/10 text-warning" : "bg-success/10 text-success")}>
                   {monthStatus}
                 </span>
               </div>
