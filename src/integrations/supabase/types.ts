@@ -6125,6 +6125,33 @@ export type Database = {
           },
         ]
       }
+      tv_display_links: {
+        Row: {
+          area: string
+          created_at: string
+          id: string
+          is_active: boolean
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_access_levels: {
         Row: {
           access_level_id: string
