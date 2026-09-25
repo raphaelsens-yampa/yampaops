@@ -29,7 +29,7 @@ export function OperationalCrmConversions({ monthStartKey, monthEndKey, screenOp
     (async () => {
       const [y, m] = monthEndKey.split("-").map(Number);
       const endExcl = new Date(Date.UTC(y, m - 1, Number(monthEndKey.slice(8, 10)) + 1, 3)).toISOString();
-      const { data } = await fetchAllPaged<any>(() => supabase.from("ac_funnel_deals")
+      const { data } = await fetchAllPaged<any>(() => (supabase.from("ac_funnel_deals") as any)
         .select("ac_deal_id, title, contact_name, contact_email, owner_name, value, closed_at")
         .eq("status", 1).gte("closed_at", `${monthStartKey}T03:00:00Z`).lt("closed_at", endExcl)
         .order("ac_deal_id") as any);
