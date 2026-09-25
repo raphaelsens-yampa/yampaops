@@ -307,7 +307,7 @@ export function OperationalGoals() {
           </div>
         </Card>
       </div>
-      <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} />
+      <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} />
     </TooltipProvider>
   );
 }

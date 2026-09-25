@@ -11,7 +11,7 @@ const CLASS_MAP: Record<string, OpType> = { "novo pagante": "Nova Venda", recupe
 const money = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const br = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
 
-export function OperationalMonthReport({ area, monthStartKey, monthEndKey }: { area: "sales" | "cs"; monthStartKey: string; monthEndKey: string }) {
+export function OperationalMonthReport({ area, monthStartKey, monthEndKey, officialTotal }: { area: "sales" | "cs"; monthStartKey: string; monthEndKey: string; officialTotal?: number | null }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -94,6 +94,12 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey }: { a
       <CardHeader className="border-b px-4 py-4 sm:px-6">
         <p className="text-xs font-semibold uppercase text-muted-foreground">Relatório do mês</p>
         <h3 className="font-heading text-lg font-bold">Operações {area === "sales" ? "de New MRR" : "de Churn MRR"}</h3>
+        {!loading && officialTotal != null && Math.abs(total - officialTotal) >= 1 && (
+          <p className="mt-2 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+            Diferença de {money(total - officialTotal)} em relação ao Realizado oficial do Metabase ({money(officialTotal)}).
+            {area === "cs" ? " Geralmente são churns revertidos (cliente voltou a pagar) que o Metabase já retirou, ou churns ainda não importados." : " Geralmente são clientes reclassificados pelo Metabase após a data da operação."} O placar acima segue o Metabase.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="p-0">
         {loading ? (
