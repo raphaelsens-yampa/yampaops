@@ -4390,6 +4390,36 @@ export type Database = {
         }
         Relationships: []
       }
+      operational_goal_overrides: {
+        Row: {
+          area: string
+          created_at: string
+          growth_pct: number
+          id: string
+          updated_at: string
+          updated_by: string | null
+          year_month: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          growth_pct: number
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          year_month: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          growth_pct?: number
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          year_month?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           ac_id: string | null
