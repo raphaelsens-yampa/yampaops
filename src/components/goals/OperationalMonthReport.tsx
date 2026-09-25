@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OperationalCrmConversions } from "./OperationalCrmConversions";
 
 type OpType = "Nova Venda" | "Recuperado" | "Upsell" | "Churn" | "Downsell";
 interface Row { key: string; client: string; plan: string; date: string; type: OpType; channel: string; seller: string; value: number }
@@ -89,6 +91,47 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
 
   const total = useMemo(() => rows.reduce((s, r) => s + r.value, 0), [rows]);
 
+  const opsTable = loading ? (
+    <p className="p-6 text-sm text-muted-foreground">Carregando operações…</p>
+  ) : rows.length === 0 ? (
+    <p className="p-6 text-sm text-muted-foreground">Nenhuma operação registrada neste mês.</p>
+  ) : (
+    <div className="max-h-[560px] overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nome do cliente</TableHead>
+            <TableHead>Plano</TableHead>
+            <TableHead>Data da Operação</TableHead>
+            <TableHead>Tipo da Operação</TableHead>
+            <TableHead>Canal</TableHead>
+            <TableHead>Vendedor</TableHead>
+            <TableHead className="text-right">Valor do MRR</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.key}>
+              <TableCell className="max-w-56 truncate" title={r.client}>{r.client}</TableCell>
+              <TableCell>{r.plan}</TableCell>
+              <TableCell>{br(r.date)}</TableCell>
+              <TableCell>{r.type}</TableCell>
+              <TableCell className="capitalize">{r.channel}</TableCell>
+              <TableCell>{r.seller}</TableCell>
+              <TableCell className="text-right font-medium">{money(r.value)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableCell colSpan={6}>{rows.length} operações</TableCell>
+            <TableCell className="text-right font-bold">{money(total)}</TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </div>
+  );
+
   return (
     <Card className="mt-6 overflow-hidden rounded-lg">
       <CardHeader className="border-b px-4 py-4 sm:px-6">
@@ -102,46 +145,18 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
         )}
       </CardHeader>
       <CardContent className="p-0">
-        {loading ? (
-          <p className="p-6 text-sm text-muted-foreground">Carregando operações…</p>
-        ) : rows.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">Nenhuma operação registrada neste mês.</p>
-        ) : (
-          <div className="max-h-[560px] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome do cliente</TableHead>
-                  <TableHead>Plano</TableHead>
-                  <TableHead>Data da Operação</TableHead>
-                  <TableHead>Tipo da Operação</TableHead>
-                  <TableHead>Canal</TableHead>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead className="text-right">Valor do MRR</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.key}>
-                    <TableCell className="max-w-56 truncate" title={r.client}>{r.client}</TableCell>
-                    <TableCell>{r.plan}</TableCell>
-                    <TableCell>{br(r.date)}</TableCell>
-                    <TableCell>{r.type}</TableCell>
-                    <TableCell className="capitalize">{r.channel}</TableCell>
-                    <TableCell>{r.seller}</TableCell>
-                    <TableCell className="text-right font-medium">{money(r.value)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={6}>{rows.length} operações</TableCell>
-                  <TableCell className="text-right font-bold">{money(total)}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </div>
-        )}
+        {area === "sales" ? (
+          <Tabs defaultValue="ops">
+            <TabsList className="mx-4 mt-3 sm:mx-6">
+              <TabsTrigger value="ops">Operações</TabsTrigger>
+              <TabsTrigger value="crm">Conversões do CRM</TabsTrigger>
+            </TabsList>
+            <TabsContent value="ops">{opsTable}</TabsContent>
+            <TabsContent value="crm">
+              <OperationalCrmConversions monthStartKey={monthStartKey} monthEndKey={monthEndKey} screenOps={rows} />
+            </TabsContent>
+          </Tabs>
+        ) : opsTable}
       </CardContent>
     </Card>
   );
