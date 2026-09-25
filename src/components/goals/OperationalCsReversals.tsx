@@ -120,7 +120,7 @@ export function OperationalCsReversals({ monthStartKey, monthEndKey }: { monthSt
       const emails = [...new Set(list.map((r) => r.client).filter((c) => c.includes("@")).map((c) => c.toLowerCase()))];
       const nameByEmail = new Map<string, string>();
       for (let i = 0; i < emails.length; i += 200) {
-        const { data } = await supabase.from("contacts").select("name, email").in("email", emails.slice(i, i + 200));
+        const { data } = await supabase.from("contacts").select("name, email").in("email", emails.slice(i, i + 200)).limit(1000);
         (data || []).forEach((c: any) => { if (c.name) nameByEmail.set(String(c.email).toLowerCase(), c.name); });
       }
       const ownerIds = [...new Set(list.map((r) => r.owner).filter(Boolean))];
