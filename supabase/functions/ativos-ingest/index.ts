@@ -889,7 +889,7 @@ try {
           else revertidos[mes] = data?.length ?? 0;
         }
       }
-      (base.churn_daily as Row).revertidos_marcados = revertidos;
+      (base.churn_daily as unknown as Row).revertidos_marcados = revertidos;
     }
 
     return json({ ...base, gravados });
