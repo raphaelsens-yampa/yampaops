@@ -10,9 +10,11 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
-import { businessDaysBetween, toBRDateKey, weeksOfMonth } from "./tactical/types";
-import { useCategoryWeeklyData, type CategorySnapPoint } from "./tactical/useCategoryWeeklyData";
+import { isBetterBelow } from "@/lib/goalCategories";
+import { supabase } from "@/integrations/supabase/client";
+import { toBRDateKey, weeksOfMonth } from "./tactical/types";
+import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
+import { buildOperationalPeriodModel } from "./operationalGoalsModel";
 
 type OperationalArea = "sales" | "cs";
 
@@ -31,30 +33,13 @@ const NORTH_STAR: Record<OperationalArea, { slug: string; team: string; label: s
   },
 };
 
-function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey: string): number | null {
-  if (!points?.length) return null;
-  let found: number | null = null;
-  for (const point of points) {
-    if (point.date > key) break;
-    if (point.date >= minKey) found = point.value;
-  }
-  return found;
-}
-
-function previousDayKey(date: Date): string {
-  const previous = new Date(date);
-  previous.setDate(previous.getDate() - 1);
-  return toBRDateKey(previous);
-}
-
 function formatMoney(value: number | null): string {
   if (value === null) return "—";
   return `R$ ${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
 }
 
-function clampProgress(realized: number | null, target: number, lowerIsBetter: boolean): number {
+function clampProgress(realized: number | null, target: number): number {
   if (realized === null || target <= 0) return 0;
-  if (lowerIsBetter) return Math.min((realized / target) * 100, 100);
   return Math.min((realized / target) * 100, 100);
 }
 
@@ -76,6 +61,8 @@ export function OperationalGoals() {
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState(toBRDateKey(realToday));
   const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(refMonth);
+  const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
+  const [monthlyLoading, setMonthlyLoading] = useState(true);
 
   useEffect(() => {
     if (!allowedAreas.includes(area) && allowedAreas[0]) setArea(allowedAreas[0]);
@@ -88,7 +75,39 @@ export function OperationalGoals() {
   const todayKey = toBRDateKey(realToday);
   const asOfKey = monthEndKey < todayKey ? monthEndKey : todayKey < monthStartKey ? monthStartKey : todayKey;
   const weeks = useMemo(() => weeksOfMonth(refMonth), [refMonth]);
-  const businessDaysInMonth = useMemo(() => businessDaysBetween(monthStart, monthEnd), [monthStart, monthEnd]);
+  const revisedWeeklyTargets = useMemo(() => {
+    try {
+      return localStorage.getItem("category-weekly-goals-revised") !== "0";
+    } catch {
+      return true;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMonthlyLoading(true);
+    supabase
+      .from("metabase_monthly_agg")
+      .select("category_id, realized_amount")
+      .eq("year_month", monthStartKey)
+      .eq("scope", "company")
+      .is("team_id", null)
+      .is("user_id", null)
+      .is("campaign_id", null)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const next = new Map<string, number>();
+        ((data as Array<{ category_id: string | null; realized_amount: number | null }>) || []).forEach((row) => {
+          if (!row.category_id) return;
+          next.set(row.category_id, (next.get(row.category_id) ?? 0) + Number(row.realized_amount || 0));
+        });
+        setMonthlyRealized(next);
+        setMonthlyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [monthStartKey]);
 
   useEffect(() => {
     const currentIndex = weeks.findIndex((week) => {
@@ -106,56 +125,43 @@ export function OperationalGoals() {
     const config = NORTH_STAR[area];
     const aggregate = categories.find((category) => category.slug === config.slug);
     if (!aggregate) return null;
-    const componentIds = (aggregate.component_category_ids ?? []).filter(Boolean);
-    const byId = new Map(categories.map((category) => [category.id, category]));
-
-    const leafValue = (leaf: GoalCategory, key: string) => valueAsOf(series.get(leaf.id), key, monthStartKey);
-    const cumulativeAt = (key: string): number | null => {
-      let sum = 0;
-      let any = false;
-      for (const id of componentIds) {
-        const leaf = byId.get(id);
-        if (!leaf) continue;
-        const value = leafValue(leaf, key);
-        if (value === null) continue;
-        any = true;
-        sum += value;
-      }
-      return any ? sum : null;
-    };
-    const deltaBetween = (start: Date, end: Date): number | null => {
-      const endKey = toBRDateKey(end) > asOfKey ? asOfKey : toBRDateKey(end);
-      if (endKey < toBRDateKey(start)) return null;
-      const current = cumulativeAt(endKey);
-      if (current === null) return null;
-      return Math.max(0, current - (cumulativeAt(previousDayKey(start)) ?? 0));
-    };
-
     const monthTarget = targets.get(aggregate.id) ?? 0;
-    const monthRealized = cumulativeAt(asOfKey);
     const week = weeks[selectedWeek] ?? weeks[0];
-    const weekRealized = week ? deltaBetween(week.start, week.end) : null;
-    const weekTarget = week && businessDaysInMonth > 0
-      ? (monthTarget * week.businessDays) / businessDaysInMonth
-      : 0;
-    const dayDate = new Date(`${selectedDay}T00:00:00`);
-    const dayRealized = selectedDay <= asOfKey ? deltaBetween(dayDate, dayDate) : null;
-    const dayTarget = businessDaysInMonth > 0 ? monthTarget / businessDaysInMonth : 0;
     const lowerIsBetter = isBetterBelow(aggregate.goal_direction);
+    const asOf = new Date(`${asOfKey}T00:00:00`);
+    const period = buildOperationalPeriodModel({
+      slug: config.slug as "mrr_increase" | "mrr_decrease",
+      categories,
+      series,
+      weeks,
+      monthStart,
+      monthEnd,
+      asOf,
+      selectedDay,
+      monthTarget,
+      lowerIsBetter,
+      revisedWeeklyTargets,
+    });
+    const canonicalMonthValues = (aggregate.component_category_ids ?? [])
+      .map((id) => monthlyRealized.get(id))
+      .filter((value): value is number => value !== undefined);
+    const canonicalMonthRealized = canonicalMonthValues.length
+      ? canonicalMonthValues.reduce((sum, value) => sum + value, 0)
+      : null;
 
     return {
       config,
       aggregate,
       monthTarget,
-      monthRealized,
+      monthRealized: canonicalMonthRealized,
       week,
-      weekTarget,
-      weekRealized,
-      dayTarget,
-      dayRealized,
+      weekTarget: period.weeklyTargets[selectedWeek] ?? 0,
+      weekRealized: period.weeklyRealized[selectedWeek] ?? null,
+      dayTarget: period.dayTarget,
+      dayRealized: period.dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthStartKey, asOfKey, weeks, selectedWeek, selectedDay, businessDaysInMonth]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets]);
 
   if (!allowedAreas.length) {
     return (
@@ -167,7 +173,7 @@ export function OperationalGoals() {
     );
   }
 
-  if (loading || !model) {
+  if (loading || monthlyLoading || !model) {
     return <p className="py-12 text-center text-sm text-muted-foreground">Carregando placar...</p>;
   }
 
@@ -253,7 +259,7 @@ export function OperationalGoals() {
                       <p className="font-heading text-xl font-bold sm:text-2xl">{formatMoney(model.monthRealized)}</p>
                     </div>
                   </div>
-                  <Progress value={clampProgress(model.monthRealized, model.monthTarget, model.lowerIsBetter)} className={cn("mt-4 h-2", model.lowerIsBetter && "[&>div]:bg-warning")} />
+                   <Progress value={clampProgress(model.monthRealized, model.monthTarget)} className={cn("mt-4 h-2", model.lowerIsBetter && "[&>div]:bg-warning")} />
                   <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{monthPct === null ? "Sem percentual" : `${monthPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do ${model.lowerIsBetter ? "limite" : "objetivo"}`}</span>
                     <span>{monthBalance === null ? "Saldo indisponível" : `${model.lowerIsBetter ? "Margem" : "Saldo"}: ${formatMoney(Math.abs(monthBalance))}`}</span>
@@ -276,7 +282,7 @@ export function OperationalGoals() {
                     <div><p className="text-[10px] uppercase text-muted-foreground">Meta</p><p className="font-heading font-bold">{formatMoney(model.weekTarget)}</p></div>
                     <div className="text-right"><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="font-heading font-bold">{formatMoney(model.weekRealized)}</p></div>
                   </div>
-                  <Progress value={clampProgress(model.weekRealized, model.weekTarget, model.lowerIsBetter)} className={cn("mt-3 h-1.5", model.lowerIsBetter && "[&>div]:bg-warning")} />
+                   <Progress value={clampProgress(model.weekRealized, model.weekTarget)} className={cn("mt-3 h-1.5", model.lowerIsBetter && "[&>div]:bg-warning")} />
                 </div>
 
                 <div className="rounded-md bg-muted/55 p-3">
