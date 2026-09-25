@@ -8,3 +8,4 @@
 - [x] Adicionar permissões independentes para os placares Sales e CS
 - [x] Renomear os agregadores nos relatórios para New MRR e Churn MRR
 - [x] Validar cálculos, acesso e visual em desktop/celular
+- [ ] Metas Operacionais como 3ª aba; renomear Acompanhamento Metas → Metas Estratégicas; meses fechados com status Atingido/Abaixo/Acima
