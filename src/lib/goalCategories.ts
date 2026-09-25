@@ -49,7 +49,7 @@ export const AUTO_SOURCE_LABELS: Record<AutoSource, string> = {
   stripe_ltv: "Stripe — LTV (MRR médio ÷ churn)",
   stripe_cac: "Stripe — CAC (custo ÷ conversões Marketing)",
   stripe_ltv_cac: "Stripe — LTV/CAC",
-  stripe_churn_mrr: "Stripe — Churn de MRR (R$ perdido)",
+  stripe_churn_mrr: "Stripe — Churn MRR (R$ perdido)",
   stripe_churn_logos: "Stripe — Churn de logos (contagem)",
   stripe_churn_rate_logos: "Stripe — Churn % (logos ÷ base inicial)",
   deals_count: "Contagem de opps ganhas na categoria",

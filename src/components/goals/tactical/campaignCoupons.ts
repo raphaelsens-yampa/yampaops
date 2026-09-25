@@ -9,7 +9,7 @@
  *   share = MRR (ou qtd) das conversões Stripe do mês até a data com cupom de
  *           campanha ÷ total das conversões Stripe do mesmo período/classificação
  *
- * Para Churn / MRR Decrease não existe cupom no cancelamento: o vínculo é feito
+ * Para Churn / Churn MRR não existe cupom no cancelamento: o vínculo é feito
  * por E-MAIL — cancelados cujo e-mail aparece em alguma conversão Stripe com
  * cupom de campanha contam como churn de campanha.
  */

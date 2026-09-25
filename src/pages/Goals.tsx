@@ -20,6 +20,7 @@ import { TacticalSettingsPanel } from "@/components/goals/tactical/TacticalSetti
 import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
 import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
+import { OperationalGoals } from "@/components/goals/OperationalGoals";
 
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 import { ORIGIN_OPTIONS, originLabel, type OriginFilter } from "@/lib/origins";
@@ -37,7 +38,7 @@ const SCOPE_LABELS: Record<GoalScope, string> = {
 interface CampaignLite { id: string; name: string; }
 
 export default function GoalsPage() {
-  const { user, role } = useAuth();
+  const { user, role, canView } = useAuth();
   const { toast } = useToast();
   const [goals, setGoals] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -268,6 +269,7 @@ export default function GoalsPage() {
   );
 
   const isManager = role === "admin" || role === "tatico";
+  const canViewOperational = canView("goals_operational_sales") || canView("goals_operational_cs");
 
   return (
     <Layout>
@@ -276,9 +278,15 @@ export default function GoalsPage() {
           <h1 className="text-xl sm:text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="metabase" className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
+        <Tabs defaultValue={canViewOperational ? "operational" : "metabase"} className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <div className="-mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 overflow-x-auto no-scrollbar">
             <TabsList className="w-max min-w-full justify-start gap-1">
+              {canViewOperational && (
+                <TabsTrigger value="operational" className="whitespace-nowrap">
+                  <span className="md:hidden">Operacionais</span>
+                  <span className="hidden md:inline">Metas Operacionais</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="metabase" className="whitespace-nowrap">
                 <span className="md:hidden">Metas</span>
                 <span className="hidden md:inline">Acompanhamento Metas</span>
@@ -303,6 +311,12 @@ export default function GoalsPage() {
             </TabsList>
           </div>
 
+
+          {canViewOperational && (
+            <TabsContent value="operational" className="space-y-6">
+              <OperationalGoals />
+            </TabsContent>
+          )}
 
           <TabsContent value="metabase" className="space-y-6">
             <MetabaseTracking />

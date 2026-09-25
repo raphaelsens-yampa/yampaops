@@ -22,6 +22,8 @@ export const CRM_SECTIONS = [
     areas: [
       { key: "one_page_diretoria", label: "OnePage Diretoria" },
       { key: "goals", label: "Metas" },
+      { key: "goals_operational_sales", label: "Metas Operacionais — Sales" },
+      { key: "goals_operational_cs", label: "Metas Operacionais — CS" },
       { key: "conversions", label: "Conversões por Área" },
       { key: "reports", label: "Relatórios" },
     ],
