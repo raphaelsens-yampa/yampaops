@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { isBetterBelow } from "@/lib/goalCategories";
+import { supabase } from "@/integrations/supabase/client";
 import { toBRDateKey, weeksOfMonth } from "./tactical/types";
 import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
 import { buildOperationalPeriodModel } from "./operationalGoalsModel";
@@ -60,6 +61,8 @@ export function OperationalGoals() {
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState(toBRDateKey(realToday));
   const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(refMonth);
+  const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
+  const [monthlyLoading, setMonthlyLoading] = useState(true);
 
   useEffect(() => {
     if (!allowedAreas.includes(area) && allowedAreas[0]) setArea(allowedAreas[0]);
@@ -79,6 +82,32 @@ export function OperationalGoals() {
       return true;
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMonthlyLoading(true);
+    supabase
+      .from("metabase_monthly_agg")
+      .select("category_id, realized_amount")
+      .eq("year_month", monthStartKey)
+      .eq("scope", "company")
+      .is("team_id", null)
+      .is("user_id", null)
+      .is("campaign_id", null)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const next = new Map<string, number>();
+        ((data as Array<{ category_id: string | null; realized_amount: number | null }>) || []).forEach((row) => {
+          if (!row.category_id) return;
+          next.set(row.category_id, (next.get(row.category_id) ?? 0) + Number(row.realized_amount || 0));
+        });
+        setMonthlyRealized(next);
+        setMonthlyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [monthStartKey]);
 
   useEffect(() => {
     const currentIndex = weeks.findIndex((week) => {
@@ -113,12 +142,18 @@ export function OperationalGoals() {
       lowerIsBetter,
       revisedWeeklyTargets,
     });
+    const canonicalMonthValues = (aggregate.component_category_ids ?? [])
+      .map((id) => monthlyRealized.get(id))
+      .filter((value): value is number => value !== undefined);
+    const canonicalMonthRealized = canonicalMonthValues.length
+      ? canonicalMonthValues.reduce((sum, value) => sum + value, 0)
+      : null;
 
     return {
       config,
       aggregate,
       monthTarget,
-      monthRealized: period.monthRealized,
+      monthRealized: canonicalMonthRealized,
       week,
       weekTarget: period.weeklyTargets[selectedWeek] ?? 0,
       weekRealized: period.weeklyRealized[selectedWeek] ?? null,
@@ -126,7 +161,7 @@ export function OperationalGoals() {
       dayRealized: period.dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthStart, monthEnd, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets]);
 
   if (!allowedAreas.length) {
     return (
@@ -138,7 +173,7 @@ export function OperationalGoals() {
     );
   }
 
-  if (loading || !model) {
+  if (loading || monthlyLoading || !model) {
     return <p className="py-12 text-center text-sm text-muted-foreground">Carregando placar...</p>;
   }
 
