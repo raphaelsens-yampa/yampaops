@@ -157,7 +157,18 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
               <OperationalCrmConversions monthStartKey={monthStartKey} monthEndKey={monthEndKey} screenOps={rows} />
             </TabsContent>
           </Tabs>
-        ) : opsTable}
+        ) : (
+          <Tabs defaultValue="ops">
+            <TabsList className="mx-4 mt-3 sm:mx-6">
+              <TabsTrigger value="ops">Operações</TabsTrigger>
+              <TabsTrigger value="reversals">Reversões CS</TabsTrigger>
+            </TabsList>
+            <TabsContent value="ops">{opsTable}</TabsContent>
+            <TabsContent value="reversals">
+              <OperationalCsReversals monthStartKey={monthStartKey} monthEndKey={monthEndKey} />
+            </TabsContent>
+          </Tabs>
+        )}
       </CardContent>
     </Card>
   );
