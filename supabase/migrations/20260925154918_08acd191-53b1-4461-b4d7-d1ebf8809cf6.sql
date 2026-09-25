@@ -1,0 +1,2 @@
+ALTER TABLE public.metas_churn_daily ADD COLUMN IF NOT EXISTS revertido_em timestamptz NULL;
+COMMENT ON COLUMN public.metas_churn_daily.revertido_em IS 'Preenchido quando o churn deixa de constar no card 181 do Metabase (churn revertido). Nunca apagado; volta a NULL se reaparecer.';
