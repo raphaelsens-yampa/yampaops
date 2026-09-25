@@ -57,6 +57,8 @@ import { RequireArea } from "./components/AccessDenied";
 import { CohortSyncProvider } from "./contexts/CohortSyncContext";
 import { GlobalCohortSyncBanner } from "./components/GlobalCohortSyncBanner";
 
+import TvScoreboard from "./pages/TvScoreboard";
+
 const queryClient = new QueryClient();
 
 function AppRoutes() {
@@ -64,6 +66,14 @@ function AppRoutes() {
 
   // Public routes (no auth required) — must be checked before loading/session gates
   const publicPath = typeof window !== "undefined" && window.location.pathname.startsWith("/proposta-publica");
+  const tvPath = typeof window !== "undefined" && window.location.pathname.startsWith("/tv/");
+  if (tvPath) {
+    return (
+      <Routes>
+        <Route path="/tv/:area/:token" element={<TvScoreboard />} />
+      </Routes>
+    );
+  }
   if (publicPath) {
     return (
       <Routes>

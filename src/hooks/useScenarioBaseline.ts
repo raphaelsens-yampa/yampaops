@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as defaultDb } from "@/integrations/supabase/client";
+import { useDb } from "@/integrations/dbContext";
 import type { ScenarioBaseline } from "@/lib/goalScenario";
 
 const TOTAL_MRR_SLUG = "total_de_mrr_ms3g6o38";
 
-let cache: Promise<ScenarioBaseline | null> | null = null;
+const cache = new WeakMap<object, Promise<ScenarioBaseline | null>>();
 
-async function fetchBaseline(): Promise<ScenarioBaseline | null> {
+async function fetchBaseline(supabase: typeof defaultDb): Promise<ScenarioBaseline | null> {
   const { data: cats } = await supabase
     .from("goal_categories")
     .select("id, slug")
@@ -66,15 +67,16 @@ async function fetchBaseline(): Promise<ScenarioBaseline | null> {
  */
 export function useScenarioBaseline(): ScenarioBaseline | null {
   const [baseline, setBaseline] = useState<ScenarioBaseline | null>(null);
+  const db = useDb();
   useEffect(() => {
     let cancelled = false;
-    if (!cache) cache = fetchBaseline();
-    cache.then((b) => {
+    if (!cache.has(db)) cache.set(db, fetchBaseline(db));
+    cache.get(db)!.then((b) => {
       if (!cancelled) setBaseline(b);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [db]);
   return baseline;
 }

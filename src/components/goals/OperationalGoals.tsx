@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { isBetterBelow } from "@/lib/goalCategories";
-import { supabase } from "@/integrations/supabase/client";
+import { useDb } from "@/integrations/dbContext";
+import { TvLinksDialog } from "./TvLinksDialog";
 import { toBRDateKey, weeksOfMonth } from "./tactical/types";
 import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
 import { buildOperationalPeriodModel } from "./operationalGoalsModel";
@@ -44,10 +45,11 @@ function clampProgress(realized: number | null, target: number): number {
   return Math.min((realized / target) * 100, 100);
 }
 
-export function OperationalGoals() {
-  const { canView } = useAuth();
-  const canViewSales = canView("goals_operational_sales");
-  const canViewCs = canView("goals_operational_cs");
+export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) {
+  const { canView, role } = useAuth();
+  const supabase = useDb();
+  const canViewSales = tvArea ? tvArea === "sales" : canView("goals_operational_sales");
+  const canViewCs = tvArea ? tvArea === "cs" : canView("goals_operational_cs");
   const allowedAreas = useMemo(
     () => ([canViewSales && "sales", canViewCs && "cs"].filter(Boolean) as OperationalArea[]),
     [canViewSales, canViewCs],
@@ -108,7 +110,7 @@ export function OperationalGoals() {
     return () => {
       cancelled = true;
     };
-  }, [monthStartKey]);
+  }, [monthStartKey, supabase]);
 
   useEffect(() => {
     const currentIndex = weeks.findIndex((week) => {
@@ -206,7 +208,11 @@ export function OperationalGoals() {
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Metas Operacionais</p>
                 <h2 className="font-heading text-xl font-bold capitalize">{format(refMonth, "MMMM 'de' yyyy", { locale: ptBR })}</h2>
               </div>
+              {tvArea ? (
+                <span className="text-xs text-muted-foreground">Atualiza a cada 5 min</span>
+              ) : (
               <div className="flex items-center gap-1">
+                {role === "admin" && <TvLinksDialog />}
                 <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mês anterior" onClick={() => setRefMonth((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -214,6 +220,7 @@ export function OperationalGoals() {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
+              )}
             </div>
             {allowedAreas.length > 1 && (
               <div className="flex gap-5" role="tablist" aria-label="Placar por time">
@@ -310,7 +317,7 @@ export function OperationalGoals() {
           </div>
         </Card>
       </div>
-      <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} />
+      {!tvArea && <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} />}
     </TooltipProvider>
   );
 }
