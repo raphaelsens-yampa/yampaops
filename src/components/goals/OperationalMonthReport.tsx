@@ -49,7 +49,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
         const { data: churns } = await fetchAllPaged<any>(() =>
           supabase.from("metas_churn_daily")
             .select("id, email, plano, nome_oferta, origem_cliente, churn_at, data_ref_churn, total_mrr")
-            .eq("mes_ref_data", monthStartKey).order("id") as any);
+            .eq("mes_ref_data", monthStartKey).is("revertido_em", null).order("id") as any);
         const seen = new Map<string, any>();
         for (const c of churns) {
           const d = String(c.churn_at || c.data_ref_churn || "").slice(0, 10);

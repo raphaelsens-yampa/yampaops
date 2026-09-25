@@ -3754,6 +3754,7 @@ export type Database = {
           preco_stripe: number | null
           reason: string | null
           recorrencia_pagamento: number | null
+          revertido_em: string | null
           sck: string | null
           segmento: string | null
           status_transacao: string | null
@@ -3803,6 +3804,7 @@ export type Database = {
           preco_stripe?: number | null
           reason?: string | null
           recorrencia_pagamento?: number | null
+          revertido_em?: string | null
           sck?: string | null
           segmento?: string | null
           status_transacao?: string | null
@@ -3852,6 +3854,7 @@ export type Database = {
           preco_stripe?: number | null
           reason?: string | null
           recorrencia_pagamento?: number | null
+          revertido_em?: string | null
           sck?: string | null
           segmento?: string | null
           status_transacao?: string | null

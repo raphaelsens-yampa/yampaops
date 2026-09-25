@@ -844,9 +844,12 @@ try {
 
       const novas = churnDailyRows
         .filter((r) => !existentes.has(`${r.mes_ref}|${r.company_id}`))
-        .map((r) => ({ ...r, visto_primeira_vez_em: dataExecucao }));
-      const atualizadas = churnDailyRows.filter((r) => existentes.has(`${r.mes_ref}|${r.company_id}`));
+        .map((r) => ({ ...r, visto_primeira_vez_em: dataExecucao, revertido_em: null }));
+      const atualizadas = churnDailyRows
+        .filter((r) => existentes.has(`${r.mes_ref}|${r.company_id}`))
+        .map((r) => ({ ...r, revertido_em: null }));
 
+      let churnGravacaoOk = true;
       for (const conjunto of [novas, atualizadas]) {
         for (let i = 0; i < conjunto.length; i += BATCH) {
           const chunk = conjunto.slice(i, i + BATCH);
@@ -854,12 +857,39 @@ try {
             .from('metas_churn_daily')
             .upsert(chunk, { onConflict: 'mes_ref,company_id', ignoreDuplicates: false });
           if (error) {
+            churnGravacaoOk = false;
             avisos.push(`Falha ao gravar analítico de churn (lote ${i / BATCH + 1}): ${error.message}`);
             break;
           }
           gravados.churn_daily += chunk.length;
         }
       }
+
+      // Churns revertidos: registros do mês que o Metabase deixou de listar
+      // recebem revertido_em (sem apagar). Só roda se a gravação acima foi completa.
+      const revertidos: Record<string, number> = {};
+      if (churnGravacaoOk) {
+        const idsPorMes = new Map<string, string[]>();
+        for (const r of churnDailyRows) {
+          const k = String(r.mes_ref);
+          if (!idsPorMes.has(k)) idsPorMes.set(k, []);
+          idsPorMes.get(k)!.push(String(r.company_id));
+        }
+        for (const [mes, ids] of idsPorMes) {
+          if (ids.length === 0) continue;
+          const lista = `(${ids.map((id) => `"${id.replace(/"/g, '')}"`).join(',')})`;
+          const { data, error } = await supabase
+            .from('metas_churn_daily')
+            .update({ revertido_em: coletadoEm })
+            .eq('mes_ref', mes)
+            .is('revertido_em', null)
+            .not('company_id', 'in', lista)
+            .select('id');
+          if (error) avisos.push(`Falha ao marcar churns revertidos de ${mes}: ${error.message}`);
+          else revertidos[mes] = data?.length ?? 0;
+        }
+      }
+      (base.churn_daily as unknown as Row).revertidos_marcados = revertidos;
     }
 
     return json({ ...base, gravados });
