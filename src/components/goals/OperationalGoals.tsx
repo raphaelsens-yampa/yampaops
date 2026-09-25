@@ -188,9 +188,12 @@ export function OperationalGoals() {
       : model.monthRealized - model.monthTarget;
   const monthStatus = model.monthRealized === null || model.monthTarget <= 0
     ? "Sem dados"
-    : model.lowerIsBetter
-      ? model.monthRealized <= model.monthTarget ? "Sob controle" : "Acima do limite"
-      : model.monthRealized >= model.monthTarget ? "Meta atingida" : "Em andamento";
+    : monthEndKey < todayKey
+      ? Math.abs(model.monthRealized - model.monthTarget) < 0.5 ? "Atingido"
+        : model.monthRealized > model.monthTarget ? "Acima" : "Abaixo"
+      : model.lowerIsBetter
+        ? model.monthRealized <= model.monthTarget ? "Sob controle" : "Acima do limite"
+        : model.monthRealized >= model.monthTarget ? "Meta atingida" : "Em andamento";
   const maxDay = monthEndKey < todayKey ? monthEndKey : todayKey;
 
   return (

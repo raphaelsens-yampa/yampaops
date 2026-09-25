@@ -278,23 +278,23 @@ export default function GoalsPage() {
           <h1 className="text-xl sm:text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue={canViewOperational ? "operational" : "metabase"} className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
+        <Tabs defaultValue="metabase" className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <div className="-mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 overflow-x-auto no-scrollbar">
             <TabsList className="w-max min-w-full justify-start gap-1">
+              <TabsTrigger value="metabase" className="whitespace-nowrap">
+                <span className="md:hidden">Estratégicas</span>
+                <span className="hidden md:inline">Metas Estratégicas</span>
+              </TabsTrigger>
+              <TabsTrigger value="tactical" className="whitespace-nowrap">
+                <span className="md:hidden">Táticas</span>
+                <span className="hidden md:inline">Metas Táticas</span>
+              </TabsTrigger>
               {canViewOperational && (
                 <TabsTrigger value="operational" className="whitespace-nowrap">
                   <span className="md:hidden">Operacionais</span>
                   <span className="hidden md:inline">Metas Operacionais</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="metabase" className="whitespace-nowrap">
-                <span className="md:hidden">Metas</span>
-                <span className="hidden md:inline">Acompanhamento Metas</span>
-              </TabsTrigger>
-              <TabsTrigger value="tactical" className="whitespace-nowrap">
-                <span className="md:hidden">Táticas</span>
-                <span className="hidden md:inline">Metas Táticas</span>
-              </TabsTrigger>
               {isManager && (
                 <TabsTrigger value="setup" className="whitespace-nowrap">
                   <span className="md:hidden">Cadastro</span>
