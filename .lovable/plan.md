@@ -10,9 +10,12 @@ A visão será um placar em cascata: **Mês** como destaque principal, depois **
 
 ## Experiência da nova aba
 - Adicionar **Metas Operacionais** junto às abas atuais de Metas.
-- Exibir um seletor simples **Sales | CS**:
-  - gestores podem alternar entre os dois;
-  - demais usuários entram no placar correspondente ao próprio time.
+- Exibir um seletor simples **Sales | CS** quando o Nível de Acesso permitir ambos.
+- Aplicar visibilidade configurável por **Nível de Acesso**:
+  - gestor pode ver Sales e CS e alternar entre os placares;
+  - Time de Vendas vê somente o placar Sales;
+  - Time de CS vê somente o placar CS;
+  - administradores podem ajustar essas permissões na tela Gestão de Nível de Acessos.
 - No topo, mostrar o nome da north star com tooltip explicativo:
   - New MRR: “Soma novas vendas, recuperações de churn e upsell.”
   - Churn MRR: “Soma churns e downsell. Quanto menor, melhor.”
@@ -55,11 +58,13 @@ Aplicar a direção **Compact Cascade Metrics**:
 - Testar as fórmulas de soma dos componentes e a inversão de leitura do Churn MRR.
 - Conferir Mês, Semana e Dia para Sales e CS em períodos atual e anteriores.
 - Comparar os totais da nova aba com o Acompanhamento Metas e a quebra semanal existentes.
-- Verificar permissões de gestor e usuário de time.
+- Verificar as combinações de permissão: somente Sales, somente CS, ambos e nenhum painel.
+- Confirmar que a interface oculta seletores e dados não autorizados, e que o acesso direto respeita as mesmas regras.
 - Validar visualmente em desktop e celular, incluindo tooltips, troca de período e ausência de dados.
 
 ## Detalhes técnicos
 - A aba será integrada em `Goals.tsx` com um componente focado de placar operacional.
 - Os hooks existentes serão reutilizados ou compostos para evitar duplicação das regras de apuração.
+- Criar duas capacidades na Gestão de Nível de Acessos, uma para visualizar o placar Sales e outra para visualizar o placar CS, seguindo o padrão de permissões existente.
 - A classificação Sales/CS usará as categorias formais (`area`) e a associação atual do usuário ao time; não dependerá apenas do texto do nome do time.
 - Não será criada uma nova tabela para armazenar resultados calculados.
