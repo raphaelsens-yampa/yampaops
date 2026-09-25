@@ -105,6 +105,27 @@ function monthBounds(ref: Date) {
   return { startKey: key(start), endKey: key(end), prevEndKey: key(prevEnd) };
 }
 
+function parseLocalDate(value: string): Date {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function inclusiveDays(start: Date, end: Date): number {
+  return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+
+/** Mesmo rateio por sobreposição usado no Acompanhamento Metas. */
+export function goalMonthFraction(periodStart: string, periodEnd: string, monthStart: string, monthEnd: string): number {
+  const goalStart = parseLocalDate(periodStart);
+  const goalEnd = parseLocalDate(periodEnd);
+  const windowStart = parseLocalDate(monthStart);
+  const windowEnd = parseLocalDate(monthEnd);
+  const overlapStart = goalStart > windowStart ? goalStart : windowStart;
+  const overlapEnd = goalEnd < windowEnd ? goalEnd : windowEnd;
+  if (overlapEnd < overlapStart) return 0;
+  return inclusiveDays(overlapStart, overlapEnd) / Math.max(1, inclusiveDays(goalStart, goalEnd));
+}
+
 /**
  * Valor do snapshot conforme o tipo da categoria.
  * `null` = snapshot existe mas sem dado para a categoria (não é zero!),
@@ -209,13 +230,14 @@ export function useCategoryWeeklyData(
       );
       for (const g of scenarioGoals) {
         if (!g.category_id) continue;
-        const value =
+        const value = (
           Number(g.target_pct || 0) ||
           Number(g.target_mrr || 0) ||
           Number(g.target_deals || 0) ||
-          Number(g.target_tpv || 0);
+          Number(g.target_tpv || 0)
+        ) * goalMonthFraction(g.period_start, g.period_end, startKey, endKey);
         if (!value) continue;
-        t.set(g.category_id, Math.max(t.get(g.category_id) ?? 0, value));
+        t.set(g.category_id, (t.get(g.category_id) ?? 0) + value);
       }
 
       // Recorte por origem: `metas_snapshot_diario` não tem origem, então o

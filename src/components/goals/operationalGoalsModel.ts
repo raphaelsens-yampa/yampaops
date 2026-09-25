@@ -80,11 +80,14 @@ export function buildOperationalPeriodModel(input: OperationalModelInput): Opera
     .map((componentSlug) => categories.find((category) => category.slug === componentSlug))
     .filter((category): category is GoalCategory => Boolean(category));
 
+  const componentValueAt = (component: GoalCategory, key: string): number | null => (
+    valueAsOf(series.get(component.id), key, monthStartKey)
+  );
   const cumulativeAt = (key: string): number | null => {
     let sum = 0;
     let any = false;
     components.forEach((component) => {
-      const value = valueAsOf(series.get(component.id), key, monthStartKey);
+      const value = componentValueAt(component, key);
       if (value === null) return;
       any = true;
       sum += value;
@@ -96,9 +99,16 @@ export function buildOperationalPeriodModel(input: OperationalModelInput): Opera
     const startKey = toBRDateKey(start);
     const endKey = toBRDateKey(end) > asOfKey ? asOfKey : toBRDateKey(end);
     if (endKey < startKey) return null;
-    const current = cumulativeAt(endKey);
-    if (current === null) return null;
-    return Math.max(0, current - (cumulativeAt(previousDayKey(start)) ?? 0));
+    let sum = 0;
+    let any = false;
+    components.forEach((component) => {
+      const current = componentValueAt(component, endKey);
+      if (current === null) return;
+      any = true;
+      const previous = componentValueAt(component, previousDayKey(start)) ?? 0;
+      sum += Math.max(0, current - previous);
+    });
+    return any ? sum : null;
   };
 
   const businessDaysInMonth = businessDaysBetween(monthStart, monthEnd);
