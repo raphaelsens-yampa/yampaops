@@ -1,0 +1,305 @@
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarDays, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { isBetterBelow, type GoalCategory } from "@/lib/goalCategories";
+import { businessDaysBetween, toBRDateKey, weeksOfMonth } from "./tactical/types";
+import { useCategoryWeeklyData, type CategorySnapPoint } from "./tactical/useCategoryWeeklyData";
+
+type OperationalArea = "sales" | "cs";
+
+const NORTH_STAR: Record<OperationalArea, { slug: string; team: string; label: string; help: string }> = {
+  sales: {
+    slug: "mrr_increase",
+    team: "Time de Vendas",
+    label: "New MRR",
+    help: "Soma novas vendas, recuperações de churn e upsell.",
+  },
+  cs: {
+    slug: "mrr_decrease",
+    team: "Time de CS",
+    label: "Churn MRR",
+    help: "Soma churns e downsell. Quanto menor, melhor.",
+  },
+};
+
+function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey: string): number | null {
+  if (!points?.length) return null;
+  let found: number | null = null;
+  for (const point of points) {
+    if (point.date > key) break;
+    if (point.date >= minKey) found = point.value;
+  }
+  return found;
+}
+
+function previousDayKey(date: Date): string {
+  const previous = new Date(date);
+  previous.setDate(previous.getDate() - 1);
+  return toBRDateKey(previous);
+}
+
+function formatMoney(value: number | null): string {
+  if (value === null) return "—";
+  return `R$ ${value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+}
+
+function clampProgress(realized: number | null, target: number, lowerIsBetter: boolean): number {
+  if (realized === null || target <= 0) return 0;
+  if (lowerIsBetter) return Math.min((realized / target) * 100, 100);
+  return Math.min((realized / target) * 100, 100);
+}
+
+export function OperationalGoals() {
+  const { canView } = useAuth();
+  const canViewSales = canView("goals_operational_sales");
+  const canViewCs = canView("goals_operational_cs");
+  const allowedAreas = useMemo(
+    () => ([canViewSales && "sales", canViewCs && "cs"].filter(Boolean) as OperationalArea[]),
+    [canViewSales, canViewCs],
+  );
+  const realToday = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+  const [area, setArea] = useState<OperationalArea>(allowedAreas[0] ?? "sales");
+  const [refMonth, setRefMonth] = useState(() => new Date(realToday.getFullYear(), realToday.getMonth(), 1));
+  const [selectedWeek, setSelectedWeek] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(toBRDateKey(realToday));
+  const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(refMonth);
+
+  useEffect(() => {
+    if (!allowedAreas.includes(area) && allowedAreas[0]) setArea(allowedAreas[0]);
+  }, [allowedAreas, area]);
+
+  const monthStart = useMemo(() => new Date(refMonth.getFullYear(), refMonth.getMonth(), 1), [refMonth]);
+  const monthEnd = useMemo(() => new Date(refMonth.getFullYear(), refMonth.getMonth() + 1, 0), [refMonth]);
+  const monthStartKey = toBRDateKey(monthStart);
+  const monthEndKey = toBRDateKey(monthEnd);
+  const todayKey = toBRDateKey(realToday);
+  const asOfKey = monthEndKey < todayKey ? monthEndKey : todayKey < monthStartKey ? monthStartKey : todayKey;
+  const weeks = useMemo(() => weeksOfMonth(refMonth), [refMonth]);
+  const businessDaysInMonth = useMemo(() => businessDaysBetween(monthStart, monthEnd), [monthStart, monthEnd]);
+
+  useEffect(() => {
+    const currentIndex = weeks.findIndex((week) => {
+      const start = toBRDateKey(week.start);
+      const end = toBRDateKey(week.end);
+      return asOfKey >= start && asOfKey <= end;
+    });
+    const nextIndex = currentIndex >= 0 ? currentIndex : Math.max(0, weeks.length - 1);
+    setSelectedWeek(nextIndex);
+    const nextDay = asOfKey >= monthStartKey && asOfKey <= monthEndKey ? asOfKey : monthStartKey;
+    setSelectedDay(nextDay);
+  }, [asOfKey, monthStartKey, monthEndKey, weeks]);
+
+  const model = useMemo(() => {
+    const config = NORTH_STAR[area];
+    const aggregate = categories.find((category) => category.slug === config.slug);
+    if (!aggregate) return null;
+    const componentIds = (aggregate.component_category_ids ?? []).filter(Boolean);
+    const byId = new Map(categories.map((category) => [category.id, category]));
+
+    const leafValue = (leaf: GoalCategory, key: string) => valueAsOf(series.get(leaf.id), key, monthStartKey);
+    const cumulativeAt = (key: string): number | null => {
+      let sum = 0;
+      let any = false;
+      for (const id of componentIds) {
+        const leaf = byId.get(id);
+        if (!leaf) continue;
+        const value = leafValue(leaf, key);
+        if (value === null) continue;
+        any = true;
+        sum += value;
+      }
+      return any ? sum : null;
+    };
+    const deltaBetween = (start: Date, end: Date): number | null => {
+      const endKey = toBRDateKey(end) > asOfKey ? asOfKey : toBRDateKey(end);
+      if (endKey < toBRDateKey(start)) return null;
+      const current = cumulativeAt(endKey);
+      if (current === null) return null;
+      return Math.max(0, current - (cumulativeAt(previousDayKey(start)) ?? 0));
+    };
+
+    const monthTarget = targets.get(aggregate.id) ?? 0;
+    const monthRealized = cumulativeAt(asOfKey);
+    const week = weeks[selectedWeek] ?? weeks[0];
+    const weekRealized = week ? deltaBetween(week.start, week.end) : null;
+    const weekTarget = week && businessDaysInMonth > 0
+      ? (monthTarget * week.businessDays) / businessDaysInMonth
+      : 0;
+    const dayDate = new Date(`${selectedDay}T00:00:00`);
+    const dayRealized = selectedDay <= asOfKey ? deltaBetween(dayDate, dayDate) : null;
+    const dayTarget = businessDaysInMonth > 0 ? monthTarget / businessDaysInMonth : 0;
+    const lowerIsBetter = isBetterBelow(aggregate.goal_direction);
+
+    return {
+      config,
+      aggregate,
+      monthTarget,
+      monthRealized,
+      week,
+      weekTarget,
+      weekRealized,
+      dayTarget,
+      dayRealized,
+      lowerIsBetter,
+    };
+  }, [area, categories, targets, series, monthStartKey, asOfKey, weeks, selectedWeek, selectedDay, businessDaysInMonth]);
+
+  if (!allowedAreas.length) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-sm text-muted-foreground">
+          Seu nível de acesso não permite visualizar os placares operacionais.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading || !model) {
+    return <p className="py-12 text-center text-sm text-muted-foreground">Carregando placar...</p>;
+  }
+
+  const monthPct = model.monthTarget > 0 && model.monthRealized !== null
+    ? (model.monthRealized / model.monthTarget) * 100
+    : null;
+  const monthBalance = model.monthRealized === null
+    ? null
+    : model.lowerIsBetter
+      ? model.monthTarget - model.monthRealized
+      : model.monthRealized - model.monthTarget;
+  const monthStatus = model.monthRealized === null || model.monthTarget <= 0
+    ? "Sem dados"
+    : model.lowerIsBetter
+      ? model.monthRealized <= model.monthTarget ? "Sob controle" : "Acima do limite"
+      : model.monthRealized >= model.monthTarget ? "Meta atingida" : "Em andamento";
+  const maxDay = monthEndKey < todayKey ? monthEndKey : todayKey;
+
+  return (
+    <TooltipProvider>
+      <div className="mx-auto w-full max-w-3xl">
+        <Card className="overflow-hidden rounded-lg">
+          <CardHeader className="space-y-4 border-b px-4 pb-3 pt-5 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Metas Operacionais</p>
+                <h2 className="font-heading text-xl font-bold capitalize">{format(refMonth, "MMMM 'de' yyyy", { locale: ptBR })}</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mês anterior" onClick={() => setRefMonth((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Próximo mês" disabled={monthEndKey >= todayKey} onClick={() => setRefMonth((date) => new Date(date.getFullYear(), date.getMonth() + 1, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {allowedAreas.length > 1 && (
+              <div className="flex gap-5" role="tablist" aria-label="Placar por time">
+                {allowedAreas.map((item) => (
+                  <Button key={item} variant="ghost" size="sm" onClick={() => setArea(item)} className={cn("h-9 rounded-none border-b-2 px-1", area === item ? "border-accent text-foreground" : "border-transparent text-muted-foreground")}>
+                    {item === "sales" ? "Sales" : "CS"}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent className="space-y-8 p-4 sm:p-6">
+            <section>
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className={cn("h-9 w-2 rounded-sm", area === "sales" ? "bg-accent" : "bg-primary")} />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">{model.config.team}</p>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-heading text-lg font-bold">{model.config.label}</h3>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Como o ${model.config.label} é calculado`}><Info className="h-3.5 w-3.5" /></Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-64">{model.config.help}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                </div>
+                <span className={cn("rounded-sm px-2 py-1 text-xs font-semibold", monthStatus === "Acima do limite" ? "bg-destructive/10 text-destructive" : monthStatus === "Em andamento" ? "bg-warning/10 text-warning" : "bg-success/10 text-success")}>
+                  {monthStatus}
+                </span>
+              </div>
+
+              <div className="ml-4 space-y-7 border-l-2 border-muted pl-5 sm:pl-7">
+                <div className="relative">
+                  <span className={cn("absolute -left-[27px] top-7 h-3 w-3 rounded-full border-2 bg-card sm:-left-[35px]", area === "sales" ? "border-accent" : "border-primary")} />
+                  <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Mês</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Meta</p>
+                      <p className="font-heading text-xl font-bold sm:text-2xl">{model.monthTarget > 0 ? formatMoney(model.monthTarget) : "Não cadastrada"}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Realizado</p>
+                      <p className="font-heading text-xl font-bold sm:text-2xl">{formatMoney(model.monthRealized)}</p>
+                    </div>
+                  </div>
+                  <Progress value={clampProgress(model.monthRealized, model.monthTarget, model.lowerIsBetter)} className={cn("mt-4 h-2", model.lowerIsBetter && "[&>div]:bg-warning")} />
+                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{monthPct === null ? "Sem percentual" : `${monthPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do ${model.lowerIsBetter ? "limite" : "objetivo"}`}</span>
+                    <span>{monthBalance === null ? "Saldo indisponível" : `${model.lowerIsBetter ? "Margem" : "Saldo"}: ${formatMoney(Math.abs(monthBalance))}`}</span>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <span className="absolute -left-[26px] top-6 h-2 w-2 rounded-full bg-muted-foreground/40 sm:-left-[34px]" />
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">Semana</p>
+                      <p className="text-sm font-medium">{model.week?.rangeLabel ?? "—"}</p>
+                    </div>
+                    <Select value={String(selectedWeek)} onValueChange={(value) => setSelectedWeek(Number(value))}>
+                      <SelectTrigger className="h-9 w-full sm:w-44"><SelectValue /></SelectTrigger>
+                      <SelectContent>{weeks.map((week, index) => <SelectItem key={week.index} value={String(index)}>{week.label} · {week.rangeLabel}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end justify-between gap-4">
+                    <div><p className="text-[10px] uppercase text-muted-foreground">Meta</p><p className="font-heading font-bold">{formatMoney(model.weekTarget)}</p></div>
+                    <div className="text-right"><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="font-heading font-bold">{formatMoney(model.weekRealized)}</p></div>
+                  </div>
+                  <Progress value={clampProgress(model.weekRealized, model.weekTarget, model.lowerIsBetter)} className={cn("mt-3 h-1.5", model.lowerIsBetter && "[&>div]:bg-warning")} />
+                </div>
+
+                <div className="rounded-md bg-muted/55 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <Input type="date" value={selectedDay} min={monthStartKey} max={maxDay} onChange={(event) => setSelectedDay(event.target.value)} className="h-9 w-40 bg-card" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-5 text-right">
+                      <div><p className="text-[10px] uppercase text-muted-foreground">Meta do dia</p><p className="text-sm font-bold">{formatMoney(model.dayTarget)}</p></div>
+                      <div><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="text-sm font-bold">{formatMoney(model.dayRealized)}</p></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </CardContent>
+          <div className="flex items-center justify-between border-t bg-muted/35 px-4 py-3 text-xs text-muted-foreground sm:px-6">
+            <span>{actualSnapshotDate ? `Base conferida em ${actualSnapshotDate.split("-").reverse().join("/")}` : "Base diária indisponível"}</span>
+            <span className="flex items-center gap-2 font-semibold text-foreground"><span className="h-2 w-2 rounded-full bg-accent" />Dados consolidados</span>
+          </div>
+        </Card>
+      </div>
+    </TooltipProvider>
+  );
+}
