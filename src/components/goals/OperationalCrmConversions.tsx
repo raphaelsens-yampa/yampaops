@@ -32,7 +32,7 @@ export function OperationalCrmConversions({ monthStartKey, monthEndKey, screenOp
       const { data } = await fetchAllPaged<any>(() => supabase.from("ac_funnel_deals")
         .select("ac_deal_id, title, contact_name, contact_email, owner_name, value, closed_at")
         .eq("status", "1").gte("closed_at", `${monthStartKey}T03:00:00Z`).lt("closed_at", endExcl)
-        .order("ac_deal_id") as any);
+        .order("ac_deal_id") as any, 1000 as any);
       if (!cancelled) { setDeals(data || []); setLoading(false); }
     })();
     return () => { cancelled = true; };
