@@ -282,7 +282,7 @@ export function CategoryWeeklyGoalsPanel({ today, daily = [], refreshKey = 0, or
           let realized: number | null = null;
           if (!isFuture) {
             if (isAggregate) {
-              // Agregadoras (MRR Increase / MRR Decrease) somam as componentes.
+              // Agregadoras (New MRR / Churn MRR) somam as componentes.
               let sum = 0;
               let any = false;
               for (const id of componentIds) {

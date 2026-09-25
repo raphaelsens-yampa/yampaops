@@ -220,7 +220,7 @@ export function useCategoryWeeklyData(
 
       // Recorte por origem: `metas_snapshot_diario` não tem origem, então o
       // realizado é rateado pela PARTICIPAÇÃO da origem em `metas_price_daily`.
-      // Categorias sem classificação correspondente (Churn de MRR, Churn %,
+      // Categorias sem classificação correspondente (Churn MRR, Churn %,
       // Total de MRR, Ativos) não têm recorte e ficam indisponíveis.
       const shares = originFiltered
         ? buildOriginShares(((originRes as any).data as any[]) || [], origin)

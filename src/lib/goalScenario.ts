@@ -9,9 +9,9 @@
  *  - Total de MRR (estoque) do mês N = base × (1 + g)^N, com base = primeiro mês
  *    da série cadastrada (mantido intacto).
  *  - Net MRR (fluxo) = estoque do mês − estoque do mês anterior.
- *  - Metas de saída (churn, downsell, MRR Decrease) ficam mais rígidas na mesma
+ *  - Metas de saída (churn, downsell, Churn MRR) ficam mais rígidas na mesma
  *    proporção do cenário: alvo × (1 − g).
- *  - MRR Increase = Net MRR alvo + saída ajustada. A diferença é distribuída
+ *  - New MRR = Net MRR alvo + saída ajustada. A diferença é distribuída
  *    entre as categorias de entrada na proporção que já têm no cadastro.
  *  - Metas de contagem seguem o fator da categoria de MRR correspondente.
  */
@@ -301,8 +301,8 @@ export function buildScenarioFactors(
 
   /**
    * ===== Agregadores = soma dos componentes =====
-   * MRR Increase = New MRR + Recuperados + Upsell.
-   * MRR Decrease = Churn de MRR + Downsell.
+   * New MRR = novas vendas + recuperados + upsell.
+   * Churn MRR = churns + downsell.
    * O fator do agregador é derivado da soma JÁ ajustada dos componentes, então a
    * igualdade vale tanto na visão cadastrada quanto na revisada. Meses anteriores
    * ao início da projeção continuam intocados (histórico congelado).
@@ -380,7 +380,7 @@ export function scenarioDailyFactor(
   const hasScenario = Number(growthPct) > 0 && isFinite(Number(growthPct));
   if (!hasScenario && configuredRate <= 0) return 1;
   const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
-  // O fator do agregador MRR Increase é derivado da soma dos componentes, então
+  // O fator do agregador New MRR é derivado da soma dos componentes, então
   // o ritmo diário segue o fator de ENTRADA (New MRR e afins).
   const inflowRef =
     categories.find((c) => c.slug === "new_mrr") ??
