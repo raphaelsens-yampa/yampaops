@@ -66,10 +66,10 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey }: { a
       const emails = [...new Set(base.map((b) => String(b.client).toLowerCase()))];
       const sellerByEmail = new Map<string, string>();
       for (let i = 0; i < emails.length; i += 200) {
-        const { data } = await supabase.from("stripe_conversions")
-          .select("customer_email, assigned_seller_id, converted_at")
+        const { data } = await fetchAllPaged<any>(() => supabase.from("stripe_conversions")
+          .select("id, customer_email, assigned_seller_id, converted_at")
           .in("customer_email", emails.slice(i, i + 200)).not("assigned_seller_id", "is", null)
-          .order("converted_at", { ascending: true });
+          .order("converted_at", { ascending: true }).order("id") as any);
         (data || []).forEach((c: any) => sellerByEmail.set(String(c.customer_email).toLowerCase(), c.assigned_seller_id));
       }
       const ids = [...new Set(sellerByEmail.values())];
