@@ -293,7 +293,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                       <p className="font-heading text-xl font-bold sm:text-2xl">{formatMoney(model.monthRealized)}</p>
                     </div>
                   </div>
-                   <Progress value={clampProgress(model.monthRealized, model.monthTarget)} className={cn("mt-4 h-2", model.lowerIsBetter && "[&>div]:bg-warning")} />
+                   <Progress value={clampProgress(model.monthRealized, model.monthTarget)} className="mt-4 h-2 [&>div]:bg-warning" />
                   <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{monthPct === null ? "Sem percentual" : `${monthPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do ${model.lowerIsBetter ? "limite" : "objetivo"}`}</span>
                     <span>{monthBalance === null ? "Saldo indisponível" : `${model.lowerIsBetter ? "Margem" : "Saldo"}: ${formatMoney(Math.abs(monthBalance))}`}</span>
@@ -316,7 +316,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                     <div><p className="text-[10px] uppercase text-muted-foreground">Meta</p><p className="font-heading font-bold">{formatMoney(model.weekTarget)}</p></div>
                     <div className="text-right"><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="font-heading font-bold">{formatMoney(model.weekRealized)}</p></div>
                   </div>
-                   <Progress value={clampProgress(model.weekRealized, model.weekTarget)} className={cn("mt-3 h-1.5", model.lowerIsBetter && "[&>div]:bg-warning")} />
+                   <Progress value={clampProgress(model.weekRealized, model.weekTarget)} className="mt-3 h-1.5 [&>div]:bg-warning" />
                 </div>
 
                 <div className="rounded-md bg-muted/55 p-3">
