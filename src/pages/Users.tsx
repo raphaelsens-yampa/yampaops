@@ -37,7 +37,21 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [newRole, setNewRole] = useState<AppRole>("seller");
   const [newAccessLevelId, setNewAccessLevelId] = useState<string>("");
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [saving, setSaving] = useState(false);
+
+  async function openEdit(u: UserRow) {
+    setEditingUser(u);
+    setNewRole(u.role);
+    setNewAccessLevelId(u.access_level_id || "");
+    setEditName(u.full_name || "");
+    setEditEmail("");
+    const { data } = await supabase.functions.invoke("admin-update-user", {
+      body: { action: "get", user_id: u.user_id },
+    });
+    if ((data as any)?.email) setEditEmail((data as any).email);
+  }
 
   const [creating, setCreating] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -139,6 +153,16 @@ export default function UsersPage() {
   async function handleSaveUser() {
     if (!editingUser) return;
     setSaving(true);
+
+    // Update name and email (via função administrativa)
+    const { data: updData, error: updError } = await supabase.functions.invoke("admin-update-user", {
+      body: { user_id: editingUser.user_id, full_name: editName.trim(), email: editEmail.trim() || undefined },
+    });
+    if (updError || (updData as any)?.error) {
+      toast({ title: "Erro ao atualizar usuário", description: (updData as any)?.message || updError?.message, variant: "destructive" });
+      setSaving(false);
+      return;
+    }
 
     // Update role
     const { error: roleError } = await supabase
@@ -311,11 +335,7 @@ export default function UsersPage() {
                               variant="ghost"
                               size="sm"
                               disabled={isSelf}
-                              onClick={() => {
-                                setEditingUser(u);
-                                setNewRole(u.role);
-                                setNewAccessLevelId(u.access_level_id || "");
-                              }}
+                              onClick={() => openEdit(u)}
                             >
                               <Pencil className="h-4 w-4 mr-1" />
                               Editar
@@ -355,9 +375,19 @@ export default function UsersPage() {
             <DialogTitle>Editar Usuário</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div>
-              <Label className="text-muted-foreground text-sm">Usuário</Label>
-              <p className="font-medium">{editingUser?.full_name || "—"}</p>
+            <div className="space-y-2">
+              <Label>Nome completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome do usuário" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="usuario@empresa.com"
+              />
+              <p className="text-xs text-muted-foreground">A alteração de e-mail já vale no próximo login.</p>
             </div>
             <div className="space-y-2">
               <Label>Papel Base</Label>
