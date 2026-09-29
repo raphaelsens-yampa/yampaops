@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "@/components/Layout";
@@ -336,11 +335,7 @@ export default function UsersPage() {
                               variant="ghost"
                               size="sm"
                               disabled={isSelf}
-                              onClick={() => {
-                                setEditingUser(u);
-                                setNewRole(u.role);
-                                setNewAccessLevelId(u.access_level_id || "");
-                              }}
+                              onClick={() => openEdit(u)}
                             >
                               <Pencil className="h-4 w-4 mr-1" />
                               Editar
@@ -380,9 +375,19 @@ export default function UsersPage() {
             <DialogTitle>Editar Usuário</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div>
-              <Label className="text-muted-foreground text-sm">Usuário</Label>
-              <p className="font-medium">{editingUser?.full_name || "—"}</p>
+            <div className="space-y-2">
+              <Label>Nome completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome do usuário" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="usuario@empresa.com"
+              />
+              <p className="text-xs text-muted-foreground">A alteração de e-mail já vale no próximo login.</p>
             </div>
             <div className="space-y-2">
               <Label>Papel Base</Label>
