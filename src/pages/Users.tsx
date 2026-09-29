@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, UserPlus, Pencil, Users } from "lucide-react";
+import { Shield, UserPlus, Pencil, Users, Trash2 } from "lucide-react";
 import { AccessLevelManager, CRM_AREAS, type AccessLevel, type Permissions } from "@/components/AccessLevelManager";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -75,6 +75,21 @@ export default function UsersPage() {
     }
     setCreateOpen(false);
     setCreateForm({ full_name: "", email: "", password: "", role: "seller", access_level_id: "" });
+    await loadData();
+  }
+
+  async function handleDeleteUser(u: UserRow) {
+    if (!window.confirm(`Excluir o usuário "${u.full_name || u.user_id}"? Ele perderá o acesso à plataforma.`)) return;
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", { body: { user_id: u.user_id } });
+    if (error || (data as any)?.error) {
+      toast({ title: "Erro ao excluir usuário", description: (data as any)?.message || error?.message, variant: "destructive" });
+      return;
+    }
+    if ((data as any)?.mode === "disabled") {
+      toast({ title: "Usuário desativado", description: "Ele tem histórico vinculado (vendas, atividades), então o acesso foi bloqueado em vez de apagado." });
+    } else {
+      toast({ title: "Usuário excluído" });
+    }
     await loadData();
   }
 
@@ -305,6 +320,18 @@ export default function UsersPage() {
                               <Pencil className="h-4 w-4 mr-1" />
                               Editar
                             </Button>
+                            {currentRole === "admin" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                disabled={isSelf}
+                                onClick={() => handleDeleteUser(u)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Excluir
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
