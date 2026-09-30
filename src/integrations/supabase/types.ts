@@ -6578,6 +6578,15 @@ export type Database = {
           mrr: number
         }[]
       }
+      tactical_customer_upsell_actual: {
+        Args: { p_as_of: string; p_from: string; p_to: string }
+        Returns: {
+          activation_date: string
+          customers: number
+          mrr: number
+          snapshot_date: string
+        }[]
+      }
       tactical_weekly_mrr_actual: {
         Args: { p_as_of: string; p_from: string; p_to: string }
         Returns: {
