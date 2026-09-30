@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
   const editable = [
     "area", "mrr", "mrr_net", "plan_name", "product_name", "converted_at", "registered_at",
-    "conversion_type", "previous_mrr", "assigned_seller_id", "attribution_source",
+    "conversion_type", "is_reactivation", "previous_mrr", "assigned_seller_id", "attribution_source",
   ] as const;
   const updates: Record<string, any> = {};
   for (const k of editable) {
@@ -97,13 +97,18 @@ Deno.serve(async (req) => {
       });
     }
   }
+  if (updates.is_reactivation !== undefined && typeof updates.is_reactivation !== "boolean") {
+    return new Response(JSON.stringify({ error: "is_reactivation deve ser booleano" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   // Special action: re-run automatic seller resolution
   const resolveSeller: boolean = !!body?.resolve_seller;
 
   try {
   const { data: before, error: beforeErr } = await supabase
       .from("stripe_conversions")
-      .select("id, area, mrr, plan_name, product_name, converted_at, registered_at, customer_email, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, assigned_seller_id, attribution_source")
+      .select("id, area, mrr, mrr_net, plan_name, product_name, converted_at, registered_at, customer_email, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, is_reactivation, previous_mrr, assigned_seller_id, attribution_source")
       .eq("id", conversion_id)
       .maybeSingle();
     if (beforeErr) throw beforeErr;

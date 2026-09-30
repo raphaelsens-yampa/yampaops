@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, CalendarIcon } from "lucide-react";
+import { ChevronDown, CalendarIcon, Loader2, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { z } from "zod";
+import { toast } from "sonner";
 import { parseDateBR } from "@/lib/dateBR";
 import { Profile } from "./types";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Row {
   id: string;
@@ -28,7 +33,15 @@ interface Row {
   lowTouch: boolean;
   type: "Venda" | "Recuperado" | "Upsell";
   supportedType: boolean;
+  currentMrr: number;
+  previousMrr: number;
 }
+
+const conversionEditSchema = z.object({
+  type: z.enum(["Venda", "Recuperado", "Upsell"]),
+  mrr: z.coerce.number().finite().positive("O MRR deve ser maior que zero").max(10_000_000, "MRR inválido"),
+  note: z.string().trim().min(3, "Informe uma justificativa com pelo menos 3 caracteres").max(500, "A justificativa deve ter até 500 caracteres"),
+});
 
 function conversionLabel(conversionType: string | null, isReactivation: boolean) {
   if (isReactivation) return "Recuperado" as const;
@@ -62,6 +75,11 @@ export function TeamConversionsTable({
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Row | null>(null);
+  const [editType, setEditType] = useState<Row["type"]>("Venda");
+  const [editMrr, setEditMrr] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const isCustom = days === "custom";
   const customReady = isCustom && !!customFrom && !!customTo;
@@ -134,6 +152,8 @@ export function TeamConversionsTable({
             lowTouch: isLow,
             type,
             supportedType: Boolean(c.is_reactivation) || rawType === "upsell" || rawType === "new" || rawType === "",
+            currentMrr: Number(c.mrr_net ?? c.mrr ?? 0),
+            previousMrr: Number(c.previous_mrr ?? 0),
           } as Row;
         })
         .filter((r) => {
@@ -181,6 +201,49 @@ export function TeamConversionsTable({
 
   const sellerName = (r: Row) =>
     profiles.find((p) => p.user_id === r.seller_id)?.full_name || r.sellerLabel || "—";
+
+  function startEdit(row: Row) {
+    setEditing(row);
+    setEditType(row.type);
+    setEditMrr(String(row.mrr));
+    setEditNote("");
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    const parsed = conversionEditSchema.safeParse({ type: editType, mrr: editMrr.replace(",", "."), note: editNote });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message || "Revise os campos informados");
+      return;
+    }
+    const { type, mrr, note } = parsed.data;
+    const isUpsell = type === "Upsell";
+    const currentMrr = isUpsell ? editing.previousMrr + mrr : mrr;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-update-conversion", {
+        body: {
+          conversion_id: editing.id,
+          conversion_type: isUpsell ? "upsell" : "new",
+          is_reactivation: type === "Recuperado",
+          mrr: currentMrr,
+          mrr_net: currentMrr,
+          note,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setRows((current) => current.map((row) => row.id === editing.id
+        ? { ...row, type, mrr, currentMrr }
+        : row));
+      toast.success("Conversão atualizada");
+      setEditing(null);
+    } catch (error: any) {
+      toast.error(error?.message || "Não foi possível atualizar a conversão");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Card>
@@ -298,6 +361,7 @@ export function TeamConversionsTable({
                   <TableHead>Data da conversão</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
                   <TableHead className="text-right">MRR</TableHead>
+                   <TableHead className="w-12"><span className="sr-only">Editar</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -318,11 +382,17 @@ export function TeamConversionsTable({
                     </TableCell>
                     <TableCell className="text-right">{r.price > 0 ? fmtBRL(r.price) : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{fmtBRL(r.mrr)}</TableCell>
+                     <TableCell>
+                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(r)} title="Editar tipo e MRR">
+                         <Pencil className="h-4 w-4" />
+                       </Button>
+                     </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
                   <TableCell colSpan={7}>Total</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>
@@ -333,6 +403,42 @@ export function TeamConversionsTable({
       </CardContent>
         </CollapsibleContent>
       </Collapsible>
+      <Dialog open={!!editing} onOpenChange={(next) => !next && !saving && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar conversão</DialogTitle>
+            <DialogDescription>{editing?.name || editing?.email || "Cliente"}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <Select value={editType} onValueChange={(value) => setEditType(value as Row["type"])}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Venda">Venda</SelectItem>
+                  <SelectItem value="Recuperado">Recuperado</SelectItem>
+                  <SelectItem value="Upsell">Upsell</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{editType === "Upsell" ? "Aumento líquido de MRR" : "MRR"}</Label>
+              <Input type="number" min="0.01" max="10000000" step="0.01" value={editMrr} onChange={(event) => setEditMrr(event.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Justificativa</Label>
+              <Textarea maxLength={500} rows={3} value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Explique por que a conversão está sendo corrigida" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
 
   );
