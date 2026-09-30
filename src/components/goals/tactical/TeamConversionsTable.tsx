@@ -26,6 +26,14 @@ interface Row {
   seller_id: string | null;
   sellerLabel: string | null;
   lowTouch: boolean;
+  type: "Venda" | "Recuperado" | "Upsell";
+  supportedType: boolean;
+}
+
+function conversionLabel(conversionType: string | null, isReactivation: boolean) {
+  if (isReactivation) return "Recuperado" as const;
+  if (String(conversionType || "").toLowerCase() === "upsell") return "Upsell" as const;
+  return "Venda" as const;
 }
 
 function fmtBRL(v: number) {
@@ -82,7 +90,7 @@ export function TeamConversionsTable({
       const [convRes, mapRes, areasRes] = await Promise.all([
         supabase
           .from("stripe_conversions")
-          .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, assigned_seller_id, stripe_price_id")
+          .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, delta_mrr, net_amount, gross_amount, assigned_seller_id, stripe_price_id, conversion_type, is_reactivation")
           .gte("converted_at", from.toISOString())
           .lte("converted_at", to.toISOString())
           .order("converted_at", { ascending: false }),
@@ -109,6 +117,8 @@ export function TeamConversionsTable({
         .map((c: any) => {
           const label = labelByPrice.get(String(c.stripe_price_id)) ?? null;
           const isLow = !!label && activeLowTouch.has(label);
+          const type = conversionLabel(c.conversion_type, Boolean(c.is_reactivation));
+          const rawType = String(c.conversion_type || "").toLowerCase();
           return {
             id: c.id,
             email: c.customer_email,
@@ -116,13 +126,18 @@ export function TeamConversionsTable({
             plan: c.plan_name || c.product_name,
             converted_at: c.converted_at,
             price: Number(c.net_amount ?? c.gross_amount ?? 0),
-            mrr: Number(c.mrr_net ?? c.mrr ?? 0),
+            mrr: type === "Upsell"
+              ? Math.max(Number(c.delta_mrr ?? 0), 0)
+              : Number(c.mrr_net ?? c.mrr ?? 0),
             seller_id: c.assigned_seller_id,
             sellerLabel: label,
             lowTouch: isLow,
+            type,
+            supportedType: Boolean(c.is_reactivation) || rawType === "upsell" || rawType === "new" || rawType === "",
           } as Row;
         })
         .filter((r) => {
+          if (!r.supportedType) return false;
           if (r.mrr <= 0) return false;
           if (!memberIds.length) return true;
           if (memberIds.includes(r.seller_id as string)) return true;
@@ -157,7 +172,8 @@ export function TeamConversionsTable({
       (r) =>
         (r.email || "").toLowerCase().includes(q) ||
         (r.name || "").toLowerCase().includes(q) ||
-        (r.plan || "").toLowerCase().includes(q),
+        (r.plan || "").toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q),
     );
   }, [rows, query]);
 
@@ -178,7 +194,7 @@ export function TeamConversionsTable({
                   Clientes convertidos{teamName ? ` · Time ${teamName}` : ""}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Conversões do Stripe com valor acima de R$ 0, atribuídas ao time
+                   Vendas, recuperações e aumentos líquidos de MRR atribuídos ao time
                   {includeLowTouch ? " (inclui Low-touch)" : ""}.
                 </p>
               </div>
@@ -226,7 +242,7 @@ export function TeamConversionsTable({
                 </PopoverContent>
               </Popover>
             )}
-            <Badge variant="secondary" className="justify-center">{filtered.length} vendas</Badge>
+            <Badge variant="secondary" className="justify-center">{filtered.length} conversões</Badge>
           </div>
         </CardHeader>
         <CollapsibleContent>
@@ -255,7 +271,8 @@ export function TeamConversionsTable({
                   <p className="text-[11px] text-muted-foreground truncate">{r.email}</p>
                 )}
                 <p className="text-[11px] text-muted-foreground">
-                  {r.plan || "—"} · {parseDateBR(r.converted_at).toLocaleDateString("pt-BR")}
+                   <Badge variant="outline" className="mr-1 text-[10px]">{r.type}</Badge>
+                   {r.plan || "—"} · {parseDateBR(r.converted_at).toLocaleDateString("pt-BR")}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {sellerName(r)}
@@ -276,6 +293,7 @@ export function TeamConversionsTable({
                   <TableHead>Cliente</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Plano</TableHead>
+                   <TableHead>Tipo</TableHead>
                   <TableHead>Vendedor</TableHead>
                   <TableHead>Data da conversão</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
@@ -288,6 +306,7 @@ export function TeamConversionsTable({
                     <TableCell className="font-medium">{r.name || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{r.email || "—"}</TableCell>
                     <TableCell>{r.plan || "—"}</TableCell>
+                     <TableCell><Badge variant="outline">{r.type}</Badge></TableCell>
                     <TableCell className="text-muted-foreground">
                       <span>{sellerName(r)}</span>
                       {r.lowTouch && (
@@ -302,7 +321,7 @@ export function TeamConversionsTable({
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/40">
-                  <TableCell colSpan={6}>Total</TableCell>
+                  <TableCell colSpan={7}>Total</TableCell>
                   <TableCell className="text-right">{fmtBRL(totalMrr)}</TableCell>
                 </TableRow>
               </TableBody>
