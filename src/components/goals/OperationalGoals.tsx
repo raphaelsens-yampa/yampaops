@@ -114,12 +114,14 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         .from("stripe_conversions")
         .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr")
         .gte("converted_at", from)
-        .lte("converted_at", to),
+        .lte("converted_at", to)
+        .limit(1000),
       supabase
         .from("stripe_churn_events")
         .select("mrr_lost")
         .gte("canceled_at", from)
-        .lte("canceled_at", to),
+        .lte("canceled_at", to)
+        .limit(1000),
     ]).then(([conversionResult, churnResult]) => {
       if (cancelled) return;
       const sales = ((conversionResult.data as any[]) || []).reduce((sum, row) => {
