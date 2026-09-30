@@ -154,10 +154,8 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     else others.push(retCard);
   }
 
-  if (upsellQty > 0 || mrrUpsell > 0) {
-    others.push({ id: "upsell-clientes-card", label: "Clientes Upsell", unit: "count", value: upsellQty });
-    others.push({ id: "mrr-upsell-card", label: "MRR Upsell", unit: "currency", value: mrrUpsell });
-  }
+  others.push({ id: "upsell-clientes-card", label: "Clientes Upsell", unit: "count", value: upsellQty });
+  others.push({ id: "mrr-upsell-card", label: "MRR Upsell", unit: "currency", value: mrrUpsell });
 
   const othersGridClass =
     others.length === 1
