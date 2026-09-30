@@ -27,6 +27,7 @@ interface Row {
   sellerLabel: string | null;
   lowTouch: boolean;
   type: "Venda" | "Recuperado" | "Upsell";
+  supportedType: boolean;
 }
 
 function conversionLabel(conversionType: string | null, isReactivation: boolean) {
@@ -117,6 +118,7 @@ export function TeamConversionsTable({
           const label = labelByPrice.get(String(c.stripe_price_id)) ?? null;
           const isLow = !!label && activeLowTouch.has(label);
           const type = conversionLabel(c.conversion_type, Boolean(c.is_reactivation));
+          const rawType = String(c.conversion_type || "").toLowerCase();
           return {
             id: c.id,
             email: c.customer_email,
@@ -131,10 +133,11 @@ export function TeamConversionsTable({
             sellerLabel: label,
             lowTouch: isLow,
             type,
+            supportedType: Boolean(c.is_reactivation) || rawType === "upsell" || rawType === "new" || rawType === "",
           } as Row;
         })
         .filter((r) => {
-          if (r.type === "Venda" && !["", "new"].includes(String((convRes.data || []).find((c: any) => c.id === r.id)?.conversion_type || "").toLowerCase())) return false;
+          if (!r.supportedType) return false;
           if (r.mrr <= 0) return false;
           if (!memberIds.length) return true;
           if (memberIds.includes(r.seller_id as string)) return true;
@@ -169,7 +172,7 @@ export function TeamConversionsTable({
       (r) =>
         (r.email || "").toLowerCase().includes(q) ||
         (r.name || "").toLowerCase().includes(q) ||
-        (r.plan || "").toLowerCase().includes(q),
+        (r.plan || "").toLowerCase().includes(q) ||
         r.type.toLowerCase().includes(q),
     );
   }, [rows, query]);
