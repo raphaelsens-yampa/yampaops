@@ -403,6 +403,7 @@ export function TacticalTracking() {
         today={today}
         refreshKey={reloadKey}
         includeLowTouch={isOverview}
+        onChanged={() => setReloadKey((key) => key + 1)}
       />
 
 

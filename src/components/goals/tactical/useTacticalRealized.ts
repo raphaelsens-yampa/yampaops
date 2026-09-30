@@ -6,7 +6,7 @@ import { toBRDateKey } from "./types";
 /**
  * Regras canônicas do realizado tático (Vendas do Dia / Recuperados FT / Upsell):
  *
- *  - Dia vigente: Stripe (tempo real). Upsell não existe hoje (Metabase é D-1).
+ *  - Dia vigente: Stripe (tempo real), inclusive Upsell pelo aumento líquido.
  *  - Dias anteriores: Metabase (snapshot D-1), via delta de MTD entre snapshots.
  *  - Override explícito (botão "Forçar Atualização com base Stripe") vence tudo.
  *  - Dia passado sem snapshot do Metabase => realizado 0 com origem "none".
@@ -281,12 +281,12 @@ export function resolveRealized({ sources, stripe, dates, todayKey }: ResolveArg
       }
 
       if (date === todayKey) {
-        if (metric === "upsell_dia") {
-          origins.set(k, "none");
-          continue;
-        }
         const wanted = dayStripe.filter((r) =>
-          metric === "recuperados_ft" ? r.isReactivation : !r.isReactivation,
+          metric === "upsell_dia"
+            ? String(r.conversionType || "").toLowerCase() === "upsell"
+            : metric === "recuperados_ft"
+              ? r.isReactivation
+              : !r.isReactivation && !NON_SALE_TYPES.has(String(r.conversionType || "")),
         );
         origins.set(k, "stripe");
         const agg = new Map<string, { qtd: number; mrr: number }>();

@@ -73,7 +73,7 @@ export function useTacticalData(
         supabase.from("teams").select("id, name").order("name"),
         supabase.from("team_members").select("team_id, user_id"),
         supabase.from("activities").select("user_id, type, created_at").gte("created_at", fromISO.toISOString()).lte("created_at", toISO.toISOString()),
-        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, is_reactivation, customer_email, conversion_type").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
+        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, delta_mrr, is_reactivation, customer_email, conversion_type").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
         supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
         supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
         fetchRealizedSources(fromISO, toISO),
@@ -132,7 +132,10 @@ export function useTacticalData(
         const seller = (c as any).assigned_seller_id;
         if (!seller || !(c as any).converted_at) continue;
         // Só considera conversão com valor > R$ 0 (líquido quando existir)
-        const value = Number((c as any).mrr_net ?? (c as any).mrr ?? 0);
+        const conversionType = String((c as any).conversion_type || "").toLowerCase();
+        const value = conversionType === "upsell"
+          ? Math.max(Number((c as any).delta_mrr ?? 0), 0)
+          : Number((c as any).mrr_net ?? (c as any).mrr ?? 0);
         if (!(value > 0)) continue;
         stripeRows.push({
           user_id: seller,
@@ -140,7 +143,7 @@ export function useTacticalData(
           mrr: value,
           isReactivation: Boolean((c as any).is_reactivation),
           email: String((c as any).customer_email || "").trim().toLowerCase() || undefined,
-          conversionType: (c as any).conversion_type ?? null,
+          conversionType,
         });
       }
 
