@@ -9,3 +9,4 @@
 - [x] Renomear os agregadores nos relatórios para New MRR e Churn MRR
 - [x] Validar cálculos, acesso e visual em desktop/celular
 - [x] Metas Operacionais como 3ª aba; renomear Acompanhamento Metas → Metas Estratégicas; meses fechados com status Atingido/Abaixo/Acima
+- [ ] Usar Stripe no Realizado do dia vigente e Metabase nos dias anteriores, igual às Metas Táticas
