@@ -89,6 +89,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   );
   const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
   const [monthlyLoading, setMonthlyLoading] = useState(true);
+  const [stripeToday, setStripeToday] = useState<{ sales: number; cs: number } | null>(null);
+  const [stripeTodayLoading, setStripeTodayLoading] = useState(true);
 
   useEffect(() => {
     if (!allowedAreas.includes(area) && allowedAreas[0]) setArea(allowedAreas[0]);
@@ -101,6 +103,45 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   const todayKey = toBRDateKey(realToday);
   const asOfKey = monthEndKey < todayKey ? monthEndKey : todayKey < monthStartKey ? monthStartKey : todayKey;
   const weeks = useMemo(() => weeksOfMonth(refMonth), [refMonth]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStripeTodayLoading(true);
+    const from = `${todayKey}T00:00:00-03:00`;
+    const to = `${todayKey}T23:59:59.999-03:00`;
+    Promise.all([
+      supabase
+        .from("stripe_conversions")
+        .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr")
+        .gte("converted_at", from)
+        .lte("converted_at", to),
+      supabase
+        .from("stripe_churn_events")
+        .select("mrr_lost")
+        .gte("canceled_at", from)
+        .lte("canceled_at", to),
+    ]).then(([conversionResult, churnResult]) => {
+      if (cancelled) return;
+      const sales = ((conversionResult.data as any[]) || []).reduce((sum, row) => {
+        const type = String(row.conversion_type || "").toLowerCase();
+        if (type === "upsell") return sum + Math.max(Number(row.delta_mrr || 0), 0);
+        if (row.is_reactivation || type === "new" || !type) return sum + Number(row.mrr_net ?? row.mrr ?? 0);
+        return sum;
+      }, 0);
+      const downsell = ((conversionResult.data as any[]) || []).reduce((sum, row) => (
+        String(row.conversion_type || "").toLowerCase() === "downgrade"
+          ? sum + Math.abs(Number(row.delta_mrr || 0))
+          : sum
+      ), 0);
+      const cs = downsell + ((churnResult.data as any[]) || []).reduce(
+        (sum, row) => sum + Math.max(Number(row.mrr_lost || 0), 0),
+        0,
+      );
+      setStripeToday({ sales, cs });
+      setStripeTodayLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [supabase, todayKey]);
   const revisedWeeklyTargets = useMemo(() => {
     try {
       return localStorage.getItem("category-weekly-goals-revised") !== "0";
@@ -175,6 +216,14 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       ? canonicalMonthValues.reduce((sum, value) => sum + value, 0)
       : null;
 
+    const usesStripeToday = selectedDay === todayKey && monthStartKey <= todayKey && monthEndKey >= todayKey;
+    const stripeDayRealized = stripeToday?.[area] ?? null;
+    const metabaseToday = period.dayRealized ?? 0;
+    const dayRealized = usesStripeToday ? stripeDayRealized : period.dayRealized;
+    const weekRealized = usesStripeToday && period.weeklyRealized[selectedWeek] !== null && stripeDayRealized !== null
+      ? Math.max((period.weeklyRealized[selectedWeek] ?? 0) - metabaseToday, 0) + stripeDayRealized
+      : period.weeklyRealized[selectedWeek] ?? null;
+
     return {
       config,
       aggregate,
@@ -182,12 +231,12 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       monthRealized: canonicalMonthRealized,
       week,
       weekTarget: period.weeklyTargets[selectedWeek] ?? 0,
-      weekRealized: period.weeklyRealized[selectedWeek] ?? null,
+      weekRealized,
       dayTarget: period.dayTarget,
-      dayRealized: period.dayRealized,
+      dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday]);
 
   if (!allowedAreas.length) {
     return (
@@ -199,7 +248,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     );
   }
 
-  if (loading || monthlyLoading || !model) {
+  if (loading || monthlyLoading || stripeTodayLoading || !model) {
     return <p className="py-12 text-center text-sm text-muted-foreground">Carregando placar...</p>;
   }
 
@@ -327,7 +376,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                     </div>
                     <div className="grid grid-cols-2 gap-5 text-right">
                       <div><p className="text-[10px] uppercase text-muted-foreground">Meta do dia</p><p className="text-sm font-bold">{formatMoney(model.dayTarget)}</p></div>
-                      <div><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="text-sm font-bold">{formatMoney(model.dayRealized)}</p></div>
+                       <div><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="text-sm font-bold">{formatMoney(model.dayRealized)}</p>{selectedDay === todayKey && <p className="text-[10px] text-muted-foreground">Stripe · hoje</p>}</div>
                     </div>
                   </div>
                 </div>

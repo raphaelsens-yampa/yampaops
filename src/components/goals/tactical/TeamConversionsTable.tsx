@@ -60,6 +60,7 @@ export function TeamConversionsTable({
   today,
   refreshKey = 0,
   includeLowTouch = false,
+  onChanged,
 }: {
   memberIds: string[];
   profiles: Profile[];
@@ -67,6 +68,7 @@ export function TeamConversionsTable({
   today: Date;
   refreshKey?: number;
   includeLowTouch?: boolean;
+  onChanged?: () => void;
 }) {
   const [days, setDays] = useState("30");
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
@@ -238,6 +240,7 @@ export function TeamConversionsTable({
         : row));
       toast.success("Conversão atualizada");
       setEditing(null);
+      onChanged?.();
     } catch (error: any) {
       toast.error(error?.message || "Não foi possível atualizar a conversão");
     } finally {
