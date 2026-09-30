@@ -9,11 +9,12 @@ Adicionar ao painel diário o acompanhamento de Upsell por cliente, seguindo o m
 - Exibir no topo o card **Clientes Upsell**, com realizado versus meta, percentual, saldo restante e estado de meta batida.
 - Cadastrar a meta inicial de **2 clientes por dia** para Sales, mantendo-a editável em Configurações como as demais metas diárias.
 - Exibir abaixo dois indicadores: **Clientes Upsell** (quantidade) e **MRR Upsell** (soma dos aumentos líquidos).
+- Somar o **MRR Upsell** ao **MRR do Dia**, junto de novas vendas e recuperações, usando apenas o aumento líquido do cliente.
 - Aplicar a mesma leitura na visão geral, no time e no colaborador, respeitando a data histórica e os filtros já existentes.
 
 ## Validação
 - Testar cliente que aumentou o MRR, cliente que apenas trocou de plano sem aumento total e cliente com múltiplas assinaturas.
-- Confirmar que quantidade, MRR e meta diária permanecem consistentes entre os cards superiores, inferiores e a quebra semanal.
+- Confirmar que quantidade, MRR, meta diária e MRR do Dia permanecem consistentes entre os cards superiores, inferiores e a quebra semanal.
 - Verificar o painel em desktop e celular e confirmar que o projeto continua compilando sem erros.
 
 ## Detalhes técnicos
