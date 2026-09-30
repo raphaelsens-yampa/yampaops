@@ -128,7 +128,12 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         if (row.is_reactivation || type === "new" || !type) return sum + Number(row.mrr_net ?? row.mrr ?? 0);
         return sum;
       }, 0);
-      const cs = ((churnResult.data as any[]) || []).reduce(
+      const downsell = ((conversionResult.data as any[]) || []).reduce((sum, row) => (
+        String(row.conversion_type || "").toLowerCase() === "downgrade"
+          ? sum + Math.abs(Number(row.delta_mrr || 0))
+          : sum
+      ), 0);
+      const cs = downsell + ((churnResult.data as any[]) || []).reduce(
         (sum, row) => sum + Math.max(Number(row.mrr_lost || 0), 0),
         0,
       );
