@@ -342,6 +342,9 @@ export function TeamConversionsTable({
                   {r.lowTouch ? " · Low-touch" : ""}
                   {r.price > 0 ? ` · ${fmtBRL(r.price)}` : ""}
                 </p>
+                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => startEdit(r)}>
+                   <Pencil className="mr-2 h-3.5 w-3.5" /> Editar tipo e MRR
+                 </Button>
               </div>
             ))}
             <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm font-semibold">
