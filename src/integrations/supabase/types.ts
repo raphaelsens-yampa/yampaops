@@ -2711,6 +2711,7 @@ export type Database = {
           recorrencia_pagamento: string | null
           segment_id: string | null
           stripe_price_id: string | null
+          sub_key: string
           tenure_days: number | null
           updated_at: string
         }
@@ -2743,6 +2744,7 @@ export type Database = {
           recorrencia_pagamento?: string | null
           segment_id?: string | null
           stripe_price_id?: string | null
+          sub_key: string
           tenure_days?: number | null
           updated_at?: string
         }
@@ -2775,6 +2777,7 @@ export type Database = {
           recorrencia_pagamento?: string | null
           segment_id?: string | null
           stripe_price_id?: string | null
+          sub_key?: string
           tenure_days?: number | null
           updated_at?: string
         }
