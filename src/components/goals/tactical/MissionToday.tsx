@@ -14,7 +14,7 @@ import {
   resolveDailyTargetInfo,
   toBRDateKey,
 } from "./types";
-import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION } from "./useTacticalData";
+import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_UPSELL } from "./useTacticalData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
 import type { ChannelSummary } from "./useRecoveryChannelData";
 
@@ -128,7 +128,9 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
   const mrrRetention = sumVirtual(VIRTUAL_MRR_RETENTION);
+  const mrrUpsell = sumVirtual(VIRTUAL_MRR_UPSELL);
   const retainedQty = sumMetricByKey("clientes_retidos");
+  const upsellQty = sumMetricByKey("upsell_dia");
 
   if (mrrSales > 0 || mrrRecovery > 0 || mrrRetention > 0) {
     const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
@@ -150,6 +152,11 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     const retCard = { id: "mrr-retidos-card", label: "MRR Clientes Retidos", unit: "currency" as const, value: mrrRetention };
     if (idxRet >= 0) others.splice(idxRet + 1, 0, retCard);
     else others.push(retCard);
+  }
+
+  if (upsellQty > 0 || mrrUpsell > 0) {
+    others.push({ id: "upsell-clientes-card", label: "Clientes Upsell", unit: "count", value: upsellQty });
+    others.push({ id: "mrr-upsell-card", label: "MRR Upsell", unit: "currency", value: mrrUpsell });
   }
 
   const othersGridClass =

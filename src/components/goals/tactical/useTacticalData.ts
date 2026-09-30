@@ -57,7 +57,7 @@ export function useTacticalData(
       const fromDateStr = toBRDateKey(fromISO);
       const toDateStr = toBRDateKey(toISO);
 
-      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes, moveCfgRes, ownerMapRes] = await Promise.all([
+      const [metricsRes, goalsRes, profilesRes, teamsRes, membersRes, actsRes, convRes, manualRes, recovRes, sources, originRes, moveCfgRes, ownerMapRes, upsellRes] = await Promise.all([
         supabase.from("tactical_metrics").select("*").eq("is_active", true).order("sort_order"),
         // Traz também metas já encerradas: quando o mês consultado não tem
         // cadastro, a meta é herdada da última meta anterior do mesmo escopo.
@@ -86,6 +86,11 @@ export function useTacticalData(
           : Promise.resolve({ data: [] as any[] }),
         supabase.from("ac_stage_move_config").select("*").eq("metric_key", "oportunidades_abertas").maybeSingle(),
         supabase.from("ac_owner_seller_map").select("ac_group_id, owner_name, seller_id"),
+        supabase.rpc("tactical_customer_upsell_actual", {
+          p_from: fromDateStr,
+          p_to: toDateStr,
+          p_as_of: toDateStr,
+        }),
       ]);
 
 
@@ -166,7 +171,18 @@ export function useTacticalData(
         : null;
 
       const resolved = resolveRealized({
-        sources,
+        sources: {
+          ...sources,
+          metabase: new Map([
+            ...sources.metabase,
+            ...(((upsellRes as any).data as { activation_date: string; customers: number; mrr: number }[]) || []).map(
+              (row) => [
+                `${row.activation_date}|upsell_dia`,
+                { qtd: Number(row.customers || 0), mrr: Number(row.mrr || 0) },
+              ] as const,
+            ),
+          ]),
+        },
         stripe: stripeRows,
         dates,
         todayKey,
