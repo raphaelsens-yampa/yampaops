@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, UserPlus, Pencil, Users, Trash2 } from "lucide-react";
+import { Shield, UserPlus, Pencil, Users, Trash2, UserX, UserCheck } from "lucide-react";
 import { AccessLevelManager, CRM_AREAS, type AccessLevel, type Permissions } from "@/components/AccessLevelManager";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -26,6 +26,7 @@ interface UserRow {
   access_level_id: string | null;
   access_level_name: string | null;
   created_at: string;
+  is_active: boolean;
 }
 
 export default function UsersPage() {
@@ -107,6 +108,23 @@ export default function UsersPage() {
     await loadData();
   }
 
+  async function handleToggleActive(u: UserRow) {
+    const activate = !u.is_active;
+    const msg = activate
+      ? `Reativar "${u.full_name || u.user_id}"? O acesso à plataforma será liberado.`
+      : `Inativar "${u.full_name || u.user_id}"? O acesso será bloqueado, mas todo o histórico (vendas, comissões, metas) é preservado.`;
+    if (!window.confirm(msg)) return;
+    const { data, error } = await supabase.functions.invoke("admin-update-user", {
+      body: { action: "set_active", user_id: u.user_id, active: activate },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Erro", description: (data as any)?.message || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: activate ? "Usuário reativado" : "Usuário inativado" });
+    await loadData();
+  }
+
   async function loadData() {
     const [profilesRes, rolesRes, levelsRes, assignmentsRes] = await Promise.all([
       supabase.from("profiles").select("*"),
@@ -134,6 +152,7 @@ export default function UsersPage() {
         access_level_id: assignment?.access_level_id || null,
         access_level_name: level?.name || null,
         created_at: p.created_at,
+        is_active: (p as any).is_active !== false,
       };
     });
 
@@ -303,6 +322,7 @@ export default function UsersPage() {
                               <div>
                                 <p className="font-medium">{u.full_name || "—"}</p>
                                 {isSelf && <span className="text-xs text-muted-foreground">(você)</span>}
+                                {!u.is_active && <Badge variant="outline" className="text-muted-foreground">Inativo</Badge>}
                               </div>
                             </div>
                           </TableCell>
@@ -340,6 +360,17 @@ export default function UsersPage() {
                               <Pencil className="h-4 w-4 mr-1" />
                               Editar
                             </Button>
+                            {currentRole === "admin" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={isSelf}
+                                onClick={() => handleToggleActive(u)}
+                              >
+                                {u.is_active ? <UserX className="h-4 w-4 mr-1" /> : <UserCheck className="h-4 w-4 mr-1" />}
+                                {u.is_active ? "Inativar" : "Reativar"}
+                              </Button>
+                            )}
                             {currentRole === "admin" && (
                               <Button
                                 variant="ghost"
