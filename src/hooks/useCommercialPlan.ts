@@ -107,14 +107,6 @@ export function useCommercialPlan() {
     setRealized(Array.from(map.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth)));
     setOverrides((ovRes.data as CommercialPlanMonthRow[]) || []);
 
-    // Vendedores (papel seller no user_roles), na ordem do nome.
-    const sellerIds = new Set(((rolesRes.data as any[]) || []).filter((r) => r.role === "seller").map((r) => r.user_id));
-    const sellerList = ((profRes.data as any[]) || [])
-      .filter((p) => sellerIds.has(p.user_id))
-      .map((p) => ({ id: p.user_id, name: p.full_name || p.user_id }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    setSellers(sellerList);
-
     // Histórico de New MRR por vendedor (janela de 6 meses fechados + vigente).
     const now = new Date();
     const historyFrom = `${addMonths(monthKeyOf(now), -6)}-01`;
@@ -128,9 +120,22 @@ export function useCommercialPlan() {
     const history: Record<string, number> = {};
     for (const row of (histRes.data as any[]) || []) {
       const sid = row.assigned_seller_id;
-      if (!sid || !sellerIds.has(sid)) continue;
+      if (!sid) continue;
       history[sid] = (history[sid] || 0) + newMrrFromConversions([row]);
     }
+
+    // Vendedores: papel 'seller' no user_roles + quem tem conversões atribuídas
+    // na janela (mesmo sem o papel cadastrado), para o rateio não sair zerado.
+    const historySellers = Object.keys(history);
+    const sellerIds = new Set([
+      ...((rolesRes.data as any[]) || []).filter((r) => r.role === "seller").map((r) => r.user_id),
+      ...historySellers,
+    ]);
+    const sellerList = ((profRes.data as any[]) || [])
+      .filter((p) => sellerIds.has(p.user_id))
+      .map((p) => ({ id: p.user_id, name: p.full_name || p.user_id }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    setSellers(sellerList);
     setSellerHistory(history);
 
     setLoading(false);
