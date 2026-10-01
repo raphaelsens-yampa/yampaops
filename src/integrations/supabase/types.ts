@@ -1919,15 +1919,7 @@ export type Database = {
           weight?: number
           year_month?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "commercial_plan_quotas_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       commission_clawbacks: {
         Row: {
