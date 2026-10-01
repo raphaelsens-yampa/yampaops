@@ -320,7 +320,8 @@ export function useFunnelKpis(funnelId: string, monthsBack = 3) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("ac_funnels").select("ac_group_id, title, is_connected").order("title");
+      // Apenas funis sincronizados (is_connected) participam da cobertura de pipeline.
+      const { data } = await supabase.from("ac_funnels").select("ac_group_id, title, is_connected").eq("is_connected", true).order("title");
       setFunnels((data as any[]) || []);
     })();
   }, []);
