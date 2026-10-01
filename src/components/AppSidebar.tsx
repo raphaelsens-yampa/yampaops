@@ -2,7 +2,7 @@ import {
   BarChart3, Users, Target, Kanban, Contact, Sun, Moon, LogOut, TrendingUp,
   ShieldCheck, User, DollarSign, Upload, Link2, Plug, Activity, ChevronDown, MessageCircle,
   FileBarChart, Tag, PieChart, Sparkles, Megaphone, Headset, Percent, Briefcase, Settings2, Calculator, HeartHandshake, MessageSquareQuote,
-  ChevronLeft, ChevronRight, Filter,
+  ChevronLeft, ChevronRight, Filter, CalendarRange,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -268,6 +268,7 @@ export function AppSidebar() {
           ],
         },
         { title: "Funis CRM", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", managerOnly: true },
+        { title: "Planejamento Comercial", url: "/planejamento-comercial", icon: CalendarRange, area: "planejamento_comercial" },
 
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },

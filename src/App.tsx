@@ -48,6 +48,7 @@ import AgentActivity from "./pages/AgentActivity";
 // Estratégia Adquirência archived
 import Precificacao from "./pages/Precificacao";
 import Comissionamento from "./pages/Comissionamento";
+import CommercialPlanning from "./pages/CommercialPlanning";
 import OnePageDiretoria from "./pages/OnePageDiretoria";
 import PropostaPublica from "./pages/PropostaPublica";
 
@@ -151,6 +152,7 @@ function AppRoutes() {
 
       <Route path="/precificacao" element={<RequireArea area="precificacao"><Precificacao /></RequireArea>} />
       <Route path="/comissionamento" element={<RequireArea area="comissionamento"><Comissionamento /></RequireArea>} />
+      <Route path="/planejamento-comercial" element={<RequireArea area="planejamento_comercial"><CommercialPlanning /></RequireArea>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/one-page-diretoria" element={<RequireArea area="one_page_diretoria"><OnePageDiretoria /></RequireArea>} />
       <Route path="/relatorio" element={<RequireArea area="one_page_diretoria"><OnePageDiretoria /></RequireArea>} />
