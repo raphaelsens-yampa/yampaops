@@ -106,7 +106,7 @@ export function QuotasPanel({ sellers, historyByMonth, rows, savedQuotas, curren
         realizedMonth: historyByMonth[month]?.[share.sellerId] ?? null,
       };
     });
-  }, [computed, edits, sellers, sellerHistory, historyByMonth, month]);
+  }, [computed, edits, sellers, windowHistory, historyByMonth, month]);
 
   const totalQuotaView = view.reduce((s, r) => s + (r.quota || 0), 0);
   const totalRealized = view.reduce((s, r) => s + (r.realizedMonth || 0), 0);
