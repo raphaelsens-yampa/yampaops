@@ -129,7 +129,6 @@ export function QuotasPanel({ sellers, historyByMonth, rows, savedQuotas, curren
         view.map((r) => ({
           seller_id: r.sellerId,
           quota_new_mrr: Number(r.quota) || 0,
-          quota_deals: null,
           weight: r.weight,
           is_manual: r.isManual,
         })),
