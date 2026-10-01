@@ -99,7 +99,7 @@ export function QuotasPanel({ sellers, historyByMonth, rows, savedQuotas, curren
       return {
         sellerId: share.sellerId,
         name: sellers.find((s) => s.id === share.sellerId)?.name || share.sellerId,
-        historyMrr: sellerHistory[share.sellerId] || 0,
+        historyMrr: windowHistory[share.sellerId] || 0,
         weight: share.weight,
         quota,
         isManual: edit ? edit.isManual : share.isManual,
