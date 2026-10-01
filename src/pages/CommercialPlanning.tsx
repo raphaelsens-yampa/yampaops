@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { useGoalScenario } from "@/hooks/useGoalScenario";
 import {
@@ -25,7 +26,8 @@ const SCENARIO_PRESETS = [0, 5, 10];
 export default function CommercialPlanningPage() {
   const { role } = useAuth();
   const canEdit = role === "admin" || role === "tatico";
-  const plan = useCommercialPlan();
+  const [include4blue, setInclude4blue] = useState(false);
+  const plan = useCommercialPlan(include4blue);
   const sellerHistory = useSellerMonthHistory(plan.sellers);
   const { growthPct, setScenario, active: scenarioActive } = useGoalScenario();
 
@@ -34,7 +36,9 @@ export default function CommercialPlanningPage() {
 
   useEffect(() => {
     if (!funnelId && funnel.funnels.length) {
-      const connected = funnel.funnels.find((f) => f.is_connected) || funnel.funnels[0];
+      const connected =
+        funnel.funnels.find((f) => /time financeiro \(novo\)/i.test(f.title || "")) ||
+        funnel.funnels.find((f) => f.is_connected) || funnel.funnels[0];
       setFunnelId(connected.ac_group_id);
     }
   }, [funnel.funnels, funnelId]);
@@ -71,10 +75,14 @@ export default function CommercialPlanningPage() {
             <h1 className="font-heading font-bold text-xl md:text-2xl">Planejamento Comercial</h1>
             <p className="text-sm text-muted-foreground">
               Plano de MRR (12 meses), quotas por vendedor e cobertura de pipeline.
-              {lastRealizedLabel && ` Último MRR oficial: ${lastRealizedLabel}.`}
+              {lastRealizedLabel && ` Último MRR oficial${include4blue ? "" : " (sem 4blue)"}: ${lastRealizedLabel}.`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
+            <label className="flex items-center gap-2 mr-3 text-xs text-muted-foreground">
+              <Switch checked={include4blue} onCheckedChange={setInclude4blue} />
+              Incluir 4blue
+            </label>
             <span className="text-xs text-muted-foreground mr-1">Cenário:</span>
             {SCENARIO_PRESETS.map((p) => (
               <Button
