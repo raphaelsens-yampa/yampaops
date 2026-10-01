@@ -66,6 +66,39 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
         });
       }
 
+      if (area === "sales") {
+        // Dias ainda não cobertos pelo Metabase (D-1): usa as conversões registradas no Stripe.
+        const covered = new Set(base.map((b) => `${String(b.client).toLowerCase()}|${b.type}`));
+        const lastSnap = ativos.reduce((m: string, r: any) => (r.data_snapshot > m ? r.data_snapshot : m), "");
+        // Snapshot de D carrega operações até D-1; o Stripe cobre a partir do dia do último snapshot.
+        const stripeFrom = lastSnap && lastSnap > monthStartKey ? lastSnap : monthStartKey;
+        if (stripeFrom <= monthEndKey) {
+          const { data: convs } = await fetchAllPaged<any>(() =>
+            supabase.from("stripe_conversions")
+              .select("id, customer_email, plan_name, product_name, mrr, mrr_net, delta_mrr, conversion_type, is_reactivation, converted_at")
+              .gte("converted_at", `${stripeFrom}T03:00:00Z`)
+              .lt("converted_at", `${new Date(new Date(`${monthEndKey}T03:00:00Z`).getTime() + 86400000).toISOString()}`)
+              .order("id") as any);
+          for (const c of convs || []) {
+            const ct = String(c.conversion_type || "");
+            let type: OpType | null = null;
+            let value = 0;
+            if (ct === "upsell") { type = "Upsell"; value = Math.max(Number(c.delta_mrr || 0), 0); }
+            else if (ct === "new" || ct === "reactivation") {
+              type = c.is_reactivation || ct === "reactivation" ? "Recuperado" : "Nova Venda";
+              value = Number(c.mrr_net || 0) > 0 ? Number(c.mrr_net) : Number(c.mrr || 0);
+            }
+            if (!type || value <= 0) continue;
+            const email = String(c.customer_email || "").toLowerCase();
+            if (!email || covered.has(`${email}|${type}`)) continue;
+            covered.add(`${email}|${type}`);
+            const d = new Date(new Date(c.converted_at).getTime() - 3 * 3600000).toISOString().slice(0, 10);
+            base.push({ key: `stripe|${c.id}`, client: c.customer_email, plan: c.plan_name || c.product_name || "—", date: d, type, channel: "Stripe (aguardando Metabase)", value });
+          }
+        }
+      }
+
+
       const emails = [...new Set(base.map((b) => String(b.client).toLowerCase()))];
       const sellerByEmail = new Map<string, string>();
       for (let i = 0; i < emails.length; i += 200) {
