@@ -77,7 +77,7 @@ export function PipelineCoverage({ funnels, funnelId, onFunnelChange, kpis, open
                 <SelectContent>
                   {funnels.map((f) => (
                     <SelectItem key={f.ac_group_id} value={f.ac_group_id}>
-                      {f.title}{f.is_connected ? "" : " (sem sync)"}
+                      {f.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
