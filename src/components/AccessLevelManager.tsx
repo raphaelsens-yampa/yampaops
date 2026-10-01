@@ -51,6 +51,7 @@ export const CRM_SECTIONS = [
       { key: "comissionamento", label: "Comissionamento" },
       { key: "link_builder", label: "Gerador de Ofertas" },
       { key: "precificacao", label: "Precificação Serviços" },
+      { key: "planejamento_comercial", label: "Planejamento Comercial" },
     ],
   },
   {
