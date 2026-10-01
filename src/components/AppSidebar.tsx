@@ -268,6 +268,7 @@ export function AppSidebar() {
           ],
         },
         { title: "Funis CRM", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", managerOnly: true },
+        { title: "Planejamento Comercial", url: "/planejamento-comercial", icon: CalendarRange, area: "planejamento_comercial" },
 
         
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
