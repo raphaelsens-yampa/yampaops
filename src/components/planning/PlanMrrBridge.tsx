@@ -177,24 +177,24 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>New MRR (R$)</Label>
-                <Input inputMode="decimal" value={form.newMrr} onChange={(e) => setForm({ ...form, newMrr: e.target.value })} />
+                <Label htmlFor="plan-new-mrr">New MRR (R$)</Label>
+                <Input id="plan-new-mrr" inputMode="decimal" value={form.newMrr} onChange={(e) => setForm({ ...form, newMrr: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Churn MRR (R$)</Label>
-                <Input inputMode="decimal" value={form.churnMrr} onChange={(e) => setForm({ ...form, churnMrr: e.target.value })} />
+                <Label htmlFor="plan-churn-mrr">Churn MRR (R$)</Label>
+                <Input id="plan-churn-mrr" inputMode="decimal" value={form.churnMrr} onChange={(e) => setForm({ ...form, churnMrr: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Deals alvo</Label>
-                <Input inputMode="numeric" value={form.deals} onChange={(e) => setForm({ ...form, deals: e.target.value })} />
+                <Label htmlFor="plan-deals">Deals alvo</Label>
+                <Input id="plan-deals" inputMode="numeric" value={form.deals} onChange={(e) => setForm({ ...form, deals: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Ativos pagantes</Label>
-                <Input inputMode="numeric" value={form.ativos} onChange={(e) => setForm({ ...form, ativos: e.target.value })} />
+                <Label htmlFor="plan-ativos">Ativos pagantes</Label>
+                <Input id="plan-ativos" inputMode="numeric" value={form.ativos} onChange={(e) => setForm({ ...form, ativos: e.target.value })} />
               </div>
               <div className="col-span-2 space-y-1.5">
-                <Label>Observação</Label>
-                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
+                <Label htmlFor="plan-notes">Observação</Label>
+                <Textarea id="plan-notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
               </div>
             </div>
             <DialogFooter>
