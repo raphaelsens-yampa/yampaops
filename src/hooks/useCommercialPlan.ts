@@ -74,11 +74,12 @@ export function useCommercialPlan() {
         supabase
           .from("metabase_monthly_agg")
           .select("year_month, metric_key, realized_amount")
+          // Realizado oficial: métricas por agregadora (cada metric_key tem 1 linha
+          // por mês no escopo company; category_id fica preenchido).
           .eq("scope", "company")
           .is("team_id", null)
           .is("user_id", null)
           .is("campaign_id", null)
-          .is("category_id", null)
           .gte("year_month", `${fromMonth}-01`)
           .order("year_month")
           .order("metric_key") as never,
