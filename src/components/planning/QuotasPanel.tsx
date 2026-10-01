@@ -28,7 +28,6 @@ interface EditState {
 
 interface Props {
   sellers: SellerLite[];
-  sellerHistory: Record<string, number>;
   historyByMonth: Record<string, Record<string, number>>;
   rows: PlanRow[];
   savedQuotas: QuotaRow[];
