@@ -17,10 +17,19 @@ const br = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "
 export function OperationalMonthReport({ area, monthStartKey, monthEndKey, officialTotal }: { area: "sales" | "cs"; monthStartKey: string; monthEndKey: string; officialTotal?: number | null }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  // Recarrega periodicamente para refletir novas movimentações (Stripe/Metabase).
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 2 * 60 * 1000);
+    const onFocus = () => setTick((t) => t + 1);
+    window.addEventListener("focus", onFocus);
+    return () => { window.clearInterval(id); window.removeEventListener("focus", onFocus); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (tick === 0) setLoading(true);
     (async () => {
       const classes = area === "sales" ? ["novo pagante", "recuperado", "upsell"] : ["downsell"];
       const nextMonth = new Date(Number(monthStartKey.slice(0, 4)), Number(monthStartKey.slice(5, 7)), 1);
@@ -65,6 +74,39 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
           if (value > 0) base.push({ key: k, client: c.email, plan: c.plano || c.nome_oferta || "—", date: c.d, type: "Churn", channel: c.origem_cliente || "—", value });
         });
       }
+
+      if (area === "sales") {
+        // Dias ainda não cobertos pelo Metabase (D-1): usa as conversões registradas no Stripe.
+        const covered = new Set(base.map((b) => `${String(b.client).toLowerCase()}|${b.type}`));
+        const lastSnap = ativos.reduce((m: string, r: any) => (r.data_snapshot > m ? r.data_snapshot : m), "");
+        // Snapshot de D carrega operações até D-1; o Stripe cobre a partir do dia do último snapshot.
+        const stripeFrom = lastSnap && lastSnap > monthStartKey ? lastSnap : monthStartKey;
+        if (stripeFrom <= monthEndKey) {
+          const { data: convs } = await fetchAllPaged<any>(() =>
+            supabase.from("stripe_conversions")
+              .select("id, customer_email, plan_name, product_name, mrr, mrr_net, delta_mrr, conversion_type, is_reactivation, converted_at")
+              .gte("converted_at", `${stripeFrom}T03:00:00Z`)
+              .lt("converted_at", `${new Date(new Date(`${monthEndKey}T03:00:00Z`).getTime() + 86400000).toISOString()}`)
+              .order("id") as any);
+          for (const c of convs || []) {
+            const ct = String(c.conversion_type || "");
+            let type: OpType | null = null;
+            let value = 0;
+            if (ct === "upsell") { type = "Upsell"; value = Math.max(Number(c.delta_mrr || 0), 0); }
+            else if (ct === "new" || ct === "reactivation") {
+              type = c.is_reactivation || ct === "reactivation" ? "Recuperado" : "Nova Venda";
+              value = Number(c.mrr_net || 0) > 0 ? Number(c.mrr_net) : Number(c.mrr || 0);
+            }
+            if (!type || value <= 0) continue;
+            const email = String(c.customer_email || "").toLowerCase();
+            if (!email || covered.has(`${email}|${type}`)) continue;
+            covered.add(`${email}|${type}`);
+            const d = new Date(new Date(c.converted_at).getTime() - 3 * 3600000).toISOString().slice(0, 10);
+            base.push({ key: `stripe|${c.id}`, client: c.customer_email, plan: c.plan_name || c.product_name || "—", date: d, type, channel: "Stripe (aguardando Metabase)", value });
+          }
+        }
+      }
+
 
       const emails = [...new Set(base.map((b) => String(b.client).toLowerCase()))];
       const sellerByEmail = new Map<string, string>();
