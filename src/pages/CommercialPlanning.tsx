@@ -75,7 +75,7 @@ export default function CommercialPlanningPage() {
             <h1 className="font-heading font-bold text-xl md:text-2xl">Planejamento Comercial</h1>
             <p className="text-sm text-muted-foreground">
               Plano de MRR (12 meses), quotas por vendedor e cobertura de pipeline.
-              {lastRealizedLabel && ` Último MRR oficial: ${lastRealizedLabel}.`}
+              {lastRealizedLabel && ` Último MRR oficial${include4blue ? "" : " (sem 4blue)"}: ${lastRealizedLabel}.`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">

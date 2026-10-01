@@ -68,7 +68,6 @@ export function useCommercialPlan(include4blue = false) {
   const [fourBlueSellerIds, setFourBlueSellerIds] = useState<Set<string>>(new Set());
   const [allSellers, setAllSellers] = useState<SellerLite[]>([]);
   const [overrides, setOverrides] = useState<CommercialPlanMonthRow[]>([]);
-  const [sellers, setSellers] = useState<SellerLite[]>([]);
   const [sellerHistory, setSellerHistory] = useState<Record<string, number>>({});
   const [quotaRows, setQuotaRows] = useState<QuotaRow[]>([]);
   const { baselines } = useGrowthBaselines();
