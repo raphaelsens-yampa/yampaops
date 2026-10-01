@@ -35,6 +35,19 @@ Deno.serve(async (req) => {
       return json({ ok: true, email: target.user.email || "" });
     }
 
+    // Inativar / reativar: bloqueia o login, mas preserva todo o histórico.
+    if (body.action === "set_active") {
+      const active = body.active === true;
+      if (!active && targetId === userData.user.id) return json({ error: "self", message: "Você não pode inativar a si mesmo" }, 400);
+      const { error: banErr } = await admin.auth.admin.updateUserById(targetId, { ban_duration: active ? "none" : "876000h" });
+      if (banErr) return json({ error: "ban_failed", message: banErr.message }, 400);
+      const { error: profErr } = await admin.from("profiles")
+        .update({ is_active: active, deactivated_at: active ? null : new Date().toISOString() })
+        .eq("user_id", targetId);
+      if (profErr) return json({ error: "profile_failed", message: profErr.message }, 400);
+      return json({ ok: true, active });
+    }
+
     const fullName = typeof body.full_name === "string" ? body.full_name.trim() : null;
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
 
