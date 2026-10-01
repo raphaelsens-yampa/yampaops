@@ -13,5 +13,5 @@
 
 ## Planejamento Comercial (01/10/2026)
 - [x] Seção própria no menu (grupo Sales) com Plano de MRR, Quotas e Cobertura de pipeline
-- [ ] Validar números e fluxo de edição no preview com o usuário
+- [x] Validar números e fluxo de edição no preview com o usuário
 
