@@ -1843,6 +1843,92 @@ export type Database = {
         }
         Relationships: []
       }
+      commercial_plan_months: {
+        Row: {
+          created_at: string
+          id: string
+          is_locked: boolean
+          notes: string | null
+          target_ativos: number | null
+          target_churn_mrr: number | null
+          target_deals: number | null
+          target_new_mrr: number | null
+          updated_at: string
+          year_month: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          notes?: string | null
+          target_ativos?: number | null
+          target_churn_mrr?: number | null
+          target_deals?: number | null
+          target_new_mrr?: number | null
+          updated_at?: string
+          year_month: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_locked?: boolean
+          notes?: string | null
+          target_ativos?: number | null
+          target_churn_mrr?: number | null
+          target_deals?: number | null
+          target_new_mrr?: number | null
+          updated_at?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
+      commercial_plan_quotas: {
+        Row: {
+          created_at: string
+          id: string
+          is_manual: boolean
+          notes: string | null
+          quota_deals: number
+          quota_new_mrr: number
+          seller_id: string
+          updated_at: string
+          weight: number
+          year_month: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_manual?: boolean
+          notes?: string | null
+          quota_deals?: number
+          quota_new_mrr?: number
+          seller_id: string
+          updated_at?: string
+          weight?: number
+          year_month: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_manual?: boolean
+          notes?: string | null
+          quota_deals?: number
+          quota_new_mrr?: number
+          seller_id?: string
+          updated_at?: string
+          weight?: number
+          year_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_plan_quotas_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_clawbacks: {
         Row: {
           canceled_at: string
