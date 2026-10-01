@@ -43,7 +43,12 @@ export interface FunnelKpiMonth {
   avgTicket: number | null;
 }
 
-const REALIZED_METRICS = new Set(["new_mrr", "churn_mrr", "net_mrr", "total_mrr", "ativos_pagantes"]);
+const REALIZED_METRICS = new Set([
+  "new_mrr", "recuperados_mrr", "upsell_mrr", "churn_mrr", "downsell_mrr", "net_mrr", "total_mrr", "ativos_pagantes",
+]);
+
+interface RawMonth { ym: string; m: Record<string, number> }
+interface FourBlueMonth { newMrr: number; churnMrr: number; totalMrr: number; ativos: number }
 
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined) return null;
@@ -56,9 +61,12 @@ function toNum(v: unknown): number | null {
  * (metabase_monthly_agg), base de crescimento, cadastro do plano, quotas e
  * taxas de conversão dos Funis CRM.
  */
-export function useCommercialPlan() {
+export function useCommercialPlan(include4blue = false) {
   const [loading, setLoading] = useState(true);
-  const [realized, setRealized] = useState<RealizedMonth[]>([]);
+  const [rawRealized, setRawRealized] = useState<RawMonth[]>([]);
+  const [fourBlue, setFourBlue] = useState<Map<string, FourBlueMonth>>(new Map());
+  const [fourBlueSellerIds, setFourBlueSellerIds] = useState<Set<string>>(new Set());
+  const [allSellers, setAllSellers] = useState<SellerLite[]>([]);
   const [overrides, setOverrides] = useState<CommercialPlanMonthRow[]>([]);
   const [sellers, setSellers] = useState<SellerLite[]>([]);
   const [sellerHistory, setSellerHistory] = useState<Record<string, number>>({});
@@ -89,22 +97,42 @@ export function useCommercialPlan() {
       supabase.from("profiles").select("user_id, full_name, is_active"),
     ]);
 
-    // Realizado por mês a partir das métricas oficiais.
-    const map = new Map<string, RealizedMonth>();
+    // Realizado oficial bruto por mês (todas as origens).
+    const raw = new Map<string, RawMonth>();
     for (const row of (aggRes.data as any[]) || []) {
       const key = String(row.metric_key || "");
       if (!REALIZED_METRICS.has(key)) continue;
       const ym = String(row.year_month || "").slice(0, 7);
-      const entry = map.get(ym) || { yearMonth: ym, newMrr: null, churnMrr: null, netMrr: null, totalMrr: null, ativos: null };
-      const amount = toNum(row.realized_amount);
-      if (key === "new_mrr") entry.newMrr = amount;
-      else if (key === "churn_mrr") entry.churnMrr = amount;
-      else if (key === "net_mrr") entry.netMrr = amount;
-      else if (key === "total_mrr") entry.totalMrr = amount;
-      else if (key === "ativos_pagantes") entry.ativos = amount;
-      map.set(ym, entry);
+      const entry = raw.get(ym) || { ym, m: {} };
+      entry.m[key] = (entry.m[key] || 0) + (toNum(row.realized_amount) || 0);
+      raw.set(ym, entry);
     }
-    setRealized(Array.from(map.values()).sort((a, b) => a.yearMonth.localeCompare(b.yearMonth)));
+    setRawRealized(Array.from(raw.values()).sort((a, b) => a.ym.localeCompare(b.ym)));
+
+    // Parcela 4blue por mês (base cliente a cliente), para o recorte Yampa x Yampa.
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const { data: originRows } = await (supabase as any).rpc("origin_monthly_realized", {
+      p_from: `${fromMonth}-01`, p_to: today, p_as_of: today,
+    });
+    const fb = new Map<string, FourBlueMonth>();
+    for (const r of (originRows as any[]) || []) {
+      if (String(r.origem || "").toLowerCase() !== "4blue") continue;
+      const ym = String(r.year_month || "").slice(0, 7);
+      const e = fb.get(ym) || { newMrr: 0, churnMrr: 0, totalMrr: 0, ativos: 0 };
+      const mrr = Number(r.mrr || 0), qtd = Number(r.qtd || 0);
+      const cls = String(r.classificacao || "").toLowerCase();
+      const status = String(r.status || "").toLowerCase();
+      if (r.kind === "flow") {
+        if (["novo pagante", "recuperado", "upsell"].includes(cls)) e.newMrr += mrr;
+        else if (cls === "downsell") e.churnMrr += mrr;
+      } else if (r.kind === "stock") {
+        if (status === "ativo") { e.totalMrr += mrr; e.ativos += qtd; }
+        else if (status === "cancelado") e.churnMrr += mrr;
+      }
+      fb.set(ym, e);
+    }
+    setFourBlue(fb);
+
     setOverrides((ovRes.data as CommercialPlanMonthRow[]) || []);
 
     // Histórico de New MRR por vendedor (janela de 6 meses fechados + vigente).
@@ -137,7 +165,8 @@ export function useCommercialPlan() {
       .filter((p) => sellerIds.has(p.user_id) && p.is_active !== false)
       .map((p) => ({ id: p.user_id, name: p.full_name || p.user_id }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    setSellers(sellerList);
+    setAllSellers(sellerList);
+    setFourBlueSellerIds(new Set(sellerList.filter((x) => /4\s*blue/i.test(x.name)).map((x) => x.id)));
     setSellerHistory(history);
 
     setLoading(false);
@@ -153,6 +182,32 @@ export function useCommercialPlan() {
       .order("seller_id");
     setQuotaRows((data as QuotaRow[]) || []);
   }, []);
+
+  // New MRR = novas vendas + recuperados + upsell; Churn MRR = churn + downsell.
+  // Sem 4blue (padrão), desconta a parcela 4blue de cada mês.
+  const realized = useMemo<RealizedMonth[]>(() => rawRealized.map(({ ym, m }) => {
+    const has = (k: string) => m[k] !== undefined;
+    const b = include4blue ? null : fourBlue.get(ym);
+    const sub = (v: number | null, x?: number) => (v == null ? null : v - (x || 0));
+    const newMrr = has("new_mrr") ? (m.new_mrr || 0) + (m.recuperados_mrr || 0) + (m.upsell_mrr || 0) : null;
+    const churnMrr = has("churn_mrr") ? (m.churn_mrr || 0) + (m.downsell_mrr || 0) : null;
+    const totalMrr = has("total_mrr") ? m.total_mrr : null;
+    const ativos = has("ativos_pagantes") ? m.ativos_pagantes : null;
+    const n = sub(newMrr, b?.newMrr), c = sub(churnMrr, b?.churnMrr);
+    return {
+      yearMonth: ym,
+      newMrr: n,
+      churnMrr: c,
+      netMrr: n != null && c != null ? n - c : null,
+      totalMrr: sub(totalMrr, b?.totalMrr),
+      ativos: sub(ativos, b?.ativos),
+    };
+  }), [rawRealized, fourBlue, include4blue]);
+
+  const sellers = useMemo(
+    () => (include4blue ? allSellers : allSellers.filter((x) => !fourBlueSellerIds.has(x.id))),
+    [allSellers, fourBlueSellerIds, include4blue],
+  );
 
   const avgChurn = useMemo(() => {
     const lastRealized = [...realized].filter((r) => r.churnMrr != null).pop();
