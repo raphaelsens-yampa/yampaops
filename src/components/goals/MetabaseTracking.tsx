@@ -350,10 +350,12 @@ export function MetabaseTracking() {
   // Datas com snapshot disponível (lista curta, carrega uma vez)
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("metas_snapshot_diario")
-        .select("data")
-        .order("data", { ascending: true });
+      const { data } = await fetchAllPaged<{ data: string }>(() =>
+        supabase
+          .from("metas_snapshot_diario")
+          .select("data")
+          .order("data", { ascending: true })
+      );
       const uniq = Array.from(new Set(((data as any[]) || []).map((r) => r.data as string)));
       setSnapDates(uniq);
     })();
@@ -375,11 +377,13 @@ export function MetabaseTracking() {
     let cancelled = false;
     (async () => {
       setSnapLoading(true);
-      const { data } = await supabase
-        .from("metas_snapshot_diario")
-        .select("data, year_month, metric_key, scope, category_id, area, realized_amount, deals_count, tipo_snapshot, origem_leitura")
-        .lte("data", refDate)
-        .order("data", { ascending: true });
+      const { data } = await fetchAllPaged<SnapRow>(() =>
+        supabase
+          .from("metas_snapshot_diario")
+          .select("data, year_month, metric_key, scope, category_id, area, realized_amount, deals_count, tipo_snapshot, origem_leitura")
+          .lte("data", refDate)
+          .order("data", { ascending: true })
+      );
       if (cancelled) return;
       setSnapRows((data as SnapRow[]) || []);
       setSnapLoading(false);

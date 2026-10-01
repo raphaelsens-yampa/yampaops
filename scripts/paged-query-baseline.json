@@ -10,7 +10,6 @@
     "src/components/goals/GoalsTracking.tsx|opportunities",
     "src/components/goals/GoalsTracking.tsx|sales_campaign_contacts",
     "src/components/goals/GoalsTracking.tsx|stripe_conversions",
-    "src/components/goals/MetabaseTracking.tsx|metas_snapshot_diario",
     "src/components/goals/tactical/CampaignCouponsConfig.tsx|stripe_conversions",
     "src/components/goals/tactical/LowTouchConversionsTable.tsx|contacts",
     "src/components/goals/tactical/StripeBackupPanel.tsx|stripe_conversions",
