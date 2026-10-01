@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, Save } from "lucide-react";
-import { buildQuotaShares, type PlanRow } from "@/lib/commercialPlan";
+import { addMonths, buildQuotaShares, type PlanRow } from "@/lib/commercialPlan";
 import type { QuotaRow, SellerLite } from "@/hooks/useCommercialPlan";
 
 const MONTHS_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
