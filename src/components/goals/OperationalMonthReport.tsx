@@ -17,10 +17,19 @@ const br = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "
 export function OperationalMonthReport({ area, monthStartKey, monthEndKey, officialTotal }: { area: "sales" | "cs"; monthStartKey: string; monthEndKey: string; officialTotal?: number | null }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  // Recarrega periodicamente para refletir novas movimentações (Stripe/Metabase).
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 2 * 60 * 1000);
+    const onFocus = () => setTick((t) => t + 1);
+    window.addEventListener("focus", onFocus);
+    return () => { window.clearInterval(id); window.removeEventListener("focus", onFocus); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (tick === 0) setLoading(true);
     (async () => {
       const classes = area === "sales" ? ["novo pagante", "recuperado", "upsell"] : ["downsell"];
       const nextMonth = new Date(Number(monthStartKey.slice(0, 4)), Number(monthStartKey.slice(5, 7)), 1);
