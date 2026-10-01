@@ -86,7 +86,7 @@ export function useCommercialPlan() {
       ),
       supabase.from("commercial_plan_months").select("*").order("year_month"),
       supabase.from("user_roles").select("user_id, role"),
-      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("profiles").select("user_id, full_name, is_active"),
     ]);
 
     // Realizado por mês a partir das métricas oficiais.
@@ -132,7 +132,9 @@ export function useCommercialPlan() {
       ...historySellers,
     ]);
     const sellerList = ((profRes.data as any[]) || [])
-      .filter((p) => sellerIds.has(p.user_id))
+      // Inativos (ex.: saíram da empresa) ficam fora: a fatia histórica deles
+      // é redistribuída proporcionalmente entre os vendedores ativos.
+      .filter((p) => sellerIds.has(p.user_id) && p.is_active !== false)
       .map((p) => ({ id: p.user_id, name: p.full_name || p.user_id }))
       .sort((a, b) => a.name.localeCompare(b.name));
     setSellers(sellerList);
