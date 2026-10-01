@@ -37,7 +37,7 @@ interface Props {
   onSave: (ym: string, rows: Array<{ seller_id: string; quota_new_mrr: number; quota_deals: number | null; weight: number; is_manual: boolean }>) => Promise<void>;
 }
 
-export function QuotasPanel({ sellers, sellerHistory, historyByMonth, rows, savedQuotas, currentMonth, canEdit, onOpenMonth, onSave }: Props) {
+export function QuotasPanel({ sellers, historyByMonth, rows, savedQuotas, currentMonth, canEdit, onOpenMonth, onSave }: Props) {
   const [month, setMonth] = useState(currentMonth);
   const [windowMonths, setWindowMonths] = useState(6);
   const [edits, setEdits] = useState<Record<string, EditState>>({});
