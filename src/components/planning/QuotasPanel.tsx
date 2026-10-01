@@ -69,16 +69,27 @@ export function QuotasPanel({ sellers, historyByMonth, rows, savedQuotas, curren
     return map;
   }, [savedQuotas, month]);
 
+  // Histórico do vendedor limitado aos meses fechados da janela (3 ou 6).
+  const windowHistory = useMemo(() => {
+    const closed: string[] = [];
+    for (let i = 1; i <= windowMonths; i++) closed.push(addMonths(currentMonth, -i));
+    const out: Record<string, number> = {};
+    for (const s of sellers) {
+      out[s.id] = closed.reduce((sum, m) => sum + (historyByMonth[m]?.[s.id] || 0), 0);
+    }
+    return out;
+  }, [sellers, historyByMonth, windowMonths, currentMonth]);
+
   // Quotas calculadas (rateio automático) — as manuais salvas têm prioridade.
   const computed = useMemo(
     () =>
       buildQuotaShares({
         sellers,
-        history: sellerHistory,
+        history: windowHistory,
         totalQuota,
         saved: savedBySeller,
       }),
-    [sellers, sellerHistory, totalQuota, savedBySeller],
+    [sellers, windowHistory, totalQuota, savedBySeller],
   );
 
   const view = useMemo(() => {
