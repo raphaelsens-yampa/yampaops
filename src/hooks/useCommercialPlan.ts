@@ -267,6 +267,8 @@ export function useCommercialPlan(include4blue = false) {
     loading,
     realized,
     baselines,
+    closedThrough,
+
     overrides,
     overridesByMonth: useMemo(
       () => new Map(overrides.map((o) => [o.year_month.slice(0, 7), o])),
