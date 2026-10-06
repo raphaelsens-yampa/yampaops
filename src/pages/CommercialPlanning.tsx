@@ -58,9 +58,11 @@ export default function CommercialPlanningPage() {
         overrideGrowthPct: growthPct > 0 ? growthPct : null,
         avgChurn: plan.avgChurn,
         avgTicket: funnelAvg.avgTicket,
+        closedThrough: plan.closedThrough,
       }),
-    [windowMonths, plan.realized, plan.baselines, plan.overridesByMonth, growthPct, plan.avgChurn, funnelAvg.avgTicket],
+    [windowMonths, plan.realized, plan.baselines, plan.overridesByMonth, growthPct, plan.avgChurn, funnelAvg.avgTicket, plan.closedThrough],
   );
+
 
   const [customPct, setCustomPct] = useState("");
   const lastRealizedLabel = plan.lastRealizedMonth

@@ -81,8 +81,11 @@ export interface ScenarioBaseline {
   /**
    * Total de MRR realizado por mês (`YYYY-MM` -> valor). Cada mês projeta sobre
    * o REALIZADO do mês anterior — dado imutável — de forma que a meta de um mês
-   * encerrado nunca mude quando o mês seguinte começa.
+   * encerrado nunca mude quando o mês seguinte começa. Somente meses já
+   * fechados (<= `month`) entram como base: o realizado PARCIAL do mês em
+   * curso não ancora a projeção (o mês seguinte projeta sobre a projeção dele).
    */
+
   realizedByMonth?: Record<string, number>;
 }
 
@@ -211,10 +214,15 @@ export function buildScenarioFactors(
       return;
     }
     const pm = prevMonthKey(m);
+    // Projetar sobre fechado: o realizado do mês anterior só ancora a cadeia
+    // quando esse mês já encerrou (pm <= âncora). O mês em curso (realizado
+    // parcial) não vira base — o próximo mês projeta sobre a projeção dele.
+    const pmClosed = Boolean(baseline?.realizedByMonth) && pm <= anchorMonth;
     const base =
-      realizedOf(pm) ||
+      (pmClosed ? realizedOf(pm) : 0) ||
       (prev > 0 ? prev : anchorMonth === pm && anchorValue > 0 ? anchorValue : origTotal(pm));
     stockPrevOf.set(m, base);
+
     prev = base * (1 + rateAt(m));
     newStock.set(m, prev);
   });

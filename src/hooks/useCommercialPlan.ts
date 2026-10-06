@@ -72,6 +72,18 @@ export function useCommercialPlan(include4blue = false) {
   const [quotaRows, setQuotaRows] = useState<QuotaRow[]>([]);
   const { baselines } = useGrowthBaselines();
 
+  // Último mês FECHADO: anterior ao vigente; no último dia do mês, o próprio
+  // vigente (mesma regra da âncora de cenário, America/Sao_Paulo). Usado para
+  // "projetar sobre fechado": o realizado parcial do mês em curso não ancora a cadeia.
+  const closedThrough = useMemo(() => {
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const [y, m, d] = today.split("-").map(Number);
+    const ym = `${y}-${String(m).padStart(2, "0")}`;
+    const lastDay = new Date(y, m, 0).getDate();
+    return d === lastDay ? ym : addMonths(ym, -1);
+  }, []);
+
+
   const loadBase = useCallback(async () => {
     setLoading(true);
     // Realizado oficial (Metabase) — 24 meses para cobrir a janela e o histórico de churn.

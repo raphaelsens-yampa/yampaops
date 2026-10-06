@@ -71,7 +71,31 @@ describe("buildScenarioFactors com base revisada", () => {
     expect(f).toBeLessThan(1);
     expect(f).toBeCloseTo((900 * 1.012) / 1010, 6);
   });
+
+  it("mês futuro projeta sobre a projeção do mês aberto, não sobre o realizado parcial", () => {
+    const gs = [
+      { category_id: "total", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 1010 },
+      { category_id: "total", period_start: "2026-10-01", period_end: "2026-10-31", target_mrr: 1020 },
+      { category_id: "total", period_start: "2026-11-01", period_end: "2026-11-30", target_mrr: 1030 },
+    ];
+    const factors = buildScenarioFactors(
+      gs,
+      categories,
+      0,
+      {
+        month: "2026-09",
+        value: 1000,
+        realizedByMonth: { "2026-08": 990, "2026-09": 1000, "2026-10": 1005 },
+      },
+      BASELINES,
+    );
+    // Out ancora no realizado fechado de Set (1000 × 1,012).
+    expect(factors.get("total|2026-10")).toBeCloseTo(1012 / 1020, 6);
+    // Nov ignora o realizado parcial de Out (1005) e projeta sobre a projeção de Out.
+    expect(factors.get("total|2026-11")).toBeCloseTo((1012 * 1.012) / 1030, 6);
+  });
 });
+
 
 
   it("faz MRR Increase ser a soma ajustada de New, Recuperados e Upsell", () => {

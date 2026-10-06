@@ -95,7 +95,32 @@ describe("buildPlanMonths", () => {
     expect(rows[1].newMrrTarget).toBe(7500);
     expect(rows[1].mrrEnd).toBe(302000); // ancora no realizado
   });
+
+  it("mês aberto não reancora a cadeia (projetar sobre fechado)", () => {
+    const rows = buildPlanMonths({
+      window: ["2026-10", "2026-11"],
+      realized: [
+        { yearMonth: "2026-09", newMrr: 12000, churnMrr: 8000, netMrr: 4000, totalMrr: 300000, ativos: 2200 },
+        { yearMonth: "2026-10", newMrr: 9000, churnMrr: 7000, netMrr: 2000, totalMrr: 295000, ativos: 2190 },
+      ],
+      baselines: [
+        { effective_month: "2026-10-01", growth_pct: 1.5 },
+        { effective_month: "2026-11-01", growth_pct: 3 },
+      ],
+      overrides: {},
+      closedThrough: "2026-09",
+      avgChurn: 7500,
+    });
+    // Out projeta sobre Set fechado; o realizado parcial só aparece na coluna Realizado.
+    expect(rows[0].mrrEnd).toBeCloseTo(300000 * 1.015, 6);
+    expect(rows[0].realized?.totalMrr).toBe(295000);
+    expect(rows[0].newMrrTarget).toBeCloseTo(300000 * 0.015 + 7500, 6);
+    // Nov parte do fim projetado de Out, não do realizado parcial.
+    expect(rows[1].mrrStart).toBeCloseTo(300000 * 1.015, 6);
+    expect(rows[1].mrrEnd).toBeCloseTo(300000 * 1.015 * 1.03, 6);
+  });
 });
+
 
 describe("newMrrFromConversions", () => {
   it("soma new/reactivation pelo mrr_net e upsell pelo delta", () => {

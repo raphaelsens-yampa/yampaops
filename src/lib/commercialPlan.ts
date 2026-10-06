@@ -7,7 +7,8 @@
  *
  * Regras do plano:
  *  - O MRR previsto de cada mês continua do valor REAL do mês anterior
- *    (realizado, quando existir) ou do valor planejado.
+ *    (realizado de meses já fechados; mês em curso entra como projeção).
+
  *  - Sem cadastro manual (override), o New MRR alvo do mês N é o necessário
  *    para fechar o estoque do mês em MRR_start × (1 + g) : New = ΔMRR + Churn.
  *  - Churn MRR alvo = média do churn realizado dos últimos 3 meses fechados
@@ -131,22 +132,27 @@ export function buildPlanMonths(opts: {
   overrideGrowthPct?: number | null;
   avgChurn?: number | null;
   avgTicket?: number | null;
+  /** YYYY-MM do último mês fechado. Realizado posterior a ele aparece na
+   *  coluna Realizado, mas não reancora a cadeia (projetar sobre fechado). */
+  closedThrough?: string | null;
 }): PlanRow[] {
-  const { window: months, realized, baselines, overrides, overrideGrowthPct, avgChurn, avgTicket } = opts;
+  const { window: months, realized, baselines, overrides, overrideGrowthPct, avgChurn, avgTicket, closedThrough } = opts;
+
   const realizedMap = new Map(realized.map((r) => [r.yearMonth, r]));
 
   let mrrPrev: number | null = null;
   let ativosPrev: number | null = null;
   if (months.length) {
     const before = realized
-      .filter((r) => r.yearMonth < months[0] && r.totalMrr != null)
+      .filter((r) => r.yearMonth < months[0] && r.totalMrr != null && (!closedThrough || r.yearMonth <= closedThrough))
       .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
     mrrPrev = before.length ? (before[before.length - 1].totalMrr as number) : null;
     const beforeAtivos = realized
-      .filter((r) => r.yearMonth < months[0] && r.ativos != null)
+      .filter((r) => r.yearMonth < months[0] && r.ativos != null && (!closedThrough || r.yearMonth <= closedThrough))
       .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
     ativosPrev = beforeAtivos.length ? (beforeAtivos[beforeAtivos.length - 1].ativos as number) : null;
   }
+
 
   return months.map((ym) => {
     const ov = overrides[ym] || null;
@@ -172,7 +178,9 @@ export function buildPlanMonths(opts: {
       newTarget = grown - mrrStart + (churnTarget ?? 0);
     }
 
-    if (realizedRow?.totalMrr != null) mrrEnd = realizedRow.totalMrr;
+    const monthClosed = !closedThrough || ym <= closedThrough;
+    if (monthClosed && realizedRow?.totalMrr != null) mrrEnd = realizedRow.totalMrr;
+
 
     let ativosTarget: number | null = null;
     const ativosStart = ativosPrev;
@@ -186,9 +194,11 @@ export function buildPlanMonths(opts: {
 
     const hasOverride = newOverride != null || churnOverride != null || dealsOverride != null || ativosOverride != null;
 
-    // Encadeia para o próximo mês: prioridade ao realizado.
-    mrrPrev = realizedRow?.totalMrr != null ? realizedRow.totalMrr : mrrEnd;
-    ativosPrev = realizedRow?.ativos != null ? realizedRow.ativos : ativosTarget;
+    // Encadeia para o próximo mês: prioridade ao realizado de mês FECHADO
+    // (projetar sobre fechado — o parcial do mês em curso não ancora a cadeia).
+    mrrPrev = monthClosed && realizedRow?.totalMrr != null ? realizedRow.totalMrr : mrrEnd;
+    ativosPrev = monthClosed && realizedRow?.ativos != null ? realizedRow.ativos : ativosTarget;
+
 
     return {
       yearMonth: ym,
