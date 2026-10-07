@@ -867,6 +867,48 @@ export type Database = {
           },
         ]
       }
+      campaign_plan_scenarios: {
+        Row: {
+          base_campaign_ids: string[]
+          created_at: string
+          created_by: string | null
+          goal_type: string
+          goal_value: number | null
+          id: string
+          investment: number | null
+          linked_campaign_id: string | null
+          name: string
+          notes: string | null
+          results: Json
+        }
+        Insert: {
+          base_campaign_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          goal_type: string
+          goal_value?: number | null
+          id?: string
+          investment?: number | null
+          linked_campaign_id?: string | null
+          name: string
+          notes?: string | null
+          results?: Json
+        }
+        Update: {
+          base_campaign_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          goal_type?: string
+          goal_value?: number | null
+          id?: string
+          investment?: number | null
+          linked_campaign_id?: string | null
+          name?: string
+          notes?: string | null
+          results?: Json
+        }
+        Relationships: []
+      }
       chatwoot_ac_note_links: {
         Row: {
           ac_contact_id: string
@@ -1840,6 +1882,36 @@ export type Database = {
           total_conversations?: number
           triggered_by?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      churn_ai_insights: {
+        Row: {
+          generated_at: string
+          generated_by: string | null
+          id: string
+          insights: Json
+          period_from: string | null
+          period_to: string | null
+          scope: string
+        }
+        Insert: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          insights?: Json
+          period_from?: string | null
+          period_to?: string | null
+          scope?: string
+        }
+        Update: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          insights?: Json
+          period_from?: string | null
+          period_to?: string | null
+          scope?: string
         }
         Relationships: []
       }
@@ -4264,6 +4336,81 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_pre_churn: {
+        Row: {
+          company_id: number
+          data_pagamento: string | null
+          data_pedido: string | null
+          data_ref: string
+          descricao: string | null
+          dias_atraso: number | null
+          email_norm: string | null
+          final_vigencia: string | null
+          future_churn_at: string | null
+          id: string
+          imported_at: string
+          inicio_vigencia: string | null
+          motivo: string | null
+          mrr: number
+          origem_cliente: string | null
+          phone: string | null
+          plano: string | null
+          reembolso: boolean | null
+          sck: string | null
+          segmento: string | null
+          tipo: string
+          vitalicio: boolean
+        }
+        Insert: {
+          company_id: number
+          data_pagamento?: string | null
+          data_pedido?: string | null
+          data_ref: string
+          descricao?: string | null
+          dias_atraso?: number | null
+          email_norm?: string | null
+          final_vigencia?: string | null
+          future_churn_at?: string | null
+          id?: string
+          imported_at?: string
+          inicio_vigencia?: string | null
+          motivo?: string | null
+          mrr?: number
+          origem_cliente?: string | null
+          phone?: string | null
+          plano?: string | null
+          reembolso?: boolean | null
+          sck?: string | null
+          segmento?: string | null
+          tipo: string
+          vitalicio?: boolean
+        }
+        Update: {
+          company_id?: number
+          data_pagamento?: string | null
+          data_pedido?: string | null
+          data_ref?: string
+          descricao?: string | null
+          dias_atraso?: number | null
+          email_norm?: string | null
+          final_vigencia?: string | null
+          future_churn_at?: string | null
+          id?: string
+          imported_at?: string
+          inicio_vigencia?: string | null
+          motivo?: string | null
+          mrr?: number
+          origem_cliente?: string | null
+          phone?: string | null
+          plano?: string | null
+          reembolso?: boolean | null
+          sck?: string | null
+          segmento?: string | null
+          tipo?: string
+          vitalicio?: boolean
+        }
+        Relationships: []
+      }
       metas_price_daily: {
         Row: {
           classificacao: string
@@ -6512,6 +6659,37 @@ export type Database = {
           conversations: number
           occurrences: number
           term: string
+        }[]
+      }
+      churn_analysis_cases: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          company_id: number
+          cs_name: string
+          cs_user_id: string
+          data_pedido: string
+          data_ref: string
+          descricao: string
+          desfecho: string
+          dias_atraso: number
+          email: string
+          engagement_band: string
+          final_vigencia: string
+          future_churn_at: string
+          id: string
+          industry: string
+          inicio_vigencia: string
+          motivo: string
+          mrr: number
+          mrr_atual: number
+          origem_cliente: string
+          phone: string
+          plano: string
+          recovery_channel: string
+          recuperado_em: string
+          segmento: string
+          tenure_days: number
+          tipo: string
         }[]
       }
       classify_stripe_conversion: {

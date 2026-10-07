@@ -40,6 +40,7 @@ export const CRM_SECTIONS = [
       { key: "voz_do_cliente", label: "Voz do Cliente (temas e dores)" },
       { key: "engajamento_cs", label: "Engajamento CS" },
       { key: "carteira_cs", label: "Carteira de CS (low-touch)" },
+      { key: "analise_churn", label: "Análise do Churn" },
     ],
   },
   {
@@ -47,6 +48,7 @@ export const CRM_SECTIONS = [
     label: "Sales",
     areas: [
       { key: "campaign_history", label: "Histórico de Campanhas" },
+      { key: "campaign_planning", label: "Planejamento de Campanhas" },
       { key: "sales_campaigns", label: "Campanhas de Sales" },
       { key: "comissionamento", label: "Comissionamento" },
       { key: "link_builder", label: "Gerador de Ofertas" },
