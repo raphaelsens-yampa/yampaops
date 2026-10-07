@@ -152,22 +152,22 @@ export function MetricEvolutionChart({
   const data = useMemo(
     () =>
       campaigns.map((c) => {
-        const v = metric && !isRetention ? values.get(`${c.id}|${metric.id}`) : undefined;
-        const v2 = metric2 && !isRetention2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
+        const v = metric && !isVirtual ? values.get(`${c.id}|${metric.id}`) : undefined;
+        const v2 = metric2 && !isVirtual2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
         const rows = cohortByCampaign.get(c.id) ?? [];
         const retention = isRetention ? retentionLatest(rows) : null;
         const retention2 = isRetention2 ? retentionLatest(rows) : null;
         return {
           name: campaignLabel(c),
-          metaA: isRetention ? null : (v?.target_value ?? null),
-          realA: isRetention ? retention.pct : (v?.actual_value ?? null),
-          metaB: isRetention2 ? null : (v2?.target_value ?? null),
-          realB: isRetention2 ? retention2.pct : (v2?.actual_value ?? null),
+          metaA: isRetention ? null : isConversion ? conversionPct(c.id, metrics, values, "target_value") : (v?.target_value ?? null),
+          realA: isRetention ? retention.pct : isConversion ? conversionPct(c.id, metrics, values, "actual_value") : (v?.actual_value ?? null),
+          metaB: isRetention2 ? null : isConversion2 ? conversionPct(c.id, metrics, values, "target_value") : (v2?.target_value ?? null),
+          realB: isRetention2 ? retention2.pct : isConversion2 ? conversionPct(c.id, metrics, values, "actual_value") : (v2?.actual_value ?? null),
           baseA: retention?.size ?? 0,
           baseB: retention2?.size ?? 0,
         };
       }),
-    [campaigns, metric, metric2, values, isRetention, isRetention2, cohortByCampaign],
+    [campaigns, metric, metric2, metrics, values, isRetention, isRetention2, isConversion, isConversion2, isVirtual, isVirtual2, cohortByCampaign],
   );
 
   if (!metric && !metrics.length) {
