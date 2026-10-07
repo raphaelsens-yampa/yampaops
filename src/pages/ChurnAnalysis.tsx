@@ -257,7 +257,7 @@ export default function ChurnAnalysis() {
                   <CardContent className="space-y-3">
                     {(ins.padroes || []).map((p: any, i: number) => (
                       <div key={i} className="rounded-md border p-3 text-sm">
-                        <div className="flex items-center gap-2 font-medium">{p.titulo}<Badge variant="outline">impacto {p.impacto}</Badge></div>
+                        <div className="flex items-center justify-center gap-2 text-center font-medium">{p.titulo}<Badge variant="outline">impacto {p.impacto}</Badge></div>
                         <div className="text-muted-foreground">{p.evidencia}</div>
                       </div>
                     ))}
@@ -268,7 +268,7 @@ export default function ChurnAnalysis() {
                   <CardContent className="space-y-3">
                     {(ins.acoes || []).map((a: any, i: number) => (
                       <div key={i} className="rounded-md border p-3 text-sm space-y-1">
-                        <div className="flex items-center gap-2 font-medium">{a.acao}<Badge className={a.prioridade === "alta" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}>{a.prioridade}</Badge></div>
+                        <div className="flex items-center justify-center gap-2 text-center font-medium">{a.acao}<Badge className={a.prioridade === "alta" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}>{a.prioridade}</Badge></div>
                         <div className="text-xs text-muted-foreground">Público: {a.publico}</div>
                         <div className="italic">"{a.argumento}"</div>
                         {a.oferta && <div className="text-xs">Oferta: {a.oferta}</div>}
