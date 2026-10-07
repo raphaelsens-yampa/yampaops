@@ -33,6 +33,33 @@ import {
 } from "@/lib/campaignHistory";
 
 const RETENTION_ID = "cohort_retention";
+const CONVERSION_ID = "conv_pct";
+
+/** % de Conversão = Conversão ÷ Leads (Total), calculado a partir dos valores da campanha. */
+function conversionPct(
+  campaignId: string,
+  metrics: HistoryMetric[],
+  values: Map<string, HistoryValue>,
+  field: "target_value" | "actual_value",
+): number | null {
+  const conv = metrics.find((m) => m.slug === "conversao");
+  const leads = metrics.find((m) => m.slug === "leads_total" || m.slug === "leads_totais");
+  if (!conv || !leads) return null;
+  const c = values.get(`${campaignId}|${conv.id}`)?.[field];
+  const l = values.get(`${campaignId}|${leads.id}`)?.[field];
+  if (c == null || l == null || !l) return null;
+  return (c / l) * 100;
+}
+
+const CONVERSION_METRIC = {
+  id: CONVERSION_ID,
+  label: "% de Conversão",
+  slug: "conv_pct",
+  unit: "percent",
+  is_active: true,
+  section: "Funil",
+  position: -2,
+} as HistoryMetric;
 
 /** Retenção ponderada do cohort da campanha no mês mais recente disponível. */
 function retentionLatest(rows: CohortRow[]) {
