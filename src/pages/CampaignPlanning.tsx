@@ -97,9 +97,16 @@ export default function CampaignPlanning() {
   const baseMrr = baseMrrInput ? Number(baseMrrInput) : baseMrrDb ?? null;
   const inv = Number(investment) || 0;
   const gv = Number(goalValue) || 0;
+  const ticketOverride = Number(ticketInput) > 0 ? Number(ticketInput) : null;
+  // Ticket informado pelo usuário substitui o ticket histórico em todos os cenários.
+  const effRatios = useMemo(() => {
+    if (!ratios) return null;
+    if (!ticketOverride) return ratios;
+    return Object.fromEntries(SCEN.map((k) => [k, { ...ratios[k], ticket: ticketOverride }])) as typeof ratios;
+  }, [ratios, ticketOverride]);
 
-  const forward = ratios ? SCEN.map((k) => ({ k, f: forecastFromInvestment(ratios[k], inv, baseMrr) })) : [];
-  const reverse = ratios ? SCEN.map((k) => ({ k, r: reverseForGoal(ratios[k], goal, gv, baseMrr, inv) })) : [];
+  const forward = effRatios ? SCEN.map((k) => ({ k, f: forecastFromInvestment(effRatios[k], inv, baseMrr) })) : [];
+  const reverse = effRatios ? SCEN.map((k) => ({ k, r: reverseForGoal(effRatios[k], goal, gv, baseMrr, inv) })) : [];
 
   const saved = useQuery({
     queryKey: ["campaign-plan-scenarios"],
