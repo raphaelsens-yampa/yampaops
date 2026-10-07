@@ -13,6 +13,7 @@ import { AlertTriangle, Save, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import {
   buildRatios, campaignType, forecastFromInvestment, GOAL_LABEL, reverseForGoal, SCENARIO_LABEL,
   usableCampaigns, type CampaignActuals, type GoalType, type ScenarioKey,
@@ -28,12 +29,13 @@ function useCampaignActuals() {
   return useQuery({
     queryKey: ["campaign-planning-actuals"],
     queryFn: async () => {
-      const [{ data: camps, error: e1 }, { data: metrics, error: e2 }, { data: values, error: e3 }] = await Promise.all([
+      const [{ data: camps, error: e1 }, { data: metrics, error: e2 }, { data: values, error: e3s }] = await Promise.all([
         supabase.from("campaign_history").select("id,name,channel,ref_month").limit(1000),
         supabase.from("campaign_history_metrics").select("id,slug").limit(1000),
-        supabase.from("campaign_history_values").select("campaign_id,metric_id,actual_value").limit(10000),
+        fetchAllPaged<any>(() => supabase.from("campaign_history_values").select("campaign_id,metric_id,actual_value").order("id") as any),
       ]);
-      if (e1 || e2 || e3) throw new Error((e1 || e2 || e3)!.message);
+      if (e1 || e2) throw new Error((e1 || e2)!.message);
+      if (e3s) throw new Error(e3s);
       const slugById = new Map((metrics || []).map((m) => [m.id, m.slug]));
       const vals = new Map<string, Record<string, number>>();
       for (const v of values || []) {
