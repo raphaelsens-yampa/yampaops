@@ -244,6 +244,7 @@ export function AppSidebar() {
           ],
         },
         { title: "Carteira de CS", url: "/atendimentos/carteira-cs", icon: Users, area: "carteira_cs" },
+        { title: "Análise do Churn", url: "/atendimentos/analise-churn", icon: TrendingUp, area: "analise_churn" },
         { title: "Voz do Cliente", url: "/atendimentos/voz-do-cliente", icon: MessageSquareQuote, area: "voz_do_cliente" },
         { title: "Engajamento CS", url: "/atendimentos/engajamento-cs", icon: HeartHandshake, area: "engajamento_cs" },
         // { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" }, // archived (AC-dependent)
@@ -264,6 +265,7 @@ export function AppSidebar() {
           managerOnly: true,
           children: [
             { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "campaign_history" as CrmAreaKey },
+            { title: "Planejamento de Campanhas", url: "/sales-campaigns/planejamento", icon: Calculator, area: "campaign_planning" as CrmAreaKey },
             { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns" as CrmAreaKey },
           ],
         },

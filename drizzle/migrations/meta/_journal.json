@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791391319732,
+      "tag": "0000_pre_churn_campaign_planning",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791391483672,
+      "tag": "0001_churn_analysis_cases",
+      "breakpoints": true
+    }
+  ]
+}

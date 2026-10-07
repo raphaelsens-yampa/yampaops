@@ -49,6 +49,8 @@ import AgentActivity from "./pages/AgentActivity";
 import Precificacao from "./pages/Precificacao";
 import Comissionamento from "./pages/Comissionamento";
 import CommercialPlanning from "./pages/CommercialPlanning";
+import CampaignPlanning from "./pages/CampaignPlanning";
+import ChurnAnalysis from "./pages/ChurnAnalysis";
 import OnePageDiretoria from "./pages/OnePageDiretoria";
 import PropostaPublica from "./pages/PropostaPublica";
 
@@ -144,6 +146,8 @@ function AppRoutes() {
       {/* Lead Journey archived (AC-dependent) */}
       {/* Tags agora vivem dentro da Integração Chatwoot */}
       <Route path="/sales-campaigns" element={<RequireArea area="sales_campaigns"><SalesCampaigns /></RequireArea>} />
+      <Route path="/sales-campaigns/planejamento" element={<RequireArea area="campaign_planning"><CampaignPlanning /></RequireArea>} />
+      <Route path="/atendimentos/analise-churn" element={<RequireArea area="analise_churn"><ChurnAnalysis /></RequireArea>} />
       <Route path="/sales-campaigns/reports" element={<RequireArea area="sales_campaigns"><SalesCampaignReports /></RequireArea>} />
       <Route path="/sales-campaigns/history" element={<RequireArea area="campaign_history"><CampaignHistory /></RequireArea>} />
       <Route path="/sales-campaigns/:id" element={<RequireArea area="sales_campaigns"><SalesCampaignDetail /></RequireArea>} />
