@@ -406,6 +406,14 @@ export function MetricEvolutionChart({
                   ))}
                 </TableRow>
               ))}
+              <TableRow>
+                <TableCell className="font-medium">% de Conversão</TableCell>
+                {campaigns.map((c) => (
+                  <TableCell key={c.id} className="text-right tabular-nums text-xs">
+                    {formatMetricValue(conversionPct(c.id, metrics, values, "actual_value"), "percent")}
+                  </TableCell>
+                ))}
+              </TableRow>
             </TableBody>
           </Table>
         </CardContent>
