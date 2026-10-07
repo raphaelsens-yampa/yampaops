@@ -320,6 +320,7 @@ export function MetricEvolutionChart({
                 <SelectContent>
                   <SelectItem value={NONE}>Sem comparação</SelectItem>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={CONVERSION_ID}>% de Conversão</SelectItem>
                   <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
