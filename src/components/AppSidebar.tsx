@@ -29,6 +29,7 @@ type NavItem = {
   managerOnly?: boolean;
   rightSlot?: "ac-status" | "stripe-status" | "chatwoot-status";
   children?: NavItem[];
+  subsection?: string;
 };
 
 type Group = {
@@ -225,10 +226,11 @@ export function AppSidebar() {
       defaultOpen: openVendas,
       items: [
         // { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" }, // archived
-        { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
-        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", managerOnly: true },
+        { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos", subsection: "Suporte" },
+        { title: "Atividades de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", managerOnly: true, subsection: "Suporte" },
         {
           title: "Auditoria IA",
+          subsection: "Suporte",
           url: "/atendimentos/auditoria",
           icon: Sparkles,
           area: "auditoria_ia",
@@ -243,10 +245,10 @@ export function AppSidebar() {
             ] : []),
           ],
         },
-        { title: "Carteira de CS", url: "/atendimentos/carteira-cs", icon: Users, area: "carteira_cs" },
-        { title: "Análise do Churn", url: "/atendimentos/analise-churn", icon: TrendingUp, area: "analise_churn" },
-        { title: "Voz do Cliente", url: "/atendimentos/voz-do-cliente", icon: MessageSquareQuote, area: "voz_do_cliente" },
-        { title: "Engajamento CS", url: "/atendimentos/engajamento-cs", icon: HeartHandshake, area: "engajamento_cs" },
+        { title: "Carteira de CS", url: "/atendimentos/carteira-cs", icon: Users, area: "carteira_cs", subsection: "CS" },
+        { title: "Engajamento CS", url: "/atendimentos/engajamento-cs", icon: HeartHandshake, area: "engajamento_cs", subsection: "CS" },
+        { title: "Voz do Cliente", url: "/atendimentos/voz-do-cliente", icon: MessageSquareQuote, area: "voz_do_cliente", subsection: "CS" },
+        { title: "Análise do Churn", url: "/atendimentos/analise-churn", icon: TrendingUp, area: "analise_churn", subsection: "CS" },
         // { title: "Jornada do Lead", url: "/insights/lead-journey", icon: TrendingUp, area: "lead_journey" }, // archived (AC-dependent)
       ],
     },
@@ -409,6 +411,20 @@ export function AppSidebar() {
     );
   };
 
+  const renderGroupItems = (items: NavItem[]) => items.flatMap((item, index) => {
+    const showLabel = !collapsed && item.subsection && item.subsection !== items[index - 1]?.subsection;
+    return [
+      ...(showLabel ? [
+        <SidebarMenuItem key={`subsection-${item.subsection}`}>
+          <div className="px-2 pb-1 pt-3 text-xs font-semibold text-sidebar-foreground/60">
+            {item.subsection}
+          </div>
+        </SidebarMenuItem>,
+      ] : []),
+      renderItem(item),
+    ];
+  });
+
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -478,7 +494,7 @@ export function AppSidebar() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarGroupContent>
-                        <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
+                        <SidebarMenu>{renderGroupItems(g.items)}</SidebarMenu>
                       </SidebarGroupContent>
                     </CollapsibleContent>
                   </SidebarGroup>
@@ -490,7 +506,7 @@ export function AppSidebar() {
               <SidebarGroup key={g.key}>
                 {!collapsed && <SidebarGroupLabel>{g.label}</SidebarGroupLabel>}
                 <SidebarGroupContent>
-                  <SidebarMenu>{g.items.map(renderItem)}</SidebarMenu>
+                  <SidebarMenu>{renderGroupItems(g.items)}</SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
             );
