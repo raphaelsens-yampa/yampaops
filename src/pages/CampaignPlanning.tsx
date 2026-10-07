@@ -234,6 +234,7 @@ export default function CampaignPlanning() {
                     <CardHeader className="pb-2"><CardTitle className="text-sm">{SCENARIO_LABEL[k]}</CardTitle></CardHeader>
                     <CardContent className="space-y-1 text-sm">
                       <Row l="Vendas previstas" v={num(f.sales, 0)} />
+                      <Row l="Ticket médio" v={brl(effRatios![k].ticket)} />
                       <Row l="MRR gerado" v={brl(f.mrr)} strong />
                       <Row l="Crescimento a.m." v={f.growthPct == null ? "—" : `${num(f.growthPct, 2)}%`} />
                       <Row l="CAC" v={brl(f.cac)} />
