@@ -305,6 +305,7 @@ export function MetricEvolutionChart({
                 <SelectTrigger className="h-9 flex-1 min-w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={CONVERSION_ID}>% de Conversão</SelectItem>
                   <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
