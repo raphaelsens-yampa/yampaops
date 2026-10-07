@@ -122,7 +122,7 @@ export default function CampaignPlanning() {
       name: scenarioName.trim(),
       base_campaign_ids: usable.map((c) => c.id),
       goal_type: goal, goal_value: gv, investment: inv,
-      results: { forward, reverse, baseMrr, typeFilter } as any,
+      results: { forward, reverse, baseMrr, typeFilter, ticketOverride } as any,
       created_by: user?.id,
     });
     if (error) return toast.error(error.message);
