@@ -138,11 +138,15 @@ export function MetricEvolutionChart({
 
   const metric = isRetention
     ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : isConversion
+    ? CONVERSION_METRIC
     : metrics.find((m) => m.id === metricId) ?? metrics[0];
   const metric2 = metricId2 === NONE
     ? undefined
     : isRetention2
     ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : isConversion2
+    ? CONVERSION_METRIC
     : metrics.find((m) => m.id === metricId2);
 
   const data = useMemo(
