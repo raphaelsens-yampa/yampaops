@@ -82,6 +82,7 @@ export default function CampaignPlanning() {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [investment, setInvestment] = useState("20000");
   const [baseMrrInput, setBaseMrrInput] = useState("");
+  const [ticketInput, setTicketInput] = useState("");
   const [goal, setGoal] = useState<GoalType>("mrr");
   const [goalValue, setGoalValue] = useState("10000");
   const [scenarioName, setScenarioName] = useState("");
