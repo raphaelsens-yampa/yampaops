@@ -17,7 +17,7 @@ import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
-  DESFECHO_LABEL, groupStats, riskQueue, tenureBand, TIPO_LABEL, type ChurnCase, type GroupStat,
+  DESFECHO_LABEL, dedupeCases, groupStats, riskQueue, tenureBand, TIPO_LABEL, type ChurnCase, type GroupStat,
 } from "@/lib/churnAnalysis";
 
 const brl = (v: number | null | undefined) =>
@@ -79,7 +79,7 @@ export default function ChurnAnalysis() {
   });
 
   const rows = useMemo(
-    () => (casesQ.data || []).filter((r) =>
+    () => dedupeCases(casesQ.data || []).filter((r) =>
       (tipo === "all" || r.tipo === tipo) && (include4blue || (r.origem_cliente || "").toLowerCase() !== "4blue")),
     [casesQ.data, tipo, include4blue],
   );
@@ -205,7 +205,7 @@ export default function ChurnAnalysis() {
                           <TableCell className="text-right">{brl(r.mrr)}</TableCell>
                           <TableCell>
                             <Badge className={r.dias != null && r.dias <= 3 ? "bg-destructive/15 text-destructive" : r.dias != null && r.dias <= 7 ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}>
-                              {r.dias == null ? "—" : r.dias <= 0 ? "hoje" : `${r.dias} dias`}
+                              {r.dias == null ? "—" : r.dias <= 0 ? "hoje" : `${r.dias} dia${r.dias === 1 ? "" : "s"}`}
                             </Badge>
                             <div className="text-xs text-muted-foreground">{fmtDate(r.future_churn_at || r.final_vigencia)}</div>
                           </TableCell>

@@ -46,3 +46,17 @@ describe("campaignForecast", () => {
     expect(b.meets).toBe(true);
   });
 });
+
+import { dedupeCases, groupStats } from "@/lib/churnAnalysis";
+describe("churnAnalysis", () => {
+  it("conta cada caso uma vez e calcula reversão", () => {
+    const base: any = { tipo: "involuntario", mrr: 100, final_vigencia: null };
+    const rows = dedupeCases([
+      { ...base, id: "1", company_id: 1, future_churn_at: "2026-10-10", data_ref: "2026-10-01", desfecho: "revertido" },
+      { ...base, id: "2", company_id: 1, future_churn_at: "2026-10-10", data_ref: "2026-10-02", desfecho: "revertido" },
+      { ...base, id: "3", company_id: 2, future_churn_at: "2026-10-10", data_ref: "2026-10-02", desfecho: "churn" },
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(groupStats(rows, () => "t")[0].reversaoPct).toBe(50);
+  });
+});

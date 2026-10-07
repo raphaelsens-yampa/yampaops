@@ -93,3 +93,17 @@ export function riskQueue(rows: ChurnCase[], today: string): (ChurnCase & { dias
     .map((r) => ({ ...r, dias: daysToChurn(r, today) }))
     .sort((a, b) => (a.dias ?? 999) - (b.dias ?? 999) || b.mrr - a.mrr);
 }
+
+/**
+ * A base do Metabase repete o mesmo cliente a cada dia de análise.
+ * Um caso = cliente + tipo + data prevista de churn; mantém a leitura mais recente.
+ */
+export function dedupeCases(rows: ChurnCase[]): ChurnCase[] {
+  const map = new Map<string, ChurnCase>();
+  for (const r of rows) {
+    const k = `${r.company_id}|${r.tipo}|${r.future_churn_at || r.final_vigencia || r.data_ref.slice(0, 7)}`;
+    const prev = map.get(k);
+    if (!prev || r.data_ref > prev.data_ref) map.set(k, r);
+  }
+  return [...map.values()];
+}
