@@ -33,6 +33,33 @@ import {
 } from "@/lib/campaignHistory";
 
 const RETENTION_ID = "cohort_retention";
+const CONVERSION_ID = "conv_pct";
+
+/** % de Conversão = Conversão ÷ Leads (Total), calculado a partir dos valores da campanha. */
+function conversionPct(
+  campaignId: string,
+  metrics: HistoryMetric[],
+  values: Map<string, HistoryValue>,
+  field: "target_value" | "actual_value",
+): number | null {
+  const conv = metrics.find((m) => m.slug === "conversao");
+  const leads = metrics.find((m) => m.slug === "leads_total" || m.slug === "leads_totais");
+  if (!conv || !leads) return null;
+  const c = values.get(`${campaignId}|${conv.id}`)?.[field];
+  const l = values.get(`${campaignId}|${leads.id}`)?.[field];
+  if (c == null || l == null || !l) return null;
+  return (c / l) * 100;
+}
+
+const CONVERSION_METRIC = {
+  id: CONVERSION_ID,
+  label: "% de Conversão",
+  slug: "conv_pct",
+  unit: "percent",
+  is_active: true,
+  section: "Funil",
+  position: -2,
+} as HistoryMetric;
 
 /** Retenção ponderada do cohort da campanha no mês mais recente disponível. */
 function retentionLatest(rows: CohortRow[]) {
@@ -76,10 +103,10 @@ export function MetricEvolutionChart({
 
   const isRetention = metricId === RETENTION_ID;
   const isRetention2 = metricId2 === RETENTION_ID;
-
-  useEffect(() => {
-    if (isRetention || isRetention2) setViewMode("real");
-  }, [isRetention, isRetention2]);
+  const isConversion = metricId === CONVERSION_ID;
+  const isConversion2 = metricId2 === CONVERSION_ID;
+  const isVirtual = isRetention || isConversion;
+  const isVirtual2 = isRetention2 || isConversion2;
 
   const cohortQ = useQuery({
     queryKey: ["cohort-evolution-all"],
@@ -111,32 +138,36 @@ export function MetricEvolutionChart({
 
   const metric = isRetention
     ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : isConversion
+    ? CONVERSION_METRIC
     : metrics.find((m) => m.id === metricId) ?? metrics[0];
   const metric2 = metricId2 === NONE
     ? undefined
     : isRetention2
     ? ({ id: RETENTION_ID, label: "% de Retenção", slug: "retencao", unit: "percent", is_active: true, section: "Cohort", position: -1 } as HistoryMetric)
+    : isConversion2
+    ? CONVERSION_METRIC
     : metrics.find((m) => m.id === metricId2);
 
   const data = useMemo(
     () =>
       campaigns.map((c) => {
-        const v = metric && !isRetention ? values.get(`${c.id}|${metric.id}`) : undefined;
-        const v2 = metric2 && !isRetention2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
+        const v = metric && !isVirtual ? values.get(`${c.id}|${metric.id}`) : undefined;
+        const v2 = metric2 && !isVirtual2 ? values.get(`${c.id}|${metric2.id}`) : undefined;
         const rows = cohortByCampaign.get(c.id) ?? [];
         const retention = isRetention ? retentionLatest(rows) : null;
         const retention2 = isRetention2 ? retentionLatest(rows) : null;
         return {
           name: campaignLabel(c),
-          metaA: isRetention ? null : (v?.target_value ?? null),
-          realA: isRetention ? retention.pct : (v?.actual_value ?? null),
-          metaB: isRetention2 ? null : (v2?.target_value ?? null),
-          realB: isRetention2 ? retention2.pct : (v2?.actual_value ?? null),
+          metaA: isRetention ? null : isConversion ? conversionPct(c.id, metrics, values, "target_value") : (v?.target_value ?? null),
+          realA: isRetention ? retention.pct : isConversion ? conversionPct(c.id, metrics, values, "actual_value") : (v?.actual_value ?? null),
+          metaB: isRetention2 ? null : isConversion2 ? conversionPct(c.id, metrics, values, "target_value") : (v2?.target_value ?? null),
+          realB: isRetention2 ? retention2.pct : isConversion2 ? conversionPct(c.id, metrics, values, "actual_value") : (v2?.actual_value ?? null),
           baseA: retention?.size ?? 0,
           baseB: retention2?.size ?? 0,
         };
       }),
-    [campaigns, metric, metric2, values, isRetention, isRetention2, cohortByCampaign],
+    [campaigns, metric, metric2, metrics, values, isRetention, isRetention2, isConversion, isConversion2, isVirtual, isVirtual2, cohortByCampaign],
   );
 
   if (!metric && !metrics.length) {
@@ -274,6 +305,7 @@ export function MetricEvolutionChart({
                 <SelectTrigger className="h-9 flex-1 min-w-[180px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={CONVERSION_ID}>% de Conversão</SelectItem>
                   <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
@@ -288,6 +320,7 @@ export function MetricEvolutionChart({
                 <SelectContent>
                   <SelectItem value={NONE}>Sem comparação</SelectItem>
                   {metrics.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  <SelectItem value={CONVERSION_ID}>% de Conversão</SelectItem>
                   <SelectItem value={RETENTION_ID}>% de Retenção</SelectItem>
                 </SelectContent>
               </Select>
@@ -373,6 +406,14 @@ export function MetricEvolutionChart({
                   ))}
                 </TableRow>
               ))}
+              <TableRow>
+                <TableCell className="font-medium">% de Conversão</TableCell>
+                {campaigns.map((c) => (
+                  <TableCell key={c.id} className="text-right tabular-nums text-xs">
+                    {formatMetricValue(conversionPct(c.id, metrics, values, "actual_value"), "percent")}
+                  </TableCell>
+                ))}
+              </TableRow>
             </TableBody>
           </Table>
         </CardContent>
