@@ -103,10 +103,10 @@ export function MetricEvolutionChart({
 
   const isRetention = metricId === RETENTION_ID;
   const isRetention2 = metricId2 === RETENTION_ID;
-
-  useEffect(() => {
-    if (isRetention || isRetention2) setViewMode("real");
-  }, [isRetention, isRetention2]);
+  const isConversion = metricId === CONVERSION_ID;
+  const isConversion2 = metricId2 === CONVERSION_ID;
+  const isVirtual = isRetention || isConversion;
+  const isVirtual2 = isRetention2 || isConversion2;
 
   const cohortQ = useQuery({
     queryKey: ["cohort-evolution-all"],
