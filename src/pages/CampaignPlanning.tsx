@@ -211,6 +211,21 @@ export default function CampaignPlanning() {
                 <Label htmlFor="cp-base">MRR total atual (base do crescimento)</Label>
                 <Input id="cp-base" type="number" className="w-56" placeholder={baseMrrDb ? String(Math.round(baseMrrDb)) : ""} value={baseMrrInput} onChange={(e) => setBaseMrrInput(e.target.value)} />
               </div>
+              <div className="space-y-1">
+                <Label htmlFor="cp-ticket">Ticket médio (R$ por venda)</Label>
+                <Input
+                  id="cp-ticket" type="number" className="w-48"
+                  placeholder={ratios ? String(Math.round(ratios.esperado.ticket)) : ""}
+                  value={ticketInput} onChange={(e) => setTicketInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {ticketOverride
+                    ? "Valor informado em uso (substitui o histórico)."
+                    : ratios
+                      ? `Vazio = histórico (média ${brl(ratios.esperado.ticket)}).`
+                      : "Histórico das campanhas."}
+                </p>
+              </div>
             </div>
             {!ratios ? <p className="text-sm text-muted-foreground">Selecione campanhas com investimento, vendas e MRR.</p> : (
               <div className="grid gap-4 md:grid-cols-3">
