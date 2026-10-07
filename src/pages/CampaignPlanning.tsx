@@ -82,6 +82,7 @@ export default function CampaignPlanning() {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [investment, setInvestment] = useState("20000");
   const [baseMrrInput, setBaseMrrInput] = useState("");
+  const [ticketInput, setTicketInput] = useState("");
   const [goal, setGoal] = useState<GoalType>("mrr");
   const [goalValue, setGoalValue] = useState("10000");
   const [scenarioName, setScenarioName] = useState("");
@@ -96,9 +97,16 @@ export default function CampaignPlanning() {
   const baseMrr = baseMrrInput ? Number(baseMrrInput) : baseMrrDb ?? null;
   const inv = Number(investment) || 0;
   const gv = Number(goalValue) || 0;
+  const ticketOverride = Number(ticketInput) > 0 ? Number(ticketInput) : null;
+  // Ticket informado pelo usuário substitui o ticket histórico em todos os cenários.
+  const effRatios = useMemo(() => {
+    if (!ratios) return null;
+    if (!ticketOverride) return ratios;
+    return Object.fromEntries(SCEN.map((k) => [k, { ...ratios[k], ticket: ticketOverride }])) as typeof ratios;
+  }, [ratios, ticketOverride]);
 
-  const forward = ratios ? SCEN.map((k) => ({ k, f: forecastFromInvestment(ratios[k], inv, baseMrr) })) : [];
-  const reverse = ratios ? SCEN.map((k) => ({ k, r: reverseForGoal(ratios[k], goal, gv, baseMrr, inv) })) : [];
+  const forward = effRatios ? SCEN.map((k) => ({ k, f: forecastFromInvestment(effRatios[k], inv, baseMrr) })) : [];
+  const reverse = effRatios ? SCEN.map((k) => ({ k, r: reverseForGoal(effRatios[k], goal, gv, baseMrr, inv) })) : [];
 
   const saved = useQuery({
     queryKey: ["campaign-plan-scenarios"],
@@ -114,7 +122,7 @@ export default function CampaignPlanning() {
       name: scenarioName.trim(),
       base_campaign_ids: usable.map((c) => c.id),
       goal_type: goal, goal_value: gv, investment: inv,
-      results: { forward, reverse, baseMrr, typeFilter } as any,
+      results: { forward, reverse, baseMrr, typeFilter, ticketOverride } as any,
       created_by: user?.id,
     });
     if (error) return toast.error(error.message);
@@ -203,6 +211,21 @@ export default function CampaignPlanning() {
                 <Label htmlFor="cp-base">MRR total atual (base do crescimento)</Label>
                 <Input id="cp-base" type="number" className="w-56" placeholder={baseMrrDb ? String(Math.round(baseMrrDb)) : ""} value={baseMrrInput} onChange={(e) => setBaseMrrInput(e.target.value)} />
               </div>
+              <div className="space-y-1">
+                <Label htmlFor="cp-ticket">Ticket médio (R$ por venda)</Label>
+                <Input
+                  id="cp-ticket" type="number" className="w-48"
+                  placeholder={ratios ? String(Math.round(ratios.esperado.ticket)) : ""}
+                  value={ticketInput} onChange={(e) => setTicketInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {ticketOverride
+                    ? "Valor informado em uso (substitui o histórico)."
+                    : ratios
+                      ? `Vazio = histórico (média ${brl(ratios.esperado.ticket)}).`
+                      : "Histórico das campanhas."}
+                </p>
+              </div>
             </div>
             {!ratios ? <p className="text-sm text-muted-foreground">Selecione campanhas com investimento, vendas e MRR.</p> : (
               <div className="grid gap-4 md:grid-cols-3">
@@ -211,6 +234,7 @@ export default function CampaignPlanning() {
                     <CardHeader className="pb-2"><CardTitle className="text-sm">{SCENARIO_LABEL[k]}</CardTitle></CardHeader>
                     <CardContent className="space-y-1 text-sm">
                       <Row l="Vendas previstas" v={num(f.sales, 0)} />
+                      <Row l="Ticket médio" v={brl(effRatios![k].ticket)} />
                       <Row l="MRR gerado" v={brl(f.mrr)} strong />
                       <Row l="Crescimento a.m." v={f.growthPct == null ? "—" : `${num(f.growthPct, 2)}%`} />
                       <Row l="CAC" v={brl(f.cac)} />
