@@ -70,8 +70,9 @@ export function groupStats(rows: ChurnCase[], keyOf: (r: ChurnCase) => string | 
 }
 
 export function tenureBand(days: number | null, inicio: string | null, ref: string): string {
-  let d = days;
-  if (d == null && inicio) d = Math.round((new Date(ref).getTime() - new Date(inicio).getTime()) / 86400000);
+  // inicio_vigencia é o início do ciclo de cobrança, não do cliente — não serve para tempo de casa.
+  void inicio; void ref;
+  const d = days;
   if (d == null) return "Não informado";
   if (d < 90) return "0–3 meses";
   if (d < 180) return "3–6 meses";
