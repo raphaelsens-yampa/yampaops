@@ -184,6 +184,25 @@ export function CampaignHistoryImportDialog({
       }
     }
 
+    // A planilha pode repetir o mesmo indicador em mais de uma linha (ou duas colunas da mesma campanha):
+    // consolida por campanha × indicador, mantendo o último valor preenchido de cada campo.
+    const merged = new Map<string, any>();
+    for (const p of payload) {
+      const key = `${p.campaign_id}|${p.metric_id}`;
+      const prev = merged.get(key);
+      if (!prev) { merged.set(key, p); continue; }
+      merged.set(key, {
+        ...prev,
+        target_value: p.target_value ?? prev.target_value,
+        actual_value: p.actual_value ?? prev.actual_value,
+        funnel_target_pct: p.funnel_target_pct ?? prev.funnel_target_pct,
+        funnel_actual_pct: p.funnel_actual_pct ?? prev.funnel_actual_pct,
+      });
+    }
+    const finalPayload = [...merged.values()];
+    payload.length = 0;
+    payload.push(...finalPayload);
+
     const { error } = payload.length
       ? await supabase.from("campaign_history_values").upsert(payload, { onConflict: "campaign_id,metric_id" })
       : { error: null as any };
