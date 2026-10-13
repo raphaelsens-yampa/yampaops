@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ActivationDateCell } from "./ActivationDateCell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +66,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
   const [tableOpen, setTableOpen] = useState(true);
 
   const campaignId = campaign?.id ?? "";
+  const qcActivation = useQueryClient();
 
   const contactsQ = useQuery({
     queryKey: ["cohort-contacts", campaignId],
@@ -665,7 +667,18 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                             <td className="px-2 py-2">
                               <Badge className={`text-xs ${STATUS_BADGE[status] ?? ""}`}>{STATUS_LABEL[status] ?? status}</Badge>
                             </td>
-                            <td className="px-2 py-2">{formatDateBR(r.activated_at ?? res?.started_at)}</td>
+                            <td className="px-2 py-2">
+                              <ActivationDateCell
+                                contactId={r.id}
+                                activatedAt={r.activated_at}
+                                fallback={res?.started_at}
+                                onSaved={() => {
+                                  contactsQ.refetch();
+                                  qcActivation.invalidateQueries({ queryKey: ["cohort-curve", campaignId] });
+                                  qcActivation.invalidateQueries({ queryKey: ["cohort-mrr-by-month", campaignId] });
+                                }}
+                              />
+                            </td>
                             <td className="px-2 py-2">{formatDateBR(res?.canceled_at)}</td>
                             <td className="px-2 py-2">{res?.origem_cliente ?? "—"}</td>
                             <td className="px-2 py-2 text-xs text-muted-foreground">
