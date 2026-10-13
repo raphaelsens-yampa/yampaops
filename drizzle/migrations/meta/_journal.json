@@ -15,6 +15,13 @@
       "when": 1791391483672,
       "tag": "0001_churn_analysis_cases",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791914770706,
+      "tag": "0002_cohort_refresh_keep_stripe_live_cancel",
+      "breakpoints": true
     }
   ]
 }
