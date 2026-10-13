@@ -621,6 +621,7 @@ export function buildCohortMatrix(
     email: string;
     override: number | null;
     hasSnapshots: boolean;
+    currentlyActive: boolean;
   };
   const groups = new Map<string, Member[]>();
 
@@ -644,6 +645,7 @@ export function buildCohortMatrix(
       email,
       override: r.mrr_override ?? null,
       hasSnapshots: !!monthly?.get(email)?.size,
+      currentlyActive: res.status === "active" || res.status === "trial",
     });
     groups.set(key, list);
   }
@@ -664,7 +666,10 @@ export function buildCohortMatrix(
         const inner = m.hasSnapshots ? monthly!.get(m.email)! : null;
         const snapshot = inner ? inner.get(monthKeyFromIndex(monthIdx)) ?? null : null;
         let stillActive: boolean;
-        if (snapshot != null) {
+        if (monthIdx >= nowIdx) {
+          // Mês corrente: vale o status atual do cliente (cancelamento recente ainda sem snapshot).
+          stillActive = m.currentlyActive;
+        } else if (snapshot != null) {
           // Status real do último snapshot do mês (cancelado = 0).
           stillActive = Number(snapshot) > 0;
         } else if (inner) {

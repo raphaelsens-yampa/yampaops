@@ -72,3 +72,16 @@ describe("buildCohortMatrix com MRR mensal", () => {
     expect(m[0].cells[0].estimated).toBe(1);
   });
 });
+
+describe("M0 do mês corrente", () => {
+  it("cliente cancelado sem data não conta como retido no mês atual", () => {
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const a = row("a@x", `${ym}-01`, null, 279);
+    const b = row("b@x", `${ym}-01`, null, 279);
+    b.result!.status = "canceled";
+    const m = buildCohortMatrix([a, b]);
+    expect(m[0].cells[0].active).toBe(1);
+    expect(m[0].cells[0].retention_pct).toBe(50);
+  });
+});
