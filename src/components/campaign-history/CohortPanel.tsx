@@ -675,7 +675,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                                 onSaved={() => {
                                   contactsQ.refetch();
                                   qcActivation.invalidateQueries({ queryKey: ["cohort-curve", campaignId] });
-                                  qcActivation.invalidateQueries({ queryKey: ["cohort-mrr-by-month", campaignId] });
+                                  qcActivation.invalidateQueries({ queryKey: ["cohort-monthly-mrr", campaignId] });
                                 }}
                               />
                             </td>
