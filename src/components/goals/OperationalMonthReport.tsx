@@ -130,7 +130,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
       if (!cancelled) { setRows(out); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [area, monthStartKey, monthEndKey]);
+  }, [area, monthStartKey, monthEndKey, tick]);
 
   const total = useMemo(() => rows.reduce((s, r) => s + r.value, 0), [rows]);
 
