@@ -636,7 +636,7 @@ export default function StripeConversions() {
             </h1>
             <p className="text-sm text-muted-foreground">Acompanhamento de todas as conversões pagas vindas do Stripe, classificadas por área do produto.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {role === "admin" && (
               <>
                 <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet || !rangeValid || isFetching}>

@@ -16,8 +16,8 @@
 - [x] Validar números e fluxo de edição no preview com o usuário
 
 ## Conversões por Área (14/10/2026)
-- [ ] Corrigir filtros, datas, contribuição MRR e conciliação de gráficos/exports
-- [ ] Corrigir paginação, atualização após edição, líquido em lote e apresentação
-- [ ] Migrar modelos depreciados da Auditoria IA conforme aprovação
-- [ ] Validar testes, dados reais e fluxos no navegador
+- [x] Corrigir filtros, datas, contribuição MRR e conciliação de gráficos/exports
+- [x] Corrigir paginação, atualização após edição, líquido em lote e apresentação
+- [x] Migrar modelos depreciados da Auditoria IA conforme aprovação
+- [x] Validar testes, dados reais e fluxos no navegador
 
