@@ -3,6 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { CADENCE_LABEL, ENGAGEMENT_LABEL, type CsPortfolioRow, type CsSegment } from "@/lib/csPortfolio";
 import { X } from "lucide-react";
+import type { CsTag } from "@/hooks/useCsTags";
 
 export interface PortfolioFilterState {
   q: string;
@@ -13,10 +14,11 @@ export interface PortfolioFilterState {
   industry: string;
   band: string;
   cadence: string;
+  tagId: string;
 }
 
 export const EMPTY_FILTERS: PortfolioFilterState = {
-  q: "", segmentId: "all", csUserId: "all", plano: "all", origem: "all", industry: "all", band: "all", cadence: "all",
+  q: "", segmentId: "all", csUserId: "all", plano: "all", origem: "all", industry: "all", band: "all", cadence: "all", tagId: "all",
 };
 
 function uniq(rows: CsPortfolioRow[], key: keyof CsPortfolioRow) {
@@ -31,12 +33,14 @@ export function PortfolioFilters({
   analysts,
   value,
   onChange,
+  tags = [],
 }: {
   rows: CsPortfolioRow[];
   segments: CsSegment[];
   analysts: { user_id: string; full_name: string | null; email: string | null }[];
   value: PortfolioFilterState;
   onChange: (v: PortfolioFilterState) => void;
+  tags?: CsTag[];
 }) {
   const set = (patch: Partial<PortfolioFilterState>) => onChange({ ...value, ...patch });
   const planos = uniq(rows, "plano");
@@ -106,6 +110,14 @@ export function PortfolioFilters({
           {industries.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
         </SelectContent>
       </Select>
+      <Select value={value.tagId} onValueChange={(v) => set({ tagId: v })}>
+        <SelectTrigger className="h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas as tags</SelectItem>
+          <SelectItem value="none">Sem tag</SelectItem>
+          {tags.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
       {dirty && (
         <Button variant="ghost" size="sm" className="h-9" onClick={() => onChange({ ...EMPTY_FILTERS })}>
           <X className="h-4 w-4 mr-1" /> Limpar
@@ -119,6 +131,7 @@ export function applyPortfolioFilters(
   rows: CsPortfolioRow[],
   f: PortfolioFilterState,
   cadenceOf: (r: CsPortfolioRow) => string,
+  tagsOf: (r: CsPortfolioRow) => string[] = () => [],
 ) {
   const q = f.q.trim().toLowerCase();
   return rows.filter((r) => {
@@ -130,6 +143,7 @@ export function applyPortfolioFilters(
     if (f.industry === "none" ? !!r.industry : f.industry !== "all" && (r.industry || "") !== f.industry) return false;
     if (f.band !== "all" && (r.engagement_band || "") !== f.band) return false;
     if (f.cadence !== "all" && cadenceOf(r) !== f.cadence) return false;
+    if (f.tagId === "none" ? tagsOf(r).length > 0 : f.tagId !== "all" && !tagsOf(r).includes(f.tagId)) return false;
     return true;
   });
 }
