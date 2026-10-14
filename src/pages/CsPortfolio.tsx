@@ -23,6 +23,8 @@ import { AssignmentRules } from "@/components/cs-portfolio/AssignmentRules";
 import { EnrichmentImportDialog } from "@/components/cs-portfolio/EnrichmentImportDialog";
 import { PortfolioReports } from "@/components/cs-portfolio/PortfolioReports";
 import { useAuth } from "@/hooks/useAuth";
+import { useCsClientTags, useCsTags } from "@/hooks/useCsTags";
+import { CsTagPicker, CsTagsManager } from "@/components/cs-portfolio/ClientTags";
 
 export default function CsPortfolio() {
   const { user, role } = useAuth();
@@ -31,6 +33,9 @@ export default function CsPortfolio() {
   const { data: assignmentRules = [] } = useCsAssignmentRules();
   const { data: analysts = [] } = useCsAnalysts();
   const { refresh, assign } = useCsPortfolioMutations();
+  const { data: tags = [] } = useCsTags();
+  const { data: clientTags = {} } = useCsClientTags();
+  const tagsOf = (r: CsPortfolioRow) => clientTags[r.email.toLowerCase()] || [];
 
   const [filters, setFilters] = useState<PortfolioFilterState>({ ...EMPTY_FILTERS });
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -46,8 +51,8 @@ export default function CsPortfolio() {
   };
 
   const filtered = useMemo(
-    () => applyPortfolioFilters(rows, filters, (r) => cadenceStatus(r)),
-    [rows, filters],
+    () => applyPortfolioFilters(rows, filters, (r) => cadenceStatus(r), tagsOf),
+    [rows, filters, clientTags],
   );
 
   const queue = useMemo(
@@ -169,7 +174,9 @@ export default function CsPortfolio() {
               analysts={analysts}
               value={filters}
               onChange={setFilters}
+              tags={tags}
             />
+            <div className="flex justify-end"><CsTagsManager tags={tags} /></div>
             {selected.size > 0 && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-3">
                 <Badge variant="secondary">{selected.size} selecionado(s)</Badge>
@@ -183,6 +190,11 @@ export default function CsPortfolio() {
                   </SelectContent>
                 </Select>
                 <Button size="sm" onClick={bulkAssign} disabled={!bulkCs || assign.isPending}>Aplicar</Button>
+                <CsTagPicker
+                  tags={tags}
+                  emails={rows.filter((r) => selected.has(r.id)).map((r) => r.email)}
+                  trigger={<Button size="sm" variant="outline">Aplicar tag</Button>}
+                />
                 <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Limpar seleção</Button>
               </div>
             )}
@@ -208,6 +220,8 @@ export default function CsPortfolio() {
                     }
                     onOpen={setDrawerRow}
                     onLog={setLogRow}
+                    tags={tags}
+                    tagsOf={tagsOf}
                   />
                 )}
                 {filtered.length > 500 && (
@@ -243,6 +257,8 @@ export default function CsPortfolio() {
                   onToggleAll={(checked) => setSelected(checked ? new Set(queue.map((r) => r.id)) : new Set())}
                   onOpen={setDrawerRow}
                   onLog={setLogRow}
+                    tags={tags}
+                    tagsOf={tagsOf}
                 />
               </CardContent>
             </Card>

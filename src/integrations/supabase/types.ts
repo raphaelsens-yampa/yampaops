@@ -2739,6 +2739,35 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_client_tags: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_client_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "cs_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_contact_logs: {
         Row: {
           author_id: string
@@ -2974,6 +3003,30 @@ export type Database = {
           priority?: number
           rules?: Json
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cs_tags: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
         }
         Relationships: []
       }

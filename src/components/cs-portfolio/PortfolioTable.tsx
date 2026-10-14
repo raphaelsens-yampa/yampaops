@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CADENCE_LABEL, ENGAGEMENT_LABEL, cadenceStatus, daysOverdue, fmtBRL, fmtDate, type CadenceStatus, type CsPortfolioRow, type CsSegment } from "@/lib/csPortfolio";
 import { CheckCircle2, User } from "lucide-react";
+import { ClientTagsCell } from "./ClientTags";
+import type { CsTag } from "@/hooks/useCsTags";
 
 const CADENCE_VARIANT: Record<CadenceStatus, "default" | "secondary" | "destructive" | "outline"> = {
   nunca: "outline",
@@ -21,6 +23,8 @@ export function PortfolioTable({
   onToggleAll,
   onOpen,
   onLog,
+  tags = [],
+  tagsOf = () => [],
 }: {
   rows: CsPortfolioRow[];
   segments: CsSegment[];
@@ -30,6 +34,8 @@ export function PortfolioTable({
   onToggleAll: (checked: boolean) => void;
   onOpen: (row: CsPortfolioRow) => void;
   onLog: (row: CsPortfolioRow) => void;
+  tags?: CsTag[];
+  tagsOf?: (r: CsPortfolioRow) => string[];
 }) {
   const segName = new Map(segments.map((s) => [s.id, s]));
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -58,6 +64,7 @@ export function PortfolioTable({
                 <Badge variant={CADENCE_VARIANT[st]}>{CADENCE_LABEL[st]}</Badge>
                 {r.engagement_band && <Badge variant="secondary">{ENGAGEMENT_LABEL[r.engagement_band] || r.engagement_band}</Badge>}
               </div>
+              <ClientTagsCell email={r.email} tags={tags} clientTagIds={tagsOf(r)} />
               <p className="text-[11px] text-muted-foreground">
                 CS: {analystName(r.cs_user_id)} · Próx.: {fmtDate(r.next_contact_due)}
               </p>
@@ -79,6 +86,7 @@ export function PortfolioTable({
               </TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Segmento</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead>CS</TableHead>
               <TableHead>Plano</TableHead>
               <TableHead className="text-right">MRR</TableHead>
@@ -108,6 +116,9 @@ export function PortfolioTable({
                     ) : (
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
+                  </TableCell>
+                  <TableCell className="max-w-[220px]">
+                    <ClientTagsCell email={r.email} tags={tags} clientTagIds={tagsOf(r)} />
                   </TableCell>
                   <TableCell className="text-sm">
                     <span className="flex items-center gap-1">
