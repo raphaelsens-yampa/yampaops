@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,38 +20,33 @@ import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
 import { fetchAllPaged } from "@/lib/supabasePaged";
+import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, type ConversionFilters } from "@/lib/stripeConversions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from "recharts";
-import { format, startOfMonth, endOfMonth, subDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const AREA_COLORS: Record<string, string> = {
-  Sales: "hsl(193 99% 44%)",
-  CX: "hsl(264 90% 47%)",
-  Marketing: "hsl(35 92% 55%)",
-  Produto: "hsl(150 60% 45%)",
-  Parceria: "hsl(280 70% 55%)",
-  YampaFin: "hsl(340 75% 55%)",
-  desconhecida: "hsl(220 10% 60%)",
+  Sales: "hsl(var(--chart-logo))", CX: "hsl(var(--chart-cx))", Marketing: "hsl(var(--warning))",
+  Produto: "hsl(var(--success))", Parceria: "hsl(var(--chart-partner))", YampaFin: "hsl(var(--chart-finance))", desconhecida: "hsl(var(--muted-foreground))",
 };
-
 const planColor = (name: string) => {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
-  return `hsl(${h} 70% 55%)`;
+  const palette = Object.values(AREA_COLORS);
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[hash % palette.length];
 };
 
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const fmtDate = (s: string | null) => s ? format(new Date(s), "dd/MM/yyyy", { locale: ptBR }) : "—";
-const toIso = (d: Date) => d.toISOString().slice(0, 10);
+const fmtDate = (s: string | null) => s ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(s)) : "—";
 
 // Mês (YYYY-MM) sempre no fuso America/Sao_Paulo
 const SP_MONTH_FMT = new Intl.DateTimeFormat("en-CA", {
@@ -105,12 +100,7 @@ const TYPE_LABEL: Record<string, string> = {
   downgrade: "Downgrade",
   renewal: "Renovação",
 };
-const TYPE_COLOR: Record<string, string> = {
-  new: "hsl(193 99% 44%)",
-  upsell: "hsl(150 60% 45%)",
-  downgrade: "hsl(0 75% 55%)",
-  renewal: "hsl(220 10% 60%)",
-};
+const TYPE_COLOR: Record<string, string> = { new: "bg-primary text-primary-foreground", upsell: "bg-success text-success-foreground", downgrade: "bg-destructive text-destructive-foreground", renewal: "bg-muted text-muted-foreground" };
 const SOURCE_LABEL: Record<string, string> = {
   chatwoot: "Chatwoot",
   campaign: "Campanha",
@@ -126,19 +116,12 @@ const PERIOD_PRESETS = [
   { key: "custom", label: "Personalizado" },
 ];
 
-function presetRange(key: string): { start: string; end: string } {
-  const today = new Date();
-  if (key === "this_month") return { start: toIso(startOfMonth(today)), end: toIso(endOfMonth(today)) };
-  if (key === "last_30") return { start: toIso(subDays(today, 30)), end: toIso(today) };
-  if (key === "last_90") return { start: toIso(subDays(today, 90)), end: toIso(today) };
-  if (key === "ytd") return { start: toIso(new Date(today.getFullYear(), 0, 1)), end: toIso(today) };
-  return { start: toIso(subDays(today, 30)), end: toIso(today) };
-}
+const presetRange = conversionPreset;
 
 export default function StripeConversions() {
   const { role } = useAuth();
   const { toast } = useToast();
-  if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
+
 
   const [periodPreset, setPeriodPreset] = useState("last_90");
   const [period, setPeriod] = useState(() => presetRange("last_90"));
@@ -159,12 +142,25 @@ export default function StripeConversions() {
   const qc = useQueryClient();
   const [netEdit, setNetEdit] = useState<{ price_id: string; plan: string; count: number; mrrBruto: number; mapId: string | null; mappedMrr: number | null } | null>(null);
   const [netEditValue, setNetEditValue] = useState("");
+  const [updatePriceReference, setUpdatePriceReference] = useState(false);
+  const [detailPage, setDetailPage] = useState(0);
   const [savingNet, setSavingNet] = useState(false);
 
 
   // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
   const valueOf = (r: Conversion) =>
-    mrrMode === "net" ? Number(r.mrr_net ?? r.mrr ?? 0) : Number(r.mrr ?? 0);
+    subscriptionMrr(r, mrrMode);
+  const contributionOf = (r: Conversion) => addedMrr(r, mrrMode);
+  const rangeValid = validDateRange(period) && (!safraEnabled || validDateRange(safra));
+  const range = rangeValid ? spRange(period) : null;
+  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode };
+  const refreshPanel = async () => {
+    await Promise.all([qc.invalidateQueries({ queryKey: ["stripe-conversions"] }), qc.invalidateQueries({ queryKey: ["price-map-areas"] }), qc.invalidateQueries({ queryKey: ["price-map-canonical"] })]);
+  };
+  function resetFilters() {
+    setPeriodPreset("last_90"); setPeriod(presetRange("last_90")); setSafraEnabled(false); setSafra(presetRange("ytd"));
+    setAreaFilter("all"); setTypeFilter("all"); setSellerFilter("all"); setReactivationOnly(false); setCouponOnly(false); setMrrMode("net");
+  }
 
 
   function changePreset(p: string) {
@@ -172,28 +168,26 @@ export default function StripeConversions() {
     if (p !== "custom") setPeriod(presetRange(p));
   }
 
-  const { data: rows = [], isLoading, refetch } = useQuery({
-    queryKey: ["stripe-conversions", period, safraEnabled, safra, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly],
+  const { data: periodRows = [], isLoading, isFetching, error: queryError, refetch } = useQuery({
+    queryKey: ["stripe-conversions", period, safraEnabled, safra],
+    enabled: rangeValid && (role === "admin" || role === "tatico"),
+    placeholderData: keepPreviousData,
+    refetchInterval: 120000,
     queryFn: async () => {
+      if (!range) return [];
       const build = () => {
         let q = supabase
           .from("stripe_conversions")
           .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id")
-          .gte("converted_at", `${period.start}T00:00:00`)
-          .lte("converted_at", `${period.end}T23:59:59`)
-          // Só conversões com valor > R$ 0 (líquido quando disponível)
-          .or("mrr_net.gt.0,and(mrr_net.is.null,mrr.gt.0)")
+          .gte("converted_at", range.from)
+          .lt("converted_at", range.until)
           .order("converted_at", { ascending: false })
           .order("id");
 
         if (safraEnabled) {
-          q = q.gte("registered_at", `${safra.start}T00:00:00`).lte("registered_at", `${safra.end}T23:59:59`);
+          const cohortRange = spRange(safra);
+          q = q.gte("registered_at", cohortRange.from).lt("registered_at", cohortRange.until);
         }
-        if (areaFilter !== "all") q = q.eq("area", areaFilter);
-        if (typeFilter !== "all") q = q.eq("conversion_type", typeFilter);
-        if (sellerFilter === "none") q = q.is("assigned_seller_id", null);
-        if (reactivationOnly) q = q.eq("is_reactivation", true);
-        if (couponOnly) q = q.not("coupon_id", "is", null);
         return q;
       };
       const { data, error } = await fetchAllPaged<Conversion>(build as never);
@@ -203,13 +197,13 @@ export default function StripeConversions() {
 
   });
 
-  const { data: areaOptions = [] } = useQuery({
+  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, filters)), [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode]);
+  useEffect(() => { setDetailPage(0); }, [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode]);
+
+  const { data: mappedAreaOptions = [] } = useQuery({
     queryKey: ["price-map-areas"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("commission_price_map")
-        .select("area")
-        .not("area", "is", null);
+      const { data, error } = await fetchAllPaged<{ area: string | null }>(() => supabase.from("commission_price_map").select("area").not("area", "is", null).order("id"));
       if (error) throw error;
       const set = new Set<string>((data || []).map((r: any) => r.area).filter(Boolean));
       set.add("desconhecida");
@@ -217,10 +211,13 @@ export default function StripeConversions() {
     },
   });
 
+  const areaOptions = useMemo(() => Array.from(new Set([...mappedAreaOptions, ...periodRows.map(r => r.area).filter(Boolean), "desconhecida"])).sort(), [mappedAreaOptions, periodRows]);
+
   const { data: sellersMap = {} } = useQuery({
     queryKey: ["profiles-map-for-stripe-conv"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("user_id, full_name, email");
+      const { data, error } = await fetchAllPaged<{ user_id: string; full_name: string | null; email: string | null }>(() => supabase.from("profiles").select("user_id, full_name, email").order("user_id"));
+      if (error) throw new Error(error);
       const m: Record<string, string> = {};
       (data || []).forEach((p: any) => { m[p.user_id] = p.full_name || p.email || p.user_id.slice(0, 8); });
       return m;
@@ -228,12 +225,10 @@ export default function StripeConversions() {
   });
 
   // De-para canônico (commission_price_map) para o painel de saúde
-  const { data: priceMap = {}, refetch: refetchPriceMap } = useQuery({
+  const { data: priceMap = {} } = useQuery({
     queryKey: ["price-map-canonical"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("commission_price_map")
-        .select("id, price_id, area, offer_name, plan_name, mrr_override");
+      const { data, error } = await fetchAllPaged<{ id: string; price_id: string; area: string | null; offer_name: string | null; plan_name: string | null; mrr_override: number | null }>(() => supabase.from("commission_price_map").select("id, price_id, area, offer_name, plan_name, mrr_override").order("id"));
       if (error) throw error;
       const m: Record<string, {
         id: string;
@@ -255,7 +250,7 @@ export default function StripeConversions() {
 
   const stats = useMemo(() => {
     const total = convRows.length;
-    const totalMrr = convRows.reduce((s, r) => s + valueOf(r), 0);
+    const totalMrr = convRows.reduce((s, r) => s + contributionOf(r), 0);
     const areasCount = new Set(convRows.map(r => r.area)).size;
     const newMrr = rows
       .filter(r => r.conversion_type === "new")
@@ -315,7 +310,7 @@ export default function StripeConversions() {
         cur.mrrBruto += Number(r.mrr || 0);
         netGaps.set(pid, cur);
       }
-      if (!r.stripe_price_id) continue;
+      if (!r.stripe_price_id) { missingMap++; continue; }
       const m = priceMap[r.stripe_price_id];
       if (!m) { missingMap++; continue; }
       if (m.area && m.area !== r.area) {
@@ -336,14 +331,14 @@ export default function StripeConversions() {
     setReprocessing(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-backfill-reactivations", {
-        body: { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, limit: 2000 },
+        body: { from: spRange(period).from, to: spRange(period).to, limit: 2000 },
       });
       if (error) throw error;
       toast({
         title: "Reprocessamento concluído",
         description: `Analisadas ${data?.scanned ?? 0} conversões · ${data?.marked ?? 0} marcadas como reativação`,
       });
-      refetch();
+      await refreshPanel();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -356,14 +351,14 @@ export default function StripeConversions() {
     setBackfillingNet(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-backfill-net-amounts", {
-        body: { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, limit: 2000, only_missing: true },
+        body: { from: spRange(period).from, to: spRange(period).to, limit: 2000, only_missing: true },
       });
       if (error) throw error;
       toast({
         title: "Backfill concluído",
         description: `Analisadas ${data?.scanned ?? 0} · atualizadas ${data?.updated ?? 0} · sem invoice ${data?.skipped_no_invoice ?? 0} · erros ${data?.failed ?? 0}`,
       });
-      refetch();
+      await refreshPanel();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -380,6 +375,7 @@ export default function StripeConversions() {
     mappedMrr: number | null;
   }) {
     setNetEdit(p);
+    setUpdatePriceReference(false);
     setNetEditValue(
       p.mappedMrr != null
         ? p.mappedMrr.toFixed(2)
@@ -392,13 +388,16 @@ export default function StripeConversions() {
   async function handleSaveNetMrr() {
     if (!netEdit) return;
     const value = Number(netEditValue.replace(",", "."));
-    if (!isFinite(value) || value < 0) {
+    if (!netEditValue.trim() || !isFinite(value) || value < 0) {
       toast({ title: "Valor inválido", description: "Informe o MRR líquido por conversão.", variant: "destructive" });
       return;
     }
     setSavingNet(true);
     try {
-      if (netEdit.mapId) {
+      const targetIds = rows.filter(r => r.mrr_net == null && (netEdit.price_id === "sem price_id" ? !r.stripe_price_id : r.stripe_price_id === netEdit.price_id)).map(r => r.id);
+      if (!targetIds.length) throw new Error("Nenhuma conversão pendente neste recorte.");
+      if (!confirm(`Aplicar ${fmtBRL(value)} a ${targetIds.length} conversão(ões) sem líquido no recorte atual?${updatePriceReference ? " O MRR de referência global do price também será alterado." : " O cadastro global do price não será alterado."}`)) return;
+      if (netEdit.mapId && updatePriceReference) {
         const { error: mapError } = await supabase
           .from("commission_price_map")
           .update({ mrr_override: value })
@@ -406,23 +405,18 @@ export default function StripeConversions() {
         if (mapError) throw mapError;
       }
 
-      let q = supabase
-        .from("stripe_conversions")
-        .update({ mrr_net: value })
-        .is("mrr_net", null)
-        .gte("converted_at", `${period.start}T00:00:00`)
-        .lte("converted_at", `${period.end}T23:59:59`);
-      q = netEdit.price_id === "sem price_id"
-        ? q.is("stripe_price_id", null)
-        : q.eq("stripe_price_id", netEdit.price_id);
-      const { error } = await q;
-      if (error) throw error;
+      let updatedCount = 0;
+      for (let i = 0; i < targetIds.length; i += 100) {
+        const { error, count } = await supabase.from("stripe_conversions").update({ mrr_net: value }, { count: "exact" }).is("mrr_net", null).in("id", targetIds.slice(i, i + 100));
+        if (error) throw error;
+        updatedCount += count ?? 0;
+      }
       toast({
         title: "Cadastro do price atualizado",
-        description: `${netEdit.count} conversão(ões) pendente(s) receberam ${fmtBRL(value)} de MRR líquido.`,
+        description: `${updatedCount} conversão(ões) pendente(s) receberam ${fmtBRL(value)} de MRR líquido.`,
       });
       setNetEdit(null);
-      await Promise.all([refetch(), refetchPriceMap()]);
+      await refreshPanel();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -435,7 +429,7 @@ export default function StripeConversions() {
     if (!confirm(`Reaplicar o de-para canônico nas conversões de ${period.start} até ${period.end}?\n\nPrimeiro será feita uma prévia das alterações e, em seguida, a atualização será confirmada.`)) return;
     setReapplying(true);
     try {
-      const body = { from: `${period.start}T00:00:00`, to: `${period.end}T23:59:59`, dry_run: true, limit: 20000 };
+      const body = { from: spRange(period).from, to: spRange(period).to, dry_run: true, limit: 20000 };
       const preview = await supabase.functions.invoke("stripe-reapply-price-map", { body });
       if (preview.error) throw preview.error;
       const count = preview.data?.would_change ?? 0;
@@ -445,7 +439,7 @@ export default function StripeConversions() {
       });
       if (error) throw error;
       toast({ title: "De-para reaplicado", description: `${data?.updated ?? 0} conversão(ões) atualizadas · ${data?.failed ?? 0} erro(s)` });
-      refetch();
+      await refreshPanel();
     } catch (e: any) {
       toast({ title: "Erro ao reaplicar de-para", description: e.message ?? String(e), variant: "destructive" });
     } finally {
@@ -458,7 +452,7 @@ export default function StripeConversions() {
     for (const r of convRows) {
       const cur = map.get(r.area) || { area: r.area, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
-      cur.mrr += valueOf(r);
+      cur.mrr += contributionOf(r);
       map.set(r.area, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
@@ -470,8 +464,8 @@ export default function StripeConversions() {
       if (!r.converted_at) continue;
       const key = monthKeySP(r.converted_at);
       const cur = map.get(key) || ({ mes: key } as any);
-      cur[r.area] = (cur[r.area] || 0) + valueOf(r);
-      cur._total = (cur._total || 0) + valueOf(r);
+      cur[r.area] = (cur[r.area] || 0) + contributionOf(r);
+      cur._total = (cur._total || 0) + contributionOf(r);
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => a.mes.localeCompare(b.mes));
@@ -486,16 +480,16 @@ export default function StripeConversions() {
   const bySeller = useMemo(() => {
     const map = new Map<string, { seller_id: string; name: string; conversoes: number; mrr: number }>();
     for (const r of convRows) {
-      if (!r.assigned_seller_id) continue;
-      const cur = map.get(r.assigned_seller_id) || {
-        seller_id: r.assigned_seller_id,
-        name: sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8),
+      const sellerId = r.assigned_seller_id || "none";
+      const cur = map.get(sellerId) || {
+        seller_id: sellerId,
+        name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : "Sem vendedor",
         conversoes: 0,
         mrr: 0,
       };
       cur.conversoes += 1;
-      cur.mrr += valueOf(r);
-      map.set(r.assigned_seller_id, cur);
+      cur.mrr += contributionOf(r);
+      map.set(sellerId, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
   }, [convRows, mrrMode, sellersMap]);
@@ -506,7 +500,7 @@ export default function StripeConversions() {
       const plan = r.plan_name?.trim() || "Sem plano";
       const cur = map.get(plan) || { plan, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
-      cur.mrr += valueOf(r);
+      cur.mrr += contributionOf(r);
       map.set(plan, cur);
     }
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
@@ -515,18 +509,19 @@ export default function StripeConversions() {
   const sellerPlanSales = useMemo(() => {
     const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
     for (const r of rows) {
-      if (r.conversion_type !== "new" || !r.assigned_seller_id) continue;
+      if (r.conversion_type !== "new") continue;
+      const sellerId = r.assigned_seller_id || "none";
       const plan = r.plan_name?.trim() || "Sem plano";
-      const key = `${r.assigned_seller_id}-${plan}`;
+      const key = `${sellerId}-${plan}`;
       const cur = map.get(key) || {
-        seller_id: r.assigned_seller_id,
-        seller_name: sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8),
+        seller_id: sellerId,
+        seller_name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : "Sem vendedor",
         plan,
         quantidade: 0,
         mrr: 0,
       };
       cur.quantidade += 1;
-      cur.mrr += valueOf(r);
+      cur.mrr += contributionOf(r);
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => a.seller_name.localeCompare(b.seller_name) || a.plan.localeCompare(b.plan));
@@ -540,7 +535,7 @@ export default function StripeConversions() {
 
   function exportCSV() {
     const data = rows.map(r => ({
-      Primeiro_Pagamento: fmtDate(r.converted_at),
+      Data_Operacao: fmtDate(r.converted_at),
       Cliente_Desde: fmtDate(r.registered_at),
       Tipo: TYPE_LABEL[r.conversion_type] || r.conversion_type,
       Area: r.area,
@@ -549,8 +544,10 @@ export default function StripeConversions() {
       Email: r.customer_email || "",
       MRR_Bruto: Number(r.mrr || 0),
       MRR_Liquido: r.mrr_net == null ? "" : Number(r.mrr_net),
-      MRR_Considerado: valueOf(r),
-      Delta_MRR: Number(r.delta_mrr || 0),
+      MRR_Assinatura_Considerado: valueOf(r),
+      Acrescimo_MRR: contributionOf(r),
+      Vendedor: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id : "Sem vendedor",
+      Delta_MRR_Bruto: Number(r.delta_mrr || 0),
       Reativacao: r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -562,7 +559,7 @@ export default function StripeConversions() {
 
   function exportXLSX() {
     const data = rows.map(r => ({
-      "1º Pagamento": fmtDate(r.converted_at),
+      "Data da operação": fmtDate(r.converted_at),
       "Cliente desde": fmtDate(r.registered_at),
       "Tipo": TYPE_LABEL[r.conversion_type] || r.conversion_type,
       "Área": r.area,
@@ -571,14 +568,16 @@ export default function StripeConversions() {
       "Email": r.customer_email || "",
       "MRR bruto (R$)": Number(r.mrr || 0),
       "MRR líquido (R$)": r.mrr_net == null ? "" : Number(r.mrr_net),
-      "MRR considerado (R$)": valueOf(r),
-      "Δ MRR (R$)": Number(r.delta_mrr || 0),
+      "MRR assinatura considerado (R$)": valueOf(r),
+      "Acréscimo MRR (R$)": contributionOf(r),
+      "Vendedor": r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id : "Sem vendedor",
+      "Δ MRR bruto (R$)": Number(r.delta_mrr || 0),
       "Reativação": r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conversões");
-    const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, [`MRR ${mrrMode === "net" ? "líquido" : "bruto"} (R$)`]: a.mrr }));
+    const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, ["Acréscimo MRR (R$)"]: a.mrr }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo por Área");
     const tipos = [
       { Tipo: "Nova venda", MRR: stats.newMrr, Quantidade: stats.newCount },
@@ -593,11 +592,11 @@ export default function StripeConversions() {
 
   function exportPDF() {
     const doc = new jsPDF({ orientation: "landscape" });
-    const metricLabel = mrrMode === "net" ? "MRR líquido" : "MRR bruto";
+    const metricLabel = "Acréscimo de MRR";
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
-    doc.text(`Período: ${period.start} → ${period.end}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
+    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
     doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
@@ -611,10 +610,10 @@ export default function StripeConversions() {
     const startY = (doc as any).lastAutoTable?.finalY + 8 || 80;
     autoTable(doc, {
       startY,
-      head: [["1º Pagamento", "Cliente desde", "Tipo", "Área", "Produto", "Plano", "Email", "MRR considerado"]],
+      head: [["Data da operação", "Cliente desde", "Tipo", "Área", "Produto", "Plano", "Email", "MRR assinatura", "Acréscimo MRR"]],
       body: rows.map(r => [
         fmtDate(r.converted_at), fmtDate(r.registered_at), TYPE_LABEL[r.conversion_type] || r.conversion_type, r.area,
-        r.product_name || "", r.plan_name || "", r.customer_email || "", fmtBRL(valueOf(r)),
+        r.product_name || "", r.plan_name || "", r.customer_email || "", fmtBRL(valueOf(r)), fmtBRL(contributionOf(r)),
       ]),
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [5, 32, 51] },
@@ -623,6 +622,8 @@ export default function StripeConversions() {
     doc.save(`conversoes_stripe_${period.start}_${period.end}.pdf`);
   }
 
+
+  if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   return (
     <Layout>
@@ -635,18 +636,18 @@ export default function StripeConversions() {
             </h1>
             <p className="text-sm text-muted-foreground">Acompanhamento de todas as conversões pagas vindas do Stripe, classificadas por área do produto.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {role === "admin" && (
               <>
-                <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>
+                <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet || !rangeValid || isFetching}>
                   {backfillingNet ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                   Buscar valor líquido
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleReapplyPriceMap} disabled={reapplying}>
+                <Button variant="outline" size="sm" onClick={handleReapplyPriceMap} disabled={reapplying || !rangeValid || isFetching}>
                   {reapplying ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
                   Reaplicar de-para
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing}>
+                <Button variant="outline" size="sm" onClick={handleReprocessReactivations} disabled={reprocessing || !rangeValid || isFetching}>
                   {reprocessing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
                   Reprocessar reativações
                 </Button>
@@ -654,7 +655,7 @@ export default function StripeConversions() {
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={!rows.length}>
+                <Button variant="outline" size="sm" disabled={!rows.length || !rangeValid || isFetching || !!queryError}>
                   <Download className="h-4 w-4 mr-2" /> Exportar
                 </Button>
               </DropdownMenuTrigger>
@@ -690,7 +691,7 @@ export default function StripeConversions() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-2">
-                  <input type="checkbox" checked={safraEnabled} onChange={e => setSafraEnabled(e.target.checked)} />
+                  <Checkbox checked={safraEnabled} onCheckedChange={v => setSafraEnabled(v === true)} />
                   Filtrar por safra (data de cadastro)
                 </Label>
                 {safraEnabled && (
@@ -736,13 +737,13 @@ export default function StripeConversions() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-2 mt-5">
-                  <input type="checkbox" checked={reactivationOnly} onChange={e => setReactivationOnly(e.target.checked)} />
+                  <Checkbox checked={reactivationOnly} onCheckedChange={v => setReactivationOnly(v === true)} />
                   Somente reativações
                 </Label>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs flex items-center gap-2 mt-5">
-                  <input type="checkbox" checked={couponOnly} onChange={e => setCouponOnly(e.target.checked)} />
+                  <Checkbox checked={couponOnly} onCheckedChange={v => setCouponOnly(v === true)} />
                   Somente com cupom
                 </Label>
               </div>
@@ -757,10 +758,19 @@ export default function StripeConversions() {
                 </Select>
               </div>
             </div>
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>{rangeValid ? `${fmtDate(`${period.start}T12:00:00-03:00`)} — ${fmtDate(`${period.end}T12:00:00-03:00`)}` : "Informe um intervalo de datas válido."}</span>
+              <Button variant="ghost" size="sm" onClick={resetFilters}><RotateCcw className="mr-2 h-4 w-4" />Limpar filtros</Button>
+            </div>
           </CardContent>
         </Card>
-
-
+        {!rangeValid && <p role="alert" className="text-sm text-destructive">Preencha datas válidas, com início anterior ou igual ao fim.</p>}
+        {queryError && <div role="alert" className="flex items-center gap-3 text-destructive"><AlertCircle className="h-4 w-4" /><span>Não foi possível carregar as conversões.</span><Button variant="outline" onClick={() => refetch()}>Tentar novamente</Button></div>}
+        {isFetching && <p role="status" className="flex gap-2 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />{isLoading ? "Carregando conversões…" : "Atualizando conversões…"}</p>}
+        {health.missingNet > 0 && <p className="text-sm text-muted-foreground">{health.missingNet} registro(s) sem MRR líquido; no modo líquido, essas assinaturas usam o bruto.</p>}
+        {stats.upsellCount > 0 && <p className="text-xs text-muted-foreground">Expansão e contração usam Δ MRR = MRR bruto − MRR anterior registrado. O seletor líquido/bruto aplica-se às assinaturas; não há líquido anterior para recalcular esses deltas.</p>}
+        {(typeFilter === "renewal" || typeFilter === "downgrade") && <p className="text-sm text-muted-foreground">{typeFilter === "renewal" ? "Renovações" : "Downgrades"} não representam acréscimo de MRR. Consulte o indicador próprio e o Detalhamento.</p>}
+        {!isLoading && !queryError && rangeValid && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum registro corresponde aos filtros selecionados.</p>}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-2">
@@ -770,14 +780,14 @@ export default function StripeConversions() {
 
           <TabsContent value="overview" className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold">{stats.total}</p><p className="text-[10px] text-muted-foreground">Nova venda + upsell (exclui renovação/downgrade)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">{mrrMode === "net" ? "MRR Líquido" : "MRR Bruto"}</p><p className="text-2xl font-bold">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Somente conversões</p></CardContent></Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{stats.total}</p><p className="text-[10px] text-muted-foreground">Nova venda + upsell (exclui renovação/downgrade)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Acréscimo de MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Novas/recuperações + incremento de upsell</p></CardContent></Card>
 
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR</p><p className="text-2xl font-bold">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Renovações</p><p className="text-2xl font-bold">{fmtBRL(stats.renewalMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.renewalCount} renovação(ões)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR (Δ bruto)</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR (Δ bruto)</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Renovações</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.renewalMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.renewalCount} renovação(ões)</p></CardContent></Card>
       </div>
 
       {/* Gráficos */}
@@ -788,7 +798,7 @@ export default function StripeConversions() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={byArea} dataKey="conversoes" nameKey="area" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label>
-                  {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
+                  {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(var(--muted-foreground))"} />)}
                 </Pie>
                 <Tooltip formatter={(v: any) => `${v} conversões`} />
                 <Legend />
@@ -797,7 +807,7 @@ export default function StripeConversions() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">MRR por Área</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Acréscimo de MRR por Área</CardTitle></CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byArea}>
@@ -806,7 +816,7 @@ export default function StripeConversions() {
                 <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                  <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
                  <Bar dataKey="mrr" radius={[6,6,0,0]}>
-                   {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(220 10% 60%)"} />)}
+                   {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(var(--muted-foreground))"} />)}
                  </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -815,7 +825,7 @@ export default function StripeConversions() {
       </div>
 
        <Card>
-         <CardHeader><CardTitle className="text-base">Evolução do {mrrMode === "net" ? "MRR líquido" : "MRR bruto"} no tempo (por área)</CardTitle></CardHeader>
+         <CardHeader><CardTitle className="text-base">Evolução do acréscimo de MRR por área</CardTitle></CardHeader>
          <CardContent className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={timeSeries}>
@@ -825,7 +835,7 @@ export default function StripeConversions() {
               <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
               <Legend />
               {visibleAreas.map(a => (
-                <Line key={a} type="monotone" dataKey={a} stroke={AREA_COLORS[a] || "hsl(220 10% 60%)"} strokeWidth={2} dot={{ r: 3 }} />
+                <Line key={a} type="monotone" dataKey={a} stroke={AREA_COLORS[a] || "hsl(var(--muted-foreground))"} strokeWidth={2} dot={{ r: 3 }} />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -833,7 +843,7 @@ export default function StripeConversions() {
       </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Conversão por Vendedor</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Acréscimo de MRR por Vendedor</CardTitle></CardHeader>
           <CardContent className="h-[300px]">
             {bySeller.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-12">Nenhuma conversão com vendedor atribuído no período.</p>
@@ -844,7 +854,7 @@ export default function StripeConversions() {
                   <XAxis type="number" tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
                   <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                  <Bar dataKey="mrr" radius={[0, 6, 6, 0]} fill="hsl(193 99% 44%)" />
+                  <Bar dataKey="mrr" radius={[0, 6, 6, 0]} fill="hsl(var(--chart-logo))" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -869,7 +879,7 @@ export default function StripeConversions() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">MRR por Plano</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Acréscimo de MRR por Plano</CardTitle></CardHeader>
             <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byPlan}>
@@ -889,7 +899,7 @@ export default function StripeConversions() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Vendas por Vendedor por Plano</CardTitle>
-            <CardDescription>Após novas vendas ({sellerPlanSales.length} combinações)</CardDescription>
+            <CardDescription>Apenas novas vendas ({sellerPlanSales.length} combinações)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
@@ -923,9 +933,9 @@ export default function StripeConversions() {
 
       <TabsContent value="detail" className="space-y-4">
         {health.missingNet > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-warning bg-muted px-4 py-3 text-sm text-foreground">
             <span>{health.missingNet} conversão(ões) sem valor líquido; o cálculo usa o MRR bruto nessas linhas.</span>
-            {role === "admin" && <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet}>Buscar valor líquido</Button>}
+            {role === "admin" && <Button variant="outline" size="sm" onClick={handleBackfillNetAmounts} disabled={backfillingNet || !rangeValid || isFetching}>Buscar valor líquido</Button>}
           </div>
         )}
 
@@ -960,7 +970,8 @@ export default function StripeConversions() {
                          <TableCell className="text-right">{fmtBRL(p.mrrBruto)}</TableCell>
                          <TableCell className="text-right">
                            {role === "admin" && (
-                             <Button variant="outline" size="sm" onClick={() => openNetEdit(p)}>
+                             <Button variant="outline" size="sm" disabled={isFetching || !rangeValid}
+                             onClick={() => openNetEdit(p)}>
                                <Pencil className="mr-1 h-3.5 w-3.5" /> Editar cadastro
                              </Button>
                            )}
@@ -987,45 +998,46 @@ export default function StripeConversions() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Detalhamento</CardTitle>
-            <CardDescription>{rows.length} conversões no período selecionado</CardDescription>
+            <CardDescription>{rows.length} registros filtrados · novas/upsells, renovações e downgrades conforme o filtro</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>1º Pagamento</TableHead>
+                    <TableHead>Data da operação</TableHead>
                     <TableHead>Cliente desde</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Área</TableHead>
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">MRR / Δ</TableHead>
+                    <TableHead className="text-right">MRR assinatura / Δ bruto</TableHead>
+                    <TableHead className="text-right">Acréscimo MRR</TableHead>
                     <TableHead className="text-right">Líquido</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && rows.length === 0 && (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Nenhuma conversão no período.</TableCell></TableRow>
                   )}
-                  {rows.slice(0, 500).map(r => (
+                  {rows.slice(detailPage * 50, (detailPage + 1) * 50).map(r => (
                     <TableRow key={r.id}>
                       <TableCell>{fmtDate(r.converted_at)}</TableCell>
                       <TableCell className="text-muted-foreground">{fmtDate(r.registered_at)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <Badge style={{ backgroundColor: TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new, color: "white" }}>
+                          <Badge className={TYPE_COLOR[r.conversion_type] || TYPE_COLOR.new}>
                             {TYPE_LABEL[r.conversion_type] || r.conversion_type}
                           </Badge>
                           {r.is_reactivation && (
                             <Badge
                               variant="outline"
-                              className="text-[10px] border-amber-500 text-amber-700"
+                              className="text-[10px] border-warning text-foreground"
                               title={r.previous_churn_at ? `Voltou após ${fmtDate(r.previous_churn_at)}` : "Cliente reativado"}
                             >
                               Reativação
@@ -1034,8 +1046,9 @@ export default function StripeConversions() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost" size="sm"
+                          disabled={role !== "admin"}
                           title="Clique para editar o price (área, oferta, plano, comissão)"
                           onClick={() => setAreaEdit({
                             conversion_id: r.id,
@@ -1045,15 +1058,14 @@ export default function StripeConversions() {
                             product_name: r.product_name,
                             plan_name: r.plan_name,
                           })}
-                          className="rounded-full transition-opacity hover:opacity-80"
+                          className="h-auto p-0"
                         >
                           <Badge
-                            style={{ backgroundColor: AREA_COLORS[r.area] || "hsl(220 10% 60%)", color: "white" }}
-                            className="cursor-pointer"
+                            variant="secondary" className="cursor-pointer"
                           >
                             {r.area}
                           </Badge>
-                        </button>
+                        </Button>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{r.product_name || "—"}</div>
@@ -1075,12 +1087,13 @@ export default function StripeConversions() {
                       <TableCell className="text-right font-medium">
                         <div>{fmtBRL(valueOf(r))}</div>
                         {r.conversion_type === "upsell" && (
-                          <div className="text-[10px] text-emerald-600">+{fmtBRL(Number(r.delta_mrr || 0))}</div>
+                          <div className="text-[10px] text-success">+{fmtBRL(Number(r.delta_mrr || 0))}</div>
                         )}
                         {r.conversion_type === "downgrade" && (
-                          <div className="text-[10px] text-red-600">{fmtBRL(Number(r.delta_mrr || 0))}</div>
+                          <div className="text-[10px] text-destructive">{fmtBRL(Number(r.delta_mrr || 0))}</div>
                         )}
                       </TableCell>
+                      <TableCell className="text-right font-medium">{fmtBRL(contributionOf(r))}</TableCell>
                       <TableCell className="text-right">
                         {r.mrr_net != null ? (
                           <div>
@@ -1093,7 +1106,7 @@ export default function StripeConversions() {
                             {r.coupon_id && (
                               <Badge
                                 variant="outline"
-                                className="mt-1 text-[9px] border-emerald-500 text-emerald-700"
+                                className="mt-1 text-[9px] border-success text-success"
                                 title={[
                                   r.coupon_name || r.coupon_id,
                                   r.coupon_percent_off ? `${r.coupon_percent_off}% off` : null,
@@ -1119,12 +1132,13 @@ export default function StripeConversions() {
                               customer_name={r.customer_email}
                               customer_email={r.customer_email}
                               mrr={r.mrr}
-                              onMapped={() => refetch()}
+                              onMapped={() => { void refreshPanel(); }}
                             />
                           )}
                           <Button
                             size="sm"
                             variant="outline"
+                            disabled={role !== "admin"}
                             onClick={() => setEditing({
                               conversion_id: r.id,
                               email: r.customer_email || "",
@@ -1162,9 +1176,11 @@ export default function StripeConversions() {
                   ))}
                 </TableBody>
               </Table>
-              {rows.length > 500 && (
-                <p className="text-xs text-muted-foreground mt-2 text-center">Exibindo as 500 conversões mais recentes. Exporte para ver todas.</p>
-              )}
+              {rows.length > 50 && <div className="mt-4 flex items-center justify-end gap-3">
+                <span className="text-xs text-muted-foreground">{detailPage * 50 + 1}–{Math.min((detailPage + 1) * 50, rows.length)} de {rows.length}</span>
+                <Button variant="outline" size="icon" title="Página anterior" disabled={detailPage === 0} onClick={() => setDetailPage(p => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" title="Próxima página" disabled={(detailPage + 1) * 50 >= rows.length} onClick={() => setDetailPage(p => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              </div>}
             </div>
           </CardContent>
         </Card>
@@ -1175,7 +1191,7 @@ export default function StripeConversions() {
           open={!!editing}
           onOpenChange={(o) => { if (!o) setEditing(null); }}
           conversion={editing}
-          onSaved={() => refetch()}
+          onSaved={() => { void refreshPanel(); }}
         />
 
         <EditPriceDialog
@@ -1183,11 +1199,7 @@ export default function StripeConversions() {
           onOpenChange={(o) => { if (!o) setAreaEdit(null); }}
           target={areaEdit}
           areas={areaOptions}
-          onSaved={() => {
-            refetch();
-            qc.invalidateQueries({ queryKey: ["price-map-areas"] });
-            qc.invalidateQueries({ queryKey: ["price-map-canonical"] });
-          }}
+          onSaved={() => { void refreshPanel(); }}
         />
 
         <Dialog open={!!netEdit} onOpenChange={(open) => { if (!open && !savingNet) setNetEdit(null); }}>
@@ -1210,11 +1222,12 @@ export default function StripeConversions() {
                 onChange={(e) => setNetEditValue(e.target.value)}
                 autoFocus
               />
+              {netEdit?.mapId && <Label className="flex items-center gap-2"><Checkbox checked={updatePriceReference} onCheckedChange={v => setUpdatePriceReference(v === true)} />Atualizar também a referência global deste price</Label>}
               {netEdit && <p className="text-xs text-muted-foreground">{netEdit.count} conversão(ões) · valor bruto total {fmtBRL(netEdit.mrrBruto)}</p>}
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setNetEdit(null)} disabled={savingNet}>Cancelar</Button>
-              <Button onClick={handleSaveNetMrr} disabled={savingNet}>{savingNet ? "Salvando..." : "Salvar no cadastro"}</Button>
+              <Button onClick={handleSaveNetMrr} disabled={savingNet || isFetching || !rangeValid}>{savingNet ? "Salvando..." : "Aplicar ao recorte"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

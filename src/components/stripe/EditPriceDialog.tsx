@@ -66,6 +66,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   const [applyAll, setApplyAll] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const options = Array.from(new Set([...(areas || []), ...DEFAULT_AREAS])).filter(Boolean);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -73,6 +74,8 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   useEffect(() => {
     if (!open || !target) return;
     let alive = true;
+    setLoadError(false);
+    setLoading(false);
     setApplyAll(!!target.price_id);
     setMapId(null);
     setForm({
@@ -82,16 +85,17 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
       plan_name: target.plan_name || "",
     });
     if (!target.price_id) return;
+    const priceId = target.price_id;
     setLoading(true);
     (async () => {
       const { data, error } = await supabase
         .from("commission_price_map")
         .select("id, area, offer_name, price_name, plan_name, payment_type, seller_label, mrr_override, requires_commission")
-        .eq("price_id", target.price_id!)
+        .eq("price_id", priceId)
         .maybeSingle();
       if (!alive) return;
       setLoading(false);
-      if (error) { toast.error("Não foi possível carregar o cadastro deste price"); return; }
+      if (error) { setLoadError(true); toast.error("Não foi possível carregar o cadastro deste price"); return; }
       if (!data) return;
       setMapId(data.id);
       setForm({
@@ -111,9 +115,9 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   if (!target) return null;
 
   async function handleSave() {
-    if (!target) return;
+    if (!target || loading || loadError) return;
     const mrrRaw = form.mrr_override.replace(",", ".").trim();
-    if (mrrRaw && Number.isNaN(Number(mrrRaw))) {
+    if (mrrRaw && (!Number.isFinite(Number(mrrRaw)) || Number(mrrRaw) < 0)) {
       toast.error("MRR de referência inválido");
       return;
     }
@@ -144,9 +148,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
         }
 
         if (applyAll) {
-          const convUpdate: { area: string; product_name?: string; plan_name?: string } = { area: form.area };
-          if (form.offer_name.trim()) convUpdate.product_name = form.offer_name.trim();
-          if (form.plan_name.trim()) convUpdate.plan_name = form.plan_name.trim();
+          const convUpdate = { area: form.area, product_name: form.offer_name.trim() || null, plan_name: form.plan_name.trim() || null };
           const { error, count } = await supabase
             .from("stripe_conversions")
             .update(convUpdate, { count: "exact" })
@@ -157,9 +159,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
           toast.success("Cadastro do price atualizado");
         }
       } else {
-        const convUpdate: { area: string; product_name?: string; plan_name?: string } = { area: form.area };
-        if (form.offer_name.trim()) convUpdate.product_name = form.offer_name.trim();
-        if (form.plan_name.trim()) convUpdate.plan_name = form.plan_name.trim();
+        const convUpdate = { area: form.area, product_name: form.offer_name.trim() || null, plan_name: form.plan_name.trim() || null };
         const { error } = await supabase
           .from("stripe_conversions")
           .update(convUpdate)
@@ -274,7 +274,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
+          <Button onClick={handleSave} disabled={saving || loading || loadError}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Salvar
           </Button>

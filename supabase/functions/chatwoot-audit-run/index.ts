@@ -231,6 +231,7 @@ Chame a tool register_audit obrigatoriamente.`;
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${LOVABLE_API_KEY}` },
     body: JSON.stringify({
       model,
+      ...(model === "openai/gpt-5.6-sol" ? { reasoning_effort: "none" } : {}),
       messages: [
         { role: "system", content: sys },
         { role: "user", content: `Transcrição do atendimento:\n\n${transcriptText}` },

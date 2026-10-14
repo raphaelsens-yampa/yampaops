@@ -19,11 +19,11 @@ import { Slider } from "@/components/ui/slider";
 import ReactMarkdown from "react-markdown";
 
 const MODELS = [
-  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (recomendado)" },
-  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (mais barato)" },
-  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (mais preciso)" },
-  { value: "openai/gpt-5-mini", label: "GPT-5 Mini" },
-  { value: "openai/gpt-5", label: "GPT-5 (premium)" },
+  { value: "google/gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+  { value: "google/gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite (econômico)" },
+  { value: "google/gemini-4-argon", label: "Gemini 4 Argon (avançado)" },
+  { value: "openai/gpt-5.4-mini", label: "GPT-5.4 Mini" },
+  { value: "openai/gpt-5.6-sol", label: "GPT-5.6 Sol (premium)" },
 ];
 
 function MarkdownEditor({ value, onChange, rows = 18 }: { value: string; onChange: (v: string) => void; rows?: number }) {

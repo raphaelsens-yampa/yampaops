@@ -30,6 +30,9 @@
     /* Chart: azul do logo Yampa (realizado) e azul claro suave (meta) */
     --chart-logo: 194 86% 59%;
     --chart-logo-soft: 191 100% 88%;
+    --chart-cx: 264 55% 48%;
+    --chart-partner: 280 50% 55%;
+    --chart-finance: 340 65% 50%;
 
 
     --destructive: 0 84% 60%;

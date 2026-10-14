@@ -1,4 +1,6 @@
 # Architecture decisions
+- Conversões por Área uses shared pure filter/date/contribution helpers and one paginated period dataset for cards, charts, details and exports, so every slice reconciles without adding full upsell subscription MRR to growth.
+- Audit AI model replacements preserve historical audit model identifiers; only current settings and selectable model references migrate, so past results remain traceable.
  
 - Sidebar subsections are declarative labels on navigation items, rendered after permission filtering so empty subsections stay hidden and collapsed navigation retains direct icons.
 

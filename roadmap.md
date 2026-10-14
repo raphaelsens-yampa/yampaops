@@ -15,3 +15,9 @@
 - [x] Seção própria no menu (grupo Sales) com Plano de MRR, Quotas e Cobertura de pipeline
 - [x] Validar números e fluxo de edição no preview com o usuário
 
+## Conversões por Área (14/10/2026)
+- [x] Corrigir filtros, datas, contribuição MRR e conciliação de gráficos/exports
+- [x] Corrigir paginação, atualização após edição, líquido em lote e apresentação
+- [x] Migrar modelos depreciados da Auditoria IA conforme aprovação
+- [x] Validar testes, dados reais e fluxos no navegador
+
