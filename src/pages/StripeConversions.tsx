@@ -1201,11 +1201,7 @@ export default function StripeConversions() {
           onOpenChange={(o) => { if (!o) setAreaEdit(null); }}
           target={areaEdit}
           areas={areaOptions}
-          onSaved={() => {
-            await refreshPanel();
-            qc.invalidateQueries({ queryKey: ["price-map-areas"] });
-            qc.invalidateQueries({ queryKey: ["price-map-canonical"] });
-          }}
+          onSaved={() => { void refreshPanel(); }}
         />
 
         <Dialog open={!!netEdit} onOpenChange={(open) => { if (!open && !savingNet) setNetEdit(null); }}>
