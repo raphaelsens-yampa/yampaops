@@ -29,8 +29,6 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from "recharts";
-import { format, startOfMonth, endOfMonth, subDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
@@ -49,7 +47,6 @@ const planColor = (name: string) => {
 
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtDate = (s: string | null) => s ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(s)) : "—";
-const toIso = (d: Date) => d.toISOString().slice(0, 10);
 
 // Mês (YYYY-MM) sempre no fuso America/Sao_Paulo
 const SP_MONTH_FMT = new Intl.DateTimeFormat("en-CA", {
@@ -171,7 +168,7 @@ export default function StripeConversions() {
     if (p !== "custom") setPeriod(presetRange(p));
   }
 
-  const { data: periodRows = [], isLoading, isFetching, isPlaceholderData, error: queryError, refetch } = useQuery({
+  const { data: periodRows = [], isLoading, isFetching, error: queryError, refetch } = useQuery({
     queryKey: ["stripe-conversions", period, safraEnabled, safra],
     enabled: rangeValid && (role === "admin" || role === "tatico"),
     placeholderData: keepPreviousData,
@@ -228,7 +225,7 @@ export default function StripeConversions() {
   });
 
   // De-para canônico (commission_price_map) para o painel de saúde
-  const { data: priceMap = {}, refetch: refetchPriceMap } = useQuery({
+  const { data: priceMap = {} } = useQuery({
     queryKey: ["price-map-canonical"],
     queryFn: async () => {
       const { data, error } = await fetchAllPaged<{ id: string; price_id: string; area: string | null; offer_name: string | null; plan_name: string | null; mrr_override: number | null }>(() => supabase.from("commission_price_map").select("id, price_id, area, offer_name, plan_name, mrr_override").order("id"));
@@ -538,7 +535,7 @@ export default function StripeConversions() {
 
   function exportCSV() {
     const data = rows.map(r => ({
-      Primeiro_Pagamento: fmtDate(r.converted_at),
+      Data_Operacao: fmtDate(r.converted_at),
       Cliente_Desde: fmtDate(r.registered_at),
       Tipo: TYPE_LABEL[r.conversion_type] || r.conversion_type,
       Area: r.area,
@@ -550,7 +547,7 @@ export default function StripeConversions() {
       MRR_Assinatura_Considerado: valueOf(r),
       Acrescimo_MRR: contributionOf(r),
       Vendedor: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id : "Sem vendedor",
-      Delta_MRR: Number(r.delta_mrr || 0),
+      Delta_MRR_Bruto: Number(r.delta_mrr || 0),
       Reativacao: r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -562,7 +559,7 @@ export default function StripeConversions() {
 
   function exportXLSX() {
     const data = rows.map(r => ({
-      "1º Pagamento": fmtDate(r.converted_at),
+      "Data da operação": fmtDate(r.converted_at),
       "Cliente desde": fmtDate(r.registered_at),
       "Tipo": TYPE_LABEL[r.conversion_type] || r.conversion_type,
       "Área": r.area,
@@ -574,7 +571,7 @@ export default function StripeConversions() {
       "MRR assinatura considerado (R$)": valueOf(r),
       "Acréscimo MRR (R$)": contributionOf(r),
       "Vendedor": r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id : "Sem vendedor",
-      "Δ MRR (R$)": Number(r.delta_mrr || 0),
+      "Δ MRR bruto (R$)": Number(r.delta_mrr || 0),
       "Reativação": r.is_reactivation ? "Sim" : "Não",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -599,7 +596,7 @@ export default function StripeConversions() {
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
-    doc.text(`Período: ${period.start} → ${period.end}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
+    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
     doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
@@ -613,7 +610,7 @@ export default function StripeConversions() {
     const startY = (doc as any).lastAutoTable?.finalY + 8 || 80;
     autoTable(doc, {
       startY,
-      head: [["1º Pagamento", "Cliente desde", "Tipo", "Área", "Produto", "Plano", "Email", "MRR assinatura", "Acréscimo MRR"]],
+      head: [["Data da operação", "Cliente desde", "Tipo", "Área", "Produto", "Plano", "Email", "MRR assinatura", "Acréscimo MRR"]],
       body: rows.map(r => [
         fmtDate(r.converted_at), fmtDate(r.registered_at), TYPE_LABEL[r.conversion_type] || r.conversion_type, r.area,
         r.product_name || "", r.plan_name || "", r.customer_email || "", fmtBRL(valueOf(r)), fmtBRL(contributionOf(r)),
@@ -771,7 +768,7 @@ export default function StripeConversions() {
         {queryError && <div role="alert" className="flex items-center gap-3 text-destructive"><AlertCircle className="h-4 w-4" /><span>Não foi possível carregar as conversões.</span><Button variant="outline" onClick={() => refetch()}>Tentar novamente</Button></div>}
         {isFetching && <p role="status" className="flex gap-2 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />{isLoading ? "Carregando conversões…" : "Atualizando conversões…"}</p>}
         {health.missingNet > 0 && <p className="text-sm text-muted-foreground">{health.missingNet} registro(s) sem MRR líquido; no modo líquido, essas assinaturas usam o bruto.</p>}
-        {stats.upsellCount > 0 && <p className="text-xs text-muted-foreground">Upsell usa a variação de MRR registrada. Não há MRR líquido anterior para recalcular a variação entre os modos.</p>}
+        {stats.upsellCount > 0 && <p className="text-xs text-muted-foreground">Expansão e contração usam Δ MRR = MRR bruto − MRR anterior registrado. O seletor líquido/bruto aplica-se às assinaturas; não há líquido anterior para recalcular esses deltas.</p>}
         {(typeFilter === "renewal" || typeFilter === "downgrade") && <p className="text-sm text-muted-foreground">{typeFilter === "renewal" ? "Renovações" : "Downgrades"} não representam acréscimo de MRR. Consulte o indicador próprio e o Detalhamento.</p>}
         {!isLoading && !queryError && rangeValid && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum registro corresponde aos filtros selecionados.</p>}
 
@@ -788,8 +785,8 @@ export default function StripeConversions() {
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Acréscimo de MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Novas/recuperações + incremento de upsell</p></CardContent></Card>
 
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR (Δ bruto)</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR (Δ bruto)</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Renovações</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.renewalMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.renewalCount} renovação(ões)</p></CardContent></Card>
       </div>
 
@@ -973,7 +970,8 @@ export default function StripeConversions() {
                          <TableCell className="text-right">{fmtBRL(p.mrrBruto)}</TableCell>
                          <TableCell className="text-right">
                            {role === "admin" && (
-                             <Button variant="outline" size="sm" onClick={() => openNetEdit(p)}>
+                             <Button variant="outline" size="sm" disabled={isFetching || !rangeValid}
+                             onClick={() => openNetEdit(p)}>
                                <Pencil className="mr-1 h-3.5 w-3.5" /> Editar cadastro
                              </Button>
                            )}
@@ -1014,7 +1012,7 @@ export default function StripeConversions() {
                     <TableHead>Produto / Plano</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Vendedor</TableHead>
-                    <TableHead className="text-right">MRR assinatura / Δ</TableHead>
+                    <TableHead className="text-right">MRR assinatura / Δ bruto</TableHead>
                     <TableHead className="text-right">Acréscimo MRR</TableHead>
                     <TableHead className="text-right">Líquido</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -1229,7 +1227,7 @@ export default function StripeConversions() {
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setNetEdit(null)} disabled={savingNet}>Cancelar</Button>
-              <Button onClick={handleSaveNetMrr} disabled={savingNet}>{savingNet ? "Salvando..." : "Aplicar ao recorte"}</Button>
+              <Button onClick={handleSaveNetMrr} disabled={savingNet || isFetching || !rangeValid}>{savingNet ? "Salvando..." : "Aplicar ao recorte"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
