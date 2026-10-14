@@ -208,8 +208,7 @@ Deno.serve(async (req) => {
         stripe_invoice_id: invoice.id,
         net_amount_source: "invoice",
       };
-      // Alinha mrr ao líquido quando temos o valor efetivo cobrado.
-      if (mrrNet != null && mrrNet > 0) updatePayload.mrr = mrrNet;
+      // Preserve gross subscription MRR; discounts belong exclusively in mrr_net.
 
       const { error: updErr } = await supabase
         .from("stripe_conversions")

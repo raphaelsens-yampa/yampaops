@@ -82,12 +82,13 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
       plan_name: target.plan_name || "",
     });
     if (!target.price_id) return;
+    const priceId = target.price_id;
     setLoading(true);
     (async () => {
       const { data, error } = await supabase
         .from("commission_price_map")
         .select("id, area, offer_name, price_name, plan_name, payment_type, seller_label, mrr_override, requires_commission")
-        .eq("price_id", target.price_id!)
+        .eq("price_id", priceId)
         .maybeSingle();
       if (!alive) return;
       setLoading(false);
@@ -113,7 +114,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   async function handleSave() {
     if (!target) return;
     const mrrRaw = form.mrr_override.replace(",", ".").trim();
-    if (mrrRaw && Number.isNaN(Number(mrrRaw))) {
+    if (mrrRaw && (!Number.isFinite(Number(mrrRaw)) || Number(mrrRaw) < 0)) {
       toast.error("MRR de referência inválido");
       return;
     }
@@ -144,9 +145,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
         }
 
         if (applyAll) {
-          const convUpdate: { area: string; product_name?: string; plan_name?: string } = { area: form.area };
-          if (form.offer_name.trim()) convUpdate.product_name = form.offer_name.trim();
-          if (form.plan_name.trim()) convUpdate.plan_name = form.plan_name.trim();
+          const convUpdate = { area: form.area, product_name: form.offer_name.trim() || null, plan_name: form.plan_name.trim() || null };
           const { error, count } = await supabase
             .from("stripe_conversions")
             .update(convUpdate, { count: "exact" })
@@ -157,9 +156,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
           toast.success("Cadastro do price atualizado");
         }
       } else {
-        const convUpdate: { area: string; product_name?: string; plan_name?: string } = { area: form.area };
-        if (form.offer_name.trim()) convUpdate.product_name = form.offer_name.trim();
-        if (form.plan_name.trim()) convUpdate.plan_name = form.plan_name.trim();
+        const convUpdate = { area: form.area, product_name: form.offer_name.trim() || null, plan_name: form.plan_name.trim() || null };
         const { error } = await supabase
           .from("stripe_conversions")
           .update(convUpdate)
