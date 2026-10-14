@@ -66,6 +66,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   const [applyAll, setApplyAll] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const options = Array.from(new Set([...(areas || []), ...DEFAULT_AREAS])).filter(Boolean);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -73,6 +74,8 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   useEffect(() => {
     if (!open || !target) return;
     let alive = true;
+    setLoadError(false);
+    setLoading(false);
     setApplyAll(!!target.price_id);
     setMapId(null);
     setForm({
@@ -92,7 +95,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
         .maybeSingle();
       if (!alive) return;
       setLoading(false);
-      if (error) { toast.error("Não foi possível carregar o cadastro deste price"); return; }
+      if (error) { setLoadError(true); toast.error("Não foi possível carregar o cadastro deste price"); return; }
       if (!data) return;
       setMapId(data.id);
       setForm({
@@ -112,7 +115,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
   if (!target) return null;
 
   async function handleSave() {
-    if (!target) return;
+    if (!target || loading || loadError) return;
     const mrrRaw = form.mrr_override.replace(",", ".").trim();
     if (mrrRaw && (!Number.isFinite(Number(mrrRaw)) || Number(mrrRaw) < 0)) {
       toast.error("MRR de referência inválido");
@@ -271,7 +274,7 @@ export function EditPriceDialog({ open, onOpenChange, target, areas, onSaved }: 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
+          <Button onClick={handleSave} disabled={saving || loading || loadError}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Salvar
           </Button>
