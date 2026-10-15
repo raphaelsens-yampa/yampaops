@@ -45,7 +45,7 @@ export function UnattributedSalesAlert({
       const [convRes, mapRes, areasRes] = await Promise.all([
         supabase
           .from("stripe_conversions")
-          .select("id, customer_email, plan_name, product_name, stripe_price_id, converted_at, mrr, mrr_net, assigned_seller_id")
+          .select("id, customer_email, plan_name, product_name, stripe_price_id, converted_at, mrr, mrr_net, assigned_seller_id, origem_cliente, attribution_source")
           .is("assigned_seller_id", null)
           .gte("converted_at", from.toISOString())
           .lte("converted_at", to.toISOString())
@@ -65,6 +65,8 @@ export function UnattributedSalesAlert({
 
       const list: Row[] = [];
       for (const c of (convRes.data as any[]) || []) {
+        // Vendas da parceria 4blue não existem no Stripe (sem price_id) — não são pendência do Mapa de Preços.
+        if (c.origem_cliente === "4blue" || c.attribution_source === "metabase_4blue") continue;
         const mrr = Number(c.mrr_net ?? c.mrr ?? 0);
         if (!(mrr > 0)) continue;
         const priceId = c.stripe_price_id ? String(c.stripe_price_id) : null;
