@@ -910,6 +910,7 @@ export default function StripeConversions() {
             formatQty={(v) => `${v}`}
             formatMrr={fmtBRL}
             defaultLabel="mrr"
+            labelOptions={["mrr", "pct"]}
             yTickFormat={(v) => `R$${(v / 1000).toFixed(0)}k`}
             storageKey="conversions.planMrrChart"
           />
