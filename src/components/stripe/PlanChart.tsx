@@ -76,9 +76,9 @@ export function PlanChart({
       labels.qty ? formatValue(Number(value)) : "",
       labels.pct ? pctText(Number(value), total) : "",
     ].filter(Boolean);
-    const rad = (Math.PI / 180) * midAngle;
-    const x = cx + Math.cos(rad) * outerRadius * 1.18;
-    const y = cy + Math.sin(rad) * outerRadius * 1.18;
+    const rad = (Math.PI / 180) * -midAngle;
+    const x = cx + Math.cos(rad) * (outerRadius + 18);
+    const y = cy + Math.sin(rad) * (outerRadius + 18);
     const anchor = midAngle > 90 && midAngle < 270 ? "end" : "start";
     return (
       <text x={x} y={y} textAnchor={anchor} className="fill-muted-foreground" fontSize={10}>
@@ -160,7 +160,7 @@ export function PlanChart({
                 outerRadius="72%"
                 paddingAngle={2}
                 label={pieLabel}
-                labelLine={false}
+                labelLine={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
                 isAnimationActive={false}
               >
 
