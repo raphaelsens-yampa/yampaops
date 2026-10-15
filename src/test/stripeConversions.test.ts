@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
+import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, planChartGroup, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
 const row: FilterableConversion = { conversion_type: "new", mrr: 399, mrr_net: 279, delta_mrr: 279, area: "Sales", assigned_seller_id: "leticia", is_reactivation: false, coupon_id: "coupon", customer_email: "cliente@exemplo.com" };
 const filters: ConversionFilters = { area: "all", type: "all", seller: "all", reactivationOnly: false, couponOnly: false, mode: "net", campaign: "all" };
 const campaignCtx: CampaignContext = { couponIds: new Set(["CAMP10"]), manualByEmail: new Map([["manual@exemplo.com", true], ["excluido@exemplo.com", false]]) };
