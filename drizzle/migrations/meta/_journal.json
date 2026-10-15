@@ -29,6 +29,13 @@
       "when": 1792000814889,
       "tag": "0003_cs_client_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792092561666,
+      "tag": "0004_stripe_conversions_origem_cliente",
+      "breakpoints": true
     }
   ]
 }
