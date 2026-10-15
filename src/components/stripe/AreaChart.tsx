@@ -129,9 +129,7 @@ export function AreaChart({
             <PieChart>
               <Tooltip formatter={(_, __, item) => {
                 const p = item?.payload as AreaPoint | undefined;
-                const q = p ? `${p.conversoes} conversões` : "";
-                const m = p ? ` · ${fmtOrFallback(formatMrr, p.mrr)}` : "";
-                return `${q}${labels === "pct" ? "" : m}`;
+                return p ? `${p.conversoes} conversões · ${(formatMrr ?? String)(p.mrr)}` : "";
               }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Pie
