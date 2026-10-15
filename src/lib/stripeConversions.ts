@@ -6,6 +6,8 @@ export interface ConversionValue {
   delta_mrr: number | null;
 }
 export type CampaignFilter = "all" | "campaign" | "non_campaign";
+/** Recorte por origem do cliente: todas, só 4blue ou sem 4blue (yampa + sem origem). */
+export type OriginCut = "all" | "4blue" | "non_4blue";
 
 export interface ConversionFilters {
   area: string;
@@ -16,6 +18,7 @@ export interface ConversionFilters {
   mode: MrrMode;
   campaign: CampaignFilter;
   campaignCtx?: CampaignContext;
+  origin: OriginCut;
 }
 
 /** Contexto de campanha: cupons marcados como campanha e marcações manuais por e-mail. */
@@ -51,6 +54,7 @@ export interface FilterableConversion extends ConversionValue {
   is_reactivation: boolean | null;
   coupon_id: string | null;
   customer_email: string | null;
+  origem_cliente?: string | null;
 }
 export function subscriptionMrr(row: ConversionValue, mode: MrrMode): number {
   return Number(mode === "net" ? row.mrr_net ?? row.mrr ?? 0 : row.mrr ?? 0);
