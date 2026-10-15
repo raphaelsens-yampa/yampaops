@@ -7,10 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export type ChartStyle = "bar" | "pie";
-export interface PlanPoint { plan: string; value: number; }
-interface Labels { qty: boolean; pct: boolean; }
+/** Métrica exibida nos rótulos: quantidade, MRR ou % do total do gráfico. */
+export type LabelMode = "qty" | "mrr" | "pct";
+export interface PlanPoint {
+  plan: string;
+  value: number;
+  /** MRR do plano, quando o gráfico é de quantidade. */
+  mrr?: number;
+  /** Quantidade de conversões, quando o gráfico é de MRR. */
+  conversoes?: number;
+}
 
-const DEFAULT_LABELS: Labels = { qty: true, pct: false };
+const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
 
 function readStyle(key: string): ChartStyle {
   try {
@@ -18,30 +26,40 @@ function readStyle(key: string): ChartStyle {
     return v === "pie" || v === "bar" ? v : "bar";
   } catch { return "bar"; }
 }
-function readLabels(key: string): Labels {
+function readLabelMode(key: string, fallback: LabelMode): LabelMode {
   try {
     const raw = localStorage.getItem(`${key}.labels`);
-    if (!raw) return DEFAULT_LABELS;
-    const parsed = JSON.parse(raw) as Partial<Labels>;
-    return { qty: parsed.qty ?? DEFAULT_LABELS.qty, pct: parsed.pct ?? DEFAULT_LABELS.pct };
-  } catch { return DEFAULT_LABELS; }
+    if (!raw) return fallback;
+    // Legado: objeto { qty, pct } das versões anteriores.
+    if (raw.trim().startsWith("{")) {
+      const parsed = JSON.parse(raw) as { qty?: boolean; pct?: boolean };
+      if (parsed.pct) return "pct";
+      if (parsed.qty) return "qty";
+      return fallback;
+    }
+    return (LABEL_MODES as string[]).includes(raw) ? (raw as LabelMode) : fallback;
+  } catch { return fallback; }
 }
 const pctText = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "";
 
-/** Gráfico de um plano: colunas ou pizza, com rótulos de valor e % opcionais. */
+/** Gráfico de um plano: colunas ou pizza, com rótulos de Quantidade, MRR ou %. */
 export function PlanChart({
-  title, data, colorOf, formatValue, storageKey, yTickFormat,
+  title, data, colorOf, formatValue, formatQty, formatMrr, defaultLabel = "qty",
+  storageKey, yTickFormat,
 }: {
   title: string;
   data: PlanPoint[];
   colorOf: (plan: string) => string;
   formatValue: (v: number) => string;
+  formatQty?: (v: number) => string;
+  formatMrr?: (v: number) => string;
+  defaultLabel?: LabelMode;
   storageKey: string;
   yTickFormat?: (v: number) => string;
 }) {
   const [style, setStyle] = useState<ChartStyle>(() => readStyle(storageKey));
-  const [labels, setLabels] = useState<Labels>(() => readLabels(storageKey));
+  const [labels, setLabels] = useState<LabelMode>(() => readLabelMode(storageKey, defaultLabel));
 
   const total = useMemo(() => data.reduce((s, d) => s + d.value, 0), [data]);
   const hasSlices = data.length > 0 && total > 0;
@@ -50,40 +68,39 @@ export function PlanChart({
     setStyle(next);
     try { localStorage.setItem(`${storageKey}.style`, next); } catch { /* armazenamento indisponível */ }
   };
-  const persistLabels = (next: Labels) => {
+  const persistLabels = (next: LabelMode) => {
     setLabels(next);
-    try { localStorage.setItem(`${storageKey}.labels`, JSON.stringify(next)); } catch { /* armazenamento indisponível */ }
+    try { localStorage.setItem(`${storageKey}.labels`, next); } catch { /* armazenamento indisponível */ }
+  };
+
+  const labelText = (entry: PlanPoint) => {
+    if (labels === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
+    if (labels === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
+    return pctText(entry.value, total);
   };
 
   const barLabel = (props: any) => {
-    const { x, y, width, value } = props;
-    if (!labels.qty && !labels.pct) return null;
-    const lines = [
-      labels.qty ? formatValue(Number(value)) : "",
-      labels.pct ? pctText(Number(value), total) : "",
-    ].filter(Boolean);
+    const { x, y, width, payload } = props;
+    const line = labelText(payload as PlanPoint);
+    if (!line) return null;
     return (
       <text x={x + width / 2} y={y - 6} textAnchor="middle" className="fill-muted-foreground" fontSize={10}>
-        {lines.map((line, i) => <tspan key={i} x={x + width / 2} dy={i === 0 ? 0 : 11}>{line}</tspan>)}
+        {line}
       </text>
     );
   };
 
   const pieLabel = (props: any) => {
-    const { cx, cy, midAngle, outerRadius, name, value, percent } = props;
-    if (!labels.qty && !labels.pct) return null;
-    const lines = [
-      labels.qty ? formatValue(Number(value)) : "",
-      labels.pct ? pctText(Number(value), total) : "",
-    ].filter(Boolean);
+    const { cx, cy, midAngle, outerRadius, name, payload } = props;
+    const line = labelText(payload as PlanPoint);
     const rad = (Math.PI / 180) * -midAngle;
     const x = cx + Math.cos(rad) * (outerRadius + 18);
     const y = cy + Math.sin(rad) * (outerRadius + 18);
     const anchor = midAngle > 90 && midAngle < 270 ? "end" : "start";
     return (
       <text x={x} y={y} textAnchor={anchor} className="fill-muted-foreground" fontSize={10}>
-        <tspan x={x} dy={lines.length > 1 ? -6 : 4} className="fill-foreground">{name}</tspan>
-        {lines.map((line, i) => <tspan key={i} x={x} dy={i === 0 ? 11 : 10}>{line}</tspan>)}
+        <tspan x={x} dy={line ? -6 : 4} className="fill-foreground">{String(name)}</tspan>
+        {line && <tspan x={x} dy={11} className="fill-muted-foreground">{line}</tspan>}
       </text>
     );
   };
@@ -104,24 +121,17 @@ export function PlanChart({
               <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
               <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
             </ToggleGroup>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-pressed={labels.qty}
-                onClick={() => persistLabels({ ...labels, qty: !labels.qty })}
-                className={`rounded-md border px-2 py-1 text-xs transition-colors ${labels.qty ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-              >
-                Quantidade
-              </button>
-              <button
-                type="button"
-                aria-pressed={labels.pct}
-                onClick={() => persistLabels({ ...labels, pct: !labels.pct })}
-                className={`rounded-md border px-2 py-1 text-xs transition-colors ${labels.pct ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-              >
-                %
-              </button>
-            </div>
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={labels}
+              onValueChange={(v: string) => v && persistLabels(v as LabelMode)}
+              className="rounded-md border border-border"
+            >
+              <ToggleGroupItem value="qty" className="text-xs">Quantidade</ToggleGroupItem>
+              <ToggleGroupItem value="mrr" className="text-xs">MRR</ToggleGroupItem>
+              <ToggleGroupItem value="pct" className="text-xs">%</ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
       </CardHeader>
@@ -132,14 +142,14 @@ export function PlanChart({
           </div>
         ) : style === "bar" ? (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: labels.qty || labels.pct ? 26 : 8, right: 8, left: 0, bottom: 0 }}>
+            <BarChart data={data} margin={{ top: 26, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="plan" tick={{ fontSize: 11 }} interval={0} angle={-30} height={70} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} tickFormatter={yTickFormat} />
               <Tooltip formatter={(v: any) => formatValue(Number(v))} />
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
-                {(labels.qty || labels.pct) && <LabelList dataKey="value" content={barLabel} />}
+                <LabelList dataKey="value" content={barLabel} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -147,7 +157,7 @@ export function PlanChart({
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Tooltip formatter={(v: any, name: any) => [
-                `${formatValue(Number(v))}${labels.pct ? ` (${pctText(Number(v), total)})` : ""}`,
+                `${formatValue(Number(v))}${labels === "pct" ? ` (${pctText(Number(v), total)})` : ""}`,
                 String(name),
               ]} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -163,7 +173,6 @@ export function PlanChart({
                 labelLine={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
                 isAnimationActive={false}
               >
-
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
               </Pie>
             </PieChart>
