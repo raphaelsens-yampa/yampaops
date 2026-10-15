@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         conversion_type: 'new',
         plan_name: c.plano,
         mrr: c.mrr,
-        area: 'Sales',
+        area: 'Parceria',
         origem_cliente: '4blue',
         attribution_source: 'metabase_4blue',
         stripe_event_id: c.eventId,
