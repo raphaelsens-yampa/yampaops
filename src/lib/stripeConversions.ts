@@ -5,6 +5,8 @@ export interface ConversionValue {
   mrr_net: number | null;
   delta_mrr: number | null;
 }
+export type CampaignFilter = "all" | "campaign" | "non_campaign";
+
 export interface ConversionFilters {
   area: string;
   type: string;
@@ -12,12 +14,34 @@ export interface ConversionFilters {
   reactivationOnly: boolean;
   couponOnly: boolean;
   mode: MrrMode;
+  campaign: CampaignFilter;
+  campaignCtx?: CampaignContext;
+}
+
+/** Contexto de campanha: cupons marcados como campanha e marcações manuais por e-mail. */
+export interface CampaignContext {
+  couponIds: Set<string>;
+  manualByEmail: Map<string, boolean>;
+}
+
+export function normalizeCampaignEmail(value: string | null | undefined): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+// A conversão é de campanha quando o cliente comprou com cupom marcado como
+// campanha. A marcação manual (Divergências de campanha) tem precedência:
+// qualquer link manual do e-mail decide, mesmo quando diz "não-campanha".
+export function isCampaignConversion(row: { coupon_id: string | null; customer_email: string | null }, ctx: CampaignContext): boolean {
+  const manual = ctx.manualByEmail.get(normalizeCampaignEmail(row.customer_email));
+  if (manual !== undefined) return manual;
+  return Boolean(row.coupon_id?.trim() && ctx.couponIds.has(row.coupon_id.trim()));
 }
 export interface FilterableConversion extends ConversionValue {
   area: string;
   assigned_seller_id: string | null;
   is_reactivation: boolean | null;
   coupon_id: string | null;
+  customer_email: string | null;
 }
 export function subscriptionMrr(row: ConversionValue, mode: MrrMode): number {
   return Number(mode === "net" ? row.mrr_net ?? row.mrr ?? 0 : row.mrr ?? 0);
@@ -29,13 +53,21 @@ export function addedMrr(row: ConversionValue, mode: MrrMode): number {
   if (row.conversion_type === "upsell") return Math.max(Number(row.delta_mrr ?? 0), 0);
   return 0;
 }
+function campaignApplies(row: FilterableConversion, filters: ConversionFilters): boolean {
+  if (filters.campaign === "all") return true;
+  if (!filters.campaignCtx) return true;
+  const isCampaign = isCampaignConversion(row, filters.campaignCtx);
+  return filters.campaign === "campaign" ? isCampaign : !isCampaign;
+}
+
 export function matchesConversion(row: FilterableConversion, filters: ConversionFilters): boolean {
   return subscriptionMrr(row, filters.mode) > 0
     && (filters.area === "all" || row.area === filters.area)
     && (filters.type === "all" || row.conversion_type === filters.type)
     && (filters.seller === "all" || (filters.seller === "none" ? !row.assigned_seller_id : row.assigned_seller_id === filters.seller))
     && (!filters.reactivationOnly || row.is_reactivation === true)
-    && (!filters.couponOnly || Boolean(row.coupon_id?.trim()));
+    && (!filters.couponOnly || Boolean(row.coupon_id?.trim()))
+    && campaignApplies(row, filters);
 }
 const SP_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
 export function dayKeySP(date: Date): string {

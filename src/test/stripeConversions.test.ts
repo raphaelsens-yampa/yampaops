@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, type FilterableConversion, type ConversionFilters } from "@/lib/stripeConversions";
-const row: FilterableConversion = { conversion_type: "new", mrr: 399, mrr_net: 279, delta_mrr: 279, area: "Sales", assigned_seller_id: "leticia", is_reactivation: false, coupon_id: "coupon" };
-const filters: ConversionFilters = { area: "all", type: "all", seller: "all", reactivationOnly: false, couponOnly: false, mode: "net" };
+import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
+const row: FilterableConversion = { conversion_type: "new", mrr: 399, mrr_net: 279, delta_mrr: 279, area: "Sales", assigned_seller_id: "leticia", is_reactivation: false, coupon_id: "coupon", customer_email: "cliente@exemplo.com" };
+const filters: ConversionFilters = { area: "all", type: "all", seller: "all", reactivationOnly: false, couponOnly: false, mode: "net", campaign: "all" };
+const campaignCtx: CampaignContext = { couponIds: new Set(["CAMP10"]), manualByEmail: new Map([["manual@exemplo.com", true], ["excluido@exemplo.com", false]]) };
 describe("Conversões por Área", () => {
   it("filtra vendedor específico", () => { expect(matchesConversion(row, { ...filters, seller: "eduarda" })).toBe(false); expect(matchesConversion(row, { ...filters, seller: "leticia" })).toBe(true); });
   it("filtra sem vendedor", () => { expect(matchesConversion(row, { ...filters, seller: "none" })).toBe(false); expect(matchesConversion({ ...row, assigned_seller_id: null }, { ...filters, seller: "none" })).toBe(true); });
@@ -16,4 +17,7 @@ describe("Conversões por Área", () => {
   it("presets usam dia São Paulo perto da virada UTC", () => expect(conversionPreset("ytd", new Date("2026-10-15T01:00:00Z")).end).toBe("2026-10-14"));
   it("limites incluem todo último dia no fuso São Paulo", () => expect(spRange({ start: "2026-09-01", end: "2026-09-30" })).toEqual({ from: "2026-09-01T00:00:00-03:00", to: "2026-09-30T23:59:59.999-03:00", until: "2026-10-01T00:00:00-03:00" }));
   it("rejeita datas vazias, impossíveis e invertidas", () => { expect(validDateRange({ start: "", end: "2026-10-01" })).toBe(false); expect(validDateRange({ start: "2026-02-30", end: "2026-10-01" })).toBe(false); expect(validDateRange({ start: "2026-10-02", end: "2026-10-01" })).toBe(false); });
+  it("cupom de campanha marca a conversão como campanha", () => { expect(isCampaignConversion({ ...row, coupon_id: "CAMP10" }, campaignCtx)).toBe(true); expect(isCampaignConversion({ ...row, coupon_id: "outro" }, campaignCtx)).toBe(false); });
+  it("marcação manual tem precedência sobre o cupom", () => { expect(isCampaignConversion({ ...row, customer_email: " manual@exemplo.com ", coupon_id: "outro" }, campaignCtx)).toBe(true); expect(isCampaignConversion({ ...row, customer_email: "excluido@exemplo.com", coupon_id: "CAMP10" }, campaignCtx)).toBe(false); });
+  it("filtro campanha isola entradas de campanha e a negação exclui só elas", () => { const camp = { ...row, coupon_id: "CAMP10" }; const fora = { ...row, coupon_id: "outro" }; expect(matchesConversion(camp, { ...filters, campaign: "campaign", campaignCtx })).toBe(true); expect(matchesConversion(fora, { ...filters, campaign: "campaign", campaignCtx })).toBe(false); expect(matchesConversion(camp, { ...filters, campaign: "non_campaign", campaignCtx })).toBe(false); expect(matchesConversion(fora, { ...filters, campaign: "non_campaign", campaignCtx })).toBe(true); });
 });
