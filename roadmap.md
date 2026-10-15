@@ -46,3 +46,4 @@
 
 ## Ranking de Vendedor (15/10/2026)
 - [ ] Toggle no card "Ranking de Vendedor" para ordenar por Quantidade ou MRR Produzido
+- [ ] Listar vendas com Vendedor "Sales" sem vendedor apropriado (assigned_seller_id null) para correção manual
