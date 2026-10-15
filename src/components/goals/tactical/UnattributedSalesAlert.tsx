@@ -45,7 +45,7 @@ export function UnattributedSalesAlert({
       const [convRes, mapRes, areasRes] = await Promise.all([
         supabase
           .from("stripe_conversions")
-          .select("id, customer_email, plan_name, product_name, stripe_price_id, converted_at, mrr, mrr_net, assigned_seller_id")
+          .select("id, customer_email, plan_name, product_name, stripe_price_id, converted_at, mrr, mrr_net, assigned_seller_id, origem_cliente, attribution_source")
           .is("assigned_seller_id", null)
           .gte("converted_at", from.toISOString())
           .lte("converted_at", to.toISOString())
