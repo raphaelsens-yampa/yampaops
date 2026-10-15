@@ -29,6 +29,9 @@
 - [ ] Incluir/retirar rótulos de quantidade e % na apresentação dos gráficos
 - [ ] Validar os novos estilos no navegador
 - [ ] Ranking de Vendedor abaixo da tabela de vendas por plano (nome, quantidade, MRR produzido)
+- [ ] "Sem Vendedor" assumir o nome da área como vendedor nos painéis
+- [ ] Listar vendas com área "desconhecida" para correção manual pelo usuário
+
 
 
 
