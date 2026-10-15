@@ -526,6 +526,14 @@ export default function StripeConversions() {
     return Array.from(map.values()).sort((a, b) => b.mrr - a.mrr);
   }, [convRows, mrrMode]);
 
+  // O gráfico de quantidade ordena pelas próprias conversões: um plano com MRR
+  // alto pode ter poucas conversões, e vice-versa.
+  const byPlanQty = useMemo(
+    () => [...byPlan].sort((a, b) => b.conversoes - a.conversoes || a.plan.localeCompare(b.plan, "pt-BR")),
+    [byPlan],
+  );
+
+
   const sellerPlanSales = useMemo(() => {
     const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
     for (const r of rows) {
@@ -893,13 +901,13 @@ export default function StripeConversions() {
             <CardHeader><CardTitle className="text-base">Conversões por Plano (quantidade)</CardTitle></CardHeader>
             <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byPlan}>
+                <BarChart data={byPlanQty}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="plan" tick={{ fontSize: 11 }} interval={0} angle={-30} height={70} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                   <Tooltip formatter={(v: any) => [`${v} conversões`, "Quantidade"]} />
                   <Bar dataKey="conversoes" radius={[6,6,0,0]}>
-                    {byPlan.map((e) => <Cell key={e.plan} fill={planColor(e.plan)} />)}
+                    {byPlanQty.map((e) => <Cell key={e.plan} fill={planColor(e.plan)} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
