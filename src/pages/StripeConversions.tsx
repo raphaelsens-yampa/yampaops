@@ -949,6 +949,40 @@ export default function StripeConversions() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Ranking de Vendedor</CardTitle>
+            <CardDescription>Conversões e MRR produzido por vendedor no período</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead className="text-right">Quantidade</TableHead>
+                    <TableHead className="text-right">MRR produzido</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bySeller.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhuma conversão no período selecionado.</TableCell></TableRow>
+                  )}
+                  {bySeller.map((s, i) => (
+                    <TableRow key={s.seller_id}>
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell className="text-right">{s.conversoes}</TableCell>
+                      <TableCell className="text-right">{fmtBRL(s.mrr)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="detail" className="space-y-4">
