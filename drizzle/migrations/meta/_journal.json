@@ -36,6 +36,13 @@
       "when": 1792092561666,
       "tag": "0004_stripe_conversions_origem_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792092654329,
+      "tag": "0005_schedule_stripe_4blue_sync",
+      "breakpoints": true
     }
   ]
 }
