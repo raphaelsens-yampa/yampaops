@@ -21,7 +21,7 @@ import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
 import { PlanChart } from "@/components/stripe/PlanChart";
 import { fetchAllPaged } from "@/lib/supabasePaged";
-import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
+import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
@@ -504,7 +504,7 @@ export default function StripeConversions() {
       const sellerId = r.assigned_seller_id || `area:${r.area}`;
       const cur = map.get(sellerId) || {
         seller_id: sellerId,
-        name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : r.area,
+        name: sellerLabelOf(r, sellersMap),
         conversoes: 0,
         mrr: 0,
       };
@@ -546,7 +546,7 @@ export default function StripeConversions() {
       const key = `${sellerId}-${plan}`;
       const cur = map.get(key) || {
         seller_id: sellerId,
-        seller_name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : r.area,
+        seller_name: sellerLabelOf(r, sellersMap),
         plan,
 
         quantidade: 0,
