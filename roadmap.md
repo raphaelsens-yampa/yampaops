@@ -47,3 +47,7 @@
 ## Ranking de Vendedor (15/10/2026)
 - [ ] Toggle no card "Ranking de Vendedor" para ordenar por Quantidade ou MRR Produzido
 - [ ] Listar vendas com Vendedor "Sales" sem vendedor apropriado (assigned_seller_id null) para correção manual
+- [x] Listar vendas com Vendedor "Sales" sem vendedor apropriado — 6 vendas listadas; usuário definiu: 1 Mariana Affonso, 2-5 Eduarda Nunes, 6 Leticia Calor
+- [ ] Atribuir assigned_seller_id nas 6 vendas conforme resposta do usuário
+- [ ] Investigar página em branco no preview do navegador (root vazio)
+- [ ] Validar toggles Quantidade/MRR/% dos gráficos e Quantidade/MRR do Ranking no navegador
