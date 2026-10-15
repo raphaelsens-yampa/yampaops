@@ -28,6 +28,15 @@ export function normalizeCampaignEmail(value: string | null | undefined): string
   return String(value ?? "").trim().toLowerCase();
 }
 
+// Nos gráficos por plano, qualquer plano de Time Financeiro ou BPO conta como
+// uma única categoria "Time Financeiro".
+export function planChartGroup(plan: string | null | undefined): string {
+  const name = String(plan ?? "").trim();
+  if (!name) return "Sem plano";
+  if (/time financeiro|bpo/i.test(name)) return "Time Financeiro";
+  return name;
+}
+
 // A conversão é de campanha quando o cliente comprou com cupom marcado como
 // campanha. A marcação manual (Divergências de campanha) tem precedência:
 // qualquer link manual do e-mail decide, mesmo quando diz "não-campanha".

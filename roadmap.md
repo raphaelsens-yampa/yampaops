@@ -17,6 +17,8 @@
 
 ## Conversões por Área (14/10/2026)
 - [x] Corrigir filtros, datas, contribuição MRR e conciliação de gráficos/exports
+- [x] Agrupar Time Financeiro e BPO como "Time Financeiro" nos gráficos por plano
+- [x] Renomear plano "+Controle À Vista" para "+Controle" nos registros
 - [x] Corrigir paginação, atualização após edição, líquido em lote e apresentação
 - [x] Migrar modelos depreciados da Auditoria IA conforme aprovação
 - [x] Validar testes, dados reais e fluxos no navegador
