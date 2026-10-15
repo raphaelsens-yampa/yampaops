@@ -899,16 +899,22 @@ export default function StripeConversions() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PlanChart
             title="Conversões por Plano (quantidade)"
-            data={byPlanQty.map((e) => ({ plan: e.plan, value: e.conversoes }))}
+            data={byPlanQty.map((e) => ({ plan: e.plan, value: e.conversoes, mrr: e.mrr, conversoes: e.conversoes }))}
             colorOf={planColor}
             formatValue={(v) => `${v} conversões`}
+            formatQty={(v) => `${v} conversões`}
+            formatMrr={fmtBRL}
+            defaultLabel="qty"
             storageKey="conversions.planQtyChart"
           />
           <PlanChart
             title="Acréscimo de MRR por Plano"
-            data={byPlan.map((e) => ({ plan: e.plan, value: e.mrr }))}
+            data={byPlan.map((e) => ({ plan: e.plan, value: e.mrr, mrr: e.mrr, conversoes: e.conversoes }))}
             colorOf={planColor}
             formatValue={fmtBRL}
+            formatQty={(v) => `${v}`}
+            formatMrr={fmtBRL}
+            defaultLabel="mrr"
             yTickFormat={(v) => `R$${(v / 1000).toFixed(0)}k`}
             storageKey="conversions.planMrrChart"
           />
