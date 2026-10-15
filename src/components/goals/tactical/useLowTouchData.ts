@@ -42,7 +42,7 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
         supabase.from("commission_price_map").select("price_id, seller_label"),
         supabase
           .from("stripe_conversions")
-          .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id")
+          .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id, conversion_type")
           .gte("converted_at", from.toISOString())
           .lte("converted_at", to.toISOString())
           .order("converted_at", { ascending: false }),
@@ -63,7 +63,9 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
       }
       for (const a of areaRows) labels.add(a.label);
 
+      // Só vendas novas contam como venda Low-touch: renovações e upsells não são vendas.
       const list: LowTouchSale[] = (convRes.data || [])
+        .filter((c: any) => c.conversion_type === "new")
         .map((c: any) => {
           const area = labelByPrice.get(String(c.stripe_price_id)) ?? "";
           const d = parseDateBR(c.converted_at);
@@ -79,6 +81,7 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
           };
         })
         .filter((r) => r.mrr > 0 && r.area && activeLabels.has(r.area));
+
 
       setAreas(areaRows);
       setAllLabels(Array.from(labels).sort((a, b) => a.localeCompare(b, "pt-BR")));
