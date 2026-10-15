@@ -20,7 +20,8 @@ import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
 import { fetchAllPaged } from "@/lib/supabasePaged";
-import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, type ConversionFilters } from "@/lib/stripeConversions";
+import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
+import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
@@ -132,6 +133,7 @@ export default function StripeConversions() {
   const [sellerFilter, setSellerFilter] = useState<string>("all"); // all | none
   const [reactivationOnly, setReactivationOnly] = useState(false);
   const [couponOnly, setCouponOnly] = useState(false);
+  const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
   const [reprocessing, setReprocessing] = useState(false);
   const [backfillingNet, setBackfillingNet] = useState(false);
   const [reapplying, setReapplying] = useState(false);
@@ -153,13 +155,13 @@ export default function StripeConversions() {
   const contributionOf = (r: Conversion) => addedMrr(r, mrrMode);
   const rangeValid = validDateRange(period) && (!safraEnabled || validDateRange(safra));
   const range = rangeValid ? spRange(period) : null;
-  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode };
+  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode, campaign: campaignFilter, campaignCtx };
   const refreshPanel = async () => {
     await Promise.all([qc.invalidateQueries({ queryKey: ["stripe-conversions"] }), qc.invalidateQueries({ queryKey: ["price-map-areas"] }), qc.invalidateQueries({ queryKey: ["price-map-canonical"] })]);
   };
   function resetFilters() {
     setPeriodPreset("last_90"); setPeriod(presetRange("last_90")); setSafraEnabled(false); setSafra(presetRange("ytd"));
-    setAreaFilter("all"); setTypeFilter("all"); setSellerFilter("all"); setReactivationOnly(false); setCouponOnly(false); setMrrMode("net");
+    setAreaFilter("all"); setTypeFilter("all"); setSellerFilter("all"); setReactivationOnly(false); setCouponOnly(false); setMrrMode("net"); setCampaignFilter("all");
   }
 
 
@@ -197,8 +199,26 @@ export default function StripeConversions() {
 
   });
 
-  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, filters)), [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode]);
-  useEffect(() => { setDetailPage(0); }, [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode]);
+  // Contexto de campanha: cupons marcados como campanha + marcações manuais (precedência)
+  const { data: campaignCtx } = useQuery({
+    queryKey: ["campaign-ctx-for-stripe-conv"],
+    queryFn: async (): Promise<CampaignContext> => {
+      const [couponIds, links] = await Promise.all([
+        fetchCampaignCouponIds(),
+        fetchAllPaged<{ email_norm: string; is_campaign: boolean }>(() => supabase.from("tactical_campaign_manual_links").select("email_norm, is_campaign").order("email_norm")),
+      ]);
+      const manualByEmail = new Map<string, boolean>();
+      (links.data || []).forEach((l) => {
+        const email = String(l.email_norm ?? "").trim().toLowerCase();
+        if (!email) return;
+        manualByEmail.set(email, manualByEmail.get(email) === true ? true : Boolean(l.is_campaign));
+      });
+      return { couponIds, manualByEmail };
+    },
+  });
+
+  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, filters)), [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode, campaignFilter, campaignCtx]);
+  useEffect(() => { setDetailPage(0); }, [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode, campaignFilter, campaignCtx]);
 
   const { data: mappedAreaOptions = [] } = useQuery({
     queryKey: ["price-map-areas"],
