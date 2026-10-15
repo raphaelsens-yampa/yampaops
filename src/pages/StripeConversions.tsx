@@ -899,7 +899,7 @@ export default function StripeConversions() {
             formatQty={(v) => `${v} conversões`}
             formatMrr={fmtBRL}
             defaultLabel="qty"
-            labelOptions={["qty", "pct"]}
+            labelOptions={["qty", "pct", "both"]}
             storageKey="conversions.planQtyChart"
           />
           <PlanChart
@@ -910,7 +910,7 @@ export default function StripeConversions() {
             formatQty={(v) => `${v}`}
             formatMrr={fmtBRL}
             defaultLabel="mrr"
-            labelOptions={["mrr", "pct"]}
+            labelOptions={["mrr", "pct", "both"]}
             yTickFormat={(v) => `R$${(v / 1000).toFixed(0)}k`}
             storageKey="conversions.planMrrChart"
           />
