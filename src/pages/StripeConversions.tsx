@@ -959,7 +959,19 @@ export default function StripeConversions() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Ranking de Vendedor</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-base">Ranking de Vendedor</CardTitle>
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={sellerRankSort}
+                onValueChange={(v: string) => v && setSellerRankSort(v as "mrr" | "qty")}
+                className="rounded-md border border-border"
+              >
+                <ToggleGroupItem value="mrr" className="text-xs">MRR produzido</ToggleGroupItem>
+                <ToggleGroupItem value="qty" className="text-xs">Quantidade</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
             <CardDescription>Conversões e MRR produzido por vendedor no período</CardDescription>
           </CardHeader>
           <CardContent>
@@ -977,7 +989,9 @@ export default function StripeConversions() {
                   {bySeller.length === 0 && (
                     <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhuma conversão no período selecionado.</TableCell></TableRow>
                   )}
-                  {bySeller.map((s, i) => (
+                  {[...bySeller]
+                    .sort((a, b) => sellerRankSort === "qty" ? b.conversoes - a.conversoes : b.mrr - a.mrr)
+                    .map((s, i) => (
                     <TableRow key={s.seller_id}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-medium">{s.name}</TableCell>
