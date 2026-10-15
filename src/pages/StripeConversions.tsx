@@ -20,7 +20,7 @@ import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
 import { fetchAllPaged } from "@/lib/supabasePaged";
-import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
+import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
@@ -517,7 +517,7 @@ export default function StripeConversions() {
   const byPlan = useMemo(() => {
     const map = new Map<string, { plan: string; conversoes: number; mrr: number }>();
     for (const r of convRows) {
-      const plan = r.plan_name?.trim() || "Sem plano";
+      const plan = planChartGroup(r.plan_name);
       const cur = map.get(plan) || { plan, conversoes: 0, mrr: 0 };
       cur.conversoes += 1;
       cur.mrr += contributionOf(r);
