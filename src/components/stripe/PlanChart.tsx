@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export type ChartStyle = "bar" | "pie";
-/** Métrica exibida nos rótulos: quantidade, MRR ou % do total do gráfico. */
-export type LabelMode = "qty" | "mrr" | "pct";
+/** Métrica exibida nos rótulos: quantidade, MRR, % do total ou ambos (valor fora + % dentro). */
+export type LabelMode = "qty" | "mrr" | "pct" | "both";
 export interface PlanPoint {
   plan: string;
   value: number;
@@ -18,7 +18,7 @@ export interface PlanPoint {
   conversoes?: number;
 }
 
-const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
+const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct", "both"];
 
 function readStyle(key: string): ChartStyle {
   try {
@@ -44,6 +44,13 @@ function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]):
 }
 const pctText = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "";
+
+const MODE_LABEL: Record<LabelMode, string> = {
+  qty: "Quantidade",
+  mrr: "MRR",
+  pct: "%",
+  both: "Ambos",
+};
 
 /** Gráfico de um plano: colunas ou pizza; rótulos alternáveis conforme `labelOptions`. */
 export function PlanChart({
@@ -77,9 +84,11 @@ export function PlanChart({
     try { localStorage.setItem(`${storageKey}.labels`, next); } catch { /* armazenamento indisponível */ }
   };
 
-  const labelText = (entry: PlanPoint) => {
-    if (labels === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
-    if (labels === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
+  /** Valor externo: no modo "both" usa a métrica principal do gráfico (qty ou mrr). */
+  const valueText = (entry: PlanPoint) => {
+    const mode = labels === "both" ? defaultLabel : labels;
+    if (mode === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
+    if (mode === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
     return pctText(entry.value, total);
   };
 
@@ -91,14 +100,27 @@ export function PlanChart({
     return undefined;
   };
 
-  const barLabel = (props: any) => {
+  const barLabelOutside = (props: any) => {
     const { x, y, width } = props;
     const entry = entryOf(props);
     if (!entry) return null;
-    const line = labelText(entry);
+    const line = valueText(entry);
     if (!line) return null;
     return (
       <text x={x + width / 2} y={y - 6} textAnchor="middle" className="fill-muted-foreground" fontSize={10}>
+        {line}
+      </text>
+    );
+  };
+
+  const barLabelInside = (props: any) => {
+    const { x, y, width, height } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = pctText(entry.value, total);
+    if (!line || height < 18) return null;
+    return (
+      <text x={x + width / 2} y={y + height / 2 + 3} textAnchor="middle" className="fill-background" fontSize={10}>
         {line}
       </text>
     );
@@ -108,7 +130,7 @@ export function PlanChart({
     const { cx, cy, midAngle, outerRadius, name } = props;
     const entry = entryOf(props);
     if (!entry) return null;
-    const line = labelText(entry);
+    const line = valueText(entry);
     const rad = (Math.PI / 180) * -midAngle;
     const x = cx + Math.cos(rad) * (outerRadius + 18);
     const y = cy + Math.sin(rad) * (outerRadius + 18);
@@ -120,6 +142,26 @@ export function PlanChart({
       </text>
     );
   };
+
+  // Rótulo interno: renderizado por um segundo Pie invisível sobreposto,
+  // pois LabelList dentro de Pie não entrega as coordenadas da fatia.
+  const pieLabelInside = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    if (entry.value / total < 0.05) return null; // fatia pequena demais para rótulo interno
+    const rad = (Math.PI / 180) * -midAngle;
+    const r = (innerRadius + outerRadius) / 2;
+    const x = cx + Math.cos(rad) * r;
+    const y = cy + Math.sin(rad) * r;
+    return (
+      <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-background" fontSize={10}>
+        {pctText(entry.value, total)}
+      </text>
+    );
+  };
+
+  const both = labels === "both";
 
   return (
     <Card>
@@ -147,7 +189,7 @@ export function PlanChart({
               >
                 {labelOptions.map((m) => (
                   <ToggleGroupItem key={m} value={m} className="px-2.5 text-xs">
-                    {m === "qty" ? "Quantidade" : m === "mrr" ? "MRR" : "%"}
+                    {MODE_LABEL[m]}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -169,7 +211,8 @@ export function PlanChart({
               <Tooltip formatter={(v: any) => `${formatValue(Number(v))} (${pctText(Number(v), total)})`} />
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
-                <LabelList dataKey="value" content={barLabel} />
+                <LabelList dataKey="value" content={barLabelOutside} />
+                {both && <LabelList dataKey="value" content={barLabelInside} />}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -195,6 +238,23 @@ export function PlanChart({
               >
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
               </Pie>
+              {both && (
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="plan"
+                  cx="50%"
+                  cy="45%"
+                  outerRadius="72%"
+                  paddingAngle={2}
+                  label={pieLabelInside}
+                  labelLine={false}
+                  isAnimationActive={false}
+                  stroke="none"
+                >
+                  {data.map((e) => <Cell key={e.plan} fill="transparent" stroke="none" />)}
+                </Pie>
+              )}
             </PieChart>
           </ResponsiveContainer>
         )}

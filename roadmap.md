@@ -51,3 +51,7 @@
 - [x] Atribuir assigned_seller_id nas vendas conforme resposta do usuário
 - [x] Corrigir página em branco: rótulos dos gráficos liam payload indefinido do recharts e derrubavam a página (agora usam índice da série)
 - [x] Validar no navegador: toggles Quantidade/MRR/% nos dois gráficos (colunas e pizza), ranking por Quantidade (Eduarda 108 em 1º) e por MRR (Leticia 1º), sem erros de página
+
+## Conversões por Área — toggle "Ambos" e confirmação de unicidade (15/10/2026)
+- [x] Toggle "Ambos" nos gráficos por Plano (valor fora + % dentro, em colunas e pizza)
+- [x] Confirmar que cada conversão conta apenas no mês de `converted_at` (sem duplicidade por evento ou assinatura)
