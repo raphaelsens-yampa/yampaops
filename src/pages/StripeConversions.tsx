@@ -892,7 +892,7 @@ export default function StripeConversions() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PlanChart
-            title="Conversões por Plano (quantidade)"
+            title="Conversões por Plano"
             data={byPlanQty.map((e) => ({ plan: e.plan, value: e.conversoes, mrr: e.mrr, conversoes: e.conversoes }))}
             colorOf={planColor}
             formatValue={(v) => `${v} conversões`}
