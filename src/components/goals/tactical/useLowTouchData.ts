@@ -20,7 +20,7 @@ export interface LowTouchArea {
   is_active: boolean;
 }
 
-interface RawConversion {
+export interface RawConversion {
   id: string;
   customer_email: string | null;
   plan_name: string | null;
