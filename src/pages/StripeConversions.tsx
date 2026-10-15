@@ -899,6 +899,7 @@ export default function StripeConversions() {
             formatQty={(v) => `${v} conversões`}
             formatMrr={fmtBRL}
             defaultLabel="qty"
+            labelOptions={["qty", "pct"]}
             storageKey="conversions.planQtyChart"
           />
           <PlanChart
