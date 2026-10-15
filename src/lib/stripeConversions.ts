@@ -87,6 +87,14 @@ export function sellerLabelOf(row: { assigned_seller_id: string | null; area: st
   return row.assigned_seller_id ? sellersMap[row.assigned_seller_id] || row.assigned_seller_id.slice(0, 8) : row.area;
 }
 
+// "Sem 4blue" inclui yampa e conversões sem origem identificada; "Só 4blue"
+// exige a marcação explícita, então as fatias sempre somam o total geral.
+export function matchesOriginCut(row: FilterableConversion, origin: OriginCut): boolean {
+  if (origin === "all") return true;
+  const is4blue = String(row.origem_cliente ?? "").trim().toLowerCase() === "4blue";
+  return origin === "4blue" ? is4blue : !is4blue;
+}
+
 export function matchesConversion(row: FilterableConversion, filters: ConversionFilters): boolean {
   return subscriptionMrr(row, filters.mode) > 0
     && (filters.area === "all" || row.area === filters.area)
@@ -94,7 +102,8 @@ export function matchesConversion(row: FilterableConversion, filters: Conversion
     && (filters.seller === "all" || (filters.seller === "none" ? !row.assigned_seller_id : row.assigned_seller_id === filters.seller))
     && (!filters.reactivationOnly || row.is_reactivation === true)
     && (!filters.couponOnly || Boolean(row.coupon_id?.trim()))
-    && campaignApplies(row, filters);
+    && campaignApplies(row, filters)
+    && matchesOriginCut(row, filters.origin);
 }
 const SP_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
 export function dayKeySP(date: Date): string {
