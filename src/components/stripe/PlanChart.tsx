@@ -18,19 +18,37 @@ export interface PlanPoint {
   conversoes?: number;
 }
 
+const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
+
 function readStyle(key: string): ChartStyle {
   try {
     const v = localStorage.getItem(`${key}.style`);
     return v === "pie" || v === "bar" ? v : "bar";
   } catch { return "bar"; }
 }
+function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]): LabelMode {
+  try {
+    const raw = localStorage.getItem(`${key}.labels`);
+    if (!raw) return fallback;
+    // Legado: objeto { qty, pct } das versões anteriores.
+    if (raw.trim().startsWith("{")) {
+      const parsed = JSON.parse(raw) as { qty?: boolean; pct?: boolean };
+      if (parsed.pct) return "pct";
+      if (parsed.qty) return "qty";
+      return fallback;
+    }
+    const mode = (LABEL_MODES as string[]).includes(raw) ? (raw as LabelMode) : fallback;
+    if (allowed && !allowed.includes(mode)) return fallback;
+    return mode;
+  } catch { return fallback; }
+}
 const pctText = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "";
 
-/** Gráfico de um plano: colunas ou pizza, com rótulos fixos definidos pelo chamador. */
+/** Gráfico de um plano: colunas ou pizza; rótulos alternáveis conforme `labelOptions`. */
 export function PlanChart({
   title, data, colorOf, formatValue, formatQty, formatMrr, defaultLabel = "qty",
-  storageKey, yTickFormat,
+  storageKey, yTickFormat, labelOptions,
 }: {
   title: string;
   data: PlanPoint[];
@@ -41,8 +59,11 @@ export function PlanChart({
   defaultLabel?: LabelMode;
   storageKey: string;
   yTickFormat?: (v: number) => string;
+  /** Métricas oferecidas no seletor de rótulos; ausente/vazio = sem seletor. */
+  labelOptions?: LabelMode[];
 }) {
   const [style, setStyle] = useState<ChartStyle>(() => readStyle(storageKey));
+  const [labels, setLabels] = useState<LabelMode>(() => readLabelMode(storageKey, defaultLabel, labelOptions));
 
   const total = useMemo(() => data.reduce((s, d) => s + d.value, 0), [data]);
   const hasSlices = data.length > 0 && total > 0;
@@ -51,10 +72,14 @@ export function PlanChart({
     setStyle(next);
     try { localStorage.setItem(`${storageKey}.style`, next); } catch { /* armazenamento indisponível */ }
   };
+  const persistLabels = (next: LabelMode) => {
+    setLabels(next);
+    try { localStorage.setItem(`${storageKey}.labels`, next); } catch { /* armazenamento indisponível */ }
+  };
 
   const labelText = (entry: PlanPoint) => {
-    if (defaultLabel === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
-    if (defaultLabel === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
+    if (labels === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
+    if (labels === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
     return pctText(entry.value, total);
   };
 
@@ -101,16 +126,33 @@ export function PlanChart({
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={style}
-            onValueChange={(v: ChartStyle) => v && persistStyle(v)}
-            className="rounded-md border border-border"
-          >
-            <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
-            <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
-          </ToggleGroup>
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={style}
+              onValueChange={(v: ChartStyle) => v && persistStyle(v)}
+              className="rounded-md border border-border"
+            >
+              <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
+              <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
+            </ToggleGroup>
+            {labelOptions && labelOptions.length > 0 && (
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={labels}
+                onValueChange={(v: string) => v && persistLabels(v as LabelMode)}
+                className="rounded-md border border-border"
+              >
+                {labelOptions.map((m) => (
+                  <ToggleGroupItem key={m} value={m} className="text-xs">
+                    {m === "qty" ? "Quantidade" : m === "mrr" ? "MRR" : "%"}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="h-[320px]">
