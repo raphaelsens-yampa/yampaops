@@ -72,7 +72,7 @@ function campaignApplies(row: FilterableConversion, filters: ConversionFilters):
 export function matchesConversion(row: FilterableConversion, filters: ConversionFilters): boolean {
   return subscriptionMrr(row, filters.mode) > 0
     && (filters.area === "all" || row.area === filters.area)
-    && (filters.type === "all" || row.conversion_type === filters.type)
+    && (filters.type === "all" || (filters.type === "reactivation" ? row.is_reactivation === true : row.conversion_type === filters.type))
     && (filters.seller === "all" || (filters.seller === "none" ? !row.assigned_seller_id : row.assigned_seller_id === filters.seller))
     && (!filters.reactivationOnly || row.is_reactivation === true)
     && (!filters.couponOnly || Boolean(row.coupon_id?.trim()))
