@@ -227,12 +227,11 @@ export default function StripeConversions() {
       const { data, error } = await fetchAllPaged<{ area: string | null }>(() => supabase.from("commission_price_map").select("area").not("area", "is", null).order("id"));
       if (error) throw error;
       const set = new Set<string>((data || []).map((r: any) => r.area).filter(Boolean));
-      set.add("desconhecida");
       return Array.from(set).sort();
     },
   });
 
-  const areaOptions = useMemo(() => Array.from(new Set([...mappedAreaOptions, ...periodRows.map(r => r.area).filter(Boolean), "desconhecida"])).sort(), [mappedAreaOptions, periodRows]);
+  const areaOptions = useMemo(() => Array.from(new Set([...mappedAreaOptions, ...periodRows.map(r => r.area).filter(Boolean)])).sort(), [mappedAreaOptions, periodRows]);
 
   const { data: sellersMap = {} } = useQuery({
     queryKey: ["profiles-map-for-stripe-conv"],
