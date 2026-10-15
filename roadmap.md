@@ -23,19 +23,20 @@
 - [x] Migrar modelos depreciados da Auditoria IA conforme aprovação
 - [x] Validar testes, dados reais e fluxos no navegador
 
-## Gráficos por Plano (15/10/2026)
+## Conversões por Área — gráficos, cards e ranking (15/10/2026)
 - [x] Ordenar "Conversões por Plano (quantidade)" do maior para o menor, independente do gráfico de MRR
-- [ ] Alternar estilo coluna/pizza nos dois gráficos por plano
-- [ ] Incluir/retirar rótulos de quantidade e % na apresentação dos gráficos
-- [ ] Validar os novos estilos no navegador
-- [ ] Ranking de Vendedor abaixo da tabela de vendas por plano (nome, quantidade, MRR produzido)
-- [ ] "Sem Vendedor" assumir o nome da área como vendedor nos painéis
-- [ ] Listar vendas com área "desconhecida" para correção manual pelo usuário
-- [ ] Remover cards Contração MRR e Renovações; excluir downgrade/renovação de MRR e quantidades
-- [ ] Card Conversões = Novas Vendas + Recuperados + Upsell; card Nova Venda → "New MRR" (Novas + Recuperados)
-- [ ] Reorganizar os 4 cards restantes em uma linha
-- [ ] Corrigir rótulos (quantidade/%) que não aparecem no modo pizza
-- [ ] Filtro de Tipo: remover Downgrade e Renovação e incluir Recuperação
+- [x] Alternar estilo coluna/pizza nos dois gráficos por plano
+- [x] Incluir/retirar rótulos de quantidade e % na apresentação dos gráficos
+- [x] Validar os novos estilos no navegador
+- [x] Ranking de Vendedor abaixo da tabela de vendas por plano (nome, quantidade, MRR produzido)
+- [x] "Sem Vendedor" assumir o nome da área como vendedor nos painéis
+- [x] Listar vendas com área "desconhecida" para correção manual pelo usuário
+- [x] Remover cards Contração MRR e Renovações; excluir downgrade/renovação de MRR e quantidades
+- [x] Card Conversões = Novas Vendas + Recuperados + Upsell; card Nova Venda → "New MRR" (Novas + Recuperados)
+- [x] Reorganizar os 4 cards restantes em uma linha
+- [x] Corrigir rótulos (quantidade/%) que não aparecem no modo pizza
+- [x] Filtro de Tipo: remover Downgrade e Renovação e incluir Recuperação
+
 
 
 
