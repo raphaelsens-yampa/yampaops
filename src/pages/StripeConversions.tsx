@@ -24,6 +24,7 @@ import { fetchAllPaged } from "@/lib/supabasePaged";
 import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 
