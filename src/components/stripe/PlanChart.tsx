@@ -126,16 +126,33 @@ export function PlanChart({
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={style}
-            onValueChange={(v: ChartStyle) => v && persistStyle(v)}
-            className="rounded-md border border-border"
-          >
-            <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
-            <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
-          </ToggleGroup>
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={style}
+              onValueChange={(v: ChartStyle) => v && persistStyle(v)}
+              className="rounded-md border border-border"
+            >
+              <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
+              <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
+            </ToggleGroup>
+            {labelOptions && labelOptions.length > 0 && (
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={labels}
+                onValueChange={(v: string) => v && persistLabels(v as LabelMode)}
+                className="rounded-md border border-border"
+              >
+                {labelOptions.map((m) => (
+                  <ToggleGroupItem key={m} value={m} className="text-xs">
+                    {m === "qty" ? "Quantidade" : m === "mrr" ? "MRR" : "%"}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="h-[320px]">
