@@ -18,11 +18,29 @@ export interface PlanPoint {
   conversoes?: number;
 }
 
+const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
+
 function readStyle(key: string): ChartStyle {
   try {
     const v = localStorage.getItem(`${key}.style`);
     return v === "pie" || v === "bar" ? v : "bar";
   } catch { return "bar"; }
+}
+function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]): LabelMode {
+  try {
+    const raw = localStorage.getItem(`${key}.labels`);
+    if (!raw) return fallback;
+    // Legado: objeto { qty, pct } das versões anteriores.
+    if (raw.trim().startsWith("{")) {
+      const parsed = JSON.parse(raw) as { qty?: boolean; pct?: boolean };
+      if (parsed.pct) return "pct";
+      if (parsed.qty) return "qty";
+      return fallback;
+    }
+    const mode = (LABEL_MODES as string[]).includes(raw) ? (raw as LabelMode) : fallback;
+    if (allowed && !allowed.includes(mode)) return fallback;
+    return mode;
+  } catch { return fallback; }
 }
 const pctText = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "";
