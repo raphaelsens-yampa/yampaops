@@ -61,3 +61,11 @@
 - [x] Função stripe-4blue-sync (cron diário 3h45): insere vendas 4blue "novo pagante" do Metabase ausentes no Stripe (79 na 1ª execução) e preenche origem das conversões Stripe
 - [x] Filtro "Origem" (Todas / Só 4blue / Sem 4blue) afetando cards, gráficos, ranking, tabela e exports
 - [x] Validado: 92 (4blue) + 243 (sem 4blue) = 335 (todas); testes 22/22
+
+## Conversões por Área — origem 4blue corrigida e toggles dos gráficos por área (15/10/2026)
+- [x] Só as 79 vendas do sync (PROFIT, R$ 65) mantêm origem 4blue; as 24 conversões do Stripe marcadas por e-mail voltaram para yampa
+- [x] stripe-4blue-sync não carimba mais origem_cliente em conversões do Stripe (Stripe é sempre yampa)
+- [x] Vendas 4blue entram com área Parceria
+- [x] "Distribuição por Área": rótulos só Quantidade ou %
+- [x] "Acréscimo de MRR por Área": rótulos só MRR ou %
+- [x] Validado no navegador: cada card oferece apenas as duas opções pedidas, sem erros de página

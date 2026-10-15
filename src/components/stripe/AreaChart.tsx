@@ -11,7 +11,7 @@ export interface AreaPoint { area: string; conversoes: number; mrr: number; }
 
 const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
 
-function readLabelMode(key: string, fallback: LabelMode): LabelMode {
+function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]): LabelMode {
   try {
     const raw = localStorage.getItem(`${key}.labels`);
     if (!raw) return fallback;
@@ -22,17 +22,26 @@ function readLabelMode(key: string, fallback: LabelMode): LabelMode {
       if (parsed.qty) return "qty";
       return fallback;
     }
-    return (LABEL_MODES as string[]).includes(raw) ? (raw as LabelMode) : fallback;
+    const mode = (LABEL_MODES as string[]).includes(raw) ? (raw as LabelMode) : fallback;
+    if (allowed && !allowed.includes(mode)) return fallback;
+    return mode;
   } catch { return fallback; }
 }
 
 const pctText = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "";
 
-/** Gráfico por Área (rosca ou colunas) com rótulos alternáveis: Quantidade, MRR ou %. */
+const MODE_LABEL: Record<LabelMode, string> = {
+  qty: "Quantidade",
+  mrr: "MRR",
+  pct: "%",
+  both: "Ambos",
+};
+
+/** Gráfico por Área (rosca ou colunas) com rótulos alternáveis conforme `labelOptions`. */
 export function AreaChart({
   title, data, colorOf, variant, storageKey, defaultLabel = "qty",
-  formatQty, formatMrr, yTickFormat,
+  formatQty, formatMrr, yTickFormat, labelOptions,
 }: {
   title: string;
   data: AreaPoint[];
@@ -43,8 +52,10 @@ export function AreaChart({
   formatQty?: (v: number) => string;
   formatMrr?: (v: number) => string;
   yTickFormat?: (v: number) => string;
+  /** Métricas oferecidas no seletor de rótulos; ausente = todas. */
+  labelOptions?: LabelMode[];
 }) {
-  const [labels, setLabels] = useState<LabelMode>(() => readLabelMode(storageKey, defaultLabel));
+  const [labels, setLabels] = useState<LabelMode>(() => readLabelMode(storageKey, defaultLabel, labelOptions));
 
   // % relativa à métrica base do gráfico (rosca = conversões; colunas = MRR).
   const baseTotal = useMemo(
@@ -113,9 +124,11 @@ export function AreaChart({
             onValueChange={(v: string) => v && persistLabels(v as LabelMode)}
             className="rounded-md border border-border"
           >
-            <ToggleGroupItem value="qty" className="text-xs">Quantidade</ToggleGroupItem>
-            <ToggleGroupItem value="mrr" className="text-xs">MRR</ToggleGroupItem>
-            <ToggleGroupItem value="pct" className="text-xs">%</ToggleGroupItem>
+            {(labelOptions ?? LABEL_MODES).map((m) => (
+              <ToggleGroupItem key={m} value={m} className="px-2.5 text-xs">
+                {MODE_LABEL[m]}
+              </ToggleGroupItem>
+            ))}
           </ToggleGroup>
         </div>
       </CardHeader>
