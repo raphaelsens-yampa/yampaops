@@ -149,6 +149,7 @@ export default function StripeConversions() {
   const [updatePriceReference, setUpdatePriceReference] = useState(false);
   const [detailPage, setDetailPage] = useState(0);
   const [savingNet, setSavingNet] = useState(false);
+  const [sellerRankSort, setSellerRankSort] = useState<"mrr" | "qty">("mrr");
 
 
   // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
