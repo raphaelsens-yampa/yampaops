@@ -155,7 +155,7 @@ export default function StripeConversions() {
   const contributionOf = (r: Conversion) => addedMrr(r, mrrMode);
   const rangeValid = validDateRange(period) && (!safraEnabled || validDateRange(safra));
   const range = rangeValid ? spRange(period) : null;
-  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode, campaign: campaignFilter, campaignCtx };
+  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode, campaign: campaignFilter };
   const refreshPanel = async () => {
     await Promise.all([qc.invalidateQueries({ queryKey: ["stripe-conversions"] }), qc.invalidateQueries({ queryKey: ["price-map-areas"] }), qc.invalidateQueries({ queryKey: ["price-map-canonical"] })]);
   };
@@ -217,7 +217,7 @@ export default function StripeConversions() {
     },
   });
 
-  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, filters)), [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode, campaignFilter, campaignCtx]);
+  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, { ...filters, campaignCtx })), [periodRows, filters, campaignFilter, campaignCtx]);
   useEffect(() => { setDetailPage(0); }, [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode, campaignFilter, campaignCtx]);
 
   const { data: mappedAreaOptions = [] } = useQuery({

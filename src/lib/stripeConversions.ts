@@ -5,6 +5,8 @@ export interface ConversionValue {
   mrr_net: number | null;
   delta_mrr: number | null;
 }
+export type CampaignFilter = "all" | "campaign" | "non_campaign";
+
 export interface ConversionFilters {
   area: string;
   type: string;
@@ -12,7 +14,7 @@ export interface ConversionFilters {
   reactivationOnly: boolean;
   couponOnly: boolean;
   mode: MrrMode;
-  campaign: "all" | "campaign" | "non_campaign";
+  campaign: CampaignFilter;
   campaignCtx?: CampaignContext;
 }
 
