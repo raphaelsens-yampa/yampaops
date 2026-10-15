@@ -24,6 +24,7 @@ import { fetchAllPaged } from "@/lib/supabasePaged";
 import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 
@@ -148,6 +149,7 @@ export default function StripeConversions() {
   const [updatePriceReference, setUpdatePriceReference] = useState(false);
   const [detailPage, setDetailPage] = useState(0);
   const [savingNet, setSavingNet] = useState(false);
+  const [sellerRankSort, setSellerRankSort] = useState<"mrr" | "qty">("mrr");
 
 
   // Valor de referência da linha conforme o modo (líquido cai para bruto quando ausente)
@@ -899,16 +901,22 @@ export default function StripeConversions() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PlanChart
             title="Conversões por Plano (quantidade)"
-            data={byPlanQty.map((e) => ({ plan: e.plan, value: e.conversoes }))}
+            data={byPlanQty.map((e) => ({ plan: e.plan, value: e.conversoes, mrr: e.mrr, conversoes: e.conversoes }))}
             colorOf={planColor}
             formatValue={(v) => `${v} conversões`}
+            formatQty={(v) => `${v} conversões`}
+            formatMrr={fmtBRL}
+            defaultLabel="qty"
             storageKey="conversions.planQtyChart"
           />
           <PlanChart
             title="Acréscimo de MRR por Plano"
-            data={byPlan.map((e) => ({ plan: e.plan, value: e.mrr }))}
+            data={byPlan.map((e) => ({ plan: e.plan, value: e.mrr, mrr: e.mrr, conversoes: e.conversoes }))}
             colorOf={planColor}
             formatValue={fmtBRL}
+            formatQty={(v) => `${v}`}
+            formatMrr={fmtBRL}
+            defaultLabel="mrr"
             yTickFormat={(v) => `R$${(v / 1000).toFixed(0)}k`}
             storageKey="conversions.planMrrChart"
           />
@@ -951,7 +959,19 @@ export default function StripeConversions() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Ranking de Vendedor</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-base">Ranking de Vendedor</CardTitle>
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={sellerRankSort}
+                onValueChange={(v: string) => v && setSellerRankSort(v as "mrr" | "qty")}
+                className="rounded-md border border-border"
+              >
+                <ToggleGroupItem value="mrr" className="text-xs">MRR produzido</ToggleGroupItem>
+                <ToggleGroupItem value="qty" className="text-xs">Quantidade</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
             <CardDescription>Conversões e MRR produzido por vendedor no período</CardDescription>
           </CardHeader>
           <CardContent>
@@ -969,7 +989,9 @@ export default function StripeConversions() {
                   {bySeller.length === 0 && (
                     <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhuma conversão no período selecionado.</TableCell></TableRow>
                   )}
-                  {bySeller.map((s, i) => (
+                  {[...bySeller]
+                    .sort((a, b) => sellerRankSort === "qty" ? b.conversoes - a.conversoes : b.mrr - a.mrr)
+                    .map((s, i) => (
                     <TableRow key={s.seller_id}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-medium">{s.name}</TableCell>
