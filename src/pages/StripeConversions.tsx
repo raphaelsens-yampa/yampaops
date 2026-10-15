@@ -692,10 +692,10 @@ export default function StripeConversions() {
 
         {/* Filtros */}
         <Card>
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Período de conversão</Label>
+          <CardContent className="pt-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 text-left">
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Período de conversão</Label>
                 <Select value={periodPreset} onValueChange={changePreset}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -707,22 +707,8 @@ export default function StripeConversions() {
                     <Input type="date" value={period.start} onChange={e => setPeriod({ ...period, start: e.target.value })} />
                     <Input type="date" value={period.end} onChange={e => setPeriod({ ...period, end: e.target.value })} />
                   </div>
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs flex items-center gap-2">
-                  <Checkbox checked={safraEnabled} onCheckedChange={v => setSafraEnabled(v === true)} />
-                  Filtrar por safra (data de cadastro)
-                </Label>
-                {safraEnabled && (
-                  <div className="flex gap-2">
-                    <Input type="date" value={safra.start} onChange={e => setSafra({ ...safra, start: e.target.value })} />
-                    <Input type="date" value={safra.end} onChange={e => setSafra({ ...safra, end: e.target.value })} />
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Área</Label>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Área</Label>
                 <Select value={areaFilter} onValueChange={setAreaFilter}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -731,8 +717,8 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo</Label>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Tipo</Label>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -744,8 +730,8 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Vendedor</Label>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Vendedor</Label>
                 <Select value={sellerFilter} onValueChange={setSellerFilter}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -755,20 +741,8 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs flex items-center gap-2 mt-5">
-                  <Checkbox checked={reactivationOnly} onCheckedChange={v => setReactivationOnly(v === true)} />
-                  Somente reativações
-                </Label>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs flex items-center gap-2 mt-5">
-                  <Checkbox checked={couponOnly} onCheckedChange={v => setCouponOnly(v === true)} />
-                  Somente com cupom
-                </Label>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Campanha</Label>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Campanha</Label>
                 <Select value={campaignFilter} onValueChange={(v) => setCampaignFilter(v as CampaignFilter)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -778,8 +752,8 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Métrica de MRR</Label>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Métrica de MRR</Label>
                 <Select value={mrrMode} onValueChange={(v) => setMrrMode(v as "net" | "gross")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -789,9 +763,29 @@ export default function StripeConversions() {
                 </Select>
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>{rangeValid ? `${fmtDate(`${period.start}T12:00:00-03:00`)} — ${fmtDate(`${period.end}T12:00:00-03:00`)}` : "Informe um intervalo de datas válido."}</span>
-              <Button variant="ghost" size="sm" onClick={resetFilters}><RotateCcw className="mr-2 h-4 w-4" />Limpar filtros</Button>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t pt-3">
+              <Label className="text-sm font-normal flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={safraEnabled} onCheckedChange={v => setSafraEnabled(v === true)} />
+                Filtrar por safra (cadastro)
+              </Label>
+              {safraEnabled && (
+                  <div className="flex gap-2">
+                    <Input type="date" value={safra.start} onChange={e => setSafra({ ...safra, start: e.target.value })} />
+                    <Input type="date" value={safra.end} onChange={e => setSafra({ ...safra, end: e.target.value })} />
+                  </div>
+                )}
+              <Label className="text-sm font-normal flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={reactivationOnly} onCheckedChange={v => setReactivationOnly(v === true)} />
+                Somente reativações
+              </Label>
+              <Label className="text-sm font-normal flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={couponOnly} onCheckedChange={v => setCouponOnly(v === true)} />
+                Somente com cupom
+              </Label>
+              <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+                <span>{rangeValid ? `${fmtDate(`${period.start}T12:00:00-03:00`)} — ${fmtDate(`${period.end}T12:00:00-03:00`)}` : "Informe um intervalo de datas válido."}</span>
+                <Button variant="ghost" size="sm" onClick={resetFilters}><RotateCcw className="mr-2 h-4 w-4" />Limpar filtros</Button>
+              </div>
             </div>
           </CardContent>
         </Card>
