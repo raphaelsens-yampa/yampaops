@@ -69,3 +69,8 @@
 - [x] "Distribuição por Área": rótulos só Quantidade ou %
 - [x] "Acréscimo de MRR por Área": rótulos só MRR ou %
 - [x] Validado no navegador: cada card oferece apenas as duas opções pedidas, sem erros de página
+
+## Metas Táticas — Upsell low-touch conta como Upsell (15/10/2026)
+- [x] useLowTouchData: separar upsells (conversion_type "upsell", delta_mrr > 0) das vendas; vendas continuam sendo só "new"
+- [x] TacticalOverview: "Clientes Upsell" e "MRR Upsell" somam os upsells low-touch do dia vigente (Stripe); histórico segue Metabase D-1
+- [x] Testes em src/test/lowTouchPartition.test.ts (5 testes) e validação no navegador: Upsell 1 · R$ 30, Vendas do dia segue 2

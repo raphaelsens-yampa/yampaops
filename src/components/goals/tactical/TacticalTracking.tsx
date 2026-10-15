@@ -309,6 +309,7 @@ export function TacticalTracking() {
               today={today}
               revisedView={revisedView}
               lowTouchSales={lowTouch.sales}
+              lowTouchUpsells={lowTouch.upsells}
               recoveryChannels={recoveryMonthSummary}
 
             />

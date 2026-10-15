@@ -31,6 +31,8 @@ interface Props {
   today: Date;
   revisedView?: boolean;
   lowTouchSales?: LowTouchSale[];
+  /** Upsells Low-touch (áreas sem ação de Sales/CS), contabilizados como Upsell. */
+  lowTouchUpsells?: LowTouchSale[];
   /** Recorte Cobrança x CS das recuperações/retenções no mês corrente. */
   recoveryChannels?: ChannelSummary;
 }
@@ -61,7 +63,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [], recoveryChannels }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -90,6 +92,11 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const ltToday = lowTouchSales.filter((s) => s.dateKey === todayKey);
   const ltCount = ltToday.length;
   const ltMrr = ltToday.reduce((s, x) => s + (x.mrr ?? 0), 0);
+  // Upsells Low-touch de hoje: o histórico vem do Metabase (D-1), então o dia
+  // vigente é coberto pelo Stripe aqui, sem duplicar com o realizado canônico.
+  const ltUpToday = lowTouchUpsells.filter((s) => s.dateKey === todayKey);
+  const ltUpCount = ltUpToday.length;
+  const ltUpMrr = ltUpToday.reduce((s, x) => s + (x.mrr ?? 0), 0);
 
   type OtherCard = { id: string; label: string; unit: TacticalMetric["unit"]; value: number; note?: string };
   const others: OtherCard[] = rows
@@ -155,8 +162,8 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     else others.push(retCard);
   }
 
-  others.push({ id: "upsell-clientes-card", label: "Clientes Upsell", unit: "count", value: upsellQty });
-  others.push({ id: "mrr-upsell-card", label: "MRR Upsell", unit: "currency", value: mrrUpsell });
+  others.push({ id: "upsell-clientes-card", label: "Clientes Upsell", unit: "count", value: upsellQty + ltUpCount });
+  others.push({ id: "mrr-upsell-card", label: "MRR Upsell", unit: "currency", value: mrrUpsell + ltUpMrr });
 
   if (ltCount > 0 || ltMrr > 0) {
     others.push({ id: "lowtouch-vendas-card", label: "Vendas Low-touch", unit: "count", value: ltCount });
