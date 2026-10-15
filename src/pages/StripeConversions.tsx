@@ -22,7 +22,7 @@ import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditP
 import { PlanChart } from "@/components/stripe/PlanChart";
 import { AreaChart } from "@/components/stripe/AreaChart";
 import { fetchAllPaged } from "@/lib/supabasePaged";
-import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
+import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter, type OriginCut } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -766,6 +766,17 @@ export default function StripeConversions() {
                     <SelectItem value="all">Tudo</SelectItem>
                     <SelectItem value="campaign">Só campanha</SelectItem>
                     <SelectItem value="non_campaign">Sem campanha</SelectItem>
+                  </SelectContent>
+                 </Select>
+              </div>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Origem</Label>
+                <Select value={originFilter} onValueChange={(v) => setOriginFilter(v as OriginCut)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="4blue">Só 4blue</SelectItem>
+                    <SelectItem value="non_4blue">Sem 4blue</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
