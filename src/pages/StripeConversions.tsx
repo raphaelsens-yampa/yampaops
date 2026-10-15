@@ -616,7 +616,7 @@ export default function StripeConversions() {
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
-    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
+    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${campaignFilter === "all" ? "" : ` | Campanha: ${campaignFilter === "campaign" ? "Somente campanha" : "Sem campanha"}`}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
     doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
@@ -766,6 +766,17 @@ export default function StripeConversions() {
                   <Checkbox checked={couponOnly} onCheckedChange={v => setCouponOnly(v === true)} />
                   Somente com cupom
                 </Label>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Campanha</Label>
+                <Select value={campaignFilter} onValueChange={(v) => setCampaignFilter(v as CampaignFilter)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tudo</SelectItem>
+                    <SelectItem value="campaign">Só campanha</SelectItem>
+                    <SelectItem value="non_campaign">Sem campanha</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Métrica de MRR</Label>
