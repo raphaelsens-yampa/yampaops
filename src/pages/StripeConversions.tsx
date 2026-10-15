@@ -631,7 +631,7 @@ export default function StripeConversions() {
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
-    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${campaignFilter === "all" ? "" : ` | Campanha: ${campaignFilter === "campaign" ? "Somente campanha" : "Sem campanha"}`}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
+    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${campaignFilter === "all" ? "" : ` | Campanha: ${campaignFilter === "campaign" ? "Somente campanha" : "Sem campanha"}`}${originFilter === "all" ? "" : ` | Origem: ${originFilter === "4blue" ? "Só 4blue" : "Sem 4blue"}`}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
     doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
@@ -708,7 +708,7 @@ export default function StripeConversions() {
         {/* Filtros */}
         <Card>
           <CardContent className="pt-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 text-left">
 <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Período de conversão</Label>
                 <Select value={periodPreset} onValueChange={changePreset}>
