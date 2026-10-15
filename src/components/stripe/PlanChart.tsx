@@ -232,7 +232,7 @@ export function PlanChart({
                 isAnimationActive={false}
               >
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
-                {both && <LabelList dataKey="value" content={pieLabelInside} />}
+                {both && <LabelList dataKey="value" position="inside" content={pieLabelInside} />}
               </Pie>
             </PieChart>
           </ResponsiveContainer>
