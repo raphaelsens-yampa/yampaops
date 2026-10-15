@@ -9,7 +9,7 @@ import type { LabelMode } from "@/components/stripe/PlanChart";
 
 export interface AreaPoint { area: string; conversoes: number; mrr: number; }
 
-const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
+const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct", "both"];
 
 function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]): LabelMode {
   try {
@@ -69,10 +69,16 @@ export function AreaChart({
     try { localStorage.setItem(`${storageKey}.labels`, next); } catch { /* armazenamento indisponível */ }
   };
 
+  const baseOf = (entry: AreaPoint) => (variant === "donut" ? entry.conversoes : entry.mrr);
+
+  const valueText = (entry: AreaPoint) =>
+    variant === "donut" ? (formatQty ?? String)(entry.conversoes) : (formatMrr ?? String)(entry.mrr);
+
   const labelText = (entry: AreaPoint) => {
     if (labels === "qty") return (formatQty ?? String)(entry.conversoes);
     if (labels === "mrr") return (formatMrr ?? String)(entry.mrr);
-    return pctText(variant === "donut" ? entry.conversoes : entry.mrr, baseTotal);
+    if (labels === "both") return valueText(entry);
+    return pctText(baseOf(entry), baseTotal);
   };
 
   // LabelList/Pie nem sempre entregam o datum em `payload`; usar o índice na série.
