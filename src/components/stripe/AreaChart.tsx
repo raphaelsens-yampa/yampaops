@@ -198,6 +198,23 @@ export function AreaChart({
               >
                 {data.map((e) => <Cell key={e.area} fill={colorOf(e.area)} />)}
               </Pie>
+              {labels === "both" && (
+                <Pie
+                  data={data}
+                  dataKey="conversoes"
+                  nameKey="area"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  innerRadius={45}
+                  paddingAngle={2}
+                  fill="transparent"
+                  stroke="none"
+                  label={pieLabelInside}
+                  labelLine={false}
+                  isAnimationActive={false}
+                />
+              )}
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -210,6 +227,7 @@ export function AreaChart({
               <Bar dataKey="mrr" radius={[6, 6, 0, 0]}>
                 {data.map((e) => <Cell key={e.area} fill={colorOf(e.area)} />)}
                 <LabelList dataKey="mrr" content={barLabel} />
+                {labels === "both" && <LabelList dataKey="mrr" content={barLabelInside} />}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
