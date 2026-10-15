@@ -55,3 +55,9 @@
 ## Conversões por Área — toggle "Ambos" e confirmação de unicidade (15/10/2026)
 - [x] Toggle "Ambos" nos gráficos por Plano (valor fora + % dentro, em colunas e pizza)
 - [x] Confirmar que cada conversão conta apenas no mês de `converted_at` (sem duplicidade por evento ou assinatura)
+
+## Conversões por Área — filtro de origem 4blue (15/10/2026)
+- [x] Coluna origem_cliente em stripe_conversions + backfill por e-mail
+- [x] Função stripe-4blue-sync (cron diário 3h45): insere vendas 4blue "novo pagante" do Metabase ausentes no Stripe (79 na 1ª execução) e preenche origem das conversões Stripe
+- [x] Filtro "Origem" (Todas / Só 4blue / Sem 4blue) afetando cards, gráficos, ranking, tabela e exports
+- [x] Validado: 92 (4blue) + 243 (sem 4blue) = 335 (todas); testes 22/22
