@@ -703,7 +703,7 @@ export default function StripeConversions() {
                   </SelectContent>
                 </Select>
                 {periodPreset === "custom" && (
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex flex-col gap-2 mt-1">
                     <Input type="date" value={period.start} onChange={e => setPeriod({ ...period, start: e.target.value })} />
                     <Input type="date" value={period.end} onChange={e => setPeriod({ ...period, end: e.target.value })} />
                   </div>
