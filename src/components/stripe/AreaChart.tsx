@@ -118,6 +118,38 @@ export function AreaChart({
     );
   };
 
+  // % dentro da fatia (modo "Ambos"): LabelList dentro de Pie não entrega cx/cy/midAngle,
+  // então usamos um segundo Pie invisível sobreposto só para os rótulos internos.
+  const pieLabelInside = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = pctText(baseOf(entry), baseTotal);
+    if (!line) return null;
+    const rad = (Math.PI / 180) * -midAngle;
+    const r = (innerRadius + outerRadius) / 2;
+    const x = cx + Math.cos(rad) * r;
+    const y = cy + Math.sin(rad) * r;
+    return (
+      <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-primary-foreground" fontSize={10} fontWeight={600}>
+        {line}
+      </text>
+    );
+  };
+
+  const barLabelInside = (props: any) => {
+    const { x, y, width, height } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = pctText(baseOf(entry), baseTotal);
+    if (!line || height < 18) return null;
+    return (
+      <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="central" className="fill-primary-foreground" fontSize={10} fontWeight={600}>
+        {line}
+      </text>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="gap-3">
