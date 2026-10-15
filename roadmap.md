@@ -31,6 +31,11 @@
 - [ ] Ranking de Vendedor abaixo da tabela de vendas por plano (nome, quantidade, MRR produzido)
 - [ ] "Sem Vendedor" assumir o nome da área como vendedor nos painéis
 - [ ] Listar vendas com área "desconhecida" para correção manual pelo usuário
+- [ ] Remover cards Contração MRR e Renovações; excluir downgrade/renovação de MRR e quantidades
+- [ ] Card Conversões = Novas Vendas + Recuperados + Upsell; card Nova Venda → "New MRR" (Novas + Recuperados)
+- [ ] Reorganizar os 4 cards restantes em uma linha
+- [ ] Corrigir rótulos (quantidade/%) que não aparecem no modo pizza
+
 
 
 
