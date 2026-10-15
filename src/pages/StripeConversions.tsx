@@ -20,6 +20,7 @@ import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
 import { PlanChart } from "@/components/stripe/PlanChart";
+import { AreaChart } from "@/components/stripe/AreaChart";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
@@ -829,36 +830,27 @@ export default function StripeConversions() {
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Distribuição por Área (Conversões)</CardTitle></CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={byArea} dataKey="conversoes" nameKey="area" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label>
-                  {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(var(--muted-foreground))"} />)}
-                </Pie>
-                <Tooltip formatter={(v: any) => `${v} conversões`} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base">Acréscimo de MRR por Área</CardTitle></CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byArea}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="area" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                 <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                 <Bar dataKey="mrr" radius={[6,6,0,0]}>
-                   {byArea.map((e) => <Cell key={e.area} fill={AREA_COLORS[e.area] || "hsl(var(--muted-foreground))"} />)}
-                 </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <AreaChart
+          title="Distribuição por Área (Conversões)"
+          data={byArea}
+          colorOf={(a) => AREA_COLORS[a] || "hsl(var(--muted-foreground))"}
+          variant="donut"
+          storageKey="conversions.areaQtyChart"
+          defaultLabel="qty"
+          formatQty={(v) => `${v} conversões`}
+          formatMrr={fmtBRL}
+        />
+        <AreaChart
+          title="Acréscimo de MRR por Área"
+          data={byArea}
+          colorOf={(a) => AREA_COLORS[a] || "hsl(var(--muted-foreground))"}
+          variant="bar"
+          storageKey="conversions.areaMrrChart"
+          defaultLabel="mrr"
+          formatQty={(v) => `${v}`}
+          formatMrr={fmtBRL}
+          yTickFormat={(v) => `R$${(v / 1000).toFixed(0)}k`}
+        />
       </div>
 
        <Card>
