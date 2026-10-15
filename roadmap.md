@@ -23,3 +23,10 @@
 - [x] Migrar modelos depreciados da Auditoria IA conforme aprovação
 - [x] Validar testes, dados reais e fluxos no navegador
 
+## Gráficos por Plano (15/10/2026)
+- [x] Ordenar "Conversões por Plano (quantidade)" do maior para o menor, independente do gráfico de MRR
+- [ ] Alternar estilo coluna/pizza nos dois gráficos por plano
+- [ ] Incluir/retirar rótulos de quantidade e % na apresentação dos gráficos
+- [ ] Validar os novos estilos no navegador
+
+
