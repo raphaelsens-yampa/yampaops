@@ -9,7 +9,7 @@ import type { LabelMode } from "@/components/stripe/PlanChart";
 
 export interface AreaPoint { area: string; conversoes: number; mrr: number; }
 
-const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct"];
+const LABEL_MODES: LabelMode[] = ["qty", "mrr", "pct", "both"];
 
 function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]): LabelMode {
   try {
@@ -69,10 +69,16 @@ export function AreaChart({
     try { localStorage.setItem(`${storageKey}.labels`, next); } catch { /* armazenamento indisponível */ }
   };
 
+  const baseOf = (entry: AreaPoint) => (variant === "donut" ? entry.conversoes : entry.mrr);
+
+  const valueText = (entry: AreaPoint) =>
+    variant === "donut" ? (formatQty ?? String)(entry.conversoes) : (formatMrr ?? String)(entry.mrr);
+
   const labelText = (entry: AreaPoint) => {
     if (labels === "qty") return (formatQty ?? String)(entry.conversoes);
     if (labels === "mrr") return (formatMrr ?? String)(entry.mrr);
-    return pctText(variant === "donut" ? entry.conversoes : entry.mrr, baseTotal);
+    if (labels === "both") return valueText(entry);
+    return pctText(baseOf(entry), baseTotal);
   };
 
   // LabelList/Pie nem sempre entregam o datum em `payload`; usar o índice na série.
@@ -107,6 +113,38 @@ export function AreaChart({
     const anchor = midAngle > 90 && midAngle < 270 ? "end" : "start";
     return (
       <text x={x} y={y} textAnchor={anchor} className="fill-muted-foreground" fontSize={10}>
+        {line}
+      </text>
+    );
+  };
+
+  // % dentro da fatia (modo "Ambos"): LabelList dentro de Pie não entrega cx/cy/midAngle,
+  // então usamos um segundo Pie invisível sobreposto só para os rótulos internos.
+  const pieLabelInside = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = pctText(baseOf(entry), baseTotal);
+    if (!line) return null;
+    const rad = (Math.PI / 180) * -midAngle;
+    const r = (innerRadius + outerRadius) / 2;
+    const x = cx + Math.cos(rad) * r;
+    const y = cy + Math.sin(rad) * r;
+    return (
+      <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-primary-foreground" fontSize={10} fontWeight={600}>
+        {line}
+      </text>
+    );
+  };
+
+  const barLabelInside = (props: any) => {
+    const { x, y, width, height } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = pctText(baseOf(entry), baseTotal);
+    if (!line || height < 18) return null;
+    return (
+      <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="central" className="fill-primary-foreground" fontSize={10} fontWeight={600}>
         {line}
       </text>
     );
@@ -160,6 +198,23 @@ export function AreaChart({
               >
                 {data.map((e) => <Cell key={e.area} fill={colorOf(e.area)} />)}
               </Pie>
+              {labels === "both" && (
+                <Pie
+                  data={data}
+                  dataKey="conversoes"
+                  nameKey="area"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  innerRadius={45}
+                  paddingAngle={2}
+                  fill="transparent"
+                  stroke="none"
+                  label={pieLabelInside}
+                  labelLine={false}
+                  isAnimationActive={false}
+                />
+              )}
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -172,6 +227,7 @@ export function AreaChart({
               <Bar dataKey="mrr" radius={[6, 6, 0, 0]}>
                 {data.map((e) => <Cell key={e.area} fill={colorOf(e.area)} />)}
                 <LabelList dataKey="mrr" content={barLabel} />
+                {labels === "both" && <LabelList dataKey="mrr" content={barLabelInside} />}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
