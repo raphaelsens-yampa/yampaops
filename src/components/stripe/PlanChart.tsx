@@ -237,8 +237,24 @@ export function PlanChart({
                 isAnimationActive={false}
               >
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
-                {both && <LabelList dataKey="value" position="inside" content={pieLabelInside} />}
               </Pie>
+              {both && (
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="plan"
+                  cx="50%"
+                  cy="45%"
+                  outerRadius="72%"
+                  paddingAngle={2}
+                  label={pieLabelInside}
+                  labelLine={false}
+                  isAnimationActive={false}
+                  stroke="none"
+                >
+                  {data.map((e) => <Cell key={e.plan} fill="transparent" stroke="none" />)}
+                </Pie>
+              )}
             </PieChart>
           </ResponsiveContainer>
         )}
