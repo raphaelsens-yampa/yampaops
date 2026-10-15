@@ -95,36 +95,16 @@ Deno.serve(async (req) => {
       inserted += Math.min(CHUNK, toInsert.length - i);
     }
 
-    // 3) (Re)preencher origem_cliente das conversões Stripe por e-mail.
-    const { data: originRows, error: oErr } = await supabase
-      .from('metas_ativos_pagantes_daily')
-      .select('email, origem_cliente')
-      .not('email', 'is', null)
-      .not('origem_cliente', 'is', null);
-    if (oErr) throw oErr;
-
-    const originByEmail = new Map<string, string>();
-    for (const r of originRows ?? []) {
-      originByEmail.set(String(r.email).trim().toLowerCase(), String(r.origem_cliente).trim().toLowerCase());
-    }
-
-    const { data: noOrigin, error: nErr } = await supabase
+    // 3) Conversões vindas do Stripe são sempre produto Yampa — 4blue só
+    //    existe nas vendas sincronizadas do Metabase (metabase_4blue).
+    const { data: fixed, error: fErr } = await supabase
       .from('stripe_conversions')
-      .select('id, customer_email')
-      .is('origem_cliente', null)
-      .not('customer_email', 'is', null);
-    if (nErr) throw nErr;
-
-    let backfilled = 0;
-    for (const c of noOrigin ?? []) {
-      const origem = originByEmail.get(String(c.customer_email).trim().toLowerCase());
-      if (!origem) continue;
-      const { error } = await supabase
-        .from('stripe_conversions')
-        .update({ origem_cliente: origem })
-        .eq('id', c.id);
-      if (!error) backfilled++;
-    }
+      .update({ origem_cliente: 'yampa' })
+      .or('attribution_source.is.null,attribution_source.neq.metabase_4blue')
+      .or('origem_cliente.is.null,origem_cliente.neq.yampa')
+      .select('id');
+    if (fErr) throw fErr;
+    const backfilled = fixed?.length ?? 0;
 
     return new Response(
       JSON.stringify({ ok: true, candidatos: candidates.length, inseridos: inserted, origem_preenchida: backfilled }),
