@@ -707,7 +707,9 @@ export default function StripeConversions() {
                     <Input type="date" value={period.start} onChange={e => setPeriod({ ...period, start: e.target.value })} />
                     <Input type="date" value={period.end} onChange={e => setPeriod({ ...period, end: e.target.value })} />
                   </div>
-<div className="space-y-1">
+                )}
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Área</Label>
                 <Select value={areaFilter} onValueChange={setAreaFilter}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
