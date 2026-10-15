@@ -79,9 +79,19 @@ export function PlanChart({
     return pctText(entry.value, total);
   };
 
+  // LabelList/Pie nem sempre entregam o datum em `payload`; usar o índice na série.
+  const entryOf = (props: any): PlanPoint | undefined => {
+    const i = props?.index;
+    if (typeof i === "number" && data[i]) return data[i];
+    if (props?.payload) return props.payload as PlanPoint;
+    return undefined;
+  };
+
   const barLabel = (props: any) => {
-    const { x, y, width, payload } = props;
-    const line = labelText(payload as PlanPoint);
+    const { x, y, width } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = labelText(entry);
     if (!line) return null;
     return (
       <text x={x + width / 2} y={y - 6} textAnchor="middle" className="fill-muted-foreground" fontSize={10}>
@@ -91,8 +101,10 @@ export function PlanChart({
   };
 
   const pieLabel = (props: any) => {
-    const { cx, cy, midAngle, outerRadius, name, payload } = props;
-    const line = labelText(payload as PlanPoint);
+    const { cx, cy, midAngle, outerRadius, name } = props;
+    const entry = entryOf(props);
+    if (!entry) return null;
+    const line = labelText(entry);
     const rad = (Math.PI / 180) * -midAngle;
     const x = cx + Math.cos(rad) * (outerRadius + 18);
     const y = cy + Math.sin(rad) * (outerRadius + 18);
