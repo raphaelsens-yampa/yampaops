@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, planChartGroup, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
+import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, planChartGroup, matchesType, sellerLabelOf, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
 const row: FilterableConversion = { conversion_type: "new", mrr: 399, mrr_net: 279, delta_mrr: 279, area: "Sales", assigned_seller_id: "leticia", is_reactivation: false, coupon_id: "coupon", customer_email: "cliente@exemplo.com" };
 const filters: ConversionFilters = { area: "all", type: "all", seller: "all", reactivationOnly: false, couponOnly: false, mode: "net", campaign: "all" };
 const campaignCtx: CampaignContext = { couponIds: new Set(["CAMP10"]), manualByEmail: new Map([["manual@exemplo.com", true], ["excluido@exemplo.com", false]]) };
@@ -21,4 +21,16 @@ describe("Conversões por Área", () => {
   it("marcação manual tem precedência sobre o cupom", () => { expect(isCampaignConversion({ ...row, customer_email: " manual@exemplo.com ", coupon_id: "outro" }, campaignCtx)).toBe(true); expect(isCampaignConversion({ ...row, customer_email: "excluido@exemplo.com", coupon_id: "CAMP10" }, campaignCtx)).toBe(false); });
   it("filtro campanha isola entradas de campanha e a negação exclui só elas", () => { const camp = { ...row, coupon_id: "CAMP10" }; const fora = { ...row, coupon_id: "outro" }; expect(matchesConversion(camp, { ...filters, campaign: "campaign", campaignCtx })).toBe(true); expect(matchesConversion(fora, { ...filters, campaign: "campaign", campaignCtx })).toBe(false); expect(matchesConversion(camp, { ...filters, campaign: "non_campaign", campaignCtx })).toBe(false); expect(matchesConversion(fora, { ...filters, campaign: "non_campaign", campaignCtx })).toBe(true); });
   it("gráficos por plano agrupam Time Financeiro e BPO como Time Financeiro", () => { expect(planChartGroup("Time Financeiro com BPO Junior")).toBe("Time Financeiro"); expect(planChartGroup("BPO Pleno")).toBe("Time Financeiro"); expect(planChartGroup("+Controle A Vista")).toBe("+Controle A Vista"); expect(planChartGroup(null)).toBe("Sem plano"); expect(planChartGroup("  ")).toBe("Sem plano"); });
+  it("tipo recuperação usa só vendas novas e upsells reativados", () => {
+    expect(matchesConversion(row, { ...filters, type: "reactivation" })).toBe(false);
+    expect(matchesConversion({ ...row, is_reactivation: true }, { ...filters, type: "reactivation" })).toBe(true);
+    expect(matchesConversion({ ...row, is_reactivation: true, conversion_type: "upsell" }, { ...filters, type: "reactivation" })).toBe(true);
+    expect(matchesConversion({ ...row, is_reactivation: true, conversion_type: "renewal" }, { ...filters, type: "reactivation" })).toBe(false);
+    expect(matchesType({ ...row, is_reactivation: true, conversion_type: "downgrade" }, "reactivation")).toBe(false);
+  });
+  it("sem vendedor usa o nome da área como vendedor", () => {
+    expect(sellerLabelOf({ ...row, assigned_seller_id: null }, { leticia: "Leticia Calor" })).toBe("Sales");
+    expect(sellerLabelOf(row, { leticia: "Leticia Calor" })).toBe("Leticia Calor");
+    expect(sellerLabelOf({ ...row, assigned_seller_id: "outra", area: "CX" }, { leticia: "Leticia Calor" })).toBe("outra".slice(0, 8));
+  });
 });

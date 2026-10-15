@@ -69,10 +69,24 @@ function campaignApplies(row: FilterableConversion, filters: ConversionFilters):
   return filters.campaign === "campaign" ? isCampaign : !isCampaign;
 }
 
+// "Recuperação" é opção do filtro de Tipo, não um tipo registrado: é a venda
+// nova ou o upsell com sinalizador de reativação. Downgrade e renovação ficam
+// fora do painel, então nunca entram nessa fatia.
+export function matchesType(row: FilterableConversion, type: string): boolean {
+  if (type === "all") return true;
+  if (type === "reactivation") return row.is_reactivation === true && (row.conversion_type === "new" || row.conversion_type === "upsell");
+  return row.conversion_type === type;
+}
+
+// Sem vendedor atribuído, a área assume o lugar do vendedor na apresentação.
+export function sellerLabelOf(row: { assigned_seller_id: string | null; area: string }, sellersMap: Record<string, string>): string {
+  return row.assigned_seller_id ? sellersMap[row.assigned_seller_id] || row.assigned_seller_id.slice(0, 8) : row.area;
+}
+
 export function matchesConversion(row: FilterableConversion, filters: ConversionFilters): boolean {
   return subscriptionMrr(row, filters.mode) > 0
     && (filters.area === "all" || row.area === filters.area)
-    && (filters.type === "all" || row.conversion_type === filters.type)
+    && matchesType(row, filters.type)
     && (filters.seller === "all" || (filters.seller === "none" ? !row.assigned_seller_id : row.assigned_seller_id === filters.seller))
     && (!filters.reactivationOnly || row.is_reactivation === true)
     && (!filters.couponOnly || Boolean(row.coupon_id?.trim()))
