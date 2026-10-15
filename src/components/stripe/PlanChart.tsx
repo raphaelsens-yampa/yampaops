@@ -101,8 +101,8 @@ export function PlanChart({
               onValueChange={(v: ChartStyle) => v && persistStyle(v)}
               className="rounded-md border border-border"
             >
-              <ToggleGroupItem value="bar" aria-label="Gráfico de colunas" className="text-xs">Colunas</ToggleGroupItem>
-              <ToggleGroupItem value="pie" aria-label="Gráfico de pizza" className="text-xs">Pizza</ToggleGroupItem>
+              <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
+              <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
             </ToggleGroup>
             <div className="flex items-center gap-1">
               <button
