@@ -134,8 +134,8 @@ export function PlanChart({
               onValueChange={(v: ChartStyle) => v && persistStyle(v)}
               className="rounded-md border border-border"
             >
-              <ToggleGroupItem value="bar" className="text-xs">Colunas</ToggleGroupItem>
-              <ToggleGroupItem value="pie" className="text-xs">Pizza</ToggleGroupItem>
+              <ToggleGroupItem value="bar" className="px-2.5 text-xs">Colunas</ToggleGroupItem>
+              <ToggleGroupItem value="pie" className="px-2.5 text-xs">Pizza</ToggleGroupItem>
             </ToggleGroup>
             {labelOptions && labelOptions.length > 0 && (
               <ToggleGroup
@@ -146,7 +146,7 @@ export function PlanChart({
                 className="rounded-md border border-border"
               >
                 {labelOptions.map((m) => (
-                  <ToggleGroupItem key={m} value={m} className="text-xs">
+                  <ToggleGroupItem key={m} value={m} className="px-2.5 text-xs">
                     {m === "qty" ? "Quantidade" : m === "mrr" ? "MRR" : "%"}
                   </ToggleGroupItem>
                 ))}
