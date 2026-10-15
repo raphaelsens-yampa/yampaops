@@ -28,5 +28,7 @@
 - [ ] Alternar estilo coluna/pizza nos dois gráficos por plano
 - [ ] Incluir/retirar rótulos de quantidade e % na apresentação dos gráficos
 - [ ] Validar os novos estilos no navegador
+- [ ] Ranking de Vendedor abaixo da tabela de vendas por plano (nome, quantidade, MRR produzido)
+
 
 
