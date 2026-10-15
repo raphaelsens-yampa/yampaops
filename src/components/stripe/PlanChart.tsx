@@ -72,10 +72,14 @@ export function PlanChart({
     setStyle(next);
     try { localStorage.setItem(`${storageKey}.style`, next); } catch { /* armazenamento indisponível */ }
   };
+  const persistLabels = (next: LabelMode) => {
+    setLabels(next);
+    try { localStorage.setItem(`${storageKey}.labels`, next); } catch { /* armazenamento indisponível */ }
+  };
 
   const labelText = (entry: PlanPoint) => {
-    if (defaultLabel === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
-    if (defaultLabel === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
+    if (labels === "qty") return (formatQty ?? String)(entry.conversoes ?? entry.value);
+    if (labels === "mrr") return (formatMrr ?? formatValue)(entry.mrr ?? entry.value);
     return pctText(entry.value, total);
   };
 
