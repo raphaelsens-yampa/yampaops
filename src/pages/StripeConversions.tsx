@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MapStripePriceButton } from "@/components/MapStripePriceButton";
 import { EditConversionDialog } from "@/components/stripe/EditConversionDialog";
 import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditPriceDialog";
+import { PlanChart } from "@/components/stripe/PlanChart";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
@@ -897,39 +898,23 @@ export default function StripeConversions() {
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Conversões por Plano (quantidade)</CardTitle></CardHeader>
-            <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byPlanQty}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="plan" tick={{ fontSize: 11 }} interval={0} angle={-30} height={70} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip formatter={(v: any) => [`${v} conversões`, "Quantidade"]} />
-                  <Bar dataKey="conversoes" radius={[6,6,0,0]}>
-                    {byPlanQty.map((e) => <Cell key={e.plan} fill={planColor(e.plan)} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Acréscimo de MRR por Plano</CardTitle></CardHeader>
-            <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byPlan}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="plan" tick={{ fontSize: 11 }} interval={0} angle={-30} height={70} />
-                  <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                  <Bar dataKey="mrr" radius={[6,6,0,0]}>
-                    {byPlan.map((e) => <Cell key={e.plan} fill={planColor(e.plan)} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <PlanChart
+            title="Conversões por Plano (quantidade)"
+            data={byPlanQty.map((e) => ({ plan: e.plan, value: e.conversoes }))}
+            colorOf={planColor}
+            formatValue={(v) => `${v} conversões`}
+            storageKey="conversions.planQtyChart"
+          />
+          <PlanChart
+            title="Acréscimo de MRR por Plano"
+            data={byPlan.map((e) => ({ plan: e.plan, value: e.mrr }))}
+            colorOf={planColor}
+            formatValue={fmtBRL}
+            yTickFormat={(v) => `R$${(v / 1000).toFixed(0)}k`}
+            storageKey="conversions.planMrrChart"
+          />
         </div>
+
 
         <Card>
           <CardHeader>
