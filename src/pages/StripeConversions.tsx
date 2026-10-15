@@ -22,7 +22,7 @@ import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditP
 import { PlanChart } from "@/components/stripe/PlanChart";
 import { AreaChart } from "@/components/stripe/AreaChart";
 import { fetchAllPaged } from "@/lib/supabasePaged";
-import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter } from "@/lib/stripeConversions";
+import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter, type OriginCut } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -137,6 +137,7 @@ export default function StripeConversions() {
   const [reactivationOnly, setReactivationOnly] = useState(false);
   const [couponOnly, setCouponOnly] = useState(false);
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
+  const [originFilter, setOriginFilter] = useState<OriginCut>("all");
   const [reprocessing, setReprocessing] = useState(false);
   const [backfillingNet, setBackfillingNet] = useState(false);
   const [reapplying, setReapplying] = useState(false);
@@ -159,13 +160,13 @@ export default function StripeConversions() {
   const contributionOf = (r: Conversion) => addedMrr(r, mrrMode);
   const rangeValid = validDateRange(period) && (!safraEnabled || validDateRange(safra));
   const range = rangeValid ? spRange(period) : null;
-  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode, campaign: campaignFilter };
+  const filters: ConversionFilters = { area: areaFilter, type: typeFilter, seller: sellerFilter, reactivationOnly, couponOnly, mode: mrrMode, campaign: campaignFilter, origin: originFilter };
   const refreshPanel = async () => {
     await Promise.all([qc.invalidateQueries({ queryKey: ["stripe-conversions"] }), qc.invalidateQueries({ queryKey: ["price-map-areas"] }), qc.invalidateQueries({ queryKey: ["price-map-canonical"] })]);
   };
   function resetFilters() {
     setPeriodPreset("last_90"); setPeriod(presetRange("last_90")); setSafraEnabled(false); setSafra(presetRange("ytd"));
-    setAreaFilter("all"); setTypeFilter("all"); setSellerFilter("all"); setReactivationOnly(false); setCouponOnly(false); setMrrMode("net"); setCampaignFilter("all");
+    setAreaFilter("all"); setTypeFilter("all"); setSellerFilter("all"); setReactivationOnly(false); setCouponOnly(false); setMrrMode("net"); setCampaignFilter("all"); setOriginFilter("all");
   }
 
 
@@ -184,7 +185,7 @@ export default function StripeConversions() {
       const build = () => {
         let q = supabase
           .from("stripe_conversions")
-          .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id")
+          .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id, origem_cliente")
           .gte("converted_at", range.from)
           .lt("converted_at", range.until)
           .order("converted_at", { ascending: false })
@@ -221,8 +222,8 @@ export default function StripeConversions() {
     },
   });
 
-  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, { ...filters, campaignCtx })), [periodRows, filters, campaignFilter, campaignCtx]);
-  useEffect(() => { setDetailPage(0); }, [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode, campaignFilter, campaignCtx]);
+  const rows = useMemo(() => periodRows.filter(r => matchesConversion(r, { ...filters, campaignCtx })), [periodRows, filters, campaignFilter, originFilter, campaignCtx]);
+  useEffect(() => { setDetailPage(0); }, [periodRows, areaFilter, typeFilter, sellerFilter, reactivationOnly, couponOnly, mrrMode, campaignFilter, originFilter, campaignCtx]);
 
   const { data: mappedAreaOptions = [] } = useQuery({
     queryKey: ["price-map-areas"],
@@ -630,7 +631,7 @@ export default function StripeConversions() {
     doc.setFontSize(14);
     doc.text(`Conversões Stripe por Área`, 14, 18);
     doc.setFontSize(9);
-    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${campaignFilter === "all" ? "" : ` | Campanha: ${campaignFilter === "campaign" ? "Somente campanha" : "Sem campanha"}`}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
+    doc.text(`Período: ${period.start} → ${period.end} | Área: ${areaFilter} | Tipo: ${typeFilter} | Vendedor: ${sellerFilter === "all" ? "Todos" : sellerFilter === "none" ? "Sem vendedor" : sellersMap[sellerFilter] || sellerFilter}${campaignFilter === "all" ? "" : ` | Campanha: ${campaignFilter === "campaign" ? "Somente campanha" : "Sem campanha"}`}${originFilter === "all" ? "" : ` | Origem: ${originFilter === "4blue" ? "Só 4blue" : "Sem 4blue"}`}${safraEnabled ? ` | Safra: ${safra.start} → ${safra.end}` : ""}`, 14, 24);
     doc.text(`Total: ${stats.total} conversões | ${metricLabel}: ${fmtBRL(stats.totalMrr)} | Áreas: ${stats.areasCount}`, 14, 30);
 
     autoTable(doc, {
@@ -707,7 +708,7 @@ export default function StripeConversions() {
         {/* Filtros */}
         <Card>
           <CardContent className="pt-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 text-left">
 <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Período de conversão</Label>
                 <Select value={periodPreset} onValueChange={changePreset}>
@@ -765,6 +766,17 @@ export default function StripeConversions() {
                     <SelectItem value="all">Tudo</SelectItem>
                     <SelectItem value="campaign">Só campanha</SelectItem>
                     <SelectItem value="non_campaign">Sem campanha</SelectItem>
+                  </SelectContent>
+                 </Select>
+              </div>
+<div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Origem</Label>
+                <Select value={originFilter} onValueChange={(v) => setOriginFilter(v as OriginCut)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="4blue">Só 4blue</SelectItem>
+                    <SelectItem value="non_4blue">Sem 4blue</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

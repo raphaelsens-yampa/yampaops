@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, planChartGroup, matchesType, sellerLabelOf, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
+import { addedMrr, matchesConversion, subscriptionMrr, conversionPreset, spRange, validDateRange, isCampaignConversion, planChartGroup, matchesType, sellerLabelOf, matchesOriginCut, type FilterableConversion, type ConversionFilters, type CampaignContext } from "@/lib/stripeConversions";
 const row: FilterableConversion = { conversion_type: "new", mrr: 399, mrr_net: 279, delta_mrr: 279, area: "Sales", assigned_seller_id: "leticia", is_reactivation: false, coupon_id: "coupon", customer_email: "cliente@exemplo.com" };
-const filters: ConversionFilters = { area: "all", type: "all", seller: "all", reactivationOnly: false, couponOnly: false, mode: "net", campaign: "all" };
+const filters: ConversionFilters = { area: "all", type: "all", seller: "all", reactivationOnly: false, couponOnly: false, mode: "net", campaign: "all", origin: "all" };
 const campaignCtx: CampaignContext = { couponIds: new Set(["CAMP10"]), manualByEmail: new Map([["manual@exemplo.com", true], ["excluido@exemplo.com", false]]) };
+describe("Recorte por origem (4blue)", () => {
+  it("só 4blue exige marcação explícita", () => {
+    expect(matchesOriginCut({ ...row, origem_cliente: "4blue" }, "4blue")).toBe(true);
+    expect(matchesOriginCut({ ...row, origem_cliente: "4Blue" }, "4blue")).toBe(true);
+    expect(matchesOriginCut({ ...row, origem_cliente: "yampa" }, "4blue")).toBe(false);
+    expect(matchesOriginCut({ ...row, origem_cliente: null }, "4blue")).toBe(false);
+  });
+  it("sem 4blue inclui yampa e sem origem, e as fatias somam o total", () => {
+    expect(matchesOriginCut({ ...row, origem_cliente: "yampa" }, "non_4blue")).toBe(true);
+    expect(matchesOriginCut({ ...row, origem_cliente: null }, "non_4blue")).toBe(true);
+    expect(matchesOriginCut({ ...row, origem_cliente: "4blue" }, "non_4blue")).toBe(false);
+    expect(matchesOriginCut({ ...row, origem_cliente: "4blue" }, "all")).toBe(true);
+  });
+  it("matchesConversion aplica o recorte de origem", () => {
+    expect(matchesConversion({ ...row, origem_cliente: "4blue" }, { ...filters, origin: "4blue" })).toBe(true);
+    expect(matchesConversion(row, { ...filters, origin: "4blue" })).toBe(false);
+    expect(matchesConversion(row, { ...filters, origin: "non_4blue" })).toBe(true);
+  });
+});
 describe("Conversões por Área", () => {
   it("filtra vendedor específico", () => { expect(matchesConversion(row, { ...filters, seller: "eduarda" })).toBe(false); expect(matchesConversion(row, { ...filters, seller: "leticia" })).toBe(true); });
   it("filtra sem vendedor", () => { expect(matchesConversion(row, { ...filters, seller: "none" })).toBe(false); expect(matchesConversion({ ...row, assigned_seller_id: null }, { ...filters, seller: "none" })).toBe(true); });

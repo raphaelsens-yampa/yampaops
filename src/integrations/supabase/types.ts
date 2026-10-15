@@ -5691,6 +5691,7 @@ export type Database = {
           mrr_net: number | null
           net_amount: number | null
           net_amount_source: string | null
+          origem_cliente: string | null
           plan_name: string | null
           previous_churn_at: string | null
           previous_conversion_id: string | null
@@ -5731,6 +5732,7 @@ export type Database = {
           mrr_net?: number | null
           net_amount?: number | null
           net_amount_source?: string | null
+          origem_cliente?: string | null
           plan_name?: string | null
           previous_churn_at?: string | null
           previous_conversion_id?: string | null
@@ -5771,6 +5773,7 @@ export type Database = {
           mrr_net?: number | null
           net_amount?: number | null
           net_amount_source?: string | null
+          origem_cliente?: string | null
           plan_name?: string | null
           previous_churn_at?: string | null
           previous_conversion_id?: string | null
