@@ -35,6 +35,8 @@
 - [ ] Card Conversões = Novas Vendas + Recuperados + Upsell; card Nova Venda → "New MRR" (Novas + Recuperados)
 - [ ] Reorganizar os 4 cards restantes em uma linha
 - [ ] Corrigir rótulos (quantidade/%) que não aparecem no modo pizza
+- [ ] Filtro de Tipo: remover Downgrade e Renovação e incluir Recuperação
+
 
 
 
