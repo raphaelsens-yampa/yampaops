@@ -45,10 +45,10 @@ function readLabelMode(key: string, fallback: LabelMode, allowed?: LabelMode[]):
 const pctText = (part: number, total: number) =>
   total > 0 ? `${((part / total) * 100).toFixed(1).replace(".", ",")}%` : "";
 
-/** Gráfico de um plano: colunas ou pizza, com rótulos fixos definidos pelo chamador. */
+/** Gráfico de um plano: colunas ou pizza; rótulos alternáveis conforme `labelOptions`. */
 export function PlanChart({
   title, data, colorOf, formatValue, formatQty, formatMrr, defaultLabel = "qty",
-  storageKey, yTickFormat,
+  storageKey, yTickFormat, labelOptions,
 }: {
   title: string;
   data: PlanPoint[];
@@ -59,8 +59,11 @@ export function PlanChart({
   defaultLabel?: LabelMode;
   storageKey: string;
   yTickFormat?: (v: number) => string;
+  /** Métricas oferecidas no seletor de rótulos; ausente/vazio = sem seletor. */
+  labelOptions?: LabelMode[];
 }) {
   const [style, setStyle] = useState<ChartStyle>(() => readStyle(storageKey));
+  const [labels, setLabels] = useState<LabelMode>(() => readLabelMode(storageKey, defaultLabel, labelOptions));
 
   const total = useMemo(() => data.reduce((s, d) => s + d.value, 0), [data]);
   const hasSlices = data.length > 0 && total > 0;
