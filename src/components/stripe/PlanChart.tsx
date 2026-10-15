@@ -161,7 +161,9 @@ export function PlanChart({
                 paddingAngle={2}
                 label={pieLabel}
                 labelLine={false}
+                isAnimationActive={false}
               >
+
                 {data.map((e) => <Cell key={e.plan} fill={colorOf(e.plan)} />)}
               </Pie>
             </PieChart>

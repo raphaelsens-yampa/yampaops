@@ -273,30 +273,29 @@ export default function StripeConversions() {
     const total = convRows.length;
     const totalMrr = convRows.reduce((s, r) => s + contributionOf(r), 0);
     const areasCount = new Set(convRows.map(r => r.area)).size;
-    const newMrr = rows
-      .filter(r => r.conversion_type === "new")
-      .reduce((s, r) => s + valueOf(r), 0);
-    const newCount = rows.filter(r => r.conversion_type === "new").length;
+    // New MRR = novas vendas + recuperados (recuperação é venda nova com
+    // sinalizador de reativação). Downgrade e renovação ficam fora do painel.
+    const newRows = rows.filter(r => r.conversion_type === "new");
+    const newMrr = newRows.reduce((s, r) => s + valueOf(r), 0);
+    const newCount = newRows.length;
+    const recoveryRows = newRows.filter(r => r.is_reactivation);
+    const recoveryMrr = recoveryRows.reduce((s, r) => s + valueOf(r), 0);
+    const recoveryCount = recoveryRows.length;
+    const newOnlyMrr = newMrr - recoveryMrr;
+    const newOnlyCount = newCount - recoveryCount;
     const expansionMrr = rows
       .filter(r => r.conversion_type === "upsell")
       .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
-    const contractionMrr = rows
-      .filter(r => r.conversion_type === "downgrade")
-      .reduce((s, r) => s + Number(r.delta_mrr || 0), 0);
-    const renewalMrr = rows
-      .filter(r => r.conversion_type === "renewal")
-      .reduce((s, r) => s + valueOf(r), 0);
-    const renewalCount = rows.filter(r => r.conversion_type === "renewal").length;
     const upsellCount = rows.filter(r => r.conversion_type === "upsell").length;
-    const downgradeCount = rows.filter(r => r.conversion_type === "downgrade").length;
     const noSellerCount = convRows.filter(r => !r.assigned_seller_id).length;
     const reactivationCount = convRows.filter(r => r.is_reactivation).length;
     return {
       total, totalMrr, areasCount, ticketMedio: total ? totalMrr / total : 0,
-      newMrr, newCount, expansionMrr, upsellCount, contractionMrr, downgradeCount,
-      renewalMrr, renewalCount, noSellerCount, reactivationCount,
+      newMrr, newCount, newOnlyMrr, newOnlyCount, recoveryMrr, recoveryCount,
+      expansionMrr, upsellCount, noSellerCount, reactivationCount,
     };
   }, [rows, convRows, mrrMode]);
+
 
 
   const health = useMemo(() => {
@@ -501,13 +500,15 @@ export default function StripeConversions() {
   const bySeller = useMemo(() => {
     const map = new Map<string, { seller_id: string; name: string; conversoes: number; mrr: number }>();
     for (const r of convRows) {
-      const sellerId = r.assigned_seller_id || "none";
+      // Sem vendedor atribuído: a área assume o lugar do vendedor no painel.
+      const sellerId = r.assigned_seller_id || `area:${r.area}`;
       const cur = map.get(sellerId) || {
         seller_id: sellerId,
-        name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : "Sem vendedor",
+        name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : r.area,
         conversoes: 0,
         mrr: 0,
       };
+
       cur.conversoes += 1;
       cur.mrr += contributionOf(r);
       map.set(sellerId, cur);
@@ -539,13 +540,15 @@ export default function StripeConversions() {
     const map = new Map<string, { seller_id: string; seller_name: string; plan: string; quantidade: number; mrr: number }>();
     for (const r of rows) {
       if (r.conversion_type !== "new") continue;
-      const sellerId = r.assigned_seller_id || "none";
+      // Sem vendedor atribuído: a área assume o lugar do vendedor no painel.
+      const sellerId = r.assigned_seller_id || `area:${r.area}`;
       const plan = r.plan_name?.trim() || "Sem plano";
       const key = `${sellerId}-${plan}`;
       const cur = map.get(key) || {
         seller_id: sellerId,
-        seller_name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : "Sem vendedor",
+        seller_name: r.assigned_seller_id ? sellersMap[r.assigned_seller_id] || r.assigned_seller_id.slice(0, 8) : r.area,
         plan,
+
         quantidade: 0,
         mrr: 0,
       };
@@ -609,11 +612,11 @@ export default function StripeConversions() {
     const resumo = byArea.map(a => ({ "Área": a.area, "Conversões": a.conversoes, ["Acréscimo MRR (R$)"]: a.mrr }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), "Resumo por Área");
     const tipos = [
-      { Tipo: "Nova venda", MRR: stats.newMrr, Quantidade: stats.newCount },
+      { Tipo: "Nova venda", MRR: stats.newOnlyMrr, Quantidade: stats.newOnlyCount },
+      { Tipo: "Recuperação", MRR: stats.recoveryMrr, Quantidade: stats.recoveryCount },
       { Tipo: "Expansão", MRR: stats.expansionMrr, Quantidade: stats.upsellCount },
-      { Tipo: "Contração", MRR: stats.contractionMrr, Quantidade: stats.downgradeCount },
-      { Tipo: "Renovação", MRR: stats.renewalMrr, Quantidade: stats.renewalCount },
     ];
+
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tipos), "Resumo por Tipo");
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(new Blob([buf], { type: "application/octet-stream" }), `conversoes_stripe_${period.start}_${period.end}.xlsx`);
@@ -735,9 +738,9 @@ export default function StripeConversions() {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="new">Nova</SelectItem>
+                    <SelectItem value="reactivation">Recuperação</SelectItem>
                     <SelectItem value="upsell">Upsell</SelectItem>
-                    <SelectItem value="downgrade">Downgrade</SelectItem>
-                    <SelectItem value="renewal">Renovação</SelectItem>
+
                   </SelectContent>
                 </Select>
               </div>
@@ -805,7 +808,6 @@ export default function StripeConversions() {
         {isFetching && <p role="status" className="flex gap-2 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />{isLoading ? "Carregando conversões…" : "Atualizando conversões…"}</p>}
         {health.missingNet > 0 && <p className="text-sm text-muted-foreground">{health.missingNet} registro(s) sem MRR líquido; no modo líquido, essas assinaturas usam o bruto.</p>}
         {stats.upsellCount > 0 && <p className="text-xs text-muted-foreground">Expansão e contração usam Δ MRR = MRR bruto − MRR anterior registrado. O seletor líquido/bruto aplica-se às assinaturas; não há líquido anterior para recalcular esses deltas.</p>}
-        {(typeFilter === "renewal" || typeFilter === "downgrade") && <p className="text-sm text-muted-foreground">{typeFilter === "renewal" ? "Renovações" : "Downgrades"} não representam acréscimo de MRR. Consulte o indicador próprio e o Detalhamento.</p>}
         {!isLoading && !queryError && rangeValid && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum registro corresponde aos filtros selecionados.</p>}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -816,15 +818,13 @@ export default function StripeConversions() {
 
           <TabsContent value="overview" className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{stats.total}</p><p className="text-[10px] text-muted-foreground">Nova venda + upsell (exclui renovação/downgrade)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Acréscimo de MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Novas/recuperações + incremento de upsell</p></CardContent></Card>
-
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Nova venda</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.newCount} conversão(ões)</p></CardContent></Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Conversões</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{stats.total}</p><p className="text-[10px] text-muted-foreground">Novas vendas + recuperados + upsell</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Acréscimo de MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.totalMrr)}</p><p className="text-[10px] text-muted-foreground">Novas vendas + recuperados + incremento de upsell</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">New MRR</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.newMrr)}</p><p className="text-[10px] text-muted-foreground">Novas vendas + recuperados ({stats.newCount})</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Expansão MRR (Δ bruto)</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.expansionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.upsellCount} upsell(s)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Contração MRR (Δ bruto)</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.contractionMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.downgradeCount} downgrade(s)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Renovações</p><p className="text-2xl font-bold tabular-nums whitespace-nowrap">{fmtBRL(stats.renewalMrr)}</p><p className="text-[10px] text-muted-foreground">{stats.renewalCount} renovação(ões)</p></CardContent></Card>
       </div>
+
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
