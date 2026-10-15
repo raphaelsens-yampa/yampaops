@@ -143,12 +143,17 @@ export function PlanChart({
     );
   };
 
-  // LabelList entrega x/y já calculados (position="inside"); não usa cx/cy da fatia.
+  // Rótulo interno: renderizado por um segundo Pie invisível sobreposto,
+  // pois LabelList dentro de Pie não entrega as coordenadas da fatia.
   const pieLabelInside = (props: any) => {
-    const { x, y } = props;
+    const { cx, cy, midAngle, innerRadius, outerRadius } = props;
     const entry = entryOf(props);
-    if (!entry || typeof x !== "number" || typeof y !== "number") return null;
+    if (!entry) return null;
     if (entry.value / total < 0.05) return null; // fatia pequena demais para rótulo interno
+    const rad = (Math.PI / 180) * -midAngle;
+    const r = (innerRadius + outerRadius) / 2;
+    const x = cx + Math.cos(rad) * r;
+    const y = cy + Math.sin(rad) * r;
     return (
       <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-background" fontSize={10}>
         {pctText(entry.value, total)}
