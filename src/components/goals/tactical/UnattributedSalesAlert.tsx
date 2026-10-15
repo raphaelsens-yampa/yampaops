@@ -65,6 +65,8 @@ export function UnattributedSalesAlert({
 
       const list: Row[] = [];
       for (const c of (convRes.data as any[]) || []) {
+        // Vendas da parceria 4blue não existem no Stripe (sem price_id) — não são pendência do Mapa de Preços.
+        if (c.origem_cliente === "4blue" || c.attribution_source === "metabase_4blue") continue;
         const mrr = Number(c.mrr_net ?? c.mrr ?? 0);
         if (!(mrr > 0)) continue;
         const priceId = c.stripe_price_id ? String(c.stripe_price_id) : null;
