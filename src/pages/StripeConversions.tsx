@@ -30,7 +30,7 @@ import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
+  ResponsiveContainer, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from "recharts";
 import * as XLSX from "xlsx";
