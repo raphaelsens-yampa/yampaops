@@ -57,10 +57,12 @@ function useOnePage(ym: string) {
     refetchInterval: 5 * 60_000,
     queryFn: async () => {
       const until = nextMonth(ym);
-      const [agg, goals, daily, pre, conv] = await Promise.all([
+      const lastTrial = await supabase.from("metas_trials_daily").select("data").order("data", { ascending: false }).limit(1).maybeSingle();
+      const snap = lastTrial.data?.data;
+      const [agg, goals, daily, pre, conv, trials] = await Promise.all([
         supabase.from("metabase_monthly_agg").select("metric_key, year_month, category_id, realized_amount, deals_count")
           .eq("scope", "company").is("origem_cliente", null).gte("year_month", `${year}-01-01`).lte("year_month", `${year}-12-01`),
-        supabase.from("goals").select("category_id, period_start, target_mrr, target_deals")
+        supabase.from("goals").select("category_id, period_start, target_mrr, target_deals, target_pct")
           .eq("scope", "company").is("team_id", null).is("user_id", null).is("campaign_id", null).is("origem_cliente", null)
           .gte("period_start", `${year}-01-01`).lte("period_start", `${year}-12-31`),
         supabase.from("metas_snapshot_diario").select("data, metric_key, realized_amount, deals_count")
@@ -70,9 +72,11 @@ function useOnePage(ym: string) {
         supabase.from("stripe_conversions").select("area, conversion_type, mrr, mrr_net, delta_mrr")
           .gte("converted_at", `${ym}T00:00:00-03:00`).lt("converted_at", `${until}T00:00:00-03:00`)
           .in("conversion_type", ["new", "upsell"]).limit(5000),
+        snap ? supabase.from("metas_trials_daily").select("company_id, data_freetrial").eq("data", snap)
+          .gte("data_freetrial", ym).lt("data_freetrial", until).limit(5000) : Promise.resolve({ data: [], error: null } as any),
       ]);
-      for (const r of [agg, goals, daily, pre, conv]) if (r.error) throw r.error;
-      return { agg: (agg.data ?? []) as AggRow[], goals: (goals.data ?? []) as GoalRow[], daily: daily.data ?? [], pre: pre.data ?? [], conv: conv.data ?? [] };
+      for (const r of [agg, goals, daily, pre, conv, trials]) if (r.error) throw r.error;
+      return { agg: (agg.data ?? []) as AggRow[], goals: (goals.data ?? []) as GoalRow[], daily: daily.data ?? [], pre: pre.data ?? [], conv: conv.data ?? [], trials: (trials.data ?? []) as { company_id: number | null; data_freetrial: string | null }[] };
     },
   });
 }
@@ -135,13 +139,18 @@ export default function OnePageDiretoria() {
     const dv = (key: string, count = false) => days.map(d => { const r: any = data.daily.find((x: any) => x.data === d && x.metric_key === key); return r ? Number(count ? r.deals_count : r.realized_amount) : null; });
     const daily = { labels: days.map(d => d.slice(8, 10) + "/" + d.slice(5, 7)), mrr: dv("total_mrr"), at: dv("ativos_pagantes", true), novo: dv("new_mrr"), churn: dv("churn_mrr") };
 
+    const trialSet = new Map<string, Set<string>>();
+    for (const t of data.trials) { const d = String(t.data_freetrial ?? "").slice(0, 10); if (!d) continue; const s = trialSet.get(d) ?? new Set(); s.add(String(t.company_id)); trialSet.set(d, s); }
+    const trialDays = [...trialSet.keys()].sort();
+    const trialsTotal = new Set(data.trials.map(t => String(t.company_id))).size;
+    const trials = { labels: trialDays.map(d => d.slice(8, 10) + "/" + d.slice(5, 7)), per: trialDays.map(d => trialSet.get(d)!.size), total: trialsTotal };
     const areas = new Map<string, { qtd: number; mrr: number }>();
     for (const c of data.conv as any[]) {
       const v = addedMrr(c, "gross"); if (v <= 0) continue;
       const a = areas.get(c.area || "Sem área") ?? { qtd: 0, mrr: 0 }; a.qtd++; a.mrr += v; areas.set(c.area || "Sem área", a);
     }
     const byArea = [...areas.entries()].sort((a, b) => b[1].mrr - a[1].mrr);
-    return { kpis, goalsRows, yearly, daily, byArea };
+    return { kpis, goalsRows, yearly, daily, byArea, trials };
   }, [data, ym]);
 
   const label = new Date(`${ym}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -199,6 +208,8 @@ export default function OnePageDiretoria() {
               <ChartBox title="New MRR × Churn MRR (acumulado no mês)"><Line data={{ labels: view.daily.labels, datasets: [ds("New MRR", view.daily.novo, C.green), ds("Churn MRR", view.daily.churn, C.red)] }} options={LEG_OPT} /></ChartBox>
               <ChartBox title="Atingimento MRR por mês (%)"><Bar data={{ labels: view.yearly.labels, datasets: [{ label: "%", data: view.yearly.ating, backgroundColor: view.yearly.ating.map(v => v != null && v >= 100 ? C.green : C.amber) }] }} options={BAR_OPT} /></ChartBox>
             </div>
+
+            <ChartBox title={`Free trials iniciados por dia — ${view.trials.total} no mês`}><Bar data={{ labels: view.trials.labels, datasets: [{ label: "Trials", data: view.trials.per, backgroundColor: C.amber }] }} options={BAR_OPT} /></ChartBox>
 
             <Card><Mini>Conversões do mês por área (novas vendas, recuperações e upsell)</Mini>
               {view.byArea.length === 0 ? <div className="text-[12px]" style={{ color: C.mute }}>Nenhuma conversão no mês.</div> :

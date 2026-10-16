@@ -9,6 +9,7 @@ describe("OnePage Diretoria", () => {
   it("meta usa R$ e, sem valor, a quantidade", () => {
     expect(targetOf({ category_id: "a", period_start: "2026-10-01", target_mrr: 0, target_deals: 2384 })).toBe(2384);
     expect(targetOf({ category_id: "a", period_start: "2026-10-01", target_mrr: 0, target_deals: 0 })).toBeNull();
+    expect(targetOf({ category_id: "a", period_start: "2026-10-01", target_mrr: 0, target_deals: 0, target_pct: 4.5 })).toBe(4.5);
   });
   it("churn acima da meta é ruim; vendas acima da meta é bom", () => {
     expect(attainmentTone("churn_mrr", attainment(18000, 15000))).toBe("down");

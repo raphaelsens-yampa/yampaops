@@ -7,7 +7,7 @@ export const COUNT_METRICS = new Set(["ativos_pagantes", "churn_qtd", "stripe_at
 export const LOWER_IS_BETTER = new Set(["churn_mrr", "churn_qtd", "churn_pct", "downsell_mrr"]);
 
 export interface AggRow { metric_key: string; year_month: string; category_id: string | null; realized_amount: number | null; deals_count: number | null }
-export interface GoalRow { category_id: string | null; period_start: string; target_mrr: number | null; target_deals: number | null }
+export interface GoalRow { category_id: string | null; period_start: string; target_mrr: number | null; target_deals: number | null; target_pct?: number | null }
 
 export function realizedOf(row: AggRow | undefined): number | null {
   if (!row) return null;
@@ -20,7 +20,9 @@ export function targetOf(goal: GoalRow | undefined): number | null {
   const mrr = Number(goal.target_mrr ?? 0);
   if (mrr !== 0) return mrr;
   const deals = Number(goal.target_deals ?? 0);
-  return deals !== 0 ? deals : null;
+  if (deals !== 0) return deals;
+  const p = Number(goal.target_pct ?? 0);
+  return p !== 0 ? p : null;
 }
 
 /** % de atingimento = realizado ÷ meta. Em métricas de perda, acima de 100% = perda acima do orçado. */
