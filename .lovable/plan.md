@@ -1,39 +1,42 @@
-# Revisão do OnePage Diretoria
+# Revisão do OnePage Diretoria — 100% a partir do sistema
 
 ## Diagnóstico
-A tela inteira é uma "foto" fixa gravada em 02/09/2026 (dados até 01/09). Nada é lido do sistema; o gerador que atualizava a foto não está no projeto, então ela não é atualizada há ~45 dias. Hoje (16/10) nenhum número reflete outubro e setembro não aparece.
+Hoje a tela inteira é uma foto fixa (dados até 01/09/2026) gerada por um processo externo. Nada é lido do sistema. A nova versão passa a buscar tudo direto da base do sistema, sem processo externo. O que o sistema não tem, sai da tela.
 
-## O que ainda está correto (como histórico de Agosto fechado)
-- MRR fechado ago R$329,5k, Ativos 2.298, Novos 118, Churns 132, Saldo MRR R$4,7k.
-- Cards de Metas ago (New, Recuperado, Upsell, Churn, Downsell vs meta).
-- Série mensal Jan–Ago (MRR, ativos, metas, saldo, atingimento).
-- Metas anuais Dez/26 (MRR R$512k, Ativos 3.540) — válidas se não foram revisadas.
-Tudo isso já existe, atualizado, em Metas / Acompanhamento.
+## Fica — já existe no sistema (com dado vivo)
+Metas e realizado vêm do painel **Metas Estratégicas** (mesmas categorias, metas e realizado do Metabase):
+- Total de MRR (atual vs meta) e Net MRR do mês.
+- New MRR, Novas Vendas, Recuperados, Upsell.
+- Churn de MRR, Churn de Logos, Churn % (logos), Downsell.
+- Usuários Ativos Pagantes (meta vs realizado).
+- Retenção (Pré-churn) — clientes em risco.
+- MRR e Ativos do Yampa 2.0.
+- Evolução mensal do ano: MRR e Ativos vs meta, e atingimento por mês.
+- Séries diárias do mês: MRR, ativos, novos, churn (base diária do Metabase).
+- Trials (base diária de trials).
+- Conversões por área do mês (Conversões por Área), com filtro 4blue.
+- ARPA (MRR ÷ ativos, calculado).
 
-## O que está defasado (números "atuais" que já não são atuais)
-- MRR Atual, Ativos, Churn atual, ARPA, Pré-churn, Trials (posição 01/09).
-- Séries diárias de agosto.
-- Marketing/Campanhas e LTV/CAC (coorte de Junho, Looker não integrado).
-- P&L (Receita, Margem, Lucro Operacional, Despesas Fixas) — projeção de Julho.
-- NPS, Must Have, Adoção YampaFin (ago).
+## Sai — não existe no sistema (vinha só do processo externo)
+- P&L: Receita Geral, Margem de Contribuição, Lucro Operacional, Despesas Fixas, % Investimentos, "Estrutura de Resultado".
+- Marketing do Looker: investimento, CP-FT, CAC, LTV/CAC, Branding x Sem Branding, tabela de campanhas de Junho, alerta Meta Ads.
+- Produto: NPS, Must Have, Adoção YampaFin, retorno ao legado, Dados da Jornada.
+- Roadmap, Riscos, Bloqueadores, Positivos, Iniciativas.
+- Quadrimestre 2025×2026, Desempenho vs LY, Retração de Receita.
+- Custos/decisões (regime tributário, economia IA/CTO), Impacto em empregos.
+- Unit economics derivados do externo: LTV médio, Payback, Lifetime, ARPA do churn, Origem fechamentos 4Blue.
+- Engajamento (donut Alto/Desengajado).
+- Páginas repetidas: as 6 páginas viram 1 painel.
 
-## O que pode ser descartado
-- Roadmap/Riscos/Bloqueadores/Positivos e Iniciativas (texto fixo, sem dono nem atualização).
-- "Quadrimestre 2025×2026", "Desempenho vs LY -88%", "Retração Receita".
-- Bloco Branding x Sem Branding e tabela de campanhas de Junho (já há Histórico de Campanhas).
-- Alertas de LTV/CAC "até Jun/26" (prazo vencido).
-- "Dados da Jornada — em breve", "Impacto em empregos", custos/decisões (IA design, CTO).
-- Página 2 (Financeiro) duplicada da página 1, e KPIs repetidos em 4 das 6 páginas.
-
-## Proposta (após sua aprovação)
-Enxugar para 1 página viva, lendo direto do sistema:
-1. MRR atual, Net MRR do mês, Ativos, Churn, ARPA — da base do Metabase já usada nas Metas.
-2. Metas do mês: realizado vs meta (New, Recuperado, Upsell, Churn).
-3. Evolução mensal MRR x meta no ano.
-4. Conversões do mês por área (Conversões por Área).
-5. Pré-churn atual.
-Remover os blocos descartados e os sem fonte (P&L, NPS, Marketing Looker) até existir integração; manter exportação em PDF.
+## Nova estrutura (uma página)
+1. Faixa de KPIs: MRR atual, Net MRR, Ativos, Churn %, ARPA, Pré-churn — cada um com meta e % de atingimento das Metas Estratégicas.
+2. Metas do mês: realizado vs meta de New MRR, Recuperados, Upsell, Churn MRR, Downsell (mesmos números da aba Estratégicas).
+3. Evolução anual: MRR e Ativos vs meta, mês a mês.
+4. Mês corrente dia a dia: MRR, novos, churn, trials.
+5. Conversões do mês por área.
+6. Seletor de mês (padrão: mês atual; meses fechados usam o fechamento oficial) e exportação em PDF mantida.
 
 ## Detalhes técnicos
-- Hoje: `src/data/onePageData.ts` estático, gerado por `build_onepage_data.py` ausente.
-- Nova versão: hooks existentes (useTacticalData / metas_ativos_pagantes_daily, stripe_conversions, metas_pre_churn), sem novas tabelas.
+- Remover `src/data/onePageData.ts` (estático) e reescrever `OnePageDiretoria.tsx` lendo: `goal_categories` + `goals` + `metabase_monthly_agg`/`metas_snapshot_diario` (mesma lógica de `MetabaseTracking.tsx`, extraída para um hook compartilhado para os números baterem com a aba Estratégicas), `metas_ativos_pagantes_daily`, `metas_trials_daily`, `metas_pre_churn`, `stripe_conversions`.
+- Sem novas tabelas nem processos externos.
+- Teste: KPIs do OnePage iguais aos da aba Metas Estratégicas para o mesmo mês.
