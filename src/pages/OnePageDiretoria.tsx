@@ -1,309 +1,210 @@
-import { useEffect, useRef, useState } from "react";
-import { Line, Bar, Doughnut } from "react-chartjs-2";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Line, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
-  BarElement, ArcElement, Tooltip, Legend, Filler,
+  BarElement, Tooltip, Legend, Filler,
 } from "chart.js";
 import { Layout } from "@/components/Layout";
-import data from "@/data/onePageData";
+import { supabase } from "@/integrations/supabase/client";
+import { addedMrr } from "@/lib/stripeConversions";
+import { realizedOf, targetOf, attainment, attainmentTone, arpa, type AggRow, type GoalRow } from "@/lib/onePage";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
 ChartJS.defaults.color = "#7A95A8";
 ChartJS.defaults.font.size = 10;
 ChartJS.defaults.borderColor = "#19293a";
 ChartJS.defaults.animation = false;
 
-const C = { bg:"#0B1824", card:"#132336", line:"#23415c", blue:"#0A84FF", green:"#22D3A0", red:"#FF4E6A", amber:"#FFB020", mute:"#7A95A8", sec:"#B0C4D0", white:"#E8F0F5", purple:"#B36BFF" };
-
-const D: any = data.D;
-
+const C = { bg:"#0B1824", card:"#132336", blue:"#0A84FF", green:"#22D3A0", red:"#FF4E6A", amber:"#FFB020", mute:"#7A95A8", sec:"#B0C4D0", white:"#E8F0F5", purple:"#B36BFF" };
+const MES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const LINE_OPT: any = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}},y:{beginAtZero:false}} };
 const LEG_OPT: any = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true,labels:{boxWidth:10}}}, scales:{y:{beginAtZero:false}} };
 const BAR_OPT: any = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
-const BAR_PCT: any = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}} };
-const ds = (label: string, dataArr: number[], color: string, extra: any = {}) => ({ label, data: dataArr, borderColor: color, tension:.3, pointRadius:0, borderWidth:2, ...extra });
-const vc = (cls?: string) => cls==="up"?C.green: cls==="down"?C.red: cls==="amber"?C.amber: C.sec;
+const ds = (label: string, data: (number|null)[], color: string, extra: any = {}) => ({ label, data, borderColor: color, tension:.3, pointRadius:0, borderWidth:2, ...extra });
 
-function Card({ children, className="" }: any) {
-  return <div className={"rounded-[10px] min-w-0 "+className} style={{background:C.card,padding:"10px 12px"}}>{children}</div>;
+const brl = (v: number | null, dec = 0) => v == null ? "—" : `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
+const brlK = (v: number | null) => v == null ? "—" : `${v < 0 ? "-" : ""}R$ ${(Math.abs(v) / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`;
+const num = (v: number | null) => v == null ? "—" : Math.round(v).toLocaleString("pt-BR");
+const pct = (v: number | null) => v == null ? "—" : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+const toneColor = (t: string) => t === "up" ? C.green : t === "down" ? C.red : C.sec;
+
+function Card({ children, className = "" }: any) {
+  return <div className={"rounded-[10px] min-w-0 " + className} style={{ background: C.card, padding: "10px 12px" }}>{children}</div>;
 }
 function Mini({ children }: any) {
-  return <h4 className="text-[11px] uppercase tracking-wide mb-2" style={{color:C.mute}}>{children}</h4>;
+  return <h4 className="text-[11px] uppercase tracking-wide mb-2" style={{ color: C.mute }}>{children}</h4>;
 }
-function Kpi({ k }: any) {
-  const [lbl,big,sub,vr,cls]=k;
-  return <Card><div className="text-[10px] uppercase tracking-wide mb-1.5" style={{color:C.mute}}>{lbl}</div>
-    <div className="text-[30px] font-extrabold leading-none">{big}</div>
-    {sub && <div className="text-[11px] mt-1.5" style={{color:C.mute}}>{sub}</div>}
-    {vr && <div className="text-[12px] font-bold mt-1" style={{color:vc(cls)}}>{vr}</div>}</Card>;
-}
-function ChartBox({ title, children, h="h-[180px]" }: any) {
-  return <Card><Mini>{title}</Mini><div className={"relative "+h}>{children}</div></Card>;
-}
-function Bars({ title, rows }: any) {
-  return <Card><Mini>{title}</Mini>{rows.map((r:any,i:number)=>(
-    <div key={i}><div className="flex justify-between text-[12px] mt-[7px] mb-[3px]"><span>{r[0]}</span><b>{r[1].toFixed(1).replace(".",",")}%</b></div>
-    <div className="h-2 rounded-[5px] overflow-hidden" style={{background:"#0d1a26"}}><div className="h-full rounded-[5px]" style={{width:Math.min(r[1],100)+"%",background:r[2]}}/></div></div>))}</Card>;
-}
-function List({ items }: any) {
-  return <ul>{items.map((it:any,i:number)=>(<li key={i} className="flex justify-between py-1.5 text-[12.5px]" style={{borderBottom:"1px solid #19293a"}}><span dangerouslySetInnerHTML={{__html:it[0]}}/><b style={it[2]?{color:it[2]}:undefined} dangerouslySetInnerHTML={{__html:it[1]}}/></li>))}</ul>;
-}
-function Tag({ children, t }: any) {
-  const map: any = { doing:["#1a3a5c","#5fb0ff"], back:["#2a2f3a","#9aa7b8"], go:["#143a30",C.green] };
-  const [bg,fg]=map[t]||map.back;
-  return <span className="text-[10px] font-bold px-[7px] py-[2px] rounded" style={{background:bg,color:fg}}>{children}</span>;
-}
-const G = { g4:"grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4", g3:"grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", g2:"grid gap-3 grid-cols-1 lg:grid-cols-2", g6:"grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" };
-
-function Page({ id, ttl, meta, children }: any) {
-  return <section id={id} className="scroll-mt-14 mb-3">
-    <div className="flex justify-between items-baseline flex-wrap gap-2 pb-1.5 mb-2">
-      <h2 className="text-[18px] font-extrabold tracking-tight uppercase" style={{color:C.white}}>{ttl}</h2>
-      <div className="text-[11px]" style={{color:C.mute}}>{meta}</div>
-    </div>
-    {children}
-  </section>;
+function ChartBox({ title, children, h = "h-[200px]" }: any) {
+  return <Card><Mini>{title}</Mini><div className={"relative " + h}>{children}</div></Card>;
 }
 
-const MESES = D.meses;
-const PERIODO = data.periodo;
-const NAV = [["p1","One Page",C.blue],["p2","Financeiro",C.blue],["p3","Plano de Metas",C.green],["p4","Revenue",C.green],["p5","Marketing",C.amber],["p6","Produto",C.purple]];
+interface Kpi { label: string; value: string; sub: string; note: string; tone: "up" | "down" | "flat" }
+function KpiCard({ k }: { k: Kpi }) {
+  return <Card><div className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: C.mute }}>{k.label}</div>
+    <div className="text-[26px] font-extrabold leading-none">{k.value}</div>
+    <div className="text-[11px] mt-1.5" style={{ color: C.mute }}>{k.sub}</div>
+    {k.note && <div className="text-[12px] font-bold mt-1" style={{ color: toneColor(k.tone) }}>{k.note}</div>}</Card>;
+}
 
-const waitFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+function monthKey(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`; }
+function nextMonth(ym: string) { const [y, m] = ym.split("-").map(Number); return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`; }
 
-async function inlineCanvasCharts(src: HTMLElement, clone: HTMLElement) {
-  const sourceCanvases = Array.from(src.querySelectorAll("canvas")) as HTMLCanvasElement[];
-  const clonedCanvases = Array.from(clone.querySelectorAll("canvas")) as HTMLCanvasElement[];
-  const decodes: Promise<void>[] = [];
-  clonedCanvases.forEach((canvas, index) => {
-    const source = sourceCanvases[index];
-    if (!source) return;
-    ChartJS.getChart(source)?.update("none");
-    const img = document.createElement("img");
-    img.src = source.toDataURL("image/png");
-    img.alt = "Gráfico da seção exportada";
-    img.style.cssText = canvas.style.cssText;
-    img.style.display = "block";
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.objectFit = "contain";
-    if (img.decode) decodes.push(img.decode().catch(() => undefined));
-    canvas.replaceWith(img);
+function useOnePage(ym: string) {
+  const year = ym.slice(0, 4);
+  return useQuery({
+    queryKey: ["onepage", ym],
+    refetchInterval: 5 * 60_000,
+    queryFn: async () => {
+      const until = nextMonth(ym);
+      const [agg, goals, daily, pre, conv] = await Promise.all([
+        supabase.from("metabase_monthly_agg").select("metric_key, year_month, category_id, realized_amount, deals_count")
+          .eq("scope", "company").is("origem_cliente", null).gte("year_month", `${year}-01-01`).lte("year_month", `${year}-12-01`),
+        supabase.from("goals").select("category_id, period_start, target_mrr, target_deals")
+          .eq("scope", "company").is("team_id", null).is("user_id", null).is("campaign_id", null).is("origem_cliente", null)
+          .gte("period_start", `${year}-01-01`).lte("period_start", `${year}-12-31`),
+        supabase.from("metas_snapshot_diario").select("data, metric_key, realized_amount, deals_count")
+          .eq("scope", "company").is("origem_cliente", null).eq("year_month", ym)
+          .in("metric_key", ["total_mrr", "ativos_pagantes", "new_mrr", "churn_mrr"]).order("data"),
+        supabase.from("metas_pre_churn").select("email_norm, data_ref").order("data_ref", { ascending: false }).limit(1000),
+        supabase.from("stripe_conversions").select("area, conversion_type, mrr, mrr_net, delta_mrr")
+          .gte("converted_at", `${ym}T00:00:00-03:00`).lt("converted_at", `${until}T00:00:00-03:00`)
+          .in("conversion_type", ["new", "upsell"]).limit(5000),
+      ]);
+      for (const r of [agg, goals, daily, pre, conv]) if (r.error) throw r.error;
+      return { agg: (agg.data ?? []) as AggRow[], goals: (goals.data ?? []) as GoalRow[], daily: daily.data ?? [], pre: pre.data ?? [], conv: conv.data ?? [] };
+    },
   });
-  await Promise.all(decodes);
 }
+
+const PDF_ID = "onepage-content";
 
 export default function OnePageDiretoria() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [active,setActive]=useState("p1");
-  const [downloading,setDownloading]=useState(false);
-  useEffect(()=>{
-    const root=rootRef.current;
-    const obs=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id);});},{root,rootMargin:"-45% 0px -50% 0px"});
-    NAV.forEach(([id])=>{const el=document.getElementById(id as string);if(el)obs.observe(el);});
-    return ()=>obs.disconnect();
-  },[]);
-  useEffect(()=>{
-    const main=rootRef.current?.closest("main") as HTMLElement | null;
-    if(!main) return;
-    const prev={bg:main.style.background,padding:main.style.padding,color:main.style.color,overflow:main.style.overflow,height:main.style.height,minHeight:main.style.minHeight};
-    main.style.background=C.bg;
-    main.style.padding="0";
-    main.style.color=C.white;
-    main.style.overflow="hidden";
-    main.style.height="100vh";
-    main.style.minHeight="0";
-    return ()=>{main.style.background=prev.bg;main.style.padding=prev.padding;main.style.color=prev.color;main.style.overflow=prev.overflow;main.style.height=prev.height;main.style.minHeight=prev.minHeight;};
-  },[]);
-  const go=(id:string)=>{
-    const el=document.getElementById(id);
-    const root=rootRef.current;
-    if(!el||!root) return;
-    const top=el.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop-48;
-    root.scrollTo({top,behavior:"smooth"});
-  };
-  const downloadPdf=async()=>{
-    if(downloading) return;
-    setDownloading(true);
-    const RENDER_W=1600;
-    const PAGE_MARGIN=22;
-    const stage=document.createElement("div");
-    stage.style.cssText=`position:fixed;left:-10000px;top:0;width:${RENDER_W}px;background:${C.bg};color:${C.white};font-family:-apple-system,Segoe UI,Roboto,Calibri,sans-serif;padding:22px;box-sizing:border-box;pointer-events:none;`;
-    document.body.appendChild(stage);
-    try{
-      const [{default:html2canvas},{default:jsPDF}]=await Promise.all([
-        import("html2canvas"),import("jspdf"),
-      ]);
-      const pdf=new jsPDF({orientation:"landscape",unit:"pt",format:"a4"});
-      const pw=pdf.internal.pageSize.getWidth();
-      const ph=pdf.internal.pageSize.getHeight();
-      const innerW=pw-PAGE_MARGIN*2;
-      const innerH=ph-PAGE_MARGIN*2-18;
-      if(document.fonts?.ready) await document.fonts.ready;
-      for(let i=0;i<NAV.length;i++){
-        const [id,label]=NAV[i];
-        const src=document.getElementById(id as string) as HTMLElement|null;
-        if(!src) continue;
-        const clone=src.cloneNode(true) as HTMLElement;
-        clone.style.width=`${RENDER_W-44}px`;
-        clone.style.maxWidth="none";
-        clone.style.margin="0";
-        clone.style.scrollMarginTop="0";
-        stage.innerHTML="";
-        stage.appendChild(clone);
-        await waitFrame();
-        await inlineCanvasCharts(src, clone);
-        await waitFrame();
-        const canvas=await html2canvas(stage,{backgroundColor:C.bg,scale:2,useCORS:true,allowTaint:true,logging:false,windowWidth:RENDER_W,width:RENDER_W,height:stage.scrollHeight});
-        const fitByWidthH=canvas.height*(innerW/canvas.width);
-        const drawW=fitByWidthH>innerH ? canvas.width*(innerH/canvas.height) : innerW;
-        const drawH=fitByWidthH>innerH ? innerH : fitByWidthH;
-        const x=PAGE_MARGIN+(innerW-drawW)/2;
-        const y=PAGE_MARGIN+(innerH-drawH)/2;
-        if(i>0) pdf.addPage("a4","landscape");
-        pdf.setFillColor(11,24,36); pdf.rect(0,0,pw,ph,"F");
-        pdf.addImage(canvas.toDataURL("image/png"),"PNG",x,y,drawW,drawH,undefined,"FAST");
-        pdf.setFontSize(9); pdf.setTextColor(180,196,208);
-        pdf.text(label as string,PAGE_MARGIN,ph-10);
-        pdf.text(`${i+1}/${NAV.length}`,pw-PAGE_MARGIN,ph-10,{align:"right"});
-      }
-      pdf.save(`OnePage-Diretoria-${new Date().toISOString().slice(0,10)}.pdf`);
-    } finally {
-      stage.remove();
-      setDownloading(false);
+  const [ym, setYm] = useState(() => monthKey(new Date()));
+  const [downloading, setDownloading] = useState(false);
+  const { data, isLoading, error } = useOnePage(ym);
+
+  useEffect(() => {
+    const main = rootRef.current?.closest("main") as HTMLElement | null;
+    if (!main) return;
+    const prev = { bg: main.style.background, padding: main.style.padding, color: main.style.color };
+    main.style.background = C.bg; main.style.padding = "0"; main.style.color = C.white;
+    return () => { main.style.background = prev.bg; main.style.padding = prev.padding; main.style.color = prev.color; };
+  }, []);
+
+  const monthOptions = useMemo(() => {
+    const now = new Date(); const out: string[] = [];
+    for (let i = 0; i < 12; i++) out.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+    return out;
+  }, []);
+
+  const view = useMemo(() => {
+    if (!data) return null;
+    const row = (metric: string, month = ym) => data.agg.find(a => a.metric_key === metric && a.year_month === month);
+    const goalOf = (r: AggRow | undefined, month = ym) => r?.category_id ? data.goals.find(g => g.category_id === r.category_id && g.period_start.slice(0, 7) === month.slice(0, 7)) : undefined;
+    const metric = (key: string, month = ym) => { const r = row(key, month); const real = realizedOf(r); const target = targetOf(goalOf(r, month)); const p = attainment(real, target); return { real, target, pct: p, tone: attainmentTone(key, p) }; };
+
+    const mrr = metric("total_mrr"), net = metric("net_mrr"), at = metric("ativos_pagantes"), churnPct = metric("churn_pct");
+    const latestPre = data.pre[0]?.data_ref;
+    const preCount = latestPre ? new Set(data.pre.filter(p => p.data_ref === latestPre).map(p => p.email_norm)).size : null;
+    const kpis: Kpi[] = [
+      { label: "MRR Atual", value: brlK(mrr.real), sub: `Meta ${brlK(mrr.target)}`, note: mrr.pct != null ? `${pct(mrr.pct)} atingido` : "", tone: mrr.tone },
+      { label: "Net MRR", value: brlK(net.real), sub: `Meta ${brlK(net.target)}`, note: net.pct != null ? `${pct(net.pct)} atingido` : "", tone: net.tone },
+      { label: "Ativos Pagantes", value: num(at.real), sub: `Meta ${num(at.target)}`, note: at.pct != null ? `${pct(at.pct)} atingido` : "", tone: at.tone },
+      { label: "Churn % (logos)", value: pct(churnPct.real), sub: churnPct.target != null ? `Meta ${pct(churnPct.target)}` : "Sem meta cadastrada", note: "", tone: "flat" },
+      { label: "ARPA", value: brl(arpa(mrr.real, at.real), 2), sub: "MRR ÷ ativos", note: "", tone: "flat" },
+      { label: "Pré-churn", value: num(preCount), sub: latestPre ? `clientes em risco · ${latestPre.split("-").reverse().join("/")}` : "sem dados", note: "", tone: "flat" },
+    ];
+
+    const flows: [string, string][] = [["New MRR (vendas)", "new_mrr"], ["Recuperados", "recuperados_mrr"], ["Upsell", "upsell_mrr"], ["Churn de MRR", "churn_mrr"], ["Downsell", "downsell_mrr"], ["Churn de Logos", "churn_qtd"], ["MRR yampa 2.0", "stripe_mrr_yampa20"], ["Ativos yampa 2.0", "stripe_ativos_yampa20"]];
+    const goalsRows = flows.map(([label, key]) => {
+      const m = metric(key); const isCount = key === "churn_qtd" || key === "stripe_ativos_yampa20";
+      return { label, real: isCount ? num(m.real) : brl(m.real), target: m.target == null ? "—" : isCount ? num(m.target) : brl(m.target), pct: m.pct, tone: m.tone };
+    });
+
+    const months = MES.map((_, i) => `${ym.slice(0, 4)}-${String(i + 1).padStart(2, "0")}-01`).filter(m => m <= ym);
+    const yearly = {
+      labels: months.map(m => MES[Number(m.slice(5, 7)) - 1]),
+      mrr: months.map(m => metric("total_mrr", m).real), mrrMeta: months.map(m => metric("total_mrr", m).target),
+      at: months.map(m => metric("ativos_pagantes", m).real), atMeta: months.map(m => metric("ativos_pagantes", m).target),
+      ating: months.map(m => metric("total_mrr", m).pct),
+    };
+
+    const days = [...new Set(data.daily.map((d: any) => d.data as string))].sort();
+    const dv = (key: string, count = false) => days.map(d => { const r: any = data.daily.find((x: any) => x.data === d && x.metric_key === key); return r ? Number(count ? r.deals_count : r.realized_amount) : null; });
+    const daily = { labels: days.map(d => d.slice(8, 10) + "/" + d.slice(5, 7)), mrr: dv("total_mrr"), at: dv("ativos_pagantes", true), novo: dv("new_mrr"), churn: dv("churn_mrr") };
+
+    const areas = new Map<string, { qtd: number; mrr: number }>();
+    for (const c of data.conv as any[]) {
+      const v = addedMrr(c, "gross"); if (v <= 0) continue;
+      const a = areas.get(c.area || "Sem área") ?? { qtd: 0, mrr: 0 }; a.qtd++; a.mrr += v; areas.set(c.area || "Sem área", a);
     }
+    const byArea = [...areas.entries()].sort((a, b) => b[1].mrr - a[1].mrr);
+    return { kpis, goalsRows, yearly, daily, byArea };
+  }, [data, ym]);
+
+  const label = new Date(`${ym}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  const downloadPdf = async () => {
+    const src = document.getElementById(PDF_ID); if (!src || downloading) return;
+    setDownloading(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
+      const canvas = await html2canvas(src, { backgroundColor: C.bg, scale: 2, logging: false });
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), m = 18;
+      const ratio = Math.min((pw - m * 2) / canvas.width, (ph - m * 2) / canvas.height);
+      pdf.setFillColor(11, 24, 36); pdf.rect(0, 0, pw, ph, "F");
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", (pw - canvas.width * ratio) / 2, m, canvas.width * ratio, canvas.height * ratio, undefined, "FAST");
+      pdf.save(`OnePage-Diretoria-${ym.slice(0, 7)}.pdf`);
+    } finally { setDownloading(false); }
   };
 
   return (
     <Layout>
-      <div ref={rootRef} className="flex h-screen flex-col overflow-y-auto" style={{color:C.white,background:C.bg,fontFamily:"-apple-system,Segoe UI,Roboto,Calibri,sans-serif"}}>
-        <div className="sticky top-0 z-30 flex flex-wrap justify-center gap-2 px-3 lg:px-4 py-3 backdrop-blur border-b" style={{background:C.bg+"f0",borderColor:"#16283b"}}>
-          {NAV.map(([id,label,col])=>{
-            const isActive = active===id;
-            return (
-              <button key={id as string} onClick={()=>go(id as string)} className="flex items-center gap-1.5 text-[13px] font-semibold px-4 py-1.5 rounded-full transition-all duration-200 hover:scale-[1.03]"
-                style={{color:isActive?"#fff":C.sec,background:isActive?"#16283b":"rgba(22,40,59,.55)",border:isActive?"1px solid #23415c":"1px solid transparent",boxShadow:isActive?"0 0 0 1px rgba(10,132,255,.25)":"none"}}>
-                <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{background:col as string,boxShadow:`0 0 6px ${col as string}`}}/>
-                <span>{label}</span>
-              </button>
-            );
-          })}
-          <button onClick={downloadPdf} disabled={downloading} className="flex items-center gap-1.5 text-[13px] font-semibold px-4 py-1.5 rounded-full transition-all duration-200 hover:scale-[1.03] disabled:opacity-60 disabled:cursor-wait ml-1"
-            style={{color:"#fff",background:"#0A84FF",border:"1px solid #0A84FF",boxShadow:"0 0 0 1px rgba(10,132,255,.25)"}} title="Baixar OnePage completa em PDF">
-            <span>{downloading?"Gerando PDF…":"⬇ Baixar PDF"}</span>
-          </button>
+      <div ref={rootRef} className="min-h-screen" style={{ color: C.white, background: C.bg, fontFamily: "-apple-system,Segoe UI,Roboto,Calibri,sans-serif" }}>
+        <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b" style={{ background: C.bg + "f0", borderColor: "#16283b" }}>
+          <h1 className="text-[18px] font-extrabold uppercase tracking-tight">One Page · Diretoria</h1>
+          <div className="flex items-center gap-2">
+            <select value={ym} onChange={e => setYm(e.target.value)} aria-label="Mês" className="rounded-full px-3 py-1.5 text-[13px]" style={{ background: "#16283b", color: C.white, border: "1px solid #23415c" }}>
+              {monthOptions.map(m => <option key={m} value={m}>{new Date(`${m}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</option>)}
+            </select>
+            <button onClick={downloadPdf} disabled={downloading || !view} className="text-[13px] font-semibold px-4 py-1.5 rounded-full disabled:opacity-60" style={{ color: "#fff", background: C.blue }}>
+              {downloading ? "Gerando PDF…" : "⬇ Baixar PDF"}
+            </button>
+          </div>
         </div>
 
-        <div className="px-3 lg:px-4 py-3">
+        <div id={PDF_ID} className="px-4 py-3 space-y-2">
+          <div className="text-[11px]" style={{ color: C.mute }}>Período: {label} · Metas e realizado das Metas Estratégicas (Metabase) · Conversões do Stripe/Parceria</div>
+          {isLoading && <Card>Carregando…</Card>}
+          {error && <Card><span style={{ color: C.red }}>Não foi possível carregar os dados. Tente recarregar a página.</span></Card>}
+          {view && <>
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">{view.kpis.map(k => <KpiCard key={k.label} k={k} />)}</div>
 
-            <Page id="p1" ttl="One Page · Gestão Executiva" meta={PERIODO}>
-              <div className={G.g4}>{data.p1.kpis.map((k:any,i:number)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g3+" mt-2"}>
-                <Bars title="Estrutura de Resultado — Jun/26" rows={data.estrutura}/>
-                <Card><Mini>Movimentação Base — Mai (mês fechado)</Mini>
-                  <div className="flex justify-around text-center gap-2.5">
-                    {data.p1.movNums.map((m:any,i:number)=>(<div key={i}><div className="text-[26px] font-extrabold" style={{color:m[2]}}>{m[0]}</div><div className="text-[10px] uppercase" style={{color:C.mute}}>{m[1]}</div></div>))}
-                  </div>
-                  <List items={data.p1.movList}/>
-                  <div className="text-[11px] mt-2" style={{color:C.mute}}>{data.p1.movNote}</div></Card>
-                <Card><Mini>Campanhas — Geral (Junho)</Mini><List items={data.p1.campanhas}/></Card>
-              </div>
-              <div className={G.g4+" mt-2"}>
-                <ChartBox title="MRR Diário — D-30"><Line data={{labels:D.mrr_daily_lbl,datasets:[ds("MRR",D.mrr_daily,C.blue,{fill:true,backgroundColor:"rgba(10,132,255,.12)",tension:.35})]}} options={LINE_OPT}/></ChartBox>
-                <ChartBox title="Quadrimestre · MRR mensal × Meta"><Line data={{labels:MESES,datasets:[ds("MRR",D.mrr_m,C.blue,{pointRadius:2}),ds("Meta",D.mrr_meta,C.red,{borderDash:[5,4]})]}} options={LEG_OPT}/></ChartBox>
-                <ChartBox title="Free Trials por mês"><Bar data={{labels:MESES,datasets:[{label:"Trials",data:D.ft,backgroundColor:C.amber}]}} options={BAR_OPT}/></ChartBox>
-                <ChartBox title="Evolução Ativos Pagantes (D-30)"><Line data={{labels:D.ativos_lbl,datasets:[ds("Ativos",D.ativos,C.purple)]}} options={LINE_OPT}/></ChartBox>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <ChartBox title="Saúde da Base — 60,1% em risco de churn" h="h-[210px]"><Doughnut data={{labels:["Alto","Engajado","Baixo","Desengajado"],datasets:[{data:D.donut,backgroundColor:[C.green,"#1C7293",C.amber,C.red],borderColor:"#132336",borderWidth:2}]}} options={{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11}}}}}}/></ChartBox>
-                <ChartBox title="Atingimento Metas 2026 (Jan→Jun)"><Bar data={{labels:MESES,datasets:[{label:"Atingimento %",data:D.ating,backgroundColor:[C.red,C.amber,C.amber,C.amber,C.green,C.green]}]}} options={BAR_PCT}/></ChartBox>
-                <Card><Mini>Roadmap Q2 & Riscos</Mini>
-                  <ul>{data.p1.roadmap.map((r:any,i:number)=>(<li key={i} className="flex justify-between py-1.5 text-[12.5px]" style={{borderBottom:"1px solid #19293a"}}>{r[0]}<Tag t={r[2]}>{r[1]}</Tag></li>))}</ul>
-                  <div className="text-[11px] leading-relaxed mt-2" style={{color:C.mute}}><b style={{color:C.red}}>Riscos:</b> {data.p1.riscos}</div></Card>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <Card><Mini>Saúde da Base & Unit Economics</Mini><List items={data.p1.saude}/></Card>
-                <Card><Mini>Produto</Mini><List items={data.p1.produto}/></Card>
-                <Card><Mini>Quadrimestre 2025×2026 + Projeção</Mini><List items={data.p1.quadr}/></Card>
-              </div>
-              <div className="mt-2.5 rounded-lg text-[12px] font-semibold" style={{background:"#2a1f10",border:"1px solid #5c4a1a",color:C.amber,padding:"9px 12px"}}>{data.p1.alert}</div>
-            </Page>
+            <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
+              <Card className="lg:col-span-1"><Mini>Metas do mês — realizado × meta</Mini>
+                <table className="w-full text-[12.5px]"><thead><tr style={{ color: C.mute }}><th className="text-left font-normal py-1">Indicador</th><th className="text-right font-normal">Realizado</th><th className="text-right font-normal">Meta</th><th className="text-right font-normal">%</th></tr></thead>
+                  <tbody>{view.goalsRows.map(r => <tr key={r.label} style={{ borderTop: "1px solid #19293a" }}><td className="py-1.5">{r.label}</td><td className="text-right">{r.real}</td><td className="text-right" style={{ color: C.mute }}>{r.target}</td><td className="text-right font-bold" style={{ color: toneColor(r.tone) }}>{pct(r.pct)}</td></tr>)}</tbody></table>
+                <div className="text-[10.5px] mt-2" style={{ color: C.mute }}>Em Churn e Downsell, acima de 100% indica perda acima do orçado.</div>
+              </Card>
+              <ChartBox title={`MRR mensal × Meta — ${ym.slice(0, 4)}`}><Line data={{ labels: view.yearly.labels, datasets: [ds("MRR", view.yearly.mrr, C.blue, { pointRadius: 2 }), ds("Meta", view.yearly.mrrMeta, C.red, { borderDash: [5, 4] })] }} options={LEG_OPT} /></ChartBox>
+              <ChartBox title={`Ativos Pagantes × Meta — ${ym.slice(0, 4)}`}><Line data={{ labels: view.yearly.labels, datasets: [ds("Ativos", view.yearly.at, C.purple, { pointRadius: 2 }), ds("Meta", view.yearly.atMeta, C.red, { borderDash: [5, 4] })] }} options={LEG_OPT} /></ChartBox>
+            </div>
 
-            <Page id="p2" ttl="Financeiro · Visão Detalhada" meta={PERIODO}>
-              <div className={G.g6}>{data.p2.kpis.map((k:any,i:number)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g2+" mt-2"}>
-                <ChartBox title="MRR Diário D-30 · 4Blue × Yampa" h="h-[210px]"><Line data={{labels:D.my_lbl,datasets:[ds("Yampa",D.my,C.green),ds("4Blue",D.mb,C.blue)]}} options={LEG_OPT}/></ChartBox>
-                <ChartBox title="Saldo MRR mensal 2026" h="h-[210px]"><Bar data={{labels:MESES,datasets:[{label:"Saldo",data:D.saldo,backgroundColor:D.saldo.map((v:number)=>v>=0?C.green:C.red)}]}} options={BAR_OPT}/></ChartBox>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <Bars title="Estrutura de Resultado — Jun/26" rows={data.estrutura}/>
-                <Card><Mini>Estrutura de Custos & Decisões</Mini><List items={data.p2.custos}/></Card>
-                <Card><Mini>Quadrimestre</Mini><List items={data.p2.quadr}/><div className="text-[11px] mt-2" style={{color:C.mute}}>{data.p2.quadrNote}</div></Card>
-              </div>
-            </Page>
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              <ChartBox title="MRR diário"><Line data={{ labels: view.daily.labels, datasets: [ds("MRR", view.daily.mrr, C.blue, { fill: true, backgroundColor: "rgba(10,132,255,.12)" })] }} options={LINE_OPT} /></ChartBox>
+              <ChartBox title="Ativos diários"><Line data={{ labels: view.daily.labels, datasets: [ds("Ativos", view.daily.at, C.purple)] }} options={LINE_OPT} /></ChartBox>
+              <ChartBox title="New MRR × Churn MRR (acumulado no mês)"><Line data={{ labels: view.daily.labels, datasets: [ds("New MRR", view.daily.novo, C.green), ds("Churn MRR", view.daily.churn, C.red)] }} options={LEG_OPT} /></ChartBox>
+              <ChartBox title="Atingimento MRR por mês (%)"><Bar data={{ labels: view.yearly.labels, datasets: [{ label: "%", data: view.yearly.ating, backgroundColor: view.yearly.ating.map(v => v != null && v >= 100 ? C.green : C.amber) }] }} options={BAR_OPT} /></ChartBox>
+            </div>
 
-            <Page id="p3" ttl="Plano de Metas 2026" meta={PERIODO}>
-              <div className={G.g6}>{data.p3.kpis.map((k:any,i:number)=><Kpi key={i} k={k}/>)}</div>
-              <div className="text-[11px] mt-3" style={{color:C.mute}}>{data.p3.nota}</div>
-            </Page>
-
-            <Page id="p4" ttl="Revenue · Visão Detalhada" meta={PERIODO}>
-              <div className={G.g6}>{data.p4.kpis.map((k:any,i:number)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g2+" mt-2"}>
-                <ChartBox title="Ativos Pagantes — Evolução D-30 (Total × 4Blue)" h="h-[210px]"><Line data={{labels:D.ativos_lbl,datasets:[ds("Total",D.ativos,C.green),ds("4Blue",D.ativos4b,C.blue)]}} options={LEG_OPT}/></ChartBox>
-                <ChartBox title="Distribuição por tier de engajamento (D-30)" h="h-[210px]"><Doughnut data={{labels:["Alto","Engajado","Baixo","Desengajado"],datasets:[{data:D.donut,backgroundColor:[C.green,"#1C7293",C.amber,C.red],borderColor:"#132336",borderWidth:2}]}} options={{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"right",labels:{boxWidth:10,font:{size:11}}}}}}/></ChartBox>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <ChartBox title="Trials acumulados — D-30"><Line data={{labels:D.trials_lbl,datasets:[ds("Trials",D.trials,C.green,{fill:true,backgroundColor:"rgba(34,211,160,.12)",tension:.35})]}} options={LINE_OPT}/></ChartBox>
-                <ChartBox title="Novos pagantes / dia — D-30"><Line data={{labels:D.novos_lbl,datasets:[ds("Novos",D.novos,C.red)]}} options={LINE_OPT}/></ChartBox>
-                <ChartBox title="Churn diário — D-30"><Line data={{labels:D.churn_lbl,datasets:[ds("Churn",D.churn_abs,C.amber)]}} options={LINE_OPT}/></ChartBox>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <ChartBox title="Status Conversões — D-30"><Line data={{labels:D.conv_lbl,datasets:[ds("Conversões",D.conv,C.blue,{fill:true,backgroundColor:"rgba(10,132,255,.12)",tension:.35})]}} options={LINE_OPT}/></ChartBox>
-                <Card><Mini>LTV/CAC — Visão dupla & Unit economics</Mini><List items={data.p4.ltvDupla}/></Card>
-                <Card><Mini>Atingimento de Metas — Junho</Mini><List items={data.p4.atingimento}/></Card>
-              </div>
-            </Page>
-
-            <Page id="p5" ttl="Marketing · Visão Detalhada" meta={PERIODO}>
-              <div className={G.g3}>{data.p5.branding.map((m:any,i:number)=>{const L=["Invest.","Trials","Andamento","Concluídos","Convertidos","Conv. %","CP-FT","CAC","LTV/CAC"];return (
-                <Card key={i}><h4 className="text-[11px] uppercase tracking-wide mb-2 font-bold" style={{color:m[1]}}>{m[0]}</h4>
-                  <div className="grid grid-cols-3 gap-1.5">{m[2].map((v:string,j:number)=>(<div key={j}><div className="text-[9px] uppercase" style={{color:C.mute}}>{L[j]}</div><b className="text-[13px]" style={j===8?{color:C.amber}:undefined}>{v}</b></div>))}</div></Card>);})}</div>
-              <div className={G.g2+" mt-2"}>
-                <Card><Mini>Top Campanhas — Junho/2026</Mini>
-                  <table className="w-full text-[12px]" style={{borderCollapse:"collapse"}}><thead><tr style={{color:C.mute}}>{["Campanha","Obj.","Invest.","Trials","Conv.","CAC","LTV/CAC"].map((h,i)=>(<th key={i} className={(i>1?"text-right ":"text-left ")+"text-[9px] uppercase py-1.5 px-1"} style={{borderBottom:"1px solid "+C.line}}>{h}</th>))}</tr></thead>
-                  <tbody>{data.p5.campaigns.map((r:any,i:number)=>{const tot=i===data.p5.campaigns.length-1;return (<tr key={i} style={tot?{background:"#16283b",color:C.blue,fontWeight:700}:undefined}>{r.map((c:string,j:number)=>(<td key={j} className={(j>1?"text-right ":"")+"py-1.5 px-1"} style={{borderBottom:"1px solid #19293a",color:(j===6&&!tot&&c!=="0")?C.amber:undefined}}>{c}</td>))}</tr>);})}</tbody></table></Card>
-                <ChartBox title="Free Trials por mês + Investimento"><Bar data={{labels:MESES,datasets:[{label:"Trials",data:D.ft,backgroundColor:C.amber}]}} options={BAR_OPT}/></ChartBox>
-              </div>
-              <div className={G.g2+" mt-2"}>
-                <ChartBox title="LTV/CAC por mês — Geral"><Line data={{labels:MESES,datasets:[ds("LTV/CAC",D.ltvcac,C.amber,{pointRadius:3,tension:.35})]}} options={{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}/></ChartBox>
-                <ChartBox title="CP-FT por mês"><Bar data={{labels:MESES,datasets:[{label:"CP-FT",data:D.cpft,backgroundColor:C.blue}]}} options={BAR_OPT}/></ChartBox>
-              </div>
-              <div className={G.g4+" mt-2"}>{data.p5.iniciativas.map((it:any,i:number)=>(<Card key={i}><Mini>{it[0]}</Mini><div className="text-[13px] font-semibold">{it[1]}</div><div className="mt-1.5"><Tag t={it[3]}>{it[2]}</Tag></div></Card>))}</div>
-              <div className="mt-2.5 rounded-lg text-[12px] font-semibold" style={{background:"#2a1f10",border:"1px solid #5c4a1a",color:C.amber,padding:"9px 12px"}}>{data.p5.alert}</div>
-              <div className="text-[11px] mt-2" style={{color:C.mute}}>{data.p5.nota}</div>
-            </Page>
-
-            <Page id="p6" ttl="Produto · Visão Detalhada" meta={PERIODO}>
-              <div className={G.g6}>{data.p6.kpis.map((k:any,i:number)=><Kpi key={i} k={k}/>)}</div>
-              <div className={G.g3+" mt-2"}>
-                <ChartBox title="Atingimento Metas anual 2026"><Bar data={{labels:MESES,datasets:[{label:"Atingimento %",data:D.ating,backgroundColor:C.purple}]}} options={BAR_PCT}/></ChartBox>
-                <ChartBox title="Ativos Pagantes — mensal × Meta"><Line data={{labels:MESES,datasets:[ds("Resultado",D.at_m,C.blue,{pointRadius:2}),ds("Meta",D.at_meta,"#9aa7b8",{borderDash:[5,4]})]}} options={LEG_OPT}/></ChartBox>
-                <ChartBox title="MRR Resultado × Meta"><Line data={{labels:MESES,datasets:[ds("Resultado",D.mrr_m,C.green,{pointRadius:2}),ds("Meta",D.mrr_meta,"#9aa7b8",{borderDash:[5,4]})]}} options={LEG_OPT}/></ChartBox>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <Card><Mini>Bloqueadores de Adoção</Mini><List items={data.p6.bloqueadores}/></Card>
-                <Card><Mini>Positivos</Mini><List items={data.p6.positivos}/><div className="text-[11px] mt-2" style={{color:C.mute}}>{data.p6.positivosNote}</div></Card>
-                <Card><Mini>Metas Anuais 2026 (otimistas) & Impacto</Mini><List items={data.p6.metasAnuais}/></Card>
-              </div>
-              <div className={G.g3+" mt-2"}>
-                <Card><Mini>NPS — detalhe</Mini><div className="text-[34px] font-extrabold" style={{color:C.green}}>{data.p6.npsBig}</div><div className="text-[11px] mt-1.5" style={{color:C.mute}}>{data.p6.npsSub}</div></Card>
-                <Card><Mini>Must Have (produto crítico p/ usuário)</Mini><List items={data.p6.mustHave}/></Card>
-                <Card><Mini>Adoção & Jornada</Mini><List items={data.p6.adocao}/><div className="text-[11px] mt-1.5" style={{color:C.mute}}>{data.p6.adocaoNote}</div></Card>
-              </div>
-            </Page>
-
-            <footer className="text-center text-[10px] pt-3 mt-2" style={{color:C.mute}}>{data.footer}</footer>
+            <Card><Mini>Conversões do mês por área (novas vendas, recuperações e upsell)</Mini>
+              {view.byArea.length === 0 ? <div className="text-[12px]" style={{ color: C.mute }}>Nenhuma conversão no mês.</div> :
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">{view.byArea.map(([area, v]) => <div key={area}><div className="text-[11px] uppercase" style={{ color: C.mute }}>{area}</div><div className="text-[18px] font-extrabold">{v.qtd}</div><div className="text-[12px]" style={{ color: C.green }}>{brl(v.mrr)}</div></div>)}</div>}
+            </Card>
+          </>}
         </div>
       </div>
     </Layout>
