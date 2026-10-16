@@ -7,6 +7,7 @@ import {
 } from "chart.js";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { addedMrr } from "@/lib/stripeConversions";
 import { realizedOf, targetOf, attainment, attainmentTone, arpa, type AggRow, type GoalRow } from "@/lib/onePage";
 
@@ -65,17 +66,17 @@ function useOnePage(ym: string) {
         supabase.from("goals").select("category_id, period_start, target_mrr, target_deals, target_pct")
           .eq("scope", "company").is("team_id", null).is("user_id", null).is("campaign_id", null).is("origem_cliente", null)
           .gte("period_start", `${year}-01-01`).lte("period_start", `${year}-12-31`),
-        supabase.from("metas_snapshot_diario").select("data, metric_key, realized_amount, deals_count")
+        fetchAllPaged<any>(() => supabase.from("metas_snapshot_diario").select("data, metric_key, realized_amount, deals_count")
           .eq("scope", "company").is("origem_cliente", null).eq("year_month", ym)
-          .in("metric_key", ["total_mrr", "ativos_pagantes", "new_mrr", "churn_mrr"]).order("data"),
+          .in("metric_key", ["total_mrr", "ativos_pagantes", "new_mrr", "churn_mrr"]).order("data").order("id")),
         supabase.from("metas_pre_churn").select("email_norm, data_ref").order("data_ref", { ascending: false }).limit(1000),
-        supabase.from("stripe_conversions").select("area, conversion_type, mrr, mrr_net, delta_mrr")
+        fetchAllPaged<any>(() => supabase.from("stripe_conversions").select("area, conversion_type, mrr, mrr_net, delta_mrr")
           .gte("converted_at", `${ym}T00:00:00-03:00`).lt("converted_at", `${until}T00:00:00-03:00`)
-          .in("conversion_type", ["new", "upsell"]).limit(5000),
-        snap ? supabase.from("metas_trials_daily").select("company_id, data_freetrial").eq("data", snap)
-          .gte("data_freetrial", ym).lt("data_freetrial", until).limit(5000) : Promise.resolve({ data: [], error: null } as any),
+          .in("conversion_type", ["new", "upsell"]).order("id")),
+        snap ? fetchAllPaged<any>(() => supabase.from("metas_trials_daily").select("company_id, data_freetrial").eq("data", snap)
+          .gte("data_freetrial", ym).lt("data_freetrial", until).order("id")) : Promise.resolve({ data: [], error: null }),
       ]);
-      for (const r of [agg, goals, daily, pre, conv, trials]) if (r.error) throw r.error;
+      for (const r of [agg, goals, daily, pre, conv, trials]) if (r.error) throw new Error(typeof r.error === "string" ? r.error : r.error.message);
       return { agg: (agg.data ?? []) as AggRow[], goals: (goals.data ?? []) as GoalRow[], daily: daily.data ?? [], pre: pre.data ?? [], conv: conv.data ?? [], trials: (trials.data ?? []) as { company_id: number | null; data_freetrial: string | null }[] };
     },
   });
