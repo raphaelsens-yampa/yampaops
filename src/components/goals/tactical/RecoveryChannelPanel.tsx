@@ -14,7 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ArrowDown, ArrowUp } from "lucide-react";
+import { ChevronDown, ArrowDown, ArrowUp, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { recoveryPresetRange, recoveryRangeError, recoveryComparison, type RecoveryPreset } from "@/lib/recoveryPeriod";
 import { toBRDateKey } from "./types";
 import { CHANNEL_LABEL, RecoveryChannel, RecoveryReason } from "./recoveryChannels";
 import {
@@ -23,6 +28,7 @@ import {
   channelDailySeries,
   rankReasons,
   summarizeChannels,
+  useRecoveryChannelData,
 } from "./useRecoveryChannelData";
 
 function fmtBRL(v: number) {
@@ -41,37 +47,32 @@ function dateKeysBetween(from: Date, to: Date) {
 }
 
 export function RecoveryChannelPanel({
-  rows,
+  memberIds,
+  refreshKey,
   reasons,
   today,
   teamName,
 }: {
-  rows: RecoveryChannelRow[];
+  memberIds: string[];
+  refreshKey: number;
   reasons: RecoveryReason[];
   today: Date;
   teamName: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [preset, setPreset] = useState<"7" | "30" | "month">("month");
+  const [preset, setPreset] = useState<RecoveryPreset>("month");
+  const [custom, setCustom] = useState(() => recoveryPresetRange("month", today));
+  const [draft, setDraft] = useState(custom);
+  const [dateError, setDateError] = useState<string | null>(null);
   const [measure, setMeasure] = useState<"qty" | "mrr">("mrr");
   const [channelTab, setChannelTab] = useState<"all" | RecoveryChannel>("all");
 
-  const { fromDate, dates, prevFrom, prevTo } = useMemo(() => {
-    const end = new Date(today);
-    end.setHours(0, 0, 0, 0);
-    let start: Date;
-    if (preset === "month") start = new Date(end.getFullYear(), end.getMonth(), 1);
-    else {
-      start = new Date(end);
-      start.setDate(start.getDate() - (Number(preset) - 1));
-    }
-    const span = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-    const pTo = new Date(start);
-    pTo.setDate(pTo.getDate() - 1);
-    const pFrom = new Date(pTo);
-    pFrom.setDate(pFrom.getDate() - (span - 1));
-    return { fromDate: start, dates: dateKeysBetween(start, end), prevFrom: toBRDateKey(pFrom), prevTo: toBRDateKey(pTo) };
-  }, [today, preset]);
+  const range = useMemo(() => preset === "custom" ? custom : recoveryPresetRange(preset, today), [today, preset, custom]);
+  const comparison = useMemo(() => recoveryComparison(range), [range]);
+  const { dates } = comparison;
+  const prevFrom = toBRDateKey(comparison.prevFrom);
+  const prevTo = toBRDateKey(comparison.prevTo);
+  const { rows, loading, error } = useRecoveryChannelData(comparison.prevFrom, range.to, memberIds, refreshKey);
 
   const fromKey = dates[0] ?? toBRDateKey(today);
   const toKey = dates[dates.length - 1] ?? toBRDateKey(today);
@@ -136,6 +137,8 @@ export function RecoveryChannelPanel({
                 <SelectItem value="7">Últimos 7 dias</SelectItem>
                 <SelectItem value="30">Últimos 30 dias</SelectItem>
                 <SelectItem value="month">Mês atual</SelectItem>
+                <SelectItem value="quarter">Trimestre atual</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
             <Select value={measure} onValueChange={(v) => setMeasure(v as typeof measure)}>
@@ -147,9 +150,35 @@ export function RecoveryChannelPanel({
             </Select>
           </div>
         </CardHeader>
+        {preset === "custom" && (
+          <div className="px-4 md:px-6 pb-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {(["from", "to"] as const).map((key) => (
+                <Popover key={key}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-9 justify-start" aria-label={key === "from" ? "Data inicial" : "Data final"}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {key === "from" ? "De: " : "Até: "}{format(draft[key], "dd/MM/yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={draft[key]} defaultMonth={draft[key]} locale={ptBR}
+                      captionLayout="dropdown-buttons" fromYear={2000} toYear={today.getFullYear()}
+                      onSelect={(value) => { if (value) { setDraft({ ...draft, [key]: value }); setDateError(null); } }}
+                      initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              ))}
+              <Button size="sm" onClick={() => { const issue = recoveryRangeError(draft); setDateError(issue); if (!issue) setCustom(draft); }}>Aplicar</Button>
+            </div>
+            {dateError && <p role="alert" className="text-xs text-destructive">{dateError}</p>}
+          </div>
+        )}
 
         <CollapsibleContent>
           <CardContent className="px-3 sm:px-4 md:px-6 space-y-4">
+            <p className="text-xs text-muted-foreground">{format(range.from, "dd/MM/yyyy")} — {format(range.to, "dd/MM/yyyy")}</p>
+            {loading ? <p role="status" className="text-sm text-muted-foreground">Carregando…</p> : error ? <p role="alert" className="text-sm text-destructive">{error}</p> : <>
             <div className="grid gap-2 sm:grid-cols-3">
               {channelCards.map((c) => {
                 const t =
@@ -271,6 +300,7 @@ export function RecoveryChannelPanel({
                 “Clientes recuperados e retidos” para o ranking ficar confiável.
               </p>
             )}
+            </>}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
