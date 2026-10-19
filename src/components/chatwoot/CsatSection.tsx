@@ -276,8 +276,6 @@ function CsatGauge({ score, avg, total }: { score: number; avg: number; total: n
             {total ? `nota média ${avg.toFixed(2)} · ${total} respostas` : "sem respostas no período"}
           </span>
         </div>
-        <div className="absolute bottom-2 text-[10px] text-muted-foreground" style={{ right: "calc(50% + 90px)" }}>0%</div>
-        <div className="absolute bottom-2 text-[10px] text-muted-foreground" style={{ left: "calc(50% + 90px)" }}>100%</div>
       </CardContent>
       <div className="px-6 pb-4 text-center text-[10px] text-muted-foreground">
         Verde ≥ 80% · Amarelo 50–80% · Vermelho &lt; 50%
