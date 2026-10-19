@@ -726,6 +726,7 @@ export default function ChatwootReports() {
                   onChange={setInboxSel}
                   title="Caixas de entrada"
                   emptyLabel="(sem caixa)"
+                  countWord="caixas"
                 />
               </div>
               <div>
@@ -1200,13 +1201,14 @@ function KpiCard({ title, value }: { title: string; value: string }) {
 }
 
 function TabulacaoFilter({
-  options, selected, onChange, title = "Tabulações", emptyLabel = "(sem tabulação)",
+  options, selected, onChange, title = "Tabulações", emptyLabel = "(sem tabulação)", countWord = "selecionadas",
 }: {
   options: string[];
   selected: string[];
   onChange: (v: string[]) => void;
   title?: string;
   emptyLabel?: string;
+  countWord?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<number | null>(null);
@@ -1218,7 +1220,7 @@ function TabulacaoFilter({
       const v = selected[0];
       return v === "__empty__" ? emptyLabel : v;
     }
-    return `${selected.length} selecionadas`;
+    return `${selected.length} ${countWord}`;
   }
 
   function toggle(value: string, e: React.MouseEvent) {
@@ -1250,7 +1252,9 @@ function TabulacaoFilter({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-full justify-between font-normal h-10">
-          <span className="truncate text-sm">{label()}</span>
+          <span className="truncate text-sm" title={selected.map((v) => (v === "__empty__" ? emptyLabel : v)).join(", ") || "Todas"}>
+            {label()}
+          </span>
           <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
         </Button>
       </PopoverTrigger>
