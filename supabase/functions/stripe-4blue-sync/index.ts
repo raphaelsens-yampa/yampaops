@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     for (let i = 0; i < toInsert.length; i += CHUNK) {
       const { data, error } = await supabase
         .from('stripe_conversions')
-        .upsert(toInsert.slice(i, i + CHUNK), { onConflict: 'stripe_event_id', ignoreDuplicates: true })
+        .insert(toInsert.slice(i, i + CHUNK))
         .select('id');
       if (error) throw error;
       inserted += data?.length ?? 0;
