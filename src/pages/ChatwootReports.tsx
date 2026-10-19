@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { matchesInbox } from "@/lib/chatwootFilters";
 import { CsatSection } from "@/components/chatwoot/CsatSection";
 import type { CsatRow } from "@/components/chatwoot/CsatSection";
 import { Navigate } from "react-router-dom";
@@ -255,7 +256,7 @@ export default function ChatwootReports() {
   const [team, setTeam] = useState<string>("all");
   const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
   const [labelsSel, setLabelsSel] = useState<string[]>([]); // [] = todas
-  const [inbox, setInbox] = useState<string>("all");
+  const [inboxSel, setInboxSel] = useState<string[]>([]); // [] = todas
   const [search, setSearch] = useState("");
   const [businessHoursOnly, setBusinessHoursOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("visao-geral");
@@ -335,6 +336,7 @@ export default function ChatwootReports() {
     const tabActive = tabulacaoSel.length > 0;
     const labelSet = new Set(labelsSel);
     const labelActive = labelsSel.length > 0;
+    const inboxSet = new Set(inboxSel);
     return rows.filter((r) => {
       if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
@@ -351,7 +353,7 @@ export default function ChatwootReports() {
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
-      if (inbox !== "all" && (r.inbox_name || "") !== inbox) return false;
+      if (!matchesInbox(r.inbox_name, inboxSet)) return false;
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
@@ -360,7 +362,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, labelsSel, agent, team, inbox, businessHoursOnly]);
+  }, [rows, search, tabulacaoSel, labelsSel, agent, team, inboxSel, businessHoursOnly]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -715,13 +717,14 @@ export default function ChatwootReports() {
               </div>
               <div>
                 <Label className="text-xs">Caixa de Entrada</Label>
-                <Select value={inbox} onValueChange={setInbox}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {inboxes.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <TabulacaoFilter
+                  options={inboxes}
+                  selected={inboxSel}
+                  onChange={setInboxSel}
+                  title="Caixas de entrada"
+                  emptyLabel="(sem caixa)"
+                  countWord="caixas"
+                />
               </div>
               <div>
                 <Label className="text-xs">Agente</Label>
@@ -1195,13 +1198,14 @@ function KpiCard({ title, value }: { title: string; value: string }) {
 }
 
 function TabulacaoFilter({
-  options, selected, onChange, title = "Tabulações", emptyLabel = "(sem tabulação)",
+  options, selected, onChange, title = "Tabulações", emptyLabel = "(sem tabulação)", countWord = "selecionadas",
 }: {
   options: string[];
   selected: string[];
   onChange: (v: string[]) => void;
   title?: string;
   emptyLabel?: string;
+  countWord?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<number | null>(null);
@@ -1213,7 +1217,7 @@ function TabulacaoFilter({
       const v = selected[0];
       return v === "__empty__" ? emptyLabel : v;
     }
-    return `${selected.length} selecionadas`;
+    return `${selected.length} ${countWord}`;
   }
 
   function toggle(value: string, e: React.MouseEvent) {
@@ -1245,7 +1249,9 @@ function TabulacaoFilter({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="w-full justify-between font-normal h-10">
-          <span className="truncate text-sm">{label()}</span>
+          <span className="truncate text-sm" title={selected.map((v) => (v === "__empty__" ? emptyLabel : v)).join(", ") || "Todas"}>
+            {label()}
+          </span>
           <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
         </Button>
       </PopoverTrigger>
