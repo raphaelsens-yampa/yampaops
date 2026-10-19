@@ -118,6 +118,7 @@ export function CsatSection({
       avg: total ? sum / total : 0,
       score: total ? (positives / total) * 100 : 0,
       positives,
+      neutrals: rated.filter((r) => r.rating === 3).length,
       negatives,
       withComment: filtered.filter((r) => (r.feedback_message || "").trim().length > 0).length,
     };
@@ -189,6 +190,7 @@ export function CsatSection({
           <CsatKpi title="Respostas" value={String(kpis.total)} />
           <CsatKpi title="Nota média" value={kpis.total ? kpis.avg.toFixed(2) : "—"} />
           <CsatKpi title="Positivas (4-5)" value={String(kpis.positives)} />
+          <CsatKpi title="Neutras (3)" value={String(kpis.neutrals)} />
           <CsatKpi title="Negativas (1-2)" value={String(kpis.negatives)} />
           <CsatKpi title="Com comentário" value={String(kpis.withComment)} />
         </div>
