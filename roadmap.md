@@ -1,4 +1,9 @@
 
+## Recuperações táticas — filtros históricos (19/10/2026)
+- [ ] Adicionar trimestre atual e período personalizado limitado a um ano
+- [ ] Carregar o histórico completo do período e a comparação anterior
+- [ ] Testar limites e validar filtros no painel
+
 ## Vendas 4blue — cobertura 2026 (19/10/2026)
 - [x] Corrigir paginação da importação diária e testar leitura histórica completa
 - [x] Completar as vendas de 2026 e reconciliar cada mês com o Metabase (453 adicionadas; 532 no ano disponível)
