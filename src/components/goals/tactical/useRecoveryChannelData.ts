@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchAllPaged } from "@/lib/supabasePaged";
+import { spRange } from "@/lib/stripeConversions";
 import { supabase } from "@/integrations/supabase/client";
 import { toBRDateKey } from "./types";
 import type { RecoveryChannel, RecoveryReason } from "./recoveryChannels";
@@ -184,42 +186,53 @@ export function useRecoveryChannelData(
 ) {
   const [rows, setRows] = useState<RecoveryChannelRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
   const memberKey = memberIds.join(",");
   const fromKey = toBRDateKey(from);
   const toKey = toBRDateKey(to);
 
   const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
-    const start = new Date(`${fromKey}T00:00:00`);
-    const end = new Date(`${toKey}T23:59:59`);
+    setError(null);
+    try {
+    const bounds = spRange({ start: fromKey, end: toKey });
 
     const metricRes = await supabase
       .from("tactical_metrics")
       .select("id, key")
       .in("key", ["clientes_recuperados", "clientes_retidos"]);
+    if (metricRes.error) throw new Error(metricRes.error.message);
     const metricIds = (metricRes.data || []).map((m: any) => m.id);
 
     const [convRes, recRes, manualRes] = await Promise.all([
-      supabase
+      fetchAllPaged<any>(() => supabase
         .from("stripe_conversions")
         .select("id, converted_at, mrr, mrr_net, assigned_seller_id")
         .eq("is_reactivation", true)
-        .gte("converted_at", start.toISOString())
-        .lte("converted_at", end.toISOString()),
-      supabase
+        .gte("converted_at", bounds.from)
+        .lt("converted_at", bounds.until)
+        .order("id")),
+      fetchAllPaged<any>(() => supabase
         .from("tactical_recoveries")
         .select("id, seller_id, recovered_at, mrr, entry_kind, recovery_channel, reason_id, source")
         .gte("recovered_at", fromKey)
-        .lte("recovered_at", toKey),
+        .lte("recovered_at", toKey)
+        .order("id")),
       metricIds.length
-        ? supabase
+        ? fetchAllPaged<any>(() => supabase
             .from("tactical_manual_entries")
             .select("id, user_id, entry_date, value, mrr_value, entry_kind, recovery_channel, reason_id")
             .in("metric_id", metricIds)
             .gte("entry_date", fromKey)
             .lte("entry_date", toKey)
-        : Promise.resolve({ data: [] as any[] }),
+            .order("id"))
+        : Promise.resolve({ data: [] as any[], error: null }),
     ]);
+    for (const result of [convRes, recRes, manualRes]) {
+      if (result.error) throw new Error(result.error);
+    }
 
     const allowed = new Set(memberIds);
     const list: RecoveryChannelRow[] = [];
@@ -275,8 +288,15 @@ export function useRecoveryChannelData(
       });
     }
 
-    setRows(list);
-    setLoading(false);
+    if (currentRequest === requestId.current) setRows(list);
+    } catch {
+      if (currentRequest === requestId.current) {
+        setRows([]);
+        setError("Não foi possível carregar este período. Tente novamente.");
+      }
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false);
+    }
   }, [fromKey, toKey, memberKey]);
 
   useEffect(() => {
@@ -287,6 +307,7 @@ export function useRecoveryChannelData(
     })();
     return () => {
       cancelled = true;
+      requestId.current += 1;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, refreshKey]);
@@ -298,5 +319,5 @@ export function useRecoveryChannelData(
     [rows],
   );
 
-  return { rows, loading, reload: load, ...helpers };
+  return { rows, loading, error, reload: load, ...helpers };
 }
