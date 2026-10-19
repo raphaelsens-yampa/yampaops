@@ -1,4 +1,9 @@
 
+## Vendas 4blue — cobertura 2026 (19/10/2026)
+- [ ] Corrigir paginação da importação diária e testar leitura histórica completa
+- [ ] Completar as vendas de 2026 e reconciliar cada mês com o Metabase
+- [ ] Validar os totais de 2026, Q2 e Q3 na tela de Conversões por Área
+
 ## Funis CRM (17/09/2026)
 - [x] Auditoria e correção dos fechamentos duplicados (ganhos/perdidos inflados)
 - [x] Trocar card "Movimentações" por "MRR Gerado" (1a linha, ao lado de Ticket Médio Ganho) e descer "Ciclo médio de fechamento"
