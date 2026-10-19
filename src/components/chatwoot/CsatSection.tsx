@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Smile } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, Legend, LabelList,
+  LineChart, Line, Legend, LabelList, PieChart, Pie, Cell,
 } from "recharts";
 
 export type CsatRow = {
@@ -118,6 +118,7 @@ export function CsatSection({
       avg: total ? sum / total : 0,
       score: total ? (positives / total) * 100 : 0,
       positives,
+      neutrals: rated.filter((r) => r.rating === 3).length,
       negatives,
       withComment: filtered.filter((r) => (r.feedback_message || "").trim().length > 0).length,
     };
@@ -183,13 +184,16 @@ export function CsatSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <CsatKpi title="Respostas" value={String(kpis.total)} />
-        <CsatKpi title="CSAT Score" value={`${kpis.score.toFixed(1)}%`} />
-        <CsatKpi title="Nota média" value={kpis.total ? kpis.avg.toFixed(2) : "—"} />
-        <CsatKpi title="Positivas (4-5)" value={String(kpis.positives)} />
-        <CsatKpi title="Negativas (1-2)" value={String(kpis.negatives)} />
-        <CsatKpi title="Com comentário" value={String(kpis.withComment)} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <CsatGauge score={kpis.score} avg={kpis.avg} total={kpis.total} />
+        <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-3 content-start">
+          <CsatKpi title="Respostas" value={String(kpis.total)} />
+          <CsatKpi title="Nota média" value={kpis.total ? kpis.avg.toFixed(2) : "—"} />
+          <CsatKpi title="Positivas (4-5)" value={String(kpis.positives)} />
+          <CsatKpi title="Neutras (3)" value={String(kpis.neutrals)} />
+          <CsatKpi title="Negativas (1-2)" value={String(kpis.negatives)} />
+          <CsatKpi title="Com comentário" value={String(kpis.withComment)} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -231,6 +235,54 @@ export function CsatSection({
 
       <RankingTable title="Ranking por Agente" rows={byAgent} label="Agente" />
     </div>
+  );
+}
+
+function CsatGauge({ score, avg, total }: { score: number; avg: number; total: number }) {
+  const value = Math.min(Math.max(score, 0), 100);
+  const color = total === 0
+    ? "hsl(var(--muted-foreground))"
+    : value >= 80 ? "hsl(var(--success))"
+    : value >= 50 ? "hsl(var(--warning))"
+    : "hsl(var(--destructive))";
+  const data = [
+    { name: "CSAT", value, fill: color },
+    { name: "Restante", value: 100 - value, fill: "hsl(var(--muted))" },
+  ];
+  return (
+    <Card>
+      <CardHeader className="pb-0"><CardTitle className="text-base">CSAT Score</CardTitle></CardHeader>
+      <CardContent className="relative px-6 pb-2" style={{ height: 150 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="100%"
+              innerRadius={74}
+              outerRadius={100}
+              startAngle={180}
+              endAngle={0}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              {data.map((d) => <Cell key={d.name} fill={d.fill} />)}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-x-0 bottom-1 flex items-center justify-center">
+          <span className="text-3xl font-semibold leading-none">{total ? `${value.toFixed(1)}%` : "—"}</span>
+        </div>
+      </CardContent>
+      <div className="px-6 pb-1 text-center text-xs text-muted-foreground">
+        {total ? `nota média ${avg.toFixed(2)} · ${total} respostas` : "sem respostas no período"}
+      </div>
+      <div className="px-6 pb-4 text-center text-[10px] text-muted-foreground">
+        Verde ≥ 80% · Amarelo 50–80% · Vermelho &lt; 50%
+      </div>
+    </Card>
   );
 }
 
