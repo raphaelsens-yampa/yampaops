@@ -1,4 +1,5 @@
 # Architecture decisions
+- 4blue sync reads every source page in snapshot/id order before email/start-date deduplication and existing-event checks, so historical sales are not truncated or repeated by daily runs.
 - Conversões por Área uses shared pure filter/date/contribution helpers and one paginated period dataset for cards, charts, details and exports, so every slice reconciles without adding full upsell subscription MRR to growth.
 - Audit AI model replacements preserve historical audit model identifiers; only current settings and selectable model references migrate, so past results remain traceable.
  

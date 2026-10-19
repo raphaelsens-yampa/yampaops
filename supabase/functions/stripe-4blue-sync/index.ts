@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { readAllPages } from '../_shared/pagedRows.ts';
 
 /**
  * stripe-4blue-sync
@@ -9,7 +10,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
  * Metabase) e insere em stripe_conversions as vendas que ainda não estão lá.
  *
  * Idempotente: a chave é o stripe_event_id sintético `4blue:<email>:<data_inicio>`.
- * Também (re)preenche origem_cliente das conversões Stripe por e-mail.
+ * Lê todos os snapshots históricos; conversões Stripe continuam origem Yampa.
  */
 
 const INTERNAL_JOB = 'stripe-4blue-sync-daily';
@@ -31,15 +32,19 @@ Deno.serve(async (req) => {
 
   try {
     // 1) Vendas 4blue "novo pagante" da base de ativos pagantes (Metabase).
-    const { data: rows, error: readErr } = await supabase
+    const rows = await readAllPages<{
+      id: number; email: string; plano: string | null; mrr: number | null;
+      data_inicio: string; data_snapshot: string;
+    }>((from, to) => supabase
       .from('metas_ativos_pagantes_daily')
-      .select('email, plano, mrr, data_inicio, data_snapshot')
+      .select('id, email, plano, mrr, data_inicio, data_snapshot')
       .ilike('origem_cliente', '4blue')
       .ilike('classificacao_company', 'novo pagante')
       .not('email', 'is', null)
       .not('data_inicio', 'is', null)
-      .order('data_snapshot', { ascending: false });
-    if (readErr) throw readErr;
+      .order('data_snapshot', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to));
 
     // Dedup por e-mail + data_inicio (o snapshot mais recente vem primeiro).
     const seen = new Set<string>();
@@ -88,11 +93,12 @@ Deno.serve(async (req) => {
 
     let inserted = 0;
     for (let i = 0; i < toInsert.length; i += CHUNK) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('stripe_conversions')
-        .insert(toInsert.slice(i, i + CHUNK));
+        .insert(toInsert.slice(i, i + CHUNK))
+        .select('id');
       if (error) throw error;
-      inserted += Math.min(CHUNK, toInsert.length - i);
+      inserted += data?.length ?? 0;
     }
 
     // 3) Conversões vindas do Stripe são sempre produto Yampa — 4blue só

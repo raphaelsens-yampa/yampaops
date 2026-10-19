@@ -1,4 +1,9 @@
 
+## Vendas 4blue — cobertura 2026 (19/10/2026)
+- [x] Corrigir paginação da importação diária e testar leitura histórica completa
+- [x] Completar as vendas de 2026 e reconciliar cada mês com o Metabase (453 adicionadas; 532 no ano disponível)
+- [x] Validar os totais na tela: 2026 R$ 34.580/532; Q2 R$ 12.025/185; Q3 R$ 11.310/174; reexecução sem duplicatas
+
 ## Funis CRM (17/09/2026)
 - [x] Auditoria e correção dos fechamentos duplicados (ganhos/perdidos inflados)
 - [x] Trocar card "Movimentações" por "MRR Gerado" (1a linha, ao lado de Ticket Médio Ganho) e descer "Ciclo médio de fechamento"
@@ -46,7 +51,7 @@
 
 ## Ranking de Vendedor (15/10/2026)
 - [x] Toggle no card "Ranking de Vendedor" para ordenar por Quantidade ou MRR Produzido
-- [ ] Listar vendas com Vendedor "Sales" sem vendedor apropriado (assigned_seller_id null) para correção manual
+- [x] Listar vendas com Vendedor "Sales" sem vendedor apropriado (assigned_seller_id null) para correção manual
 - [x] Listar vendas com Vendedor "Sales" sem vendedor apropriado — 2-5 Eduarda Nunes, 6 Leticia Calor atribuídos; venda 1 (mercadoprecojusto2429) fica sem vendedor, exibindo "Sales"
 - [x] Atribuir assigned_seller_id nas vendas conforme resposta do usuário
 - [x] Corrigir página em branco: rótulos dos gráficos liam payload indefinido do recharts e derrubavam a página (agora usam índice da série)
