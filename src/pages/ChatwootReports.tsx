@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { matchesInbox } from "@/lib/chatwootFilters";
 import { CsatSection } from "@/components/chatwoot/CsatSection";
 import type { CsatRow } from "@/components/chatwoot/CsatSection";
 import { Navigate } from "react-router-dom";
@@ -336,7 +337,6 @@ export default function ChatwootReports() {
     const labelSet = new Set(labelsSel);
     const labelActive = labelsSel.length > 0;
     const inboxSet = new Set(inboxSel);
-    const inboxActive = inboxSel.length > 0;
     return rows.filter((r) => {
       if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
@@ -353,10 +353,7 @@ export default function ChatwootReports() {
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
-      if (inboxActive) {
-        const key = r.inbox_name || "__empty__";
-        if (!inboxSet.has(key)) return false;
-      }
+      if (!matchesInbox(r.inbox_name, inboxSet)) return false;
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
