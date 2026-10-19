@@ -1,7 +1,8 @@
 
-## Atendimentos — filtro de caixas de entrada (19/10/2026)
+## Atendimentos — caixas de entrada e CSAT (19/10/2026)
 - [x] Permitir marcar mais de uma caixa de entrada (soma das caixas; "(sem caixa)" disponível)
 - [x] Testar a regra de multisseleção e validar os totais na tela (682 geral; 433 com duas caixas; 260 com uma)
+- [x] Adicionar gauge de CSAT (score, nota média, respostas) e validar com setembro (87,9%) e março (74,2%)
 
 ## Recuperações táticas — filtros históricos (19/10/2026)
 - [x] Adicionar trimestre atual e período personalizado limitado a um ano
