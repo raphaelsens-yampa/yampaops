@@ -367,7 +367,8 @@ export function TacticalTracking() {
       <CategoryWeeklyGoalsPanel today={today} daily={daily} refreshKey={reloadKey} origin={originFilter} includeYampa20={includeYampa20} />
 
       <RecoveryChannelPanel
-        rows={recoveryRows}
+        memberIds={memberIds}
+        refreshKey={reloadKey + recoveryKey}
         reasons={recoveryReasons}
         today={today}
         teamName={isOverview ? null : activeTeam?.name ?? null}
