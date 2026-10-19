@@ -255,7 +255,7 @@ export default function ChatwootReports() {
   const [team, setTeam] = useState<string>("all");
   const [tabulacaoSel, setTabulacaoSel] = useState<string[]>([]); // [] = todas
   const [labelsSel, setLabelsSel] = useState<string[]>([]); // [] = todas
-  const [inbox, setInbox] = useState<string>("all");
+  const [inboxSel, setInboxSel] = useState<string[]>([]); // [] = todas
   const [search, setSearch] = useState("");
   const [businessHoursOnly, setBusinessHoursOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("visao-geral");
@@ -335,6 +335,8 @@ export default function ChatwootReports() {
     const tabActive = tabulacaoSel.length > 0;
     const labelSet = new Set(labelsSel);
     const labelActive = labelsSel.length > 0;
+    const inboxSet = new Set(inboxSel);
+    const inboxActive = inboxSel.length > 0;
     return rows.filter((r) => {
       if (businessHoursOnly && !isBusinessHours(r.opened_at)) return false;
       if (tabActive) {
@@ -351,7 +353,10 @@ export default function ChatwootReports() {
       }
       if (agent !== "all" && (r.assignee_name || "") !== agent) return false;
       if (team !== "all" && (r.team_name || "") !== team) return false;
-      if (inbox !== "all" && (r.inbox_name || "") !== inbox) return false;
+      if (inboxActive) {
+        const key = r.inbox_name || "__empty__";
+        if (!inboxSet.has(key)) return false;
+      }
       if (!s) return true;
       return (
         (r.contact_name || "").toLowerCase().includes(s) ||
@@ -360,7 +365,7 @@ export default function ChatwootReports() {
         String(r.chatwoot_conversation_id).includes(s)
       );
     });
-  }, [rows, search, tabulacaoSel, labelsSel, agent, team, inbox, businessHoursOnly]);
+  }, [rows, search, tabulacaoSel, labelsSel, agent, team, inboxSel, businessHoursOnly]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -715,13 +720,13 @@ export default function ChatwootReports() {
               </div>
               <div>
                 <Label className="text-xs">Caixa de Entrada</Label>
-                <Select value={inbox} onValueChange={setInbox}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {inboxes.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <TabulacaoFilter
+                  options={inboxes}
+                  selected={inboxSel}
+                  onChange={setInboxSel}
+                  title="Caixas de entrada"
+                  emptyLabel="(sem caixa)"
+                />
               </div>
               <div>
                 <Label className="text-xs">Agente</Label>
