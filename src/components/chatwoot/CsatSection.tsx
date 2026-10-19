@@ -250,7 +250,7 @@ function CsatGauge({ score, avg, total }: { score: number; avg: number; total: n
   return (
     <Card>
       <CardHeader className="pb-0"><CardTitle className="text-base">CSAT Score</CardTitle></CardHeader>
-      <CardContent className="relative px-6 pb-3" style={{ height: 190 }}>
+      <CardContent className="relative px-6 pb-2" style={{ height: 150 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -259,8 +259,8 @@ function CsatGauge({ score, avg, total }: { score: number; avg: number; total: n
               nameKey="name"
               cx="50%"
               cy="100%"
-              innerRadius={62}
-              outerRadius={84}
+              innerRadius={74}
+              outerRadius={100}
               startAngle={180}
               endAngle={0}
               stroke="none"
@@ -270,13 +270,13 @@ function CsatGauge({ score, avg, total }: { score: number; avg: number; total: n
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-        <div className="absolute inset-x-0 bottom-2 flex flex-col items-center">
+        <div className="absolute inset-x-0 bottom-1 flex items-center justify-center">
           <span className="text-3xl font-semibold leading-none">{total ? `${value.toFixed(1)}%` : "—"}</span>
-          <span className="mt-1 text-xs text-muted-foreground">
-            {total ? `nota média ${avg.toFixed(2)} · ${total} respostas` : "sem respostas no período"}
-          </span>
         </div>
       </CardContent>
+      <div className="px-6 pb-1 text-center text-xs text-muted-foreground">
+        {total ? `nota média ${avg.toFixed(2)} · ${total} respostas` : "sem respostas no período"}
+      </div>
       <div className="px-6 pb-4 text-center text-[10px] text-muted-foreground">
         Verde ≥ 80% · Amarelo 50–80% · Vermelho &lt; 50%
       </div>
