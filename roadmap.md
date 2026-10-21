@@ -1,4 +1,9 @@
 
+## Bases de campanhas — telefone da Stripe e do Metabase (21/10/2026)
+- [x] Salvar o telefone da conta de cobrança na Stripe quando a campanha é consultada em tempo real
+- [x] Cruzar também o telefone das bases do Metabase (pré-churn e churn) por e-mail
+- [x] Testar a ordem de prioridade das fontes e validar a cobertura na tela (160 testes; 7→89 telefones em 116 clientes; 0→5 em 35 clientes)
+
 ## Bases de campanhas — telefone e campanha (21/10/2026)
 - [x] Incluir telefone disponível na base e nome da campanha na tabela e nos arquivos CSV/XLSX
 - [x] Validar com clientes reais e testar o cruzamento dos telefones (5 testes; CSV com 116 clientes e 7 telefones disponíveis)
