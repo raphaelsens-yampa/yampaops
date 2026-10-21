@@ -43,6 +43,13 @@
       "when": 1792092654329,
       "tag": "0005_schedule_stripe_4blue_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792615412139,
+      "tag": "0006_cohort_contacts_phone",
+      "breakpoints": true
     }
   ]
 }
