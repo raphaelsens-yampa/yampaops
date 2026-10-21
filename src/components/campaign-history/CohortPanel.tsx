@@ -173,14 +173,15 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       return {
         ...c,
         phone: phonesQ.data?.get(c.email_norm) ?? null,
-        campaign_name: campaign?.name ?? null,
+        // Rótulo igual ao do filtro: nome da campanha + mês/ano de referência.
+        campaign_name: campaign ? campaignLabel(campaign) : null,
         result: res ? { ...res, mrr: overrideMrr ?? res.mrr } : res,
         mrr_override: overrideMrr,
         mrr_override_note: ov?.note ?? null,
         mrr_original: res?.mrr ?? null,
       };
     });
-  }, [contactsQ.data, resultsQ.data, overridesQ.data, phonesQ.data, campaign?.name]);
+  }, [contactsQ.data, resultsQ.data, overridesQ.data, phonesQ.data, campaign]);
 
   const [editing, setEditing] = useState<{ id: string; email: string; value: string; note: string } | null>(null);
   const [savingOverride, setSavingOverride] = useState(false);
