@@ -1,4 +1,5 @@
 # Architecture decisions
+- Campaign cohort phone enrichment reads existing permission-filtered CRM, Chatwoot and sales contacts by email; table and exports share enriched rows, without duplicating stored phone or campaign names.
 - Recovery channel analysis owns its selected period fetch (including an equal-length previous period), independently of the tactical scoreboard range, so historical filters do not change current-day goals.
 - 4blue sync reads every source page in snapshot/id order before email/start-date deduplication and existing-event checks, so historical sales are not truncated or repeated by daily runs.
 - Conversões por Área uses shared pure filter/date/contribution helpers and one paginated period dataset for cards, charts, details and exports, so every slice reconciles without adding full upsell subscription MRR to growth.

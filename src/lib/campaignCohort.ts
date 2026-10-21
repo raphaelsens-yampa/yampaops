@@ -36,6 +36,8 @@ export interface CohortResult {
 }
 
 export interface CohortRow extends CohortContact {
+  phone?: string | null;
+  campaign_name?: string | null;
   /** O MRR aqui já é o efetivo (ajuste manual quando existir). */
   result: CohortResult | null;
   /** Ajuste manual de MRR aplicado (null = sem ajuste). */
@@ -715,7 +717,7 @@ export function formatDateBR(v: string | null | undefined): string {
 
 export function cohortRowsToMatrix(rows: CohortRow[], monthly?: MonthlyMrrMap): (string | number)[][] {
   const out: (string | number)[][] = [
-    ["E-mail", "Nome", "Plano", "Oferta", "MRR", "MRR no mês de ativação", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
+    ["E-mail", "Nome", "Telefone", "Campanha", "Plano", "Oferta", "MRR", "MRR no mês de ativação", "MRR original", "Ajuste manual", "Status", "Ativação", "Cancelamento", "Origem", "Fonte"],
   ];
   for (const r of rows) {
     const res = r.result;
@@ -726,6 +728,8 @@ export function cohortRowsToMatrix(rows: CohortRow[], monthly?: MonthlyMrrMap): 
     out.push([
       r.email,
       r.name ?? "",
+      r.phone ?? "",
+      r.campaign_name ?? "",
       res?.plan_name ?? "",
       res?.offer_name ?? r.offer ?? "",
       Number(res?.mrr ?? 0),

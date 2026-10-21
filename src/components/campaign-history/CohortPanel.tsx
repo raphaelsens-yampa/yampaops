@@ -38,6 +38,8 @@ import {
 } from "@/lib/campaignCohort";
 
 import { campaignLabel, type HistoryCampaign } from "@/lib/campaignHistory";
+import { fetchAllPaged } from "@/lib/supabasePaged";
+import { cohortPhoneMap } from "@/lib/cohortPhones";
 
 const STATUS_BADGE: Record<string, string> = {
   active: "bg-success text-success-foreground",
@@ -97,6 +99,32 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     },
   });
 
+  const phonesQ = useQuery({
+    queryKey: ["cohort-phones", campaignId, contactsQ.data?.map((c) => c.email_norm)],
+    enabled: !!contactsQ.data?.length,
+    queryFn: async () => {
+      const emails = [...new Set((contactsQ.data ?? []).flatMap((c) => [c.email_norm, c.email]))];
+      const crm: { email: string | null; phone: string | null }[] = [];
+      const chat: { email: string | null; phone: string | null }[] = [];
+      const sales: { email: string | null; phone: string | null }[] = [];
+      for (let i = 0; i < emails.length; i += 100) {
+        const batch = emails.slice(i, i + 100);
+        const [contacts, chatwoot, campaigns] = await Promise.all([
+          fetchAllPaged(() => supabase.from("contacts").select("id, email, phone").in("email", batch).order("updated_at", { ascending: false }).order("id")),
+          fetchAllPaged(() => supabase.from("chatwoot_contacts").select("id, email, phone_e164").in("email", batch).order("updated_at", { ascending: false }).order("id")),
+          fetchAllPaged(() => supabase.from("sales_campaign_contacts").select("id, email_norm, phone").in("email_norm", batch).order("updated_at", { ascending: false }).order("id")),
+        ]);
+        for (const result of [contacts, chatwoot, campaigns]) {
+          if (result.error) throw new Error(result.error);
+        }
+        crm.push(...contacts.data);
+        chat.push(...chatwoot.data.map((c) => ({ email: c.email, phone: c.phone_e164 })));
+        sales.push(...campaigns.data.map((c) => ({ email: c.email_norm, phone: c.phone })));
+      }
+      return cohortPhoneMap([crm, chat, sales]);
+    },
+  });
+
   const curveQ = useQuery({
     queryKey: ["cohort-curve", campaignId],
     enabled: !!campaignId,
@@ -144,13 +172,15 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
       const overrideMrr = ov ? Number(ov.mrr) : null;
       return {
         ...c,
+        phone: phonesQ.data?.get(c.email_norm) ?? null,
+        campaign_name: campaign?.name ?? null,
         result: res ? { ...res, mrr: overrideMrr ?? res.mrr } : res,
         mrr_override: overrideMrr,
         mrr_override_note: ov?.note ?? null,
         mrr_original: res?.mrr ?? null,
       };
     });
-  }, [contactsQ.data, resultsQ.data, overridesQ.data]);
+  }, [contactsQ.data, resultsQ.data, overridesQ.data, phonesQ.data, campaign?.name]);
 
   const [editing, setEditing] = useState<{ id: string; email: string; value: string; note: string } | null>(null);
   const [savingOverride, setSavingOverride] = useState(false);
@@ -543,8 +573,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="text-base">Clientes da campanha ({filtered.length})</CardTitle>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4 mr-1" />CSV</Button>
-                <Button variant="outline" size="sm" onClick={exportXlsx}><FileSpreadsheet className="h-4 w-4 mr-1" />XLSX</Button>
+                <Button variant="outline" size="sm" onClick={exportCsv} disabled={phonesQ.isFetching || phonesQ.isError}><Download className="h-4 w-4 mr-1" />CSV</Button>
+                <Button variant="outline" size="sm" onClick={exportXlsx} disabled={phonesQ.isFetching || phonesQ.isError}><FileSpreadsheet className="h-4 w-4 mr-1" />XLSX</Button>
                 <Button variant="ghost" size="sm" onClick={clearList}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 <CollapseToggle open={tableOpen} onToggle={() => setTableOpen((o) => !o)} />
               </div>
@@ -576,6 +606,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                       <tr className="border-b text-xs text-muted-foreground">
                         <th className="px-2 py-2 text-left">E-mail</th>
                         <th className="px-2 py-2 text-left">Nome</th>
+                        <th className="px-2 py-2 text-left">Telefone</th>
+                        <th className="px-2 py-2 text-left">Campanha</th>
                         <th className="px-2 py-2 text-left">Plano</th>
                         <th className="px-2 py-2 text-right">MRR</th>
                         <th className="px-2 py-2 text-left">Status</th>
@@ -595,6 +627,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                           <tr key={r.id} className="border-b last:border-0">
                             <td className="px-2 py-2">{r.email_norm}</td>
                             <td className="px-2 py-2">{r.name ?? "—"}</td>
+                            <td className="px-2 py-2 whitespace-nowrap tabular-nums">{phonesQ.isPending ? "…" : phonesQ.isError ? "Indisponível" : r.phone ?? "—"}</td>
+                            <td className="px-2 py-2 min-w-[160px]">{r.campaign_name ?? "—"}</td>
                             <td className="px-2 py-2">{res?.plan_name ?? res?.offer_name ?? r.offer ?? "—"}</td>
                             <td className="px-2 py-2 text-right tabular-nums">
                               {editing?.id === r.id ? (
@@ -696,7 +730,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
                         );
                       })}
                       {!filtered.length && (
-                        <tr><td colSpan={11} className="px-2 py-6 text-center text-sm text-muted-foreground">Nenhum cliente com esses filtros.</td></tr>
+                        <tr><td colSpan={13} className="px-2 py-6 text-center text-sm text-muted-foreground">Nenhum cliente com esses filtros.</td></tr>
                       )}
                     </tbody>
                   </table>
