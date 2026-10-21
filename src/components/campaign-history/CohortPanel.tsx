@@ -573,8 +573,8 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="text-base">Clientes da campanha ({filtered.length})</CardTitle>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-4 w-4 mr-1" />CSV</Button>
-                <Button variant="outline" size="sm" onClick={exportXlsx}><FileSpreadsheet className="h-4 w-4 mr-1" />XLSX</Button>
+                <Button variant="outline" size="sm" onClick={exportCsv} disabled={phonesQ.isFetching || phonesQ.isError}><Download className="h-4 w-4 mr-1" />CSV</Button>
+                <Button variant="outline" size="sm" onClick={exportXlsx} disabled={phonesQ.isFetching || phonesQ.isError}><FileSpreadsheet className="h-4 w-4 mr-1" />XLSX</Button>
                 <Button variant="ghost" size="sm" onClick={clearList}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 <CollapseToggle open={tableOpen} onToggle={() => setTableOpen((o) => !o)} />
               </div>
