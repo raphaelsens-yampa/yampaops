@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
   // ---- Contatos alvo
   const { data: contacts, error: cErr } = await admin
     .from("campaign_cohort_contacts")
-    .select("id, email_norm, email")
+    .select("id, email_norm, email, phone")
     .eq("campaign_id", campaign_id)
     .order("email_norm", { ascending: true });
   if (cErr) return json({ error: cErr.message }, 500);
@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
   let canceled = 0;
   let trial = 0;
   let never = 0;
+  let phoneFilled = 0;
   const errors: string[] = [];
 
   for (const c of slice) {
@@ -143,8 +144,14 @@ Deno.serve(async (req) => {
       }
 
       let best: { status: string; mrr: number; plan: string | null; started: string | null; canceled: string | null } | null = null;
+      // Telefone da conta de cobrança na Stripe: guardado no contato da campanha.
+      let phone: string | null = null;
 
       for (const cust of customers) {
+        if (!phone) {
+          const p = String((cust as any).phone ?? "").trim();
+          if (p) phone = p;
+        }
         const subs = await withRetry(() =>
           stripe.subscriptions.list({
             customer: cust.id,
@@ -206,6 +213,16 @@ Deno.serve(async (req) => {
       await admin.from("campaign_cohort_results").delete().eq("campaign_id", campaign_id).eq("contact_id", (c as any).id);
       const { error: insErr } = await admin.from("campaign_cohort_results").insert(row);
       if (insErr) errors.push(`${email}: ${insErr.message}`);
+
+      // Guarda o telefone da Stripe no contato da campanha (não sobrescreve um já preenchido).
+      if (phone && (c as any).phone !== phone) {
+        const { error: phErr } = await admin
+          .from("campaign_cohort_contacts")
+          .update({ phone, updated_at: new Date().toISOString() })
+          .eq("id", (c as any).id);
+        if (phErr) errors.push(`${email}: telefone — ${phErr.message}`);
+        else phoneFilled++;
+      }
       await sleep(60);
     } catch (e: any) {
       errors.push(`${email}: ${e?.message ?? String(e)}`);
@@ -226,6 +243,7 @@ Deno.serve(async (req) => {
     trial,
     canceled,
     never,
+    phones: phoneFilled,
     errors: errors.slice(0, 20),
   });
 });
