@@ -1,0 +1,2 @@
+ALTER TABLE public.campaign_cohort_contacts ADD COLUMN IF NOT EXISTS phone text;
+COMMENT ON COLUMN public.campaign_cohort_contacts.phone IS 'Telefone do contato: trazido da consulta em tempo real na Stripe (cohort-stripe-live) e usado na tabela e nas exportações do cohort.';
