@@ -76,7 +76,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("campaign_cohort_contacts")
-        .select("id, campaign_id, email, email_norm, name, offer, activated_at")
+        .select("id, campaign_id, email, email_norm, name, offer, activated_at, phone")
         .eq("campaign_id", campaignId)
         .order("email_norm");
       if (error) throw error;
@@ -104,24 +104,35 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
     enabled: !!contactsQ.data?.length,
     queryFn: async () => {
       const emails = [...new Set((contactsQ.data ?? []).flatMap((c) => [c.email_norm, c.email]))];
+      // Telefone já salvo pela consulta em tempo real na Stripe.
+      const own: { email: string | null; phone: string | null }[] = (contactsQ.data ?? [])
+        .filter((c) => c.phone)
+        .map((c) => ({ email: c.email_norm, phone: c.phone ?? null }));
       const crm: { email: string | null; phone: string | null }[] = [];
       const chat: { email: string | null; phone: string | null }[] = [];
       const sales: { email: string | null; phone: string | null }[] = [];
+      const preChurn: { email: string | null; phone: string | null }[] = [];
+      const churned: { email: string | null; phone: string | null }[] = [];
       for (let i = 0; i < emails.length; i += 100) {
         const batch = emails.slice(i, i + 100);
-        const [contacts, chatwoot, campaigns] = await Promise.all([
+        const [contacts, chatwoot, campaigns, preChurnRes, churnRes] = await Promise.all([
           fetchAllPaged(() => supabase.from("contacts").select("id, email, phone").in("email", batch).order("updated_at", { ascending: false }).order("id")),
           fetchAllPaged(() => supabase.from("chatwoot_contacts").select("id, email, phone_e164").in("email", batch).order("updated_at", { ascending: false }).order("id")),
           fetchAllPaged(() => supabase.from("sales_campaign_contacts").select("id, email_norm, phone").in("email_norm", batch).order("updated_at", { ascending: false }).order("id")),
+          fetchAllPaged(() => supabase.from("metas_pre_churn").select("id, email_norm, phone").in("email_norm", batch).order("data_ref", { ascending: false }).order("id")),
+          fetchAllPaged(() => supabase.from("metas_churn_daily").select("id, email, cell_phone").in("email", batch).order("data_ref_analise", { ascending: false }).order("id")),
         ]);
-        for (const result of [contacts, chatwoot, campaigns]) {
+        for (const result of [contacts, chatwoot, campaigns, preChurnRes, churnRes]) {
           if (result.error) throw new Error(result.error);
         }
         crm.push(...contacts.data);
         chat.push(...chatwoot.data.map((c) => ({ email: c.email, phone: c.phone_e164 })));
         sales.push(...campaigns.data.map((c) => ({ email: c.email_norm, phone: c.phone })));
+        preChurn.push(...preChurnRes.data.map((c) => ({ email: c.email_norm, phone: c.phone })));
+        churned.push(...churnRes.data.map((c) => ({ email: c.email, phone: c.cell_phone })));
       }
-      return cohortPhoneMap([crm, chat, sales]);
+      // Ordem de confiança: Stripe ao vivo > CRM > Chatwoot > campanhas de venda > pré-churn > churn (Metabase).
+      return cohortPhoneMap([own, crm, chat, sales, preChurn, churned]);
     },
   });
 
