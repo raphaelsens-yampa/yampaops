@@ -1,4 +1,8 @@
 
+## Bases de campanhas — telefone e campanha (21/10/2026)
+- [ ] Incluir telefone disponível na base e nome da campanha na tabela e nos arquivos CSV/XLSX
+- [ ] Validar com clientes reais e testar o cruzamento dos telefones
+
 ## Atendimentos — caixas de entrada e CSAT (19/10/2026)
 - [x] Permitir marcar mais de uma caixa de entrada (soma das caixas; "(sem caixa)" disponível)
 - [x] Testar a regra de multisseleção e validar os totais na tela (682 geral; 433 com duas caixas; 260 com uma)
