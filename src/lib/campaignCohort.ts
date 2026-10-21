@@ -14,6 +14,8 @@ export interface CohortContact {
   name: string | null;
   offer: string | null;
   activated_at: string | null;
+  /** Telefone salvo pela consulta em tempo real na Stripe. */
+  phone?: string | null;
 }
 
 export interface CohortResult {
