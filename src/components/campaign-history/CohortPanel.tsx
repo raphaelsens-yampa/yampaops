@@ -496,7 +496,7 @@ export function CohortPanel({ campaigns, campaign, onChangeCampaign }: Props) {
           size="sm"
           onClick={() => fillFromStripe("missing")}
           disabled={!campaign || stripeFilling || refreshing || !rows.length}
-          title="Consulta a API da Stripe em tempo real apenas para os contatos não identificados"
+          title="Consulta a API da Stripe em tempo real apenas para os contatos não identificados; quando existe, o telefone da conta de cobrança também é salvo"
         >
           <Search className={`h-4 w-4 mr-1 ${stripeFilling ? "animate-pulse" : ""}`} />
           {stripeFilling
