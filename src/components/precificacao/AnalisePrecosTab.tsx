@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Columns3 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { matchesColumnFilter } from '@/lib/pricingColumnFilter';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -16,6 +19,21 @@ import { toast } from '@/hooks/use-toast';
 import { Produto } from '@/types/precificacao';
 import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck, calcLucroProjetado } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
+
+const HIDDEN_KEY = 'precificacao.servicos.hiddenCols';
+const TOGGLE_COLS: { key: string; label: string }[] = [
+  { key: 'status', label: 'Status' },
+  { key: 'nome', label: 'Produto' },
+  { key: 'linha', label: 'Linha' },
+  { key: 'meses', label: 'Contrato' },
+  { key: 'ideal_mes', label: 'Ideal/mês' },
+  { key: 'ideal_total', label: 'Ideal Total' },
+  { key: 'preco_mes', label: 'Preço/mês' },
+  { key: 'preco_total', label: 'Total' },
+  { key: 'margem', label: 'Margem' },
+  { key: 'lucro_proj', label: 'Lucro Projetado' },
+  { key: 'acoes', label: 'Ações' },
+];
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -44,8 +62,34 @@ export default function AnalisePrecosTab({
   const [showMin, setShowMin] = useState(false);
   const [showCusto, setShowCusto] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [hiddenCols, setHiddenCols] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]'); } catch { return []; }
+  });
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+  const setColFilter = (k: string, val: string) => setColFilters((prev) => ({ ...prev, [k]: val }));
+  const activeColFilters = Object.values(colFilters).filter((x) => x.trim()).length;
+  const v = (k: string) => !hiddenCols.includes(k);
+  const toggleCol = (k: string) => {
+    setHiddenCols((prev) => {
+      const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const visibleColCount =
+    TOGGLE_COLS.filter((c) => v(c.key)).length + 2 + (showMin ? 2 : 0) + (showCusto ? 2 : 0);
 
   const changedCount = Object.keys(priceOverrides).length;
+
+  const colDisplay = (p: Produto, k: string): { text: string; num?: number } => {
+    if (k === 'status') return { text: statusCheck(p, priceOverrides, config) === 'Preço bom' ? 'Bom' : 'Abaixo' };
+    if (k === 'nome') return { text: p.nome };
+    if (k === 'linha') return { text: p.linha };
+    const num = getSortValue(p, k) as number;
+    if (k === 'meses') return { text: `${p.meses}x`, num };
+    if (k === 'margem' || k === 'lucro_proj') return { text: fmtPct(num), num: num * 100 };
+    return { text: fmtBRL(num), num };
+  };
 
   const filtered = products.filter((p) => {
     const matchSearch = p.nome.toLowerCase().includes(search.toLowerCase());
@@ -57,8 +101,35 @@ export default function AnalisePrecosTab({
       filter === 'bpo'    ? nome.includes('bpo') :
       filter === 'time'   ? nome.includes('time financeiro') :
       filter === 'setup'  ? nome.includes('setup') : true;
-    return matchSearch && matchFilter;
+    if (!matchSearch || !matchFilter) return false;
+    return Object.entries(colFilters).every(([k, raw]) => {
+      if (!raw.trim()) return true;
+      if (k === 'status' || k === 'linha') return colDisplay(p, k).text === raw;
+      const d = colDisplay(p, k);
+      return matchesColumnFilter(raw, d.text, d.num);
+    });
   });
+
+  const sortHead = (k: string, label: string, className: string) => (
+    <TableHead className={`${className} cursor-pointer select-none`} onClick={() => requestSort(k)}>
+      <div className="flex items-center justify-center gap-1">
+        {label}
+        {sortConfig.key === k ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+      </div>
+    </TableHead>
+  );
+
+  const filterCell = (k: string) => (
+    <TableHead className="px-1 py-1">
+      <Input
+        value={colFilters[k] ?? ''}
+        onChange={(e) => setColFilter(k, e.target.value)}
+        placeholder="Filtrar"
+        title={k === 'nome' ? 'Contém o texto' : 'Texto ou comparação: >500, <100, =3'}
+        className="h-7 text-[11px] px-2 text-center"
+      />
+    </TableHead>
+  );
 
   const requestSort = (key: string) => {
     setSortConfig((prev) => {
@@ -69,7 +140,7 @@ export default function AnalisePrecosTab({
     });
   };
 
-  const getSortValue = (p: Produto, key: string) => {
+  function getSortValue(p: Produto, key: string) {
     const eff = getEffectivePrice(p, priceOverrides);
     const linhaKey = getLinhaKey(p.linha);
     switch (key) {
@@ -301,6 +372,33 @@ export default function AnalisePrecosTab({
                 </button>
               ))}
             </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 ml-auto">
+                  <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Colunas
+                  {hiddenCols.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({hiddenCols.length} ocultas)</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-2">
+                <p className="text-xs font-semibold px-1 pb-1">Mostrar colunas</p>
+                {TOGGLE_COLS.map((c) => (
+                  <label key={c.key} className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
+                    <Checkbox checked={v(c.key)} onCheckedChange={() => toggleCol(c.key)} /> {c.label}
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
+                  <Checkbox checked={showCusto} onCheckedChange={() => setShowCusto((x) => !x)} /> Custo (mês e total)
+                </label>
+                <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
+                  <Checkbox checked={showMin} onCheckedChange={() => setShowMin((x) => !x)} /> Mínimo (mês e total)
+                </label>
+                {(hiddenCols.length > 0 || activeColFilters > 0) && (
+                  <Button variant="ghost" size="sm" className="w-full h-7 mt-1 text-xs" onClick={() => { setHiddenCols([]); localStorage.removeItem(HIDDEN_KEY); setColFilters({}); }}>
+                    Mostrar tudo e limpar filtros
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </CardHeader>
 
@@ -309,28 +407,13 @@ export default function AnalisePrecosTab({
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[88px] text-center px-2">Status</TableHead>
-                  <TableHead className="text-center px-2 cursor-pointer select-none" onClick={() => requestSort('nome')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Produto
-                      {sortConfig.key === 'nome' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[110px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('linha')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Linha
-                      {sortConfig.key === 'linha' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[60px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('meses')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Contr.
-                      {sortConfig.key === 'meses' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
+                  {v('status') && <TableHead className="w-[88px] text-center px-2">Status</TableHead>}
+                  {v('nome') && sortHead("nome", "Produto", "text-center px-2")}
+                  {v('linha') && sortHead("linha", "Linha", "w-[110px] text-center px-1")}
+                  {v('meses') && sortHead("meses", "Contr.", "w-[60px] text-center px-1")}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
-                      onClick={() => setShowCusto((v) => !v)}
+                      onClick={() => setShowCusto((x) => !x)}
                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
                       title={showCusto ? 'Ocultar Custo' : 'Mostrar Custo'}
                     >
@@ -339,35 +422,15 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showCusto && (
                     <>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_mes')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Custo/mês
-                          {sortConfig.key === 'custo_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_total')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Custo Tot.
-                          {sortConfig.key === 'custo_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
+                      {sortHead("custo_mes", "Custo/mês", "w-[90px] text-center px-1")}
+                      {sortHead("custo_total", "Custo Tot.", "w-[90px] text-center px-1")}
                     </>
                   )}
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_mes')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Ideal/mês
-                      {sortConfig.key === 'ideal_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_total')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Ideal Tot.
-                      {sortConfig.key === 'ideal_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
+                  {v('ideal_mes') && sortHead("ideal_mes", "Ideal/mês", "w-[90px] text-center px-1")}
+                  {v('ideal_total') && sortHead("ideal_total", "Ideal Tot.", "w-[90px] text-center px-1")}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
-                      onClick={() => setShowMin((v) => !v)}
+                      onClick={() => setShowMin((x) => !x)}
                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
                       title={showMin ? 'Ocultar Mín. (0%)' : 'Mostrar Mín. (0%)'}
                     >
@@ -376,51 +439,69 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_mes')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Mín./mês
-                          {sortConfig.key === 'min_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_total')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Mín. Tot.
-                          {sortConfig.key === 'min_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
+                      {sortHead("min_mes", "Mín./mês", "w-[90px] text-center px-1")}
+                      {sortHead("min_total", "Mín. Tot.", "w-[90px] text-center px-1")}
                     </>
                   )}
-                  <TableHead className="w-[100px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_mes')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Preço/mês
-                      {sortConfig.key === 'preco_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_total')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Total
-                      {sortConfig.key === 'preco_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[140px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('margem')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Margem
-                      {sortConfig.key === 'margem' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('lucro_proj')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Lucro Proj.
-                      {sortConfig.key === 'lucro_proj' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[70px] text-center px-1">Ações</TableHead>
+                  {v('preco_mes') && sortHead("preco_mes", "Preço/mês", "w-[100px] text-center px-1")}
+                  {v('preco_total') && sortHead("preco_total", "Total", "w-[90px] text-center px-1")}
+                  {v('margem') && sortHead("margem", "Margem", "w-[140px] text-center px-1")}
+                  {v('lucro_proj') && sortHead("lucro_proj", "Lucro Proj.", "w-[90px] text-center px-1")}
+                  {v('acoes') && <TableHead className="w-[70px] text-center px-1">Ações</TableHead>}
+                </TableRow>
+                <TableRow className="hover:bg-transparent">
+                  {v('status') && (
+                    <TableHead className="px-1 py-1">
+                      <Select value={colFilters.status || 'all'} onValueChange={(x) => setColFilter('status', x === 'all' ? '' : x)}>
+                        <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="Bom">Bom</SelectItem>
+                          <SelectItem value="Abaixo">Abaixo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
+                  )}
+                  {v('nome') && filterCell("nome")}
+                  {v('linha') && (
+                    <TableHead className="px-1 py-1">
+                      <Select value={colFilters.linha || 'all'} onValueChange={(x) => setColFilter('linha', x === 'all' ? '' : x)}>
+                        <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="Linha Premium">{config.markup.premium.label}</SelectItem>
+                          <SelectItem value="Linha Gold">{config.markup.gold.label}</SelectItem>
+                          <SelectItem value="Linha Prata">{config.markup.prata.label}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
+                  )}
+                  {v('meses') && filterCell("meses")}
+                  <TableHead className="p-0" />
+                  {showCusto && <>{filterCell("custo_mes")}{filterCell("custo_total")}</>}
+                  {v('ideal_mes') && filterCell("ideal_mes")}
+                  {v('ideal_total') && filterCell("ideal_total")}
+                  <TableHead className="p-0" />
+                  {showMin && <>{filterCell("min_mes")}{filterCell("min_total")}</>}
+                  {v('preco_mes') && filterCell("preco_mes")}
+                  {v('preco_total') && filterCell("preco_total")}
+                  {v('margem') && filterCell("margem")}
+                  {v('lucro_proj') && filterCell("lucro_proj")}
+                  {v('acoes') && (
+                    <TableHead className="px-1 py-1 text-center">
+                      {activeColFilters > 0 && (
+                        <button onClick={() => setColFilters({})} className="text-[10px] text-blue-600 hover:underline" title="Limpar filtros das colunas">
+                          Limpar
+                        </button>
+                      )}
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {sortedProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13 + (showMin ? 2 : 0) + (showCusto ? 2 : 0)} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={visibleColCount} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -443,6 +524,7 @@ export default function AnalisePrecosTab({
 
                     return (
                       <TableRow key={p.nome} className={changed ? 'bg-amber-50/50' : ''}>
+                        {v('status') && (
                         <TableCell className="px-2 py-2">
                           {status === 'Preço bom' ? (
                             <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 gap-1 text-[10px] px-1.5">
@@ -454,6 +536,8 @@ export default function AnalisePrecosTab({
                             </Badge>
                           )}
                         </TableCell>
+                        )}
+                        {v('nome') && (
                         <TableCell className="px-2 py-2">
                           <p className="text-xs font-medium leading-snug break-words">{p.nome}</p>
                           {changed && (
@@ -462,6 +546,8 @@ export default function AnalisePrecosTab({
                             </p>
                           )}
                         </TableCell>
+                        )}
+                        {v('linha') && (
                         <TableCell className="px-1 py-2">
                           <Select
                             value={p.linha}
@@ -477,7 +563,10 @@ export default function AnalisePrecosTab({
                             </SelectContent>
                           </Select>
                         </TableCell>
+                        )}
+                        {v('meses') && (
                         <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
+                        )}
                         <TableCell className="p-0" />
                         {showCusto && (
                           <>
@@ -485,8 +574,12 @@ export default function AnalisePrecosTab({
                             <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>
                           </>
                         )}
+                        {v('ideal_mes') && (
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
+                        )}
+                        {v('ideal_total') && (
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
+                        )}
                         <TableCell className="p-0" />
                         {showMin && (
                           <>
@@ -494,6 +587,7 @@ export default function AnalisePrecosTab({
                             <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>
                           </>
                         )}
+                        {v('preco_mes') && (
                         <TableCell className="text-center px-1 py-2">
                           <Input
                             type="number"
@@ -505,7 +599,11 @@ export default function AnalisePrecosTab({
                             min={0}
                           />
                         </TableCell>
+                        )}
+                        {v('preco_total') && (
                         <TableCell className="text-center text-xs font-bold px-1 py-2">{fmtBRL(eff.preco_total)}</TableCell>
+                        )}
+                        {v('margem') && (
                         <TableCell className="px-1 py-2">
                           <div className="flex items-center justify-center gap-1.5">
                             <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[70px]">
@@ -515,11 +613,15 @@ export default function AnalisePrecosTab({
                           </div>
                           <p className="text-[10px] text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
                         </TableCell>
+                        )}
+                        {v('lucro_proj') && (
                         <TableCell className="text-center px-1 py-2">
                           <span className={`text-xs font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
+                        )}
+                        {v('acoes') && (
                         <TableCell className="text-center px-1 py-2">
                           <div className="flex items-center justify-center gap-0.5">
                             <Button
@@ -542,6 +644,7 @@ export default function AnalisePrecosTab({
                             </Button>
                           </div>
                         </TableCell>
+                        )}
                       </TableRow>
                     );
                   })
