@@ -393,12 +393,6 @@ export default function AnalisePrecosTab({
                     <Checkbox checked={v(c.key)} onCheckedChange={() => toggleCol(c.key)} /> {c.label}
                   </label>
                 ))}
-                <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
-                  <Checkbox checked={showCusto} onCheckedChange={() => setShowCusto((x) => !x)} /> Custo (mês e total)
-                </label>
-                <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
-                  <Checkbox checked={showMin} onCheckedChange={() => setShowMin((x) => !x)} /> Mínimo (mês e total)
-                </label>
                 {(hiddenCols.length > 0 || activeColFilters > 0) && (
                   <Button variant="ghost" size="sm" className="w-full h-7 mt-1 text-xs" onClick={() => { setHiddenCols([]); localStorage.removeItem(HIDDEN_KEY); setColFilters({}); }}>
                     Mostrar tudo e limpar filtros
@@ -410,7 +404,7 @@ export default function AnalisePrecosTab({
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className={showMin || showCusto ? 'overflow-x-auto' : ''}>
+          <div className={v('custo_mes') || v('custo_total') || v('min_mes') || v('min_total') ? 'overflow-x-auto' : ''}>
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
@@ -418,38 +412,12 @@ export default function AnalisePrecosTab({
                   {v('nome') && sortHead("nome", "Produto", "text-center px-2")}
                   {v('linha') && sortHead("linha", "Linha", "w-[110px] text-center px-1")}
                   {v('meses') && sortHead("meses", "Contr.", "w-[60px] text-center px-1")}
-                  <TableHead className="w-[28px] text-center p-0">
-                    <button
-                      onClick={() => setShowCusto((x) => !x)}
-                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
-                      title={showCusto ? 'Ocultar Custo' : 'Mostrar Custo'}
-                    >
-                      {showCusto ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 -rotate-90" />}
-                    </button>
-                  </TableHead>
-                  {showCusto && (
-                    <>
-                      {sortHead("custo_mes", "Custo/mês", "w-[90px] text-center px-1")}
-                      {sortHead("custo_total", "Custo Tot.", "w-[90px] text-center px-1")}
-                    </>
-                  )}
+                  {v('custo_mes') && sortHead("custo_mes", "Custo/mês", "w-[90px] text-center px-1")}
+                  {v('custo_total') && sortHead("custo_total", "Custo Tot.", "w-[90px] text-center px-1")}
                   {v('ideal_mes') && sortHead("ideal_mes", "Ideal/mês", "w-[90px] text-center px-1")}
                   {v('ideal_total') && sortHead("ideal_total", "Ideal Tot.", "w-[90px] text-center px-1")}
-                  <TableHead className="w-[28px] text-center p-0">
-                    <button
-                      onClick={() => setShowMin((x) => !x)}
-                      className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
-                      title={showMin ? 'Ocultar Mín. (0%)' : 'Mostrar Mín. (0%)'}
-                    >
-                      {showMin ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 -rotate-90" />}
-                    </button>
-                  </TableHead>
-                  {showMin && (
-                    <>
-                      {sortHead("min_mes", "Mín./mês", "w-[90px] text-center px-1")}
-                      {sortHead("min_total", "Mín. Tot.", "w-[90px] text-center px-1")}
-                    </>
-                  )}
+                  {v('min_mes') && sortHead("min_mes", "Mín./mês", "w-[90px] text-center px-1")}
+                  {v('min_total') && sortHead("min_total", "Mín. Tot.", "w-[90px] text-center px-1")}
                   {v('preco_mes') && sortHead("preco_mes", "Preço/mês", "w-[100px] text-center px-1")}
                   {v('preco_total') && sortHead("preco_total", "Total", "w-[90px] text-center px-1")}
                   {v('margem') && sortHead("margem", "Margem", "w-[140px] text-center px-1")}
@@ -484,12 +452,12 @@ export default function AnalisePrecosTab({
                     </TableHead>
                   )}
                   {v('meses') && filterCell("meses")}
-                  <TableHead className="p-0" />
-                  {showCusto && <>{filterCell("custo_mes")}{filterCell("custo_total")}</>}
+                  {v('custo_mes') && filterCell("custo_mes")}
+                  {v('custo_total') && filterCell("custo_total")}
                   {v('ideal_mes') && filterCell("ideal_mes")}
                   {v('ideal_total') && filterCell("ideal_total")}
-                  <TableHead className="p-0" />
-                  {showMin && <>{filterCell("min_mes")}{filterCell("min_total")}</>}
+                  {v('min_mes') && filterCell("min_mes")}
+                  {v('min_total') && filterCell("min_total")}
                   {v('preco_mes') && filterCell("preco_mes")}
                   {v('preco_total') && filterCell("preco_total")}
                   {v('margem') && filterCell("margem")}
