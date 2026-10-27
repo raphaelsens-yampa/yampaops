@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { RotateCcw, Save, Search, TrendingUp, AlertTriangle, Package, Pencil, Plus, ChevronDown, ChevronRight, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Columns3 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { matchesColumnFilter } from '@/lib/pricingColumnFilter';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -16,6 +19,21 @@ import { toast } from '@/hooks/use-toast';
 import { Produto } from '@/types/precificacao';
 import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck, calcLucroProjetado } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
+
+const HIDDEN_KEY = 'precificacao.servicos.hiddenCols';
+const TOGGLE_COLS: { key: string; label: string }[] = [
+  { key: 'status', label: 'Status' },
+  { key: 'nome', label: 'Produto' },
+  { key: 'linha', label: 'Linha' },
+  { key: 'meses', label: 'Contrato' },
+  { key: 'ideal_mes', label: 'Ideal/mês' },
+  { key: 'ideal_total', label: 'Ideal Total' },
+  { key: 'preco_mes', label: 'Preço/mês' },
+  { key: 'preco_total', label: 'Total' },
+  { key: 'margem', label: 'Margem' },
+  { key: 'lucro_proj', label: 'Lucro Projetado' },
+  { key: 'acoes', label: 'Ações' },
+];
 
 const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -44,8 +62,34 @@ export default function AnalisePrecosTab({
   const [showMin, setShowMin] = useState(false);
   const [showCusto, setShowCusto] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [hiddenCols, setHiddenCols] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]'); } catch { return []; }
+  });
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+  const setColFilter = (k: string, val: string) => setColFilters((prev) => ({ ...prev, [k]: val }));
+  const activeColFilters = Object.values(colFilters).filter((x) => x.trim()).length;
+  const v = (k: string) => !hiddenCols.includes(k);
+  const toggleCol = (k: string) => {
+    setHiddenCols((prev) => {
+      const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k];
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const visibleColCount =
+    TOGGLE_COLS.filter((c) => v(c.key)).length + 2 + (showMin ? 2 : 0) + (showCusto ? 2 : 0);
 
   const changedCount = Object.keys(priceOverrides).length;
+
+  const colDisplay = (p: Produto, k: string): { text: string; num?: number } => {
+    if (k === 'status') return { text: statusCheck(p, priceOverrides, config) === 'Preço bom' ? 'Bom' : 'Abaixo' };
+    if (k === 'nome') return { text: p.nome };
+    if (k === 'linha') return { text: p.linha };
+    const num = getSortValue(p, k) as number;
+    if (k === 'meses') return { text: `${p.meses}x`, num };
+    if (k === 'margem' || k === 'lucro_proj') return { text: fmtPct(num), num: num * 100 };
+    return { text: fmtBRL(num), num };
+  };
 
   const filtered = products.filter((p) => {
     const matchSearch = p.nome.toLowerCase().includes(search.toLowerCase());
@@ -57,8 +101,35 @@ export default function AnalisePrecosTab({
       filter === 'bpo'    ? nome.includes('bpo') :
       filter === 'time'   ? nome.includes('time financeiro') :
       filter === 'setup'  ? nome.includes('setup') : true;
-    return matchSearch && matchFilter;
+    if (!matchSearch || !matchFilter) return false;
+    return Object.entries(colFilters).every(([k, raw]) => {
+      if (!raw.trim()) return true;
+      if (k === 'status' || k === 'linha') return colDisplay(p, k).text === raw;
+      const d = colDisplay(p, k);
+      return matchesColumnFilter(raw, d.text, d.num);
+    });
   });
+
+  const SortHead = ({ k, label, className }: { k: string; label: string; className: string }) => (
+    <TableHead className={`${className} cursor-pointer select-none`} onClick={() => requestSort(k)}>
+      <div className="flex items-center justify-center gap-1">
+        {label}
+        {sortConfig.key === k ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+      </div>
+    </TableHead>
+  );
+
+  const FilterCell = ({ k }: { k: string }) => (
+    <TableHead className="px-1 py-1">
+      <Input
+        value={colFilters[k] ?? ''}
+        onChange={(e) => setColFilter(k, e.target.value)}
+        placeholder="Filtrar"
+        title={k === 'nome' ? 'Contém o texto' : 'Texto ou comparação: >500, <100, =3'}
+        className="h-7 text-[11px] px-2 text-center"
+      />
+    </TableHead>
+  );
 
   const requestSort = (key: string) => {
     setSortConfig((prev) => {
