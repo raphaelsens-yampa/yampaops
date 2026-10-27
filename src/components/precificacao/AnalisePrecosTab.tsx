@@ -372,6 +372,33 @@ export default function AnalisePrecosTab({
                 </button>
               ))}
             </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 ml-auto">
+                  <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Colunas
+                  {hiddenCols.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">({hiddenCols.length} ocultas)</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-2">
+                <p className="text-xs font-semibold px-1 pb-1">Mostrar colunas</p>
+                {TOGGLE_COLS.map((c) => (
+                  <label key={c.key} className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
+                    <Checkbox checked={v(c.key)} onCheckedChange={() => toggleCol(c.key)} /> {c.label}
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
+                  <Checkbox checked={showCusto} onCheckedChange={() => setShowCusto((x) => !x)} /> Custo (mês e total)
+                </label>
+                <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-muted">
+                  <Checkbox checked={showMin} onCheckedChange={() => setShowMin((x) => !x)} /> Mínimo (mês e total)
+                </label>
+                {(hiddenCols.length > 0 || activeColFilters > 0) && (
+                  <Button variant="ghost" size="sm" className="w-full h-7 mt-1 text-xs" onClick={() => { setHiddenCols([]); localStorage.removeItem(HIDDEN_KEY); setColFilters({}); }}>
+                    Mostrar tudo e limpar filtros
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </CardHeader>
 
