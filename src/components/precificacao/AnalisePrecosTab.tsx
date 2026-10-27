@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import NewProductDialog from './NewProductDialog';
 import { recordPricingVersion } from '@/lib/pricingVersions';
+import { toast } from '@/hooks/use-toast';
 import { Produto } from '@/types/precificacao';
 import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectivePrice, getLinhaKey, statusCheck, calcLucroProjetado } from '@/hooks/usePrecificacao';
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
@@ -106,7 +107,7 @@ export default function AnalisePrecosTab({
     return sum + calcMC(eff.preco_total, p.custo, config).pct;
   }, 0) / (products.length || 1);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const changedNames = Object.keys(priceOverrides);
     const updatedProducts = products.map((p) => {
       if (priceOverrides[p.nome] !== undefined) {
@@ -115,74 +116,87 @@ export default function AnalisePrecosTab({
       }
       return p;
     });
-    saveChanges();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-
     if (changedNames.length > 0) {
-      recordPricingVersion({
+      const recorded = await recordPricingVersion({
         source: 'edit',
         change_type: 'price_update',
         name: `Atualização de preços (${changedNames.length} ${changedNames.length === 1 ? 'item' : 'itens'})`,
         description: changedNames.slice(0, 5).join(', ') + (changedNames.length > 5 ? '...' : ''),
         snapshot: { products: updatedProducts, config },
         setActive: true,
-      }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+      });
+      if (!recorded) { showSaveError(); return; }
+      saveChanges();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      window.dispatchEvent(new Event('pricing-version-changed'));
     }
   };
 
-  const handleAddProduct = (novo: Produto) => {
-    addProduct(novo);
-    recordPricingVersion({
+  const showSaveError = () => toast({ title: 'Não foi possível salvar', description: 'A alteração não foi salva. Tente novamente.', variant: 'destructive' });
+
+  const handleAddProduct = async (novo: Produto) => {
+    const recorded = await recordPricingVersion({
       source: 'edit',
       change_type: 'new_service',
       name: `Novo serviço: ${novo.nome}`,
       description: `${novo.linha} · ${novo.meses}x · ${novo.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
       snapshot: { products: [novo, ...products], config },
       setActive: true,
-    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    });
+    if (!recorded) { showSaveError(); return false; }
+    addProduct(novo);
+    window.dispatchEvent(new Event('pricing-version-changed'));
+    return true;
   };
 
-  const handleUpdateProduct = (originalName: string, atualizado: Produto) => {
-    updateProduct(originalName, atualizado);
+  const handleUpdateProduct = async (originalName: string, atualizado: Produto) => {
     const updated = products.map((p) => (p.nome === originalName ? atualizado : p));
-    recordPricingVersion({
+    const recorded = await recordPricingVersion({
       source: 'edit',
       change_type: 'service_update',
       name: `Serviço editado: ${atualizado.nome}`,
       description: `${atualizado.linha} · ${atualizado.meses}x · ${atualizado.preco_mensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`,
       snapshot: { products: updated, config },
       setActive: true,
-    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    });
+    if (!recorded) { showSaveError(); return false; }
+    updateProduct(originalName, atualizado);
+    window.dispatchEvent(new Event('pricing-version-changed'));
+    return true;
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     const nome = deleteTarget.nome;
-    removeProduct(nome);
     const updated = products.filter((p) => p.nome !== nome);
-    recordPricingVersion({
+    const recorded = await recordPricingVersion({
       source: 'edit',
       change_type: 'service_delete',
       name: `Serviço excluído: ${nome}`,
       description: `${deleteTarget.linha} · ${deleteTarget.meses}x`,
       snapshot: { products: updated, config },
       setActive: true,
-    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    });
+    if (!recorded) { showSaveError(); return; }
+    removeProduct(nome);
+    window.dispatchEvent(new Event('pricing-version-changed'));
     setDeleteTarget(null);
   };
 
-  const handleLinhaChange = (nome: string, novaLinha: LinhaMarkup) => {
-    updateLinha(nome, novaLinha);
+  const handleLinhaChange = async (nome: string, novaLinha: LinhaMarkup) => {
     const updated = products.map((p) => p.nome === nome ? { ...p, linha: novaLinha } : p);
-    recordPricingVersion({
+    const recorded = await recordPricingVersion({
       source: 'edit',
       change_type: 'line_update',
       name: `Linha alterada: ${nome}`,
       description: `Nova linha: ${novaLinha}`,
       snapshot: { products: updated, config },
       setActive: true,
-    }).then(() => window.dispatchEvent(new Event('pricing-version-changed')));
+    });
+    if (!recorded) { showSaveError(); return; }
+    updateLinha(nome, novaLinha);
+    window.dispatchEvent(new Event('pricing-version-changed'));
   };
 
   const handlePriceChange = (nome: string, val: string) => {
