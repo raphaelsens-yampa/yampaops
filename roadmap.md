@@ -1,3 +1,10 @@
+# Roadmap
+
+## Precificação — Tabela de Serviços (27/10/2026)
+- [x] Ordenação por valores nos cabeçalhos das colunas (validada no navegador)
+- [x] Custo/mês, Custo Total, Mínimo/mês e Mínimo Total independentes (validado no navegador)
+- [ ] Reordenar a sequência das colunas (arrastar o cabeçalho), com posição salva no navegador
+
 
 ## Precificação Serviços — salvamento da Keila (27/10/2026)
 - [x] Reproduzir a recusa de salvamento na conta da Keila
