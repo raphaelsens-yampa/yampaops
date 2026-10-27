@@ -408,9 +408,9 @@ export default function AnalisePrecosTab({
               <TableHeader>
                 <TableRow>
                   {v('status') && <TableHead className="w-[88px] text-center px-2">Status</TableHead>}
-                  {v('nome') && {sortHead("nome", "Produto", "text-center px-2")}}
-                  {v('linha') && {sortHead("linha", "Linha", "w-[110px] text-center px-1")}}
-                  {v('meses') && {sortHead("meses", "Contr.", "w-[60px] text-center px-1")}}
+                  {v('nome') && sortHead("nome", "Produto", "text-center px-2")}
+                  {v('linha') && sortHead("linha", "Linha", "w-[110px] text-center px-1")}
+                  {v('meses') && sortHead("meses", "Contr.", "w-[60px] text-center px-1")}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowCusto((x) => !x)}
@@ -426,8 +426,8 @@ export default function AnalisePrecosTab({
                       {sortHead("custo_total", "Custo Tot.", "w-[90px] text-center px-1")}
                     </>
                   )}
-                  {v('ideal_mes') && {sortHead("ideal_mes", "Ideal/mês", "w-[90px] text-center px-1")}}
-                  {v('ideal_total') && {sortHead("ideal_total", "Ideal Tot.", "w-[90px] text-center px-1")}}
+                  {v('ideal_mes') && sortHead("ideal_mes", "Ideal/mês", "w-[90px] text-center px-1")}
+                  {v('ideal_total') && sortHead("ideal_total", "Ideal Tot.", "w-[90px] text-center px-1")}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowMin((x) => !x)}
@@ -443,10 +443,10 @@ export default function AnalisePrecosTab({
                       {sortHead("min_total", "Mín. Tot.", "w-[90px] text-center px-1")}
                     </>
                   )}
-                  {v('preco_mes') && {sortHead("preco_mes", "Preço/mês", "w-[100px] text-center px-1")}}
-                  {v('preco_total') && {sortHead("preco_total", "Total", "w-[90px] text-center px-1")}}
-                  {v('margem') && {sortHead("margem", "Margem", "w-[140px] text-center px-1")}}
-                  {v('lucro_proj') && {sortHead("lucro_proj", "Lucro Proj.", "w-[90px] text-center px-1")}}
+                  {v('preco_mes') && sortHead("preco_mes", "Preço/mês", "w-[100px] text-center px-1")}
+                  {v('preco_total') && sortHead("preco_total", "Total", "w-[90px] text-center px-1")}
+                  {v('margem') && sortHead("margem", "Margem", "w-[140px] text-center px-1")}
+                  {v('lucro_proj') && sortHead("lucro_proj", "Lucro Proj.", "w-[90px] text-center px-1")}
                   {v('acoes') && <TableHead className="w-[70px] text-center px-1">Ações</TableHead>}
                 </TableRow>
                 <TableRow className="hover:bg-transparent">
@@ -462,7 +462,7 @@ export default function AnalisePrecosTab({
                       </Select>
                     </TableHead>
                   )}
-                  {v('nome') && {filterCell("nome")}}
+                  {v('nome') && filterCell("nome")}
                   {v('linha') && (
                     <TableHead className="px-1 py-1">
                       <Select value={colFilters.linha || 'all'} onValueChange={(x) => setColFilter('linha', x === 'all' ? '' : x)}>
@@ -476,17 +476,17 @@ export default function AnalisePrecosTab({
                       </Select>
                     </TableHead>
                   )}
-                  {v('meses') && {filterCell("meses")}}
+                  {v('meses') && filterCell("meses")}
                   <TableHead className="p-0" />
                   {showCusto && <>{filterCell("custo_mes")}{filterCell("custo_total")}</>}
-                  {v('ideal_mes') && {filterCell("ideal_mes")}}
-                  {v('ideal_total') && {filterCell("ideal_total")}}
+                  {v('ideal_mes') && filterCell("ideal_mes")}
+                  {v('ideal_total') && filterCell("ideal_total")}
                   <TableHead className="p-0" />
                   {showMin && <>{filterCell("min_mes")}{filterCell("min_total")}</>}
-                  {v('preco_mes') && {filterCell("preco_mes")}}
-                  {v('preco_total') && {filterCell("preco_total")}}
-                  {v('margem') && {filterCell("margem")}}
-                  {v('lucro_proj') && {filterCell("lucro_proj")}}
+                  {v('preco_mes') && filterCell("preco_mes")}
+                  {v('preco_total') && filterCell("preco_total")}
+                  {v('margem') && filterCell("margem")}
+                  {v('lucro_proj') && filterCell("lucro_proj")}
                   {v('acoes') && (
                     <TableHead className="px-1 py-1 text-center">
                       {activeColFilters > 0 && (
