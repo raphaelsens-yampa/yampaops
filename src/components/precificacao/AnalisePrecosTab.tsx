@@ -309,28 +309,13 @@ export default function AnalisePrecosTab({
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[88px] text-center px-2">Status</TableHead>
-                  <TableHead className="text-center px-2 cursor-pointer select-none" onClick={() => requestSort('nome')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Produto
-                      {sortConfig.key === 'nome' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[110px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('linha')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Linha
-                      {sortConfig.key === 'linha' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[60px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('meses')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Contr.
-                      {sortConfig.key === 'meses' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
+                  {v('status') && <TableHead className="w-[88px] text-center px-2">Status</TableHead>}
+                  {v('nome') && <SortHead k="nome" label="Produto" className="text-center px-2" />}
+                  {v('linha') && <SortHead k="linha" label="Linha" className="w-[110px] text-center px-1" />}
+                  {v('meses') && <SortHead k="meses" label="Contr." className="w-[60px] text-center px-1" />}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
-                      onClick={() => setShowCusto((v) => !v)}
+                      onClick={() => setShowCusto((x) => !x)}
                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
                       title={showCusto ? 'Ocultar Custo' : 'Mostrar Custo'}
                     >
@@ -339,35 +324,15 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showCusto && (
                     <>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_mes')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Custo/mês
-                          {sortConfig.key === 'custo_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('custo_total')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Custo Tot.
-                          {sortConfig.key === 'custo_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
+                      <SortHead k="custo_mes" label="Custo/mês" className="w-[90px] text-center px-1" />
+                      <SortHead k="custo_total" label="Custo Tot." className="w-[90px] text-center px-1" />
                     </>
                   )}
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_mes')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Ideal/mês
-                      {sortConfig.key === 'ideal_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('ideal_total')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Ideal Tot.
-                      {sortConfig.key === 'ideal_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
+                  {v('ideal_mes') && <SortHead k="ideal_mes" label="Ideal/mês" className="w-[90px] text-center px-1" />}
+                  {v('ideal_total') && <SortHead k="ideal_total" label="Ideal Tot." className="w-[90px] text-center px-1" />}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
-                      onClick={() => setShowMin((v) => !v)}
+                      onClick={() => setShowMin((x) => !x)}
                       className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-gray-100"
                       title={showMin ? 'Ocultar Mín. (0%)' : 'Mostrar Mín. (0%)'}
                     >
@@ -376,45 +341,63 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_mes')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Mín./mês
-                          {sortConfig.key === 'min_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
-                      <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('min_total')}>
-                        <div className="flex items-center justify-center gap-1">
-                          Mín. Tot.
-                          {sortConfig.key === 'min_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                        </div>
-                      </TableHead>
+                      <SortHead k="min_mes" label="Mín./mês" className="w-[90px] text-center px-1" />
+                      <SortHead k="min_total" label="Mín. Tot." className="w-[90px] text-center px-1" />
                     </>
                   )}
-                  <TableHead className="w-[100px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_mes')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Preço/mês
-                      {sortConfig.key === 'preco_mes' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('preco_total')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Total
-                      {sortConfig.key === 'preco_total' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[140px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('margem')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Margem
-                      {sortConfig.key === 'margem' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[90px] text-center px-1 cursor-pointer select-none" onClick={() => requestSort('lucro_proj')}>
-                    <div className="flex items-center justify-center gap-1">
-                      Lucro Proj.
-                      {sortConfig.key === 'lucro_proj' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[70px] text-center px-1">Ações</TableHead>
+                  {v('preco_mes') && <SortHead k="preco_mes" label="Preço/mês" className="w-[100px] text-center px-1" />}
+                  {v('preco_total') && <SortHead k="preco_total" label="Total" className="w-[90px] text-center px-1" />}
+                  {v('margem') && <SortHead k="margem" label="Margem" className="w-[140px] text-center px-1" />}
+                  {v('lucro_proj') && <SortHead k="lucro_proj" label="Lucro Proj." className="w-[90px] text-center px-1" />}
+                  {v('acoes') && <TableHead className="w-[70px] text-center px-1">Ações</TableHead>}
+                </TableRow>
+                <TableRow className="hover:bg-transparent">
+                  {v('status') && (
+                    <TableHead className="px-1 py-1">
+                      <Select value={colFilters.status || 'all'} onValueChange={(x) => setColFilter('status', x === 'all' ? '' : x)}>
+                        <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="Bom">Bom</SelectItem>
+                          <SelectItem value="Abaixo">Abaixo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
+                  )}
+                  {v('nome') && <FilterCell k="nome" />}
+                  {v('linha') && (
+                    <TableHead className="px-1 py-1">
+                      <Select value={colFilters.linha || 'all'} onValueChange={(x) => setColFilter('linha', x === 'all' ? '' : x)}>
+                        <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="Linha Premium">{config.markup.premium.label}</SelectItem>
+                          <SelectItem value="Linha Gold">{config.markup.gold.label}</SelectItem>
+                          <SelectItem value="Linha Prata">{config.markup.prata.label}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
+                  )}
+                  {v('meses') && <FilterCell k="meses" />}
+                  <TableHead className="p-0" />
+                  {showCusto && (<><FilterCell k="custo_mes" /><FilterCell k="custo_total" /></>)}
+                  {v('ideal_mes') && <FilterCell k="ideal_mes" />}
+                  {v('ideal_total') && <FilterCell k="ideal_total" />}
+                  <TableHead className="p-0" />
+                  {showMin && (<><FilterCell k="min_mes" /><FilterCell k="min_total" /></>)}
+                  {v('preco_mes') && <FilterCell k="preco_mes" />}
+                  {v('preco_total') && <FilterCell k="preco_total" />}
+                  {v('margem') && <FilterCell k="margem" />}
+                  {v('lucro_proj') && <FilterCell k="lucro_proj" />}
+                  {v('acoes') && (
+                    <TableHead className="px-1 py-1 text-center">
+                      {activeColFilters > 0 && (
+                        <button onClick={() => setColFilters({})} className="text-[10px] text-blue-600 hover:underline" title="Limpar filtros das colunas">
+                          Limpar
+                        </button>
+                      )}
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
