@@ -401,9 +401,9 @@ export default function AnalisePrecosTab({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {sortedProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13 + (showMin ? 2 : 0) + (showCusto ? 2 : 0)} className="text-center py-10 text-gray-400">
+                    <TableCell colSpan={visibleColCount} className="text-center py-10 text-gray-400">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -426,6 +426,7 @@ export default function AnalisePrecosTab({
 
                     return (
                       <TableRow key={p.nome} className={changed ? 'bg-amber-50/50' : ''}>
+                        {v('status') && (
                         <TableCell className="px-2 py-2">
                           {status === 'Preço bom' ? (
                             <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 gap-1 text-[10px] px-1.5">
@@ -437,6 +438,8 @@ export default function AnalisePrecosTab({
                             </Badge>
                           )}
                         </TableCell>
+                        )}
+                        {v('nome') && (
                         <TableCell className="px-2 py-2">
                           <p className="text-xs font-medium leading-snug break-words">{p.nome}</p>
                           {changed && (
@@ -445,6 +448,8 @@ export default function AnalisePrecosTab({
                             </p>
                           )}
                         </TableCell>
+                        )}
+                        {v('linha') && (
                         <TableCell className="px-1 py-2">
                           <Select
                             value={p.linha}
@@ -460,7 +465,10 @@ export default function AnalisePrecosTab({
                             </SelectContent>
                           </Select>
                         </TableCell>
+                        )}
+                        {v('meses') && (
                         <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
+                        )}
                         <TableCell className="p-0" />
                         {showCusto && (
                           <>
@@ -468,8 +476,12 @@ export default function AnalisePrecosTab({
                             <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>
                           </>
                         )}
+                        {v('ideal_mes') && (
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
+                        )}
+                        {v('ideal_total') && (
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
+                        )}
                         <TableCell className="p-0" />
                         {showMin && (
                           <>
@@ -477,6 +489,7 @@ export default function AnalisePrecosTab({
                             <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>
                           </>
                         )}
+                        {v('preco_mes') && (
                         <TableCell className="text-center px-1 py-2">
                           <Input
                             type="number"
@@ -488,7 +501,11 @@ export default function AnalisePrecosTab({
                             min={0}
                           />
                         </TableCell>
+                        )}
+                        {v('preco_total') && (
                         <TableCell className="text-center text-xs font-bold px-1 py-2">{fmtBRL(eff.preco_total)}</TableCell>
+                        )}
+                        {v('margem') && (
                         <TableCell className="px-1 py-2">
                           <div className="flex items-center justify-center gap-1.5">
                             <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[70px]">
@@ -498,11 +515,15 @@ export default function AnalisePrecosTab({
                           </div>
                           <p className="text-[10px] text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
                         </TableCell>
+                        )}
+                        {v('lucro_proj') && (
                         <TableCell className="text-center px-1 py-2">
                           <span className={`text-xs font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
+                        )}
+                        {v('acoes') && (
                         <TableCell className="text-center px-1 py-2">
                           <div className="flex items-center justify-center gap-0.5">
                             <Button
@@ -526,6 +547,7 @@ export default function AnalisePrecosTab({
                           </div>
                         </TableCell>
                       </TableRow>
+                        )}
                     );
                   })
                 )}
