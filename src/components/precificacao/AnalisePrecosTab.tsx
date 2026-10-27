@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,24 @@ import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
 const HIDDEN_KEY = 'precificacao.servicos.hiddenCols';
 const DEFAULT_HIDDEN = ['custo_mes', 'custo_total', 'min_mes', 'min_total'];
+const ORDER_KEY = 'precificacao.servicos.colOrder';
+const DEFAULT_ORDER = ['status', 'nome', 'linha', 'meses', 'custo_mes', 'custo_total', 'ideal_mes', 'ideal_total', 'min_mes', 'min_total', 'preco_mes', 'preco_total', 'margem', 'lucro_proj', 'acoes'];
+const COL_HEAD: Record<string, { label: string; cls: string }> = {
+  status: { label: 'Status', cls: 'w-[88px] text-center px-2' },
+  nome: { label: 'Produto', cls: 'text-center px-2' },
+  linha: { label: 'Linha', cls: 'w-[110px] text-center px-1' },
+  meses: { label: 'Contr.', cls: 'w-[60px] text-center px-1' },
+  custo_mes: { label: 'Custo/mês', cls: 'w-[90px] text-center px-1' },
+  custo_total: { label: 'Custo Tot.', cls: 'w-[90px] text-center px-1' },
+  ideal_mes: { label: 'Ideal/mês', cls: 'w-[90px] text-center px-1' },
+  ideal_total: { label: 'Ideal Tot.', cls: 'w-[90px] text-center px-1' },
+  min_mes: { label: 'Mín./mês', cls: 'w-[90px] text-center px-1' },
+  min_total: { label: 'Mín. Tot.', cls: 'w-[90px] text-center px-1' },
+  preco_mes: { label: 'Preço/mês', cls: 'w-[100px] text-center px-1' },
+  preco_total: { label: 'Total', cls: 'w-[90px] text-center px-1' },
+  margem: { label: 'Margem', cls: 'w-[140px] text-center px-1' },
+  lucro_proj: { label: 'Lucro Proj.', cls: 'w-[90px] text-center px-1' },
+};
 const TOGGLE_COLS: { key: string; label: string }[] = [
   { key: 'status', label: 'Status' },
   { key: 'nome', label: 'Produto' },
@@ -84,6 +102,29 @@ export default function AnalisePrecosTab({
   };
   const visibleColCount =
     TOGGLE_COLS.filter((c) => v(c.key)).length;
+  const dragCol = useRef<string | null>(null);
+  const [colOrder, setColOrder] = useState<string[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(ORDER_KEY) || '');
+      if (Array.isArray(stored)) {
+        const known = stored.filter((k: string) => DEFAULT_ORDER.includes(k));
+        const missing = DEFAULT_ORDER.filter((k: string) => !known.includes(k));
+        return [...known, ...missing];
+      }
+    } catch { /* ordem padrão */ }
+    return DEFAULT_ORDER;
+  });
+  const moveCol = (from: string | null, to: string) => {
+    if (!from || from === to) return;
+    setColOrder((prev) => {
+      const next = prev.filter((k) => k !== from);
+      const idx = next.indexOf(to);
+      if (idx === -1) return prev;
+      next.splice(idx, 0, from);
+      localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const changedCount = Object.keys(priceOverrides).length;
 
@@ -117,7 +158,16 @@ export default function AnalisePrecosTab({
   });
 
   const sortHead = (k: string, label: string, className: string) => (
-    <TableHead className={`${className} cursor-pointer select-none`} onClick={() => requestSort(k)}>
+    <TableHead
+      key={k}
+      className={`${className} cursor-pointer select-none`}
+      onClick={() => requestSort(k)}
+      draggable
+      onDragStart={() => { dragCol.current = k; }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={() => moveCol(dragCol.current, k)}
+      title="Clique para ordenar · arraste para reordenar"
+    >
       <div className="flex items-center justify-center gap-1">
         {label}
         {sortConfig.key === k ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
@@ -126,7 +176,7 @@ export default function AnalisePrecosTab({
   );
 
   const filterCell = (k: string) => (
-    <TableHead className="px-1 py-1">
+    <TableHead key={k} className="px-1 py-1">
       <Input
         value={colFilters[k] ?? ''}
         onChange={(e) => setColFilter(k, e.target.value)}
@@ -136,6 +186,70 @@ export default function AnalisePrecosTab({
       />
     </TableHead>
   );
+
+  const headCell = (k: string) => {
+    if (k === 'acoes') {
+      return (
+        <TableHead
+          key={k}
+          className="w-[70px] text-center px-1"
+          draggable
+          onDragStart={() => { dragCol.current = k; }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => moveCol(dragCol.current, k)}
+          title="Arraste para reordenar"
+        >
+          Ações
+        </TableHead>
+      );
+    }
+    const meta = COL_HEAD[k];
+    return sortHead(k, meta.label, meta.cls);
+  };
+
+  const filterHeadCell = (k: string) => {
+    if (k === 'status') {
+      return (
+        <TableHead key={k} className="px-1 py-1">
+          <Select value={colFilters.status || 'all'} onValueChange={(x) => setColFilter('status', x === 'all' ? '' : x)}>
+            <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="Bom">Bom</SelectItem>
+              <SelectItem value="Abaixo">Abaixo</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableHead>
+      );
+    }
+    if (k === 'linha') {
+      return (
+        <TableHead key={k} className="px-1 py-1">
+          <Select value={colFilters.linha || 'all'} onValueChange={(x) => setColFilter('linha', x === 'all' ? '' : x)}>
+            <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="Linha Premium">{config.markup.premium.label}</SelectItem>
+              <SelectItem value="Linha Gold">{config.markup.gold.label}</SelectItem>
+              <SelectItem value="Linha Prata">{config.markup.prata.label}</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableHead>
+      );
+    }
+    if (k === 'acoes') {
+      return (
+        <TableHead key={k} className="px-1 py-1 text-center">
+          {activeColFilters > 0 && (
+            <button onClick={() => setColFilters({})} className="text-[10px] text-blue-600 hover:underline" title="Limpar filtros das colunas">
+              Limpar
+            </button>
+          )}
+        </TableHead>
+      );
+    }
+    return filterCell(k);
+  };
 
   const requestSort = (key: string) => {
     setSortConfig((prev) => {
@@ -408,69 +522,10 @@ export default function AnalisePrecosTab({
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
-                  {v('status') && sortHead("status", "Status", "w-[88px] text-center px-2")}
-                  {v('nome') && sortHead("nome", "Produto", "text-center px-2")}
-                  {v('linha') && sortHead("linha", "Linha", "w-[110px] text-center px-1")}
-                  {v('meses') && sortHead("meses", "Contr.", "w-[60px] text-center px-1")}
-                  {v('custo_mes') && sortHead("custo_mes", "Custo/mês", "w-[90px] text-center px-1")}
-                  {v('custo_total') && sortHead("custo_total", "Custo Tot.", "w-[90px] text-center px-1")}
-                  {v('ideal_mes') && sortHead("ideal_mes", "Ideal/mês", "w-[90px] text-center px-1")}
-                  {v('ideal_total') && sortHead("ideal_total", "Ideal Tot.", "w-[90px] text-center px-1")}
-                  {v('min_mes') && sortHead("min_mes", "Mín./mês", "w-[90px] text-center px-1")}
-                  {v('min_total') && sortHead("min_total", "Mín. Tot.", "w-[90px] text-center px-1")}
-                  {v('preco_mes') && sortHead("preco_mes", "Preço/mês", "w-[100px] text-center px-1")}
-                  {v('preco_total') && sortHead("preco_total", "Total", "w-[90px] text-center px-1")}
-                  {v('margem') && sortHead("margem", "Margem", "w-[140px] text-center px-1")}
-                  {v('lucro_proj') && sortHead("lucro_proj", "Lucro Proj.", "w-[90px] text-center px-1")}
-                  {v('acoes') && <TableHead className="w-[70px] text-center px-1">Ações</TableHead>}
+                  {colOrder.filter((k) => v(k)).map((k) => headCell(k))}
                 </TableRow>
                 <TableRow className="hover:bg-transparent">
-                  {v('status') && (
-                    <TableHead className="px-1 py-1">
-                      <Select value={colFilters.status || 'all'} onValueChange={(x) => setColFilter('status', x === 'all' ? '' : x)}>
-                        <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos</SelectItem>
-                          <SelectItem value="Bom">Bom</SelectItem>
-                          <SelectItem value="Abaixo">Abaixo</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableHead>
-                  )}
-                  {v('nome') && filterCell("nome")}
-                  {v('linha') && (
-                    <TableHead className="px-1 py-1">
-                      <Select value={colFilters.linha || 'all'} onValueChange={(x) => setColFilter('linha', x === 'all' ? '' : x)}>
-                        <SelectTrigger className="h-7 text-[11px] px-2"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          <SelectItem value="Linha Premium">{config.markup.premium.label}</SelectItem>
-                          <SelectItem value="Linha Gold">{config.markup.gold.label}</SelectItem>
-                          <SelectItem value="Linha Prata">{config.markup.prata.label}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableHead>
-                  )}
-                  {v('meses') && filterCell("meses")}
-                  {v('custo_mes') && filterCell("custo_mes")}
-                  {v('custo_total') && filterCell("custo_total")}
-                  {v('ideal_mes') && filterCell("ideal_mes")}
-                  {v('ideal_total') && filterCell("ideal_total")}
-                  {v('min_mes') && filterCell("min_mes")}
-                  {v('min_total') && filterCell("min_total")}
-                  {v('preco_mes') && filterCell("preco_mes")}
-                  {v('preco_total') && filterCell("preco_total")}
-                  {v('margem') && filterCell("margem")}
-                  {v('lucro_proj') && filterCell("lucro_proj")}
-                  {v('acoes') && (
-                    <TableHead className="px-1 py-1 text-center">
-                      {activeColFilters > 0 && (
-                        <button onClick={() => setColFilters({})} className="text-[10px] text-blue-600 hover:underline" title="Limpar filtros das colunas">
-                          Limpar
-                        </button>
-                      )}
-                    </TableHead>
-                  )}
+                  {colOrder.filter((k) => v(k)).map((k) => filterHeadCell(k))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -497,10 +552,10 @@ export default function AnalisePrecosTab({
                     const pctColor = pct < 0 ? 'text-red-600' : pct < 0.35 ? 'text-amber-600' : 'text-green-600';
                     const barW = Math.max(0, Math.min(100, pct * 100));
 
-                    return (
-                      <TableRow key={p.nome} className={changed ? 'bg-amber-50/50' : ''}>
-                        {v('status') && (
-                        <TableCell className="px-2 py-2">
+                    const bodyCell = (k: string) => {
+                      switch (k) {
+                        case 'status': return (
+                        <TableCell key="status" className="px-2 py-2">
                           {status === 'Preço bom' ? (
                             <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 gap-1 text-[10px] px-1.5">
                               <TrendingUp className="h-3 w-3" /> Bom
@@ -511,9 +566,9 @@ export default function AnalisePrecosTab({
                             </Badge>
                           )}
                         </TableCell>
-                        )}
-                        {v('nome') && (
-                        <TableCell className="px-2 py-2">
+                        );
+                        case 'nome': return (
+                        <TableCell key="nome" className="px-2 py-2">
                           <p className="text-xs font-medium leading-snug break-words">{p.nome}</p>
                           {changed && (
                             <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
@@ -521,9 +576,9 @@ export default function AnalisePrecosTab({
                             </p>
                           )}
                         </TableCell>
-                        )}
-                        {v('linha') && (
-                        <TableCell className="px-1 py-2">
+                        );
+                        case 'linha': return (
+                        <TableCell key="linha" className="px-1 py-2">
                           <Select
                             value={p.linha}
                             onValueChange={(v) => handleLinhaChange(p.nome, v as LinhaMarkup)}
@@ -538,22 +593,22 @@ export default function AnalisePrecosTab({
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        )}
-                        {v('meses') && (
-                        <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
-                        )}
-                        {v('custo_mes') && <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo / Math.max(p.meses, 1))}</TableCell>}
-                        {v('custo_total') && <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>}
-                        {v('ideal_mes') && (
-                        <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
-                        )}
-                        {v('ideal_total') && (
-                        <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
-                        )}
-                        {v('min_mes') && <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minMensal)}</TableCell>}
-                        {v('min_total') && <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>}
-                        {v('preco_mes') && (
-                        <TableCell className="text-center px-1 py-2">
+                        );
+                        case 'meses': return (
+                        <TableCell key="meses" className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
+                        );
+                        case 'custo_mes': return <TableCell key="custo_mes" className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo / Math.max(p.meses, 1))}</TableCell>;
+                        case 'custo_total': return <TableCell key="custo_total" className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>;
+                        case 'ideal_mes': return (
+                        <TableCell key="ideal_mes" className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
+                        );
+                        case 'ideal_total': return (
+                        <TableCell key="ideal_total" className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
+                        );
+                        case 'min_mes': return <TableCell key="min_mes" className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minMensal)}</TableCell>;
+                        case 'min_total': return <TableCell key="min_total" className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>;
+                        case 'preco_mes': return (
+                        <TableCell key="preco_mes" className="text-center px-1 py-2">
                           <Input
                             type="number"
                             className={`h-7 w-full text-right text-xs font-semibold px-2 ${changed ? 'border-amber-400 bg-amber-50' : ''}`}
@@ -564,12 +619,12 @@ export default function AnalisePrecosTab({
                             min={0}
                           />
                         </TableCell>
-                        )}
-                        {v('preco_total') && (
-                        <TableCell className="text-center text-xs font-bold px-1 py-2">{fmtBRL(eff.preco_total)}</TableCell>
-                        )}
-                        {v('margem') && (
-                        <TableCell className="px-1 py-2">
+                        );
+                        case 'preco_total': return (
+                        <TableCell key="preco_total" className="text-center text-xs font-bold px-1 py-2">{fmtBRL(eff.preco_total)}</TableCell>
+                        );
+                        case 'margem': return (
+                        <TableCell key="margem" className="px-1 py-2">
                           <div className="flex items-center justify-center gap-1.5">
                             <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[70px]">
                               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barW}%` }} />
@@ -578,16 +633,16 @@ export default function AnalisePrecosTab({
                           </div>
                           <p className="text-[10px] text-gray-400 mt-0.5 text-center">{fmtBRL(mc)}</p>
                         </TableCell>
-                        )}
-                        {v('lucro_proj') && (
-                        <TableCell className="text-center px-1 py-2">
+                        );
+                        case 'lucro_proj': return (
+                        <TableCell key="lucro_proj" className="text-center px-1 py-2">
                           <span className={`text-xs font-bold ${lucroProj < 0 ? 'text-red-600' : lucroProj < 0.35 ? 'text-amber-600' : 'text-green-600'}`}>
                             {fmtPct(lucroProj)}
                           </span>
                         </TableCell>
-                        )}
-                        {v('acoes') && (
-                        <TableCell className="text-center px-1 py-2">
+                        );
+                        case 'acoes': return (
+                        <TableCell key="acoes" className="text-center px-1 py-2">
                           <div className="flex items-center justify-center gap-0.5">
                             <Button
                               variant="ghost"
@@ -609,7 +664,13 @@ export default function AnalisePrecosTab({
                             </Button>
                           </div>
                         </TableCell>
-                        )}
+                        );
+                        default: return null;
+                      }
+                    };
+                    return (
+                      <TableRow key={p.nome} className={changed ? 'bg-amber-50/50' : ''}>
+                        {colOrder.filter((k) => v(k)).map((k) => bodyCell(k))}
                       </TableRow>
                     );
                   })
