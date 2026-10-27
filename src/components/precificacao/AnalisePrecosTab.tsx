@@ -542,26 +542,16 @@ export default function AnalisePrecosTab({
                         {v('meses') && (
                         <TableCell className="text-center text-xs text-gray-500 px-1 py-2">{p.meses}x</TableCell>
                         )}
-                        <TableCell className="p-0" />
-                        {showCusto && (
-                          <>
-                            <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo / Math.max(p.meses, 1))}</TableCell>
-                            <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>
-                          </>
-                        )}
+                        {v('custo_mes') && <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo / Math.max(p.meses, 1))}</TableCell>}
+                        {v('custo_total') && <TableCell className="text-center text-xs text-gray-600 px-1 py-2">{fmtBRL(p.custo)}</TableCell>}
                         {v('ideal_mes') && (
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(ideal)}</TableCell>
                         )}
                         {v('ideal_total') && (
                         <TableCell className="text-center text-xs text-gray-400 px-1 py-2">{fmtBRL(idealTotal)}</TableCell>
                         )}
-                        <TableCell className="p-0" />
-                        {showMin && (
-                          <>
-                            <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minMensal)}</TableCell>
-                            <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>
-                          </>
-                        )}
+                        {v('min_mes') && <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minMensal)}</TableCell>}
+                        {v('min_total') && <TableCell className="text-center text-xs text-red-500 px-1 py-2">{fmtBRL(minTotal)}</TableCell>}
                         {v('preco_mes') && (
                         <TableCell className="text-center px-1 py-2">
                           <Input
