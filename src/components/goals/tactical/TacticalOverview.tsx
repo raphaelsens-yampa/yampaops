@@ -67,6 +67,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
+  const ltUpTodayCount = lowTouchUpsells.filter((s) => s.dateKey === todayKey).length;
   const rows = useMemo(() => {
     const teamOf = new Map(members.map((m) => [m.user_id, m.team_id]));
     return metrics.filter((m) => m.key !== "call_realizada").map((m) => {
@@ -76,13 +77,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
         target += resolveDailyTarget(goals, m.id, uid, teamOf.get(uid) ?? null, today);
         realized += daily.find((x) => x.user_id === uid && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
       }
+      // Upsell low-touch do dia (sem vendedor) também conta para a meta de Upsell.
+      if (m.key === "upsell_dia") realized += ltUpTodayCount;
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const monthBefore = realizedMonthBeforeToday(daily, m.id, memberIds, today);
       const pacing = monthPacing(today, target, monthBefore);
       return { m, target, realized, pct, missing: Math.max(target - realized, 0), pacing };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metrics, goals, daily, memberIds, members, todayKey]);
+  }, [metrics, goals, daily, memberIds, members, todayKey, ltUpTodayCount]);
 
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
