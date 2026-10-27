@@ -644,8 +644,8 @@ export default function AnalisePrecosTab({
                             </Button>
                           </div>
                         </TableCell>
-                      </TableRow>
                         )}
+                      </TableRow>
                     );
                   })
                 )}
