@@ -1,4 +1,9 @@
 
+## Precificação Serviços — salvamento da Keila (27/10/2026)
+- [x] Reproduzir a recusa de salvamento na conta da Keila
+- [x] Publicar o catálogo de forma atômica respeitando as permissões de precificação
+- [x] Validar criação na conta da Keila, permanência após recarregar e formulário preservado em falha; 3 testes passaram e catálogo original restaurado após a verificação
+
 ## Bases de campanhas — telefone da Stripe e do Metabase (21/10/2026)
 - [x] Salvar o telefone da conta de cobrança na Stripe quando a campanha é consultada em tempo real
 - [x] Cruzar também o telefone das bases do Metabase (pré-churn e churn) por e-mail

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Produto, AppConfig } from '@/types/precificacao';
+import type { Json } from '@/integrations/supabase/types';
 
 export type PricingVersionSource = 'import' | 'edit' | 'revert';
 export type PricingVersionChangeType =
@@ -46,29 +47,23 @@ export async function recordPricingVersion(params: RecordParams): Promise<Pricin
   const uid = userData.user?.id;
   if (!uid) return null;
 
-  if (params.setActive) {
-    await supabase
-      .from('pricing_versions')
-      .update({ is_active: false })
-      .eq('is_active', true);
-  }
-
   const payload = {
     name: params.name,
     description: params.description ?? null,
     source: params.source,
     change_type: params.change_type,
     file_name: params.file_name ?? null,
-    snapshot: params.snapshot as unknown as Record<string, unknown>,
+    snapshot: params.snapshot as unknown as Json,
     is_active: !!params.setActive,
     status: 'committed',
     created_by: uid,
   };
 
-  const { data, error } = await (supabase.from('pricing_versions') as any)
-    .insert(payload)
-    .select()
-    .single();
+  // Activation must be one transaction: a non-admin cannot directly deactivate
+  // the previous version, and a failed insert must not leave no active catalog.
+  const { data, error } = params.setActive
+    ? await supabase.rpc('publish_service_pricing', { p_version: payload })
+    : await (supabase.from('pricing_versions') as any).insert(payload).select().single();
 
   if (error) {
     console.error('recordPricingVersion error', error);

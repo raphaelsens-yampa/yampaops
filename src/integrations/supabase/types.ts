@@ -6837,6 +6837,7 @@ export type Database = {
           year_month: string
         }[]
       }
+      publish_service_pricing: { Args: { p_version: Json }; Returns: Json }
       refresh_metabase_monthly_agg: {
         Args: { p_from: string; p_to: string }
         Returns: number

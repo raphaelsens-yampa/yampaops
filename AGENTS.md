@@ -1,4 +1,5 @@
 # Architecture decisions
+- Shared service pricing is published through a permission-checked atomic database function; only confirmed saves update the local catalog, so non-admin authors cannot lose new services or leave the active version unset.
 - Campaign cohort phone enrichment reads existing permission-filtered rows by email in one confidence order (phone stored by the live Stripe consult, then CRM, Chatwoot, sales contacts, then the Metabase pre-churn and churn bases), and the live Stripe consult stores the billing phone on the campaign contact; table and exports share enriched rows, without duplicating stored phone or campaign names.
 - Recovery channel analysis owns its selected period fetch (including an equal-length previous period), independently of the tactical scoreboard range, so historical filters do not change current-day goals.
 - 4blue sync reads every source page in snapshot/id order before email/start-date deduplication and existing-event checks, so historical sales are not truncated or repeated by daily runs.
