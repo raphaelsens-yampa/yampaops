@@ -38,9 +38,9 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   config: AppConfig;
   existingNames: string[];
-  onCreate: (p: Produto) => void;
+  onCreate: (p: Produto) => Promise<boolean>;
   editing?: Produto | null;
-  onUpdate?: (originalName: string, p: Produto) => void;
+  onUpdate?: (originalName: string, p: Produto) => Promise<boolean>;
 };
 
 export default function NewProductDialog({ open, onOpenChange, config, existingNames, onCreate, editing, onUpdate }: Props) {
@@ -59,6 +59,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   const [preco, setPreco] = useState(0);
   const [precoTouched, setPrecoTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   const { insumos, loading: loadingInsumos } = useInsumos();
 
@@ -127,7 +128,8 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
   const removeBreakdownRow = (i: number) =>
     setBreakdown((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving) return;
     const errs: Record<string, string> = {};
 
     const parsed = baseSchema.safeParse({ nome, meses, linha, preco_mensal: preco });
@@ -137,7 +139,7 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
 
     const nameLower = nome.trim().toLowerCase();
     const dup = existingNames.some(
-      (n) => n.toLowerCase() === nameLower && (!isEdit || n.toLowerCase() !== editing!.nome.toLowerCase())
+      (n) => n.toLowerCase() === nameLower && n.toLowerCase() !== editing?.nome.toLowerCase()
     );
     if (dup) {
       errs.nome = 'Já existe um serviço com este nome';
@@ -183,21 +185,26 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
       ...(insumoBreakdown ? { custo_breakdown: insumoBreakdown } : {}),
     };
 
-    if (isEdit && onUpdate) {
-      onUpdate(editing!.nome, novo);
-      toast({ title: 'Serviço atualizado', description: novo.nome });
-    } else {
-      onCreate(novo);
-      toast({ title: 'Serviço criado', description: novo.nome });
+    setSaving(true);
+    try {
+      const saved = editing && onUpdate
+        ? await onUpdate(editing.nome, novo)
+        : await onCreate(novo);
+      if (!saved) return;
+      toast({ title: isEdit ? 'Serviço atualizado' : 'Serviço criado', description: novo.nome });
+      onOpenChange(false);
+    } catch {
+      toast({ title: 'Não foi possível salvar o serviço', description: 'Os campos foram mantidos. Tente novamente.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
-    onOpenChange(false);
   };
 
   const statusOk = preco >= ideal;
   const pctColor = pct < 0 ? 'text-red-600' : pct < 0.35 ? 'text-amber-600' : 'text-green-600';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(value) => { if (!saving) onOpenChange(value); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar Serviço' : 'Novo Serviço'}</DialogTitle>
@@ -508,8 +515,8 @@ export default function NewProductDialog({ open, onOpenChange, config, existingN
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit}>{isEdit ? 'Salvar Alterações' : 'Criar Serviço'}</Button>
+          <Button variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button disabled={saving} onClick={handleSubmit}>{saving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar Serviço'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

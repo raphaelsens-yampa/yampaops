@@ -46,13 +46,6 @@ export async function recordPricingVersion(params: RecordParams): Promise<Pricin
   const uid = userData.user?.id;
   if (!uid) return null;
 
-  if (params.setActive) {
-    await supabase
-      .from('pricing_versions')
-      .update({ is_active: false })
-      .eq('is_active', true);
-  }
-
   const payload = {
     name: params.name,
     description: params.description ?? null,
@@ -65,10 +58,11 @@ export async function recordPricingVersion(params: RecordParams): Promise<Pricin
     created_by: uid,
   };
 
-  const { data, error } = await (supabase.from('pricing_versions') as any)
-    .insert(payload)
-    .select()
-    .single();
+  // Activation must be one transaction: a non-admin cannot directly deactivate
+  // the previous version, and a failed insert must not leave no active catalog.
+  const { data, error } = params.setActive
+    ? await supabase.rpc('publish_service_pricing', { p_version: payload })
+    : await (supabase.from('pricing_versions') as any).insert(payload).select().single();
 
   if (error) {
     console.error('recordPricingVersion error', error);
