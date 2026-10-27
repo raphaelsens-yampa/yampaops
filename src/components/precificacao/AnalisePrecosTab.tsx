@@ -478,11 +478,11 @@ export default function AnalisePrecosTab({
                   )}
                   {v('meses') && {filterCell("meses")}}
                   <TableHead className="p-0" />
-                  {showCusto && (<>{filterCell("custo_mes")}{filterCell("custo_total")}</>)}
+                  {showCusto && <>{filterCell("custo_mes")}{filterCell("custo_total")}</>}
                   {v('ideal_mes') && {filterCell("ideal_mes")}}
                   {v('ideal_total') && {filterCell("ideal_total")}}
                   <TableHead className="p-0" />
-                  {showMin && (<>{filterCell("min_mes")}{filterCell("min_total")}</>)}
+                  {showMin && <>{filterCell("min_mes")}{filterCell("min_total")}</>}
                   {v('preco_mes') && {filterCell("preco_mes")}}
                   {v('preco_total') && {filterCell("preco_total")}}
                   {v('margem') && {filterCell("margem")}}
