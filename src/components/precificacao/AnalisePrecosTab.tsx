@@ -146,6 +146,7 @@ export default function AnalisePrecosTab({
     switch (key) {
       case 'nome': return p.nome.toLowerCase();
       case 'linha': return p.linha.toLowerCase();
+      case 'status': return statusCheck(p, priceOverrides, config) === 'Preço bom' ? 0 : 1;
       case 'meses': return p.meses;
       case 'custo_mes': return p.custo / Math.max(p.meses, 1);
       case 'custo_total': return p.custo;
@@ -407,7 +408,7 @@ export default function AnalisePrecosTab({
             <Table className="table-fixed w-full text-xs">
               <TableHeader>
                 <TableRow>
-                  {v('status') && <TableHead className="w-[88px] text-center px-2">Status</TableHead>}
+                  {v('status') && sortHead("status", "Status", "w-[88px] text-center px-2")}
                   {v('nome') && sortHead("nome", "Produto", "text-center px-2")}
                   {v('linha') && sortHead("linha", "Linha", "w-[110px] text-center px-1")}
                   {v('meses') && sortHead("meses", "Contr.", "w-[60px] text-center px-1")}
