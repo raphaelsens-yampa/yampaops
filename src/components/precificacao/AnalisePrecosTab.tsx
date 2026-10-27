@@ -21,13 +21,18 @@ import { PrecificacaoHook, calcMC, calcIdealMensal, calcMinMensal, getEffectiveP
 import { FilterMode, LinhaMarkup } from '@/types/precificacao';
 
 const HIDDEN_KEY = 'precificacao.servicos.hiddenCols';
+const DEFAULT_HIDDEN = ['custo_mes', 'custo_total', 'min_mes', 'min_total'];
 const TOGGLE_COLS: { key: string; label: string }[] = [
   { key: 'status', label: 'Status' },
   { key: 'nome', label: 'Produto' },
   { key: 'linha', label: 'Linha' },
   { key: 'meses', label: 'Contrato' },
+  { key: 'custo_mes', label: 'Custo/mês' },
+  { key: 'custo_total', label: 'Custo Total' },
   { key: 'ideal_mes', label: 'Ideal/mês' },
   { key: 'ideal_total', label: 'Ideal Total' },
+  { key: 'min_mes', label: 'Mínimo/mês' },
+  { key: 'min_total', label: 'Mínimo Total' },
   { key: 'preco_mes', label: 'Preço/mês' },
   { key: 'preco_total', label: 'Total' },
   { key: 'margem', label: 'Margem' },
@@ -59,11 +64,12 @@ export default function AnalisePrecosTab({
   const [newOpen, setNewOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Produto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Produto | null>(null);
-  const [showMin, setShowMin] = useState(false);
-  const [showCusto, setShowCusto] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [hiddenCols, setHiddenCols] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]'); } catch { return []; }
+    try {
+      const stored = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '');
+      return Array.isArray(stored) ? stored : DEFAULT_HIDDEN;
+    } catch { return DEFAULT_HIDDEN; }
   });
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
   const setColFilter = (k: string, val: string) => setColFilters((prev) => ({ ...prev, [k]: val }));
@@ -77,7 +83,7 @@ export default function AnalisePrecosTab({
     });
   };
   const visibleColCount =
-    TOGGLE_COLS.filter((c) => v(c.key)).length + 2 + (showMin ? 2 : 0) + (showCusto ? 2 : 0);
+    TOGGLE_COLS.filter((c) => v(c.key)).length;
 
   const changedCount = Object.keys(priceOverrides).length;
 
