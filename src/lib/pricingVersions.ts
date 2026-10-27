@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Produto, AppConfig } from '@/types/precificacao';
+import type { Json } from '@/integrations/supabase/types';
 
 export type PricingVersionSource = 'import' | 'edit' | 'revert';
 export type PricingVersionChangeType =
@@ -52,7 +53,7 @@ export async function recordPricingVersion(params: RecordParams): Promise<Pricin
     source: params.source,
     change_type: params.change_type,
     file_name: params.file_name ?? null,
-    snapshot: params.snapshot as unknown as Record<string, unknown>,
+    snapshot: params.snapshot as unknown as Json,
     is_active: !!params.setActive,
     status: 'committed',
     created_by: uid,
