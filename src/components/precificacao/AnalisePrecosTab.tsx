@@ -110,7 +110,7 @@ export default function AnalisePrecosTab({
     });
   });
 
-  const SortHead = ({ k, label, className }: { k: string; label: string; className: string }) => (
+  const sortHead = (k: string, label: string, className: string) => (
     <TableHead className={`${className} cursor-pointer select-none`} onClick={() => requestSort(k)}>
       <div className="flex items-center justify-center gap-1">
         {label}
@@ -119,7 +119,7 @@ export default function AnalisePrecosTab({
     </TableHead>
   );
 
-  const FilterCell = ({ k }: { k: string }) => (
+  const filterCell = (k: string) => (
     <TableHead className="px-1 py-1">
       <Input
         value={colFilters[k] ?? ''}
@@ -140,7 +140,7 @@ export default function AnalisePrecosTab({
     });
   };
 
-  const getSortValue = (p: Produto, key: string) => {
+  function getSortValue(p: Produto, key: string) {
     const eff = getEffectivePrice(p, priceOverrides);
     const linhaKey = getLinhaKey(p.linha);
     switch (key) {
@@ -381,9 +381,9 @@ export default function AnalisePrecosTab({
               <TableHeader>
                 <TableRow>
                   {v('status') && <TableHead className="w-[88px] text-center px-2">Status</TableHead>}
-                  {v('nome') && <SortHead k="nome" label="Produto" className="text-center px-2" />}
-                  {v('linha') && <SortHead k="linha" label="Linha" className="w-[110px] text-center px-1" />}
-                  {v('meses') && <SortHead k="meses" label="Contr." className="w-[60px] text-center px-1" />}
+                  {v('nome') && {sortHead("nome", "Produto", "text-center px-2")}}
+                  {v('linha') && {sortHead("linha", "Linha", "w-[110px] text-center px-1")}}
+                  {v('meses') && {sortHead("meses", "Contr.", "w-[60px] text-center px-1")}}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowCusto((x) => !x)}
@@ -395,12 +395,12 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showCusto && (
                     <>
-                      <SortHead k="custo_mes" label="Custo/mês" className="w-[90px] text-center px-1" />
-                      <SortHead k="custo_total" label="Custo Tot." className="w-[90px] text-center px-1" />
+                      {sortHead("custo_mes", "Custo/mês", "w-[90px] text-center px-1")}
+                      {sortHead("custo_total", "Custo Tot.", "w-[90px] text-center px-1")}
                     </>
                   )}
-                  {v('ideal_mes') && <SortHead k="ideal_mes" label="Ideal/mês" className="w-[90px] text-center px-1" />}
-                  {v('ideal_total') && <SortHead k="ideal_total" label="Ideal Tot." className="w-[90px] text-center px-1" />}
+                  {v('ideal_mes') && {sortHead("ideal_mes", "Ideal/mês", "w-[90px] text-center px-1")}}
+                  {v('ideal_total') && {sortHead("ideal_total", "Ideal Tot.", "w-[90px] text-center px-1")}}
                   <TableHead className="w-[28px] text-center p-0">
                     <button
                       onClick={() => setShowMin((x) => !x)}
@@ -412,14 +412,14 @@ export default function AnalisePrecosTab({
                   </TableHead>
                   {showMin && (
                     <>
-                      <SortHead k="min_mes" label="Mín./mês" className="w-[90px] text-center px-1" />
-                      <SortHead k="min_total" label="Mín. Tot." className="w-[90px] text-center px-1" />
+                      {sortHead("min_mes", "Mín./mês", "w-[90px] text-center px-1")}
+                      {sortHead("min_total", "Mín. Tot.", "w-[90px] text-center px-1")}
                     </>
                   )}
-                  {v('preco_mes') && <SortHead k="preco_mes" label="Preço/mês" className="w-[100px] text-center px-1" />}
-                  {v('preco_total') && <SortHead k="preco_total" label="Total" className="w-[90px] text-center px-1" />}
-                  {v('margem') && <SortHead k="margem" label="Margem" className="w-[140px] text-center px-1" />}
-                  {v('lucro_proj') && <SortHead k="lucro_proj" label="Lucro Proj." className="w-[90px] text-center px-1" />}
+                  {v('preco_mes') && {sortHead("preco_mes", "Preço/mês", "w-[100px] text-center px-1")}}
+                  {v('preco_total') && {sortHead("preco_total", "Total", "w-[90px] text-center px-1")}}
+                  {v('margem') && {sortHead("margem", "Margem", "w-[140px] text-center px-1")}}
+                  {v('lucro_proj') && {sortHead("lucro_proj", "Lucro Proj.", "w-[90px] text-center px-1")}}
                   {v('acoes') && <TableHead className="w-[70px] text-center px-1">Ações</TableHead>}
                 </TableRow>
                 <TableRow className="hover:bg-transparent">
@@ -435,7 +435,7 @@ export default function AnalisePrecosTab({
                       </Select>
                     </TableHead>
                   )}
-                  {v('nome') && <FilterCell k="nome" />}
+                  {v('nome') && {filterCell("nome")}}
                   {v('linha') && (
                     <TableHead className="px-1 py-1">
                       <Select value={colFilters.linha || 'all'} onValueChange={(x) => setColFilter('linha', x === 'all' ? '' : x)}>
@@ -449,17 +449,17 @@ export default function AnalisePrecosTab({
                       </Select>
                     </TableHead>
                   )}
-                  {v('meses') && <FilterCell k="meses" />}
+                  {v('meses') && {filterCell("meses")}}
                   <TableHead className="p-0" />
-                  {showCusto && (<><FilterCell k="custo_mes" /><FilterCell k="custo_total" /></>)}
-                  {v('ideal_mes') && <FilterCell k="ideal_mes" />}
-                  {v('ideal_total') && <FilterCell k="ideal_total" />}
+                  {showCusto && (<>{filterCell("custo_mes")}{filterCell("custo_total")}</>)}
+                  {v('ideal_mes') && {filterCell("ideal_mes")}}
+                  {v('ideal_total') && {filterCell("ideal_total")}}
                   <TableHead className="p-0" />
-                  {showMin && (<><FilterCell k="min_mes" /><FilterCell k="min_total" /></>)}
-                  {v('preco_mes') && <FilterCell k="preco_mes" />}
-                  {v('preco_total') && <FilterCell k="preco_total" />}
-                  {v('margem') && <FilterCell k="margem" />}
-                  {v('lucro_proj') && <FilterCell k="lucro_proj" />}
+                  {showMin && (<>{filterCell("min_mes")}{filterCell("min_total")}</>)}
+                  {v('preco_mes') && {filterCell("preco_mes")}}
+                  {v('preco_total') && {filterCell("preco_total")}}
+                  {v('margem') && {filterCell("margem")}}
+                  {v('lucro_proj') && {filterCell("lucro_proj")}}
                   {v('acoes') && (
                     <TableHead className="px-1 py-1 text-center">
                       {activeColFilters > 0 && (
