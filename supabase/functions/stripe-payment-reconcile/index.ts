@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   let q = supabase.from("stripe_conversions")
     .select("id, stripe_subscription_id, stripe_invoice_id, payment_status, customer_email")
     .not("stripe_subscription_id", "is", null)
-    .neq("attribution_source", "metabase_4blue")
+    .or("attribution_source.is.null,attribution_source.neq.metabase_4blue")
     .order("converted_at", { ascending: false })
     .limit(1000);
   if (ids) q = q.in("id", ids);
