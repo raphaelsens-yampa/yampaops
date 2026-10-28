@@ -64,6 +64,13 @@
       "when": 1793225713522,
       "tag": "0008_stripe_conversions_payment_status",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793226954886,
+      "tag": "0009_classify_ignore_failed_payments",
+      "breakpoints": true
     }
   ]
 }
