@@ -6,6 +6,7 @@ export function classifyPayment(sub: any | null, invoice: any | null): PaymentSt
   const invStatus = String(invoice?.status ?? "");
   const charge = invoice?.charge && typeof invoice.charge === "object" ? invoice.charge : null;
   if (charge && (charge.refunded || charge.disputed)) return "failed";
+  if (Number(invoice?.amount_paid ?? 0) > 0) return "paid";
   if (subStatus === "incomplete_expired") return "failed";
   if (invStatus === "void" || invStatus === "uncollectible") return "failed";
   if (invStatus === "paid" && Number(invoice?.amount_paid ?? 0) > 0) return "paid";
