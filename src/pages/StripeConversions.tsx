@@ -22,7 +22,7 @@ import { EditPriceDialog, type PriceEditTarget } from "@/components/stripe/EditP
 import { PlanChart } from "@/components/stripe/PlanChart";
 import { AreaChart } from "@/components/stripe/AreaChart";
 import { fetchAllPaged } from "@/lib/supabasePaged";
-import { addedMrr, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter, type OriginCut } from "@/lib/stripeConversions";
+import { addedMrr, isConfirmedConversion, subscriptionMrr, matchesConversion, conversionPreset, validDateRange, spRange, planChartGroup, sellerLabelOf, type ConversionFilters, type CampaignContext, type CampaignFilter, type OriginCut } from "@/lib/stripeConversions";
 import { fetchCampaignCouponIds } from "@/components/goals/tactical/campaignCoupons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -66,6 +66,7 @@ const monthKeySP = (iso: string) => {
 
 interface Conversion {
   id: string;
+  payment_status?: string | null;
   customer_email: string | null;
   area: string;
   product_name: string | null;
@@ -175,7 +176,7 @@ export default function StripeConversions() {
     if (p !== "custom") setPeriod(presetRange(p));
   }
 
-  const { data: periodRows = [], isLoading, isFetching, error: queryError, refetch } = useQuery({
+  const { data: allPeriodRows = [], isLoading, isFetching, error: queryError, refetch } = useQuery({
     queryKey: ["stripe-conversions", period, safraEnabled, safra],
     enabled: rangeValid && (role === "admin" || role === "tatico"),
     placeholderData: keepPreviousData,
@@ -185,7 +186,7 @@ export default function StripeConversions() {
       const build = () => {
         let q = supabase
           .from("stripe_conversions")
-          .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id, origem_cliente")
+          .select("id, customer_email, area, product_name, plan_name, mrr, matched_opportunity_id, registered_at, converted_at, stripe_subscription_id, stripe_price_id, stripe_customer_id, conversion_type, previous_mrr, previous_price_id, delta_mrr, assigned_seller_id, attribution_source, is_reactivation, previous_churn_at, gross_amount, net_amount, discount_amount, mrr_net, coupon_id, coupon_name, coupon_percent_off, coupon_amount_off, promotion_code, discount_duration, stripe_invoice_id, origem_cliente, payment_status")
           .gte("converted_at", range.from)
           .lt("converted_at", range.until)
           .order("converted_at", { ascending: false })
@@ -203,6 +204,10 @@ export default function StripeConversions() {
     },
 
   });
+
+  const periodRows = useMemo(() => allPeriodRows.filter(isConfirmedConversion), [allPeriodRows]);
+  const unconfirmedRows = useMemo(() => allPeriodRows.filter(r => !isConfirmedConversion(r)), [allPeriodRows]);
+  const [showUnconfirmed, setShowUnconfirmed] = useState(false);
 
   // Contexto de campanha: cupons marcados como campanha + marcações manuais (precedência)
   const { data: campaignCtx } = useQuery({
@@ -818,6 +823,27 @@ export default function StripeConversions() {
           </CardContent>
         </Card>
         {!rangeValid && <p role="alert" className="text-sm text-destructive">Preencha datas válidas, com início anterior ou igual ao fim.</p>}
+        {unconfirmedRows.length > 0 && (
+          <div role="status" className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-warning" />
+              <span><strong>{unconfirmedRows.length}</strong> venda(s) sem pagamento confirmado na Stripe não entram nos totais.</span>
+              <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setShowUnconfirmed(v => !v)}>{showUnconfirmed ? "Ocultar" : "Ver lista"}</Button>
+            </div>
+            {showUnconfirmed && (
+              <ul className="mt-2 space-y-1">
+                {unconfirmedRows.map(r => (
+                  <li key={r.id} className="flex flex-wrap gap-x-3">
+                    <span className="font-medium">{r.customer_email}</span>
+                    <span className="text-muted-foreground">{r.plan_name || r.product_name || "Sem plano"}</span>
+                    <span className="text-muted-foreground">{new Date(r.converted_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span>
+                    <Badge variant={r.payment_status === "failed" ? "destructive" : "secondary"}>{r.payment_status === "failed" ? "Falhou" : "Pendente"}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {queryError && <div role="alert" className="flex items-center gap-3 text-destructive"><AlertCircle className="h-4 w-4" /><span>Não foi possível carregar as conversões.</span><Button variant="outline" onClick={() => refetch()}>Tentar novamente</Button></div>}
         {isFetching && <p role="status" className="flex gap-2 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />{isLoading ? "Carregando conversões…" : "Atualizando conversões…"}</p>}
         {health.missingNet > 0 && <p className="text-sm text-muted-foreground">{health.missingNet} registro(s) sem MRR líquido; no modo líquido, essas assinaturas usam o bruto.</p>}

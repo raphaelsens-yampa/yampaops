@@ -2,6 +2,7 @@
 // Public endpoint (no JWT). Validates Stripe signature with HMAC-SHA256.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import { fetchPaymentStatus } from "../_shared/paymentStatus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,6 +69,31 @@ Deno.serve(async (req) => {
   if (insertError) {
     console.error("Failed to insert stripe_events:", insertError);
     // Continue anyway — better to process than to lose
+  }
+
+  // ─── Situação de pagamento: atualiza as vendas da assinatura ───
+  const PAYMENT_EVENTS = new Set([
+    "invoice.paid", "invoice.payment_failed", "invoice.voided", "invoice.marked_uncollectible",
+    "customer.subscription.updated", "customer.subscription.deleted", "charge.refunded",
+  ]);
+  if (PAYMENT_EVENTS.has(event.type)) {
+    try {
+      const o: any = event.data.object;
+      const subId: string | null = event.type.startsWith("customer.subscription")
+        ? o?.id
+        : (typeof o?.subscription === "string" ? o.subscription : o?.subscription?.id)
+          ?? (event.type === "charge.refunded" && o?.invoice
+            ? ((await stripe.invoices.retrieve(typeof o.invoice === "string" ? o.invoice : o.invoice.id)) as any).subscription
+            : null);
+      if (subId) {
+        const ps = await fetchPaymentStatus(stripe, subId);
+        await supabase.from("stripe_conversions")
+          .update({ payment_status: ps.status, payment_checked_at: new Date().toISOString() })
+          .eq("stripe_subscription_id", subId);
+      }
+    } catch (err) {
+      console.error("payment status update failed:", err);
+    }
   }
 
   // Only handle relevant events
@@ -679,6 +705,15 @@ Deno.serve(async (req) => {
     stripe_invoice_id: stripeInvoiceId,
     net_amount_source: netAmountSource,
   };
+  if (subscriptionId) {
+    try {
+      const ps = await fetchPaymentStatus(stripe, subscriptionId, stripeInvoiceId);
+      conversionRow.payment_status = ps.status;
+      conversionRow.payment_checked_at = new Date().toISOString();
+    } catch (err) {
+      console.error("payment status lookup failed:", err);
+    }
+  }
 
   const conversionExists = !!existingRow;
   if (!conversionExists) {
@@ -707,6 +742,10 @@ Deno.serve(async (req) => {
     const patch: Record<string, unknown> = {};
     if (existingRow.converted_at !== finalConvertedAt) patch.converted_at = finalConvertedAt;
     if (existingRow.registered_at !== finalRegisteredAt) patch.registered_at = finalRegisteredAt;
+    if (conversionRow.payment_status) {
+      patch.payment_status = conversionRow.payment_status;
+      patch.payment_checked_at = conversionRow.payment_checked_at;
+    }
     if (netAmountSource === "invoice") {
       patch.gross_amount = grossAmount;
       patch.net_amount = netAmount;

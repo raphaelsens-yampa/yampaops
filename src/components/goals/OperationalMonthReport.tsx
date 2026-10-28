@@ -85,6 +85,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
           const { data: convs } = await fetchAllPaged<any>(() =>
             supabase.from("stripe_conversions")
               .select("id, customer_email, plan_name, product_name, mrr, mrr_net, delta_mrr, conversion_type, is_reactivation, converted_at")
+              .eq("payment_status", "paid")
               .gte("converted_at", `${stripeFrom}T03:00:00Z`)
               .lt("converted_at", `${new Date(new Date(`${monthEndKey}T03:00:00Z`).getTime() + 86400000).toISOString()}`)
               .order("id") as any);

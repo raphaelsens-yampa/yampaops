@@ -110,9 +110,11 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     const from = `${todayKey}T00:00:00-03:00`;
     const to = `${todayKey}T23:59:59.999-03:00`;
     Promise.all([
+      // paged-ok: vendas de um único dia
       supabase
         .from("stripe_conversions")
         .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr")
+        .eq("payment_status", "paid")
         .gte("converted_at", from)
         .lte("converted_at", to)
         .limit(1000),

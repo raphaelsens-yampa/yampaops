@@ -61,6 +61,11 @@ export function subscriptionMrr(row: ConversionValue, mode: MrrMode): number {
 }
 // delta_mrr is the recorded change, including reviewed manual changes. There
 // is no previous_mrr_net column, so never fabricate a net/gross conversion.
+/** Venda só conta quando o pagamento foi confirmado na Stripe. */
+export function isConfirmedConversion(row: { payment_status?: string | null }): boolean {
+  return row.payment_status === "paid";
+}
+
 export function addedMrr(row: ConversionValue, mode: MrrMode): number {
   if (row.conversion_type === "new") return subscriptionMrr(row, mode);
   if (row.conversion_type === "upsell") return Math.max(Number(row.delta_mrr ?? 0), 0);
