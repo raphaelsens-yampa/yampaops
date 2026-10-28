@@ -35,11 +35,12 @@ Deno.serve(async (req) => {
     .not("stripe_subscription_id", "is", null)
     .or("attribution_source.is.null,attribution_source.neq.metabase_4blue")
     .order("converted_at", { ascending: false })
-    .limit(1000);
+    .limit(Math.max(1, Math.min(1000, Number(body?.limit) || 200)));
   if (ids) q = q.in("id", ids);
   else {
     q = q.gte("converted_at", since);
-    if (!recheckPaid) q = q.neq("payment_status", "paid");
+    if (body?.unchecked === true) q = q.is("payment_checked_at", null);
+    else if (!recheckPaid) q = q.neq("payment_status", "paid");
   }
   const { data: rows, error } = await q;
   if (error) return json({ error: error.message }, 500);
