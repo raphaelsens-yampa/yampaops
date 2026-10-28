@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       await supabase.from("stripe_conversions")
         .update({ payment_status: s.status, payment_checked_at: new Date().toISOString() })
         .eq("id", r.id);
-      if (s.status !== r.payment_status) result.changed.push({ email: r.customer_email, from: r.payment_status, to: s.status, sub: s.subStatus, inv: s.invoiceStatus });
+      if (ids || s.status !== r.payment_status) result.changed.push({ email: r.customer_email, from: r.payment_status, to: s.status, sub: s.subStatus, inv: s.invoiceStatus, why: s.why });
     } catch (e) {
       result.errors++;
       console.error("reconcile failed", r.id, (e as Error).message);

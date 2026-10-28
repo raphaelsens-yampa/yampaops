@@ -25,5 +25,7 @@ export async function fetchPaymentStatus(stripe: any, subscriptionId: string, in
     ?? (invoiceId ? list.data.find((i: any) => i.id === invoiceId) : null)
     ?? list.data[list.data.length - 1] ?? null;
   if (invoice?.id) invoice = await stripe.invoices.retrieve(invoice.id, { expand: ["charge"] });
-  return { status: classifyPayment(sub, invoice), subStatus: sub?.status, invoiceStatus: invoice?.status, invoiceId: invoice?.id ?? null };
+  const ch: any = invoice?.charge && typeof invoice.charge === "object" ? invoice.charge : null;
+  const why = { billing: invoice?.billing_reason, paid: invoice?.amount_paid, refunded: ch?.refunded, amount_refunded: ch?.amount_refunded, disputed: ch?.disputed, attempted: invoice?.attempted };
+  return { why, status: classifyPayment(sub, invoice), subStatus: sub?.status, invoiceStatus: invoice?.status, invoiceId: invoice?.id ?? null };
 }
