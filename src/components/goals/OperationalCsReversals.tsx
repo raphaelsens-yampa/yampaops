@@ -51,7 +51,7 @@ export function OperationalCsReversals({ monthStartKey, monthEndKey }: { monthSt
       const [convRes, recRes, manualRes, reasonsRes] = await Promise.all([
         fetchAllPaged<any>(() => supabase.from("stripe_conversions")
           .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, assigned_seller_id")
-          .eq("is_reactivation", true)
+          .eq("is_reactivation", true).eq("payment_status", "paid")
           .gte("converted_at", `${monthStartKey}T03:00:00Z`).lt("converted_at", endExcl)
           .order("id") as any),
         fetchAllPaged<any>(() => supabase.from("tactical_recoveries")

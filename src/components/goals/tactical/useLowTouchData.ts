@@ -118,6 +118,7 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
         supabase.from("commission_price_map").select("price_id, seller_label"),
         supabase
           .from("stripe_conversions")
+          .eq("payment_status", "paid")
           .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id, conversion_type, delta_mrr")
           .gte("converted_at", from.toISOString())
           .lte("converted_at", to.toISOString())
