@@ -110,8 +110,8 @@ export function TeamConversionsTable({
       const [convRes, mapRes, areasRes] = await Promise.all([
         supabase
           .from("stripe_conversions")
-          .eq("payment_status", "paid")
           .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, delta_mrr, net_amount, gross_amount, assigned_seller_id, stripe_price_id, conversion_type, is_reactivation, previous_mrr")
+          .eq("payment_status", "paid")
           .gte("converted_at", from.toISOString())
           .lte("converted_at", to.toISOString())
           .order("converted_at", { ascending: false }),

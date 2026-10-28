@@ -112,8 +112,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     Promise.all([
       supabase
         .from("stripe_conversions")
-        .eq("payment_status", "paid")
         .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr")
+        .eq("payment_status", "paid")
         .gte("converted_at", from)
         .lte("converted_at", to)
         .limit(1000),

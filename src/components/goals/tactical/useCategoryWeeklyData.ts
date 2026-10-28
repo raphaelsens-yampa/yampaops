@@ -196,8 +196,8 @@ export function useCategoryWeeklyData(
         couponFiltered
           ? supabase
               .from("stripe_conversions")
-              .eq("payment_status", "paid")
               .select("converted_at, coupon_id, mrr, mrr_net, conversion_type, is_reactivation, customer_email")
+              .eq("payment_status", "paid")
               .gte("converted_at", `${startKey}T00:00:00`)
               .lte("converted_at", `${endKey}T23:59:59`)
           : Promise.resolve({ data: [] as any[] }),
