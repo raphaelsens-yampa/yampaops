@@ -11,7 +11,7 @@ describe("NET MRR mensal por origem", () => {
     const result = buildOriginMonthly([
       stock("2026-09", "yampa", 300056.79),
       stock("2026-10", "yampa", 301010.25),
-      { year_month: "2026-10-01", kind: "stock", origem: "yampa", status: "cancelado", mrr: 22000, qtd: 100 },
+      { year_month: "2026-10-01", kind: "stock", origem: "yampa", status: "cancelado", classificacao: null, mrr: 22000, qtd: 100 },
     ], "yampa");
     expect(result.get("2026-10|net_mrr")?.mrr).toBeCloseTo(953.46, 2);
   });
