@@ -119,9 +119,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   useEffect(() => {
     let cancelled = false;
     setStripeTodayLoading(true);
-    const openStart = actualSnapshotDate && actualSnapshotDate < todayKey
-      ? (() => { const d = new Date(`${actualSnapshotDate}T12:00:00`); d.setDate(d.getDate() + 1); return toBRDateKey(d); })()
-      : todayKey;
+    // Lê o mês inteiro: a semana soma venda a venda (como nas Metas Táticas).
+    const openStart = monthStartKey < todayKey ? monthStartKey : todayKey;
     const from = `${openStart}T00:00:00-03:00`;
     const to = `${todayKey}T23:59:59.999-03:00`;
     Promise.all([
@@ -132,7 +131,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         .eq("payment_status", "paid")
         .gte("converted_at", from)
         .lte("converted_at", to)
-        .limit(1000),
+        .limit(5000),
       supabase
         .from("stripe_churn_events")
         .select("mrr_lost, canceled_at")
@@ -168,7 +167,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       setStripeTodayLoading(false);
     });
     return () => { cancelled = true; };
-  }, [supabase, todayKey, origin, originFiltered, actualSnapshotDate]);
+  }, [supabase, todayKey, monthStartKey, origin, originFiltered, actualSnapshotDate]);
   const { monthly: originMonthly, loading: originLoading } = useOriginRealized(
     origin,
     refMonth.getFullYear(),
@@ -270,18 +269,20 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     if (canUseStripeOpen) {
       for (const [key, v] of stripeOpenDays) {
         if (key < monthStartKey || key > monthEndKey) continue;
-        if (actualSnapshotDate && key <= actualSnapshotDate) continue;
-        monthOpenSum += v[area];
-        hasMonthOpen = true;
         if (key >= weekStartKey && key <= weekEndKey) {
           openSum += v[area];
           hasOpen = true;
         }
+        if (actualSnapshotDate && key <= actualSnapshotDate) continue;
+        monthOpenSum += v[area];
+        hasMonthOpen = true;
       }
     }
     const baseWeek = period.weeklyRealized[selectedWeek] ?? null;
     void metabaseToday;
-    const weekRealized = hasOpen ? (baseWeek ?? 0) + openSum : baseWeek;
+    // Semana = soma de cada venda paga na Stripe (mesma lógica das Metas Táticas).
+    const weekRealized = canUseStripeOpen ? openSum : baseWeek;
+    void hasOpen;
     // Mês = base fechada (Metabase) + dias ainda abertos lidos da Stripe.
     const monthRealizedTotal = hasMonthOpen
       ? (canonicalMonthRealized ?? 0) + monthOpenSum
