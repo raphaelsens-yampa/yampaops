@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GoalCategory } from "@/lib/goalCategories";
-import { buildOperationalPeriodModel } from "@/components/goals/operationalGoalsModel";
+import { buildOperationalPeriodModel, resolveOperationalDayRealized } from "@/components/goals/operationalGoalsModel";
 import { weeksOfMonth } from "@/components/goals/tactical/types";
 
 const category = (id: string, slug: string): GoalCategory => ({
@@ -13,6 +13,25 @@ const category = (id: string, slug: string): GoalCategory => ({
   component_category_ids: null,
   is_system: true,
   is_active: true,
+});
+
+describe("realizado diário com fallback Stripe", () => {
+  const input = {
+    selectedDay: "2026-10-29", todayKey: "2026-10-30", snapshotDate: "2026-10-28",
+    metabaseRealized: 0, stripeRealized: 1648 + 129, canUseStripe: true,
+  };
+  it("usa R$ 1.777 de pagamentos do dia 29/10 quando a base fecha só até 28/10", () => {
+    expect(resolveOperationalDayRealized(input)).toBe(1777);
+  });
+  it("preserva zero legítimo de um dia fechado em vez de somar a Stripe novamente", () => {
+    expect(resolveOperationalDayRealized({ ...input, snapshotDate: "2026-10-29" })).toBe(0);
+  });
+  it("usa Stripe quando a base diária está indisponível", () => {
+    expect(resolveOperationalDayRealized({ ...input, snapshotDate: null, metabaseRealized: null })).toBe(1777);
+  });
+  it("não usa cancelamentos sem origem no recorte de CS", () => {
+    expect(resolveOperationalDayRealized({ ...input, canUseStripe: false })).toBe(0);
+  });
 });
 
 describe("buildOperationalPeriodModel", () => {

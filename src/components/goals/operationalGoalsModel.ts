@@ -15,6 +15,22 @@ const NORTH_STAR_COMPONENTS = {
 
 type NorthStarSlug = keyof typeof NORTH_STAR_COMPONENTS;
 
+export function resolveOperationalDayRealized(input: {
+  selectedDay: string;
+  todayKey: string;
+  snapshotDate: string | null;
+  metabaseRealized: number | null;
+  stripeRealized: number;
+  canUseStripe: boolean;
+}): number | null {
+  const { selectedDay, todayKey, snapshotDate, metabaseRealized, stripeRealized, canUseStripe } = input;
+  if (selectedDay > todayKey) return null;
+  const missingClosedData = !snapshotDate || selectedDay > snapshotDate || metabaseRealized === null;
+  return canUseStripe && (selectedDay === todayKey || missingClosedData)
+    ? stripeRealized
+    : metabaseRealized;
+}
+
 export function valueAsOf(points: CategorySnapPoint[] | undefined, key: string, minKey: string): number | null {
   if (!points?.length) return null;
   let found: number | null = null;
