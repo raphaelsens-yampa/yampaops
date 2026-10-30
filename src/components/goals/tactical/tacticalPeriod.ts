@@ -153,3 +153,19 @@ export function safeTacticalPeriod(period: TacticalPeriod): TacticalPeriod {
 export function periodDayCount(period: TacticalPeriod): number {
   return differenceInCalendarDays(startOfDay(period.to), startOfDay(period.from)) + 1;
 }
+
+/**
+ * Low-touch entra nas metas: as vendas contam em "Vendas do dia" e os upsells
+ * em "Clientes Upsell". Nenhuma outra métrica recebe acréscimo aqui — o MRR
+ * low-touch é somado à parte, no próprio card de MRR.
+ */
+export function tacticalRealizedWithLowTouch(
+  metricKey: string,
+  realized: number,
+  lowTouch: { sales: number; upsells: number },
+): number {
+  if (metricKey === "vendas_dia") return realized + (lowTouch.sales || 0);
+  if (metricKey === "upsell_dia") return realized + (lowTouch.upsells || 0);
+  return realized;
+}
+
