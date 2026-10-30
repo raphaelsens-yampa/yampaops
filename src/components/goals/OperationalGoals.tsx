@@ -265,10 +265,15 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     const canUseStripeOpen = !(originFiltered && area === "cs");
     let openSum = 0;
     let hasOpen = false;
+    let monthOpenSum = 0;
+    let hasMonthOpen = false;
     if (canUseStripeOpen) {
       for (const [key, v] of stripeOpenDays) {
-        if (key >= weekStartKey && key <= weekEndKey && key >= monthStartKey && key <= monthEndKey
-          && (!actualSnapshotDate || key > actualSnapshotDate)) {
+        if (key < monthStartKey || key > monthEndKey) continue;
+        if (actualSnapshotDate && key <= actualSnapshotDate) continue;
+        monthOpenSum += v[area];
+        hasMonthOpen = true;
+        if (key >= weekStartKey && key <= weekEndKey) {
           openSum += v[area];
           hasOpen = true;
         }
@@ -277,12 +282,16 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     const baseWeek = period.weeklyRealized[selectedWeek] ?? null;
     void metabaseToday;
     const weekRealized = hasOpen ? (baseWeek ?? 0) + openSum : baseWeek;
+    // Mês = base fechada (Metabase) + dias ainda abertos lidos da Stripe.
+    const monthRealizedTotal = hasMonthOpen
+      ? (canonicalMonthRealized ?? 0) + monthOpenSum
+      : canonicalMonthRealized;
 
     return {
       config,
       aggregate,
       monthTarget,
-      monthRealized: canonicalMonthRealized,
+      monthRealized: monthRealizedTotal,
       week,
       weekTarget: period.weeklyTargets[selectedWeek] ?? 0,
       weekRealized,
