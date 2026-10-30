@@ -64,6 +64,18 @@ export function tacticalBusinessPeriodKeys(period: TacticalPeriod): string[] {
   });
 }
 
+/**
+ * Datas que compõem a meta acumulada do período.
+ *
+ * Dias úteis contam a meta diária; um período de um dia mantém o dia mesmo
+ * que caia no fim de semana (é o comportamento que o painel sempre teve).
+ */
+export function tacticalTargetPeriodKeys(period: TacticalPeriod): string[] {
+  if (isSingleDayPeriod(period)) return tacticalPeriodKeys(period);
+  const business = tacticalBusinessPeriodKeys(period);
+  return business.length ? business : tacticalPeriodKeys(period);
+}
+
 export function isSingleDayPeriod(period: TacticalPeriod): boolean {
   return toBRDateKey(period.from) === toBRDateKey(period.to);
 }
