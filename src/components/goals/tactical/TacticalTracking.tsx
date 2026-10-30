@@ -144,10 +144,6 @@ export function TacticalTracking() {
     () => summarizeChannels(recoveryRows.filter((r) => r.dateKey >= monthStartKey && r.dateKey <= todayKeyStr)),
     [recoveryRows, monthStartKey, todayKeyStr],
   );
-  const recoveryTodayRows = useMemo(
-    () => recoveryRows.filter((r) => r.dateKey === todayKeyStr),
-    [recoveryRows, todayKeyStr],
-  );
   const periodKeySet = useMemo(() => new Set(tacticalPeriodKeys(period)), [period]);
   const recoveryPeriodRows = useMemo(
     () => recoveryRows.filter((r) => periodKeySet.has(r.dateKey)),
