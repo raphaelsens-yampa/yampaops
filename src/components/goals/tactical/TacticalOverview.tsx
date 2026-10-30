@@ -111,7 +111,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       return { m, target, dailyTarget, realized, pct, missing: Math.max(target - realized, 0), pacing };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metrics, goals, daily, memberIds, members, activePeriod, values, resolveTarget, targetKeys, ltUpPeriodCount]);
+  }, [metrics, goals, daily, memberIds, members, activePeriod, values, resolveTarget, targetKeys, ltUpPeriodCount, ltPeriodCount]);
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
   const withGoal = rows.filter((r) => r.target > 0);
@@ -130,15 +130,18 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const others: OtherCard[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
     .map((r) => {
-      const extra = r.m.key === "vendas_dia" ? ltCount : r.m.key === "mrr_dia" ? ltMrr : 0;
+      // Vendas já somam low-touch em `realized`; só o MRR do dia recebe o acréscimo aqui.
+      const extra = r.m.key === "mrr_dia" ? ltMrr : 0;
+      const lowTouchShown = r.m.key === "vendas_dia" ? ltCount : extra;
       return {
         id: r.m.id,
         label: labelOf(r.m.label),
         unit: r.m.unit,
         value: r.realized + extra,
-        note: extra > 0 ? `inclui low-touch: ${formatMetric(extra, r.m.unit)}` : undefined,
+        note: lowTouchShown > 0 ? `inclui low-touch: ${formatMetric(lowTouchShown, r.m.unit)}` : undefined,
       };
     });
+
 
   const sumMetricByKey = (key: string) => {
     const ids = metrics.filter((m) => m.key === key).map((m) => m.id);
