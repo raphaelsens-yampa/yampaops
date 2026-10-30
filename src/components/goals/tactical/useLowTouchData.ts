@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDateBR } from "@/lib/dateBR";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { toBRDateKey } from "./types";
 
 export interface LowTouchSale {
