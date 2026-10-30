@@ -31,4 +31,13 @@ describe("Resultado Projetado", () => {
     expect(r.baseMrr).toBe(200);
     expect(r.baseUsers).toBe(1);
   });
+
+  it("lista o churn previsto da data mais recente para a mais antiga", () => {
+    const r = computeProjectedResult(base, [], [
+      { email: "a@x", mrr: 100, origin: "yampa", date: "2026-10-29", tipo: "involuntario" },
+      { email: "b@x", mrr: 200, origin: "4blue", date: "2026-10-31", tipo: "voluntario" },
+      { email: "c@x", mrr: 50, origin: "yampa", date: "2026-10-30", tipo: "involuntario" },
+    ], "all");
+    expect(r.churnCases.map((c) => c.date)).toEqual(["2026-10-31", "2026-10-30", "2026-10-29"]);
+  });
 });
