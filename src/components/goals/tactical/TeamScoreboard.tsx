@@ -51,22 +51,21 @@ interface Props {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, groupByTeam?: boolean) {
-  const name = (teamName ?? "").toLowerCase();
-  const preferredKey = groupByTeam
-    ? "vendas_dia"
-    : name.includes("sales") || name.includes("vendas")
-      ? "vendas_dia"
-      : "clientes_recuperados";
-  return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
+/**
+ * Métrica que abre o placar: MRR do dia, tanto na visão geral quanto num time
+ * específico. O usuário pode trocar no seletor.
+ */
+function defaultMetricId(metrics: TacticalMetric[]) {
+  return metrics.find((m) => m.key === "mrr_dia")?.id ?? metrics[0]?.id ?? "";
 }
+
 
 export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, period, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
   const [open, setOpen] = useState(true);
-  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
+  const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics));
 
   useEffect(() => {
-    setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
+    setMetricId(defaultMetricId(metrics));
   }, [teamId, teamName, metrics, groupByTeam]);
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
 
