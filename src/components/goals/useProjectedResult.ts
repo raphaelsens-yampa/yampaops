@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { stripeConversionOrigin } from "@/lib/origins";
-import { normEmail, normOrigin, type BaseRow, type ChurnRow, type OperationRow } from "./projectedResultModel";
+import { normEmail, normOrigin, type BaseRow, type ChurnRow, type OperationRow, type RecentSale } from "./projectedResultModel";
 
 const spDate = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
 const addDays = (iso: string, n: number) => {
@@ -16,6 +16,7 @@ export interface ProjectedData {
   base: BaseRow[];
   ops: OperationRow[];
   churn: ChurnRow[];
+  recentSales: RecentSale[];
 }
 
 export function useProjectedResult() {
@@ -34,7 +35,8 @@ export function useProjectedResult() {
       const snapshot = (last?.[0] as any)?.data_snapshot ?? null;
       const openFrom = snapshot ? addDays(snapshot, 1) : today;
 
-      const [baseRes, convRes, recRes, preRes] = await Promise.all([
+      const avgFrom = addDays(today, -30);
+      const [baseRes, convRes, recRes, preRes, avgRes] = await Promise.all([
         snapshot
           ? fetchAllPaged<any>(() => supabase.from("metas_ativos_pagantes_daily")
               .select("id,email,mrr,origem_cliente").eq("data_snapshot", snapshot)
@@ -49,8 +51,13 @@ export function useProjectedResult() {
         fetchAllPaged<any>(() => (supabase as any).from("metas_pre_churn")
           .select("id,email_norm,mrr,origem_cliente,future_churn_at,tipo,data_ref")
           .gte("future_churn_at", openFrom).lte("future_churn_at", tomorrow).order("id")),
+        // média de produção: vendas novas pagas nos 30 dias completos antes de hoje
+        fetchAllPaged<any>(() => supabase.from("stripe_conversions")
+          .select("id,mrr,conversion_type,origem_cliente,attribution_source")
+          .eq("payment_status", "paid").eq("conversion_type", "new")
+          .gte("converted_at", `${avgFrom}T03:00:00Z`).lt("converted_at", `${today}T03:00:00Z`).order("id")),
       ]);
-      const err = baseRes.error || convRes.error || recRes.error || preRes.error;
+      const err = baseRes.error || convRes.error || recRes.error || preRes.error || avgRes.error;
       if (err) throw new Error(err);
 
       const base: BaseRow[] = baseRes.data.map((r) => ({ email: normEmail(r.email), mrr: Number(r.mrr || 0), origin: normOrigin(r.origem_cliente) }));
@@ -76,7 +83,8 @@ export function useProjectedResult() {
         .filter((r) => normEmail(r.email_norm))
         .map((r) => ({ email: normEmail(r.email_norm), mrr: Number(r.mrr || 0), origin: normOrigin(r.origem_cliente), date: String(r.future_churn_at).slice(0, 10), tipo: r.tipo }));
 
-      setData({ snapshot, today, tomorrow, base, ops, churn });
+      const recentSales: RecentSale[] = avgRes.data.map((r) => ({ mrr: Number(r.mrr || 0), origin: stripeConversionOrigin(r) }));
+      setData({ snapshot, today, tomorrow, base, ops, churn, recentSales });
       setError(null);
     } catch (e: any) {
       setError(e?.message || "Erro ao carregar");

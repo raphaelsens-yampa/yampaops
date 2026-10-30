@@ -41,3 +41,14 @@ describe("Resultado Projetado", () => {
     expect(r.churnCases.map((c) => c.date)).toEqual(["2026-10-31", "2026-10-30", "2026-10-29"]);
   });
 });
+
+describe("média de novas vendas (30 dias)", () => {
+  it("soma a média diária das vendas novas ao projetado e respeita origem", async () => {
+    const { computeProjectedResult } = await import("@/components/goals/projectedResultModel");
+    const recent = [{ mrr: 3000, origin: "yampa" as const }, { mrr: 1500, origin: "yampa" as const }, { mrr: 600, origin: "4blue" as const }];
+    const all = computeProjectedResult([], [], [], "all", recent, 30);
+    expect(all.mediaVendasMrr).toBe(170);
+    expect(all.projectedMrr).toBe(170);
+    expect(computeProjectedResult([], [], [], "4blue", recent, 30).mediaVendasMrr).toBe(20);
+  });
+});
