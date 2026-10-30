@@ -39,6 +39,18 @@ import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { ORIGIN_OPTIONS, ORIGIN_MIN_DATE_HINT, isOriginFiltered, type OriginFilter } from "@/lib/origins";
 
+import {
+  formatTacticalPeriod,
+  isSingleDayPeriod,
+  periodSpanLabel,
+  safeTacticalPeriod,
+  tacticalPeriodError,
+  tacticalPeriodKeys,
+  tacticalPresetRange,
+  type TacticalPeriod,
+  type TacticalPeriodPreset,
+} from "./tacticalPeriod";
+
 const ALL_TEAMS = "__all__";
 const LOW_TOUCH = "__lowtouch__";
 
@@ -48,7 +60,21 @@ export function TacticalTracking() {
   const realToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const [refDate, setRefDate] = useState<Date>(realToday);
   const today = useMemo(() => { const d = new Date(refDate); d.setHours(0, 0, 0, 0); return d; }, [refDate]);
-  const rangeStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - 89); return d; }, [today]);
+  const [periodPreset, setPeriodPreset] = useState<TacticalPeriodPreset>("day");
+  const [customFrom, setCustomFrom] = useState<Date>(() => startOfMonth(new Date()));
+  /** Janela "de ... até ..." exibida nos cards de meta e no placar. */
+  const requestedPeriod = useMemo(
+    () => tacticalPresetRange(periodPreset, today, customFrom),
+    [periodPreset, today, customFrom],
+  );
+  const periodError = useMemo(() => tacticalPeriodError(requestedPeriod), [requestedPeriod]);
+  const period = useMemo<TacticalPeriod>(() => safeTacticalPeriod(requestedPeriod), [requestedPeriod]);
+  const isSingleDay = useMemo(() => isSingleDayPeriod(period), [period]);
+  const rangeStart = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 89);
+    return period.from < d ? period.from : d;
+  }, [today, period]);
   const [reloadKey, setReloadKey] = useState(0);
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
