@@ -72,7 +72,8 @@ export function computeProjectedResult(
     if (r.kind === "new") { vendasMrr += r.mrr; vendasQtd += 1; }
     else if (r.kind === "reactivation" || r.kind === "recovered") {
       savedBy.set(r.email, "Recuperado");
-      if (reactivated.has(r.email) || baseEmails.has(r.email)) continue; // sem duplicar
+      // Recuperação oficial do Metas Táticas: soma todo recuperado (uma vez por cliente)
+      if (reactivated.has(r.email)) continue;
       reactivated.add(r.email);
       recuperadosMrr += r.mrr; recuperadosQtd += 1;
     } else if (r.kind === "retained") savedBy.set(r.email, "Retido");
@@ -89,8 +90,10 @@ export function computeProjectedResult(
   const churnCases: ChurnCase[] = [...byEmail.values()]
     .map((c) => ({ ...c, avoided: savedBy.has(c.email), avoidedBy: savedBy.get(c.email) }))
     .sort((a, b2) => (a.date === b2.date ? b2.mrr - a.mrr : a.date < b2.date ? 1 : -1));
-  const lost = churnCases.filter((c) => !c.avoided);
-  const saved = churnCases.filter((c) => c.avoided);
+  // recuperados continuam no churn previsto (o MRR volta pela linha de Recuperação);
+  // retidos/pagamento confirmado saem do churn
+  const lost = churnCases.filter((c) => !c.avoided || c.avoidedBy === "Recuperado");
+  const saved = churnCases.filter((c) => c.avoided && c.avoidedBy !== "Recuperado");
   const churnMrr = lost.reduce((s, c) => s + c.mrr, 0);
   const avoidedMrr = saved.reduce((s, c) => s + c.mrr, 0);
 
