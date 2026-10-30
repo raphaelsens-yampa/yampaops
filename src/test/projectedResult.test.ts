@@ -113,7 +113,20 @@ describe("janela de 5 dias úteis para a média de vendas", () => {
     expect(AVG_BUSINESS_DAYS).toBe(5);
     expect(r.mediaVendasMrr).toBe(350); // (1000+500+250) / 5
     expect(r.projectedMrr).toBe(350);
-    expect(r.mediaVendasQtd).toBe(0.6); // 3 vendas / 5 dias úteis
+    expect(r.mediaVendasQtd).toBe(1); // 3 vendas / 5 dias úteis = 0,6 → 1 cliente
+    expect(Number.isInteger(r.projectedUsers)).toBe(true);
     expect(computeProjectedResult([], [], [], "4blue", recent, AVG_BUSINESS_DAYS).mediaVendasMrr).toBe(50);
+  });
+
+  it("arredonda a média de clientes pela regra universal, .5 para cima", async () => {
+    const { computeProjectedResult, roundHalfUp } = await import("@/components/goals/projectedResultModel");
+    expect(roundHalfUp(1.5)).toBe(2);
+    expect(roundHalfUp(2.49)).toBe(2);
+    expect(roundHalfUp(0.5)).toBe(1);
+    const three = [{ mrr: 10, origin: "yampa" as const }, { mrr: 10, origin: "yampa" as const }, { mrr: 10, origin: "yampa" as const }];
+    // 3 vendas em 2 dias úteis = 1,5 → 2 clientes
+    expect(computeProjectedResult([], [], [], "all", three, 2).mediaVendasQtd).toBe(2);
+    // 1 venda em 5 dias úteis = 0,2 → nenhum cliente adicional
+    expect(computeProjectedResult([], [], [], "all", [three[0]], 5).mediaVendasQtd).toBe(0);
   });
 });

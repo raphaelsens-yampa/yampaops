@@ -28,6 +28,9 @@ export interface RecentSale { mrr: number; origin: ProjOrigin }
 /** Janela da média de produção: os últimos dias úteis, sem contar hoje. */
 export const AVG_BUSINESS_DAYS = 5;
 
+/** Arredondamento universal: metade sempre para cima. */
+export const roundHalfUp = (v: number) => Math.round(v);
+
 /** Dias úteis (seg–sex) imediatamente anteriores a `today`, do mais recente ao mais antigo. */
 export function lastBusinessDays(today: string, count = AVG_BUSINESS_DAYS): string[] {
   const out: string[] = [];
@@ -75,8 +78,8 @@ export function computeProjectedResult(
 ): ProjectedResult {
   const rs = recentSales.filter((r) => inOrigin(r.origin, origin));
   const mediaVendasMrr = days > 0 ? rs.reduce((s, r) => s + r.mrr, 0) / days : 0;
-  // com poucos dias na janela, arredondar para inteiro esconderia a produção real
-  const mediaVendasQtd = days > 0 ? Math.round((rs.length / days) * 10) / 10 : 0;
+  // arredondamento universal (.5 para cima): usuário não existe em fração
+  const mediaVendasQtd = days > 0 ? roundHalfUp(rs.length / days) : 0;
   const b = base.filter((r) => inOrigin(r.origin, origin));
   const baseEmails = new Set(b.map((r) => r.email));
   const baseMrr = b.reduce((s, r) => s + r.mrr, 0);

@@ -108,7 +108,7 @@ export function ProjectedResult() {
     [`Base oficial (${br(data.snapshot)})`, r.baseMrr, false],
     [`+ Novas vendas (${r.vendasQtd})`, r.vendasMrr, true],
     ["+ Upsell", r.upsellMrr, true],
-    [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média ${data.avgDays} dias úteis · ~${r.mediaVendasQtd.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}/dia)`, r.mediaVendasMrr, true],
+    [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média ${data.avgDays} dias úteis · ~${r.mediaVendasQtd}/dia)`, r.mediaVendasMrr, true],
     [`+ Recuperação (${r.recuperadosQtd})`, r.recuperadosMrr, true],
     ["− Downsell", -r.downsellMrr, true],
     [`− Churn previsto (${r.churnQtd})`, -r.churnMrr, true],
