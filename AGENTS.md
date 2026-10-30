@@ -13,3 +13,4 @@
 - Planejamento de Campanhas prevê a partir dos realizados do Histórico de Campanhas (investimento líquido, conversão, MRR, LTV/CAC): Esperado = média, Otimista/Pessimista = quartis 75/25.
 - OnePage Diretoria reads only in-system data (Metas Estratégicas company aggregates/goals, daily snapshots, pre-churn, conversions); no static or externally generated data, so it never goes stale.
 - Conversions count only when `stripe_conversions.payment_status = 'paid'` (set by stripe-webhook and the daily stripe-payment-reconcile job via `_shared/paymentStatus.ts`), so subscriptions created with failed/pending first payments never inflate any panel.
+- Origin filters (Yampa/4blue) read each customer's or sale's own origin: monthly via `origin_monthly_realized`, closed tactical days via `origin_daily_shares` (active-paying base), Stripe/low-touch sales via `stripeConversionOrigin` (unmarked Stripe = Yampa); `metas_price_daily` stopped tagging origin and must not be used for it.

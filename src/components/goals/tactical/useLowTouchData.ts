@@ -1,3 +1,4 @@
+import { isOriginFiltered, stripeConversionOrigin, type OriginFilter } from "@/lib/origins";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseDateBR } from "@/lib/dateBR";
@@ -100,7 +101,7 @@ export function partitionLowTouch(
  * Carrega as conversões classificadas como Low-touch: vendas cujo rótulo de
  * Vendedor/Área no Mapa de Preços está marcado como área Low-touch.
  */
-export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0) {
+export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0, origin: OriginFilter = "all") {
   const [sales, setSales] = useState<LowTouchSale[]>([]);
   const [upsells, setUpsells] = useState<LowTouchSale[]>([]);
   const [areas, setAreas] = useState<LowTouchArea[]>([]);
@@ -121,7 +122,7 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
         fetchAllPaged<any>(() =>
           supabase
             .from("stripe_conversions")
-            .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id, conversion_type, delta_mrr")
+            .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id, conversion_type, delta_mrr, origem_cliente, attribution_source")
             .eq("payment_status", "paid")
             .gte("converted_at", from.toISOString())
             .lte("converted_at", to.toISOString())
@@ -146,7 +147,9 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
       for (const a of areaRows) labels.add(a.label);
 
       const part = partitionLowTouch(
-        (convRes.data as unknown as RawConversion[]) || [],
+        (((convRes.data as any[]) || []).filter(
+          (row) => !isOriginFiltered(origin) || stripeConversionOrigin(row) === origin,
+        ) as unknown as RawConversion[]),
         labelByPrice,
         activeLabels,
       );
@@ -159,7 +162,7 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
     }
     load();
     return () => { cancelled = true; };
-  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey]);
+  }, [rangeStart.getTime(), rangeEnd.getTime(), refreshKey, origin]);
 
   return { sales, upsells, areas, allLabels, loading };
 }

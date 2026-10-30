@@ -99,7 +99,7 @@ export function TacticalTracking() {
     [rawGoals, scenarioFactor],
   );
   const [lowTouchKey, setLowTouchKey] = useState(0);
-  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
+  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey, originFilter);
 
   const isLowTouch = teamId === LOW_TOUCH;
 
@@ -333,12 +333,10 @@ export function TacticalTracking() {
       {isOriginFiltered(originFilter) && !isLowTouch && (
 
         <p className="text-xs text-muted-foreground">
-          Recorte por origem: o realizado histórico vem das fontes canônicas (Metabase) e é rateado
-          pela participação da origem na base por price ID. O realizado do dia vigente (Stripe) e os
-          lançamentos de CS (recuperados/retidos) são considerados origem Yampa. Dias anteriores ao
-          início da marcação de origem usam a participação mais antiga conhecida como estimativa,
-          então 4blue + Yampa sempre soma o Geral.{" "}
-          {ORIGIN_MIN_DATE_HINT}.
+          Recorte por origem: vendas da Stripe e low-touch usam a origem de cada venda. Nos dias
+          fechados (Metabase), o realizado segue a participação da origem apurada cliente a cliente
+          na base de ativos pagantes, então 4blue + Yampa soma o Geral. Lançamentos de CS
+          (recuperados/retidos) são da base Yampa. {ORIGIN_MIN_DATE_HINT}.
 
         </p>
       )}

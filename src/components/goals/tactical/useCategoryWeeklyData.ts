@@ -12,6 +12,7 @@ import {
   buildOriginShares,
   CATEGORY_SLUG_TO_CLASSIFICATION,
   isOriginFiltered,
+  fetchOriginDailyShares,
   matchesOrigin,
   originShareAsOf,
   type OriginFilter,
@@ -187,11 +188,7 @@ export function useCategoryWeeklyData(
           .lte("data", endKey)
           .order("data", { ascending: true }),
         originFiltered
-          ? supabase
-              .from("metas_price_daily")
-              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
-              .lte("data", endKey)
-              .not("origem_cliente", "is", null)
+          ? fetchOriginDailyShares(supabase as any, "2026-01-01", endKey).then((data) => ({ data }))
           : Promise.resolve({ data: [] as any[] }),
         couponFiltered
           ? supabase
@@ -246,7 +243,7 @@ export function useCategoryWeeklyData(
       }
 
       // Recorte por origem: `metas_snapshot_diario` não tem origem, então o
-      // realizado é rateado pela PARTICIPAÇÃO da origem em `metas_price_daily`.
+      // realizado é rateado pela PARTICIPAÇÃO da origem em `origin_daily_shares` (base de ativos).
       // Categorias sem classificação correspondente (Churn MRR, Churn %,
       // Total de MRR, Ativos) não têm recorte e ficam indisponíveis.
       const shares = originFiltered

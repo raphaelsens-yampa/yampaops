@@ -127,3 +127,9 @@
 - [x] useLowTouchData: separar upsells (conversion_type "upsell", delta_mrr > 0) das vendas; vendas continuam sendo só "new"
 - [x] TacticalOverview: "Clientes Upsell" e "MRR Upsell" somam os upsells low-touch do dia vigente (Stripe); histórico segue Metabase D-1
 - [x] Testes em src/test/lowTouchPartition.test.ts (5 testes) e validação no navegador: Upsell 1 · R$ 30, Vendas do dia segue 2
+
+## Filtro de Origem nas Metas (30/10/2026)
+- [x] Estratégicas: auditado (já usa origem real, cliente a cliente)
+- [x] Táticas: dias fechados e vendas Stripe/low-touch pela origem real
+- [x] Operacionais: filtro de Origem + relatório do mês filtrado
+- [ ] Metas específicas da Yampa — aguardando o usuário cadastrar/definir

@@ -71,6 +71,13 @@
       "when": 1793226954886,
       "tag": "0009_classify_ignore_failed_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793370652068,
+      "tag": "0010_migration",
+      "breakpoints": true
     }
   ]
 }
