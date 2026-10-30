@@ -72,18 +72,56 @@ export function useTacticalData(
         supabase.from("profiles").select("user_id, full_name"),
         supabase.from("teams").select("id, name").order("name"),
         supabase.from("team_members").select("team_id, user_id"),
-        supabase.from("activities").select("user_id, type, created_at").gte("created_at", fromISO.toISOString()).lte("created_at", toISO.toISOString()),
-        supabase.from("stripe_conversions").select("assigned_seller_id, converted_at, mrr_net, mrr, delta_mrr, is_reactivation, customer_email, conversion_type").eq("payment_status", "paid").gte("converted_at", fromISO.toISOString()).lte("converted_at", toISO.toISOString()),
-        supabase.from("tactical_manual_entries").select("metric_id, user_id, entry_date, value, mrr_value, entry_kind").gte("entry_date", fromDateStr).lte("entry_date", toDateStr),
-        supabase.from("tactical_recoveries").select("seller_id, recovered_at, mrr, entry_kind").gte("recovered_at", fromDateStr).lte("recovered_at", toDateStr),
+        // Janelas de até 1 ano passam de 1.000 linhas: tudo aqui é paginado.
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("activities")
+            .select("user_id, type, created_at")
+            .gte("created_at", fromISO.toISOString())
+            .lte("created_at", toISO.toISOString())
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true }) as any,
+        ),
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("stripe_conversions")
+            .select("assigned_seller_id, converted_at, mrr_net, mrr, delta_mrr, is_reactivation, customer_email, conversion_type")
+            .eq("payment_status", "paid")
+            .gte("converted_at", fromISO.toISOString())
+            .lte("converted_at", toISO.toISOString())
+            .order("converted_at", { ascending: true })
+            .order("id", { ascending: true }) as any,
+        ),
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("tactical_manual_entries")
+            .select("metric_id, user_id, entry_date, value, mrr_value, entry_kind")
+            .gte("entry_date", fromDateStr)
+            .lte("entry_date", toDateStr)
+            .order("entry_date", { ascending: true })
+            .order("id", { ascending: true }) as any,
+        ),
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("tactical_recoveries")
+            .select("seller_id, recovered_at, mrr, entry_kind")
+            .gte("recovered_at", fromDateStr)
+            .lte("recovered_at", toDateStr)
+            .order("recovered_at", { ascending: true })
+            .order("id", { ascending: true }) as any,
+        ),
         fetchRealizedSources(fromISO, toISO),
         isOriginFiltered(origin)
-          ? supabase
-              .from("metas_price_daily")
-              .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
-              .lte("data", toDateStr)
-              .not("origem_cliente", "is", null)
-          : Promise.resolve({ data: [] as any[] }),
+          ? fetchAllPaged<any>(() =>
+              supabase
+                .from("metas_price_daily")
+                .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
+                .lte("data", toDateStr)
+                .not("origem_cliente", "is", null)
+                .order("data", { ascending: true })
+                .order("id", { ascending: true }) as any,
+            )
+          : Promise.resolve({ data: [] as any[], error: null }),
         supabase.from("ac_stage_move_config").select("*").eq("metric_key", "oportunidades_abertas").maybeSingle(),
         supabase.from("ac_owner_seller_map").select("ac_group_id, owner_name, seller_id"),
         supabase.rpc("tactical_customer_upsell_actual", {

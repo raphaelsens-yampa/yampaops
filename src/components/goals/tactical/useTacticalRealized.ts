@@ -172,22 +172,35 @@ export async function fetchRealizedSources(
   const fromKey = toBRDateKey(seriesStart);
   const toKey = toBRDateKey(rangeEnd);
 
+  // Um ano de histórico passa de 1.000 linhas por tabela: tudo paginado.
   const [npRes, dailyRes, ovRes] = await Promise.all([
-    supabase
-      .from("metas_novos_pagantes_daily")
-      .select("data, classificacao, qtd_mtd, mrr_mtd")
-      .gte("data", fromKey)
-      .lte("data", toKey),
-    supabase
-      .from("metas_daily")
-      .select("data, classificacao, qtd_mtd, mrr_mtd")
-      .gte("data", fromKey)
-      .lte("data", toKey),
-    supabase
-      .from("tactical_realized_overrides")
-      .select("data, metric_key, user_id, qtd, mrr")
-      .gte("data", toBRDateKey(rangeStart))
-      .lte("data", toKey),
+    fetchAllPaged<any>(() =>
+      supabase
+        .from("metas_novos_pagantes_daily")
+        .select("data, classificacao, qtd_mtd, mrr_mtd")
+        .gte("data", fromKey)
+        .lte("data", toKey)
+        .order("data", { ascending: true })
+        .order("id", { ascending: true }) as any,
+    ),
+    fetchAllPaged<any>(() =>
+      supabase
+        .from("metas_daily")
+        .select("data, classificacao, qtd_mtd, mrr_mtd")
+        .gte("data", fromKey)
+        .lte("data", toKey)
+        .order("data", { ascending: true })
+        .order("id", { ascending: true }) as any,
+    ),
+    fetchAllPaged<any>(() =>
+      supabase
+        .from("tactical_realized_overrides")
+        .select("data, metric_key, user_id, qtd, mrr")
+        .gte("data", toBRDateKey(rangeStart))
+        .lte("data", toKey)
+        .order("data", { ascending: true })
+        .order("id", { ascending: true }) as any,
+    ),
   ]);
 
   const dedicated = mtdToDaily(((npRes.data as any[]) || []) as any);

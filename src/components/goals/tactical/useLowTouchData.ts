@@ -116,13 +116,17 @@ export function useLowTouchData(rangeStart: Date, rangeEnd: Date, refreshKey = 0
       const [areasRes, mapRes, convRes] = await Promise.all([
         supabase.from("tactical_lowtouch_areas").select("id, label, is_active").order("label"),
         supabase.from("commission_price_map").select("price_id, seller_label"),
-        supabase
-          .from("stripe_conversions")
-          .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id, conversion_type, delta_mrr")
-          .eq("payment_status", "paid")
-          .gte("converted_at", from.toISOString())
-          .lte("converted_at", to.toISOString())
-          .order("converted_at", { ascending: false }),
+        // Um ano de conversões passa de 1.000 linhas: paginação obrigatória.
+        fetchAllPaged<any>(() =>
+          supabase
+            .from("stripe_conversions")
+            .select("id, customer_email, plan_name, product_name, converted_at, mrr, mrr_net, net_amount, gross_amount, stripe_price_id, conversion_type, delta_mrr")
+            .eq("payment_status", "paid")
+            .gte("converted_at", from.toISOString())
+            .lte("converted_at", to.toISOString())
+            .order("converted_at", { ascending: false })
+            .order("id", { ascending: false }) as any,
+        ),
       ]);
 
       if (cancelled) return;
