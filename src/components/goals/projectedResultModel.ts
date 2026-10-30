@@ -95,8 +95,9 @@ export function computeProjectedResult(
     .sort((a, b2) => (a.date === b2.date ? b2.mrr - a.mrr : a.date < b2.date ? 1 : -1));
   // recuperados continuam no churn previsto (o MRR volta pela linha de Recuperação);
   // retidos/pagamento confirmado saem do churn
-  const lost = churnCases.filter((c) => !c.avoided || c.avoidedBy === "Recuperado");
-  const saved = churnCases.filter((c) => c.avoided && c.avoidedBy !== "Recuperado");
+  // recuperados, retidos e pagamentos confirmados saem do churn previsto
+  const lost = churnCases.filter((c) => !c.avoided);
+  const saved = churnCases.filter((c) => c.avoided);
   const churnMrr = lost.reduce((s, c) => s + c.mrr, 0);
   const avoidedMrr = saved.reduce((s, c) => s + c.mrr, 0);
 

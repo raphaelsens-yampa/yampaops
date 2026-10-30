@@ -67,7 +67,8 @@ describe("recuperação oficial do Metas Táticas", () => {
       "all",
     );
     expect(r.recuperadosMrr).toBeCloseTo(399.75);
-    expect(r.churnMrr).toBeCloseTo(279.02);
+    expect(r.churnMrr).toBeCloseTo(0);
+    expect(r.churnCases.find((c) => c.email === "b@x")?.avoidedBy).toBe("Recuperado");
   });
 });
 
