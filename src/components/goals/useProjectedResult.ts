@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { stripeConversionOrigin } from "@/lib/origins";
-import { normEmail, normOrigin, type BaseRow, type ChurnRow, type OperationRow, type RecentSale } from "./projectedResultModel";
+import { AVG_BUSINESS_DAYS, lastBusinessDays, normEmail, normOrigin, type BaseRow, type ChurnRow, type OperationRow, type RecentSale } from "./projectedResultModel";
 
 const spDate = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
 const addDays = (iso: string, n: number) => {
@@ -17,6 +17,7 @@ export interface ProjectedData {
   ops: OperationRow[];
   churn: ChurnRow[];
   recentSales: RecentSale[];
+  avgDays: number;
 }
 
 // retenção registrada nos últimos dias tira o cliente do churn previsto
@@ -38,7 +39,10 @@ export function useProjectedResult() {
       const snapshot = (last?.[0] as any)?.data_snapshot ?? null;
       const openFrom = snapshot ? addDays(snapshot, 1) : today;
 
-      const avgFrom = addDays(today, -30);
+      // média de produção: últimos dias úteis; hoje fica de fora porque já conta como realizado
+      const businessDays = lastBusinessDays(today, AVG_BUSINESS_DAYS);
+      const avgFrom = businessDays[businessDays.length - 1];
+      const avgSet = new Set(businessDays);
       const [baseRes, convRes, recRes, preRes, avgRes] = await Promise.all([
         snapshot
           ? fetchAllPaged<any>(() => supabase.from("metas_ativos_pagantes_daily")
@@ -54,9 +58,9 @@ export function useProjectedResult() {
         fetchAllPaged<any>(() => (supabase as any).from("metas_pre_churn")
           .select("id,email_norm,mrr,origem_cliente,future_churn_at,tipo,data_ref")
           .gte("future_churn_at", openFrom).lte("future_churn_at", tomorrow).order("id")),
-        // média de produção: vendas novas pagas nos 30 dias completos antes de hoje
+        // média de produção: vendas novas pagas nos últimos dias úteis
         fetchAllPaged<any>(() => supabase.from("stripe_conversions")
-          .select("id,mrr,conversion_type,origem_cliente,attribution_source")
+          .select("id,mrr,conversion_type,origem_cliente,attribution_source,converted_at")
           .eq("payment_status", "paid").eq("conversion_type", "new")
           .gte("converted_at", `${avgFrom}T03:00:00Z`).lt("converted_at", `${today}T03:00:00Z`).order("id")),
       ]);
@@ -91,8 +95,11 @@ export function useProjectedResult() {
         .filter((r) => normEmail(r.email_norm))
         .map((r) => ({ email: normEmail(r.email_norm), mrr: Number(r.mrr || 0), origin: normOrigin(r.origem_cliente), date: String(r.future_churn_at).slice(0, 10), tipo: r.tipo }));
 
-      const recentSales: RecentSale[] = avgRes.data.map((r) => ({ mrr: Number(r.mrr || 0), origin: stripeConversionOrigin(r) }));
-      setData({ snapshot, today, tomorrow, base, ops, churn, recentSales });
+      // fim de semana dentro da janela não é dia útil: fora da soma
+      const recentSales: RecentSale[] = avgRes.data
+        .filter((r) => avgSet.has(spDate(new Date(r.converted_at))))
+        .map((r) => ({ mrr: Number(r.mrr || 0), origin: stripeConversionOrigin(r) }));
+      setData({ snapshot, today, tomorrow, base, ops, churn, recentSales, avgDays: businessDays.length });
       setError(null);
     } catch (e: any) {
       setError(e?.message || "Erro ao carregar");

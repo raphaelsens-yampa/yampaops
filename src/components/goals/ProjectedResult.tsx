@@ -43,7 +43,7 @@ const readList = (key: string): string[] | null => {
 export function ProjectedResult() {
   const { data, loading, error } = useProjectedResult();
   const [origin, setOrigin] = useState<OriginFilter>("all");
-  const r = useMemo(() => (data ? computeProjectedResult(data.base, data.ops, data.churn, origin, data.recentSales) : null), [data, origin]);
+  const r = useMemo(() => (data ? computeProjectedResult(data.base, data.ops, data.churn, origin, data.recentSales, data.avgDays) : null), [data, origin]);
 
   const [sort, setSort] = useState<ChurnSort>(DEFAULT_CHURN_SORT);
   const [filters, setFilters] = useState<ChurnFilters>({});
@@ -108,7 +108,7 @@ export function ProjectedResult() {
     [`Base oficial (${br(data.snapshot)})`, r.baseMrr, false],
     [`+ Novas vendas (${r.vendasQtd})`, r.vendasMrr, true],
     ["+ Upsell", r.upsellMrr, true],
-    [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média 30 dias · ~${r.mediaVendasQtd}/dia)`, r.mediaVendasMrr, true],
+    [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média ${data.avgDays} dias úteis · ~${r.mediaVendasQtd.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}/dia)`, r.mediaVendasMrr, true],
     [`+ Recuperação (${r.recuperadosQtd})`, r.recuperadosMrr, true],
     ["− Downsell", -r.downsellMrr, true],
     [`− Churn previsto (${r.churnQtd})`, -r.churnMrr, true],
