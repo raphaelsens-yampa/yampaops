@@ -39,7 +39,7 @@ describe("tabela de churn previsto", () => {
 
   it("filtra data em DD/MM e cliente por trecho do e-mail", () => {
     expect(filterChurnCases(cases, { date: "31/10" }).every((c) => c.date === "2026-10-31")).toBe(true);
-    expect(filterChurnCases(cases, { email: "AN@" }).map((c) => c.email)).toEqual(["ana@x"]);
+    expect(filterChurnCases(cases, { email: "NA@" }).map((c) => c.email)).toEqual(["ana@x"]);
   });
 
   it("filtra pela situação, separando churn do que foi evitado", () => {
