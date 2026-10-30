@@ -20,6 +20,8 @@ import {
   formatTacticalPeriod,
   isSingleDayPeriod,
   tacticalPeriodKeys,
+  tacticalRealizedWithLowTouch,
+
   tacticalTargetPeriodKeys,
   type TacticalPeriod,
 } from "./tacticalPeriod";
@@ -86,6 +88,8 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
 
   const ltUpPeriodCount = lowTouchUpsells.filter((s) => periodKeys.has(s.dateKey)).length;
+  /** Vendas Low-touch do período: entram na meta de Vendas, não só no card avulso. */
+  const ltPeriodCount = lowTouchSales.filter((s) => periodKeys.has(s.dateKey)).length;
   const rows = useMemo(() => {
     const teamOf = new Map(members.map((m) => [m.user_id, m.team_id]));
     return metrics.filter((m) => m.key !== "call_realizada").map((m) => {
@@ -98,15 +102,17 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
         dailyTarget += resolveDailyTarget(goals, m.id, uid, scopeTeam, today);
         realized += values.get(`${uid}|${m.id}`) ?? 0;
       }
-      // Upsell low-touch do período (sem vendedor) também conta para a meta de Upsell.
-      if (m.key === "upsell_dia") realized += ltUpPeriodCount;
+      // Low-touch conta nas metas: vendas em "Vendas do dia", upsells em "Clientes Upsell".
+      realized = tacticalRealizedWithLowTouch(m.key, realized, { sales: ltPeriodCount, upsells: ltUpPeriodCount });
+
+
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const monthBefore = realizedMonthBeforeToday(daily, m.id, memberIds, today);
       const pacing = monthPacing(today, dailyTarget, monthBefore);
       return { m, target, dailyTarget, realized, pct, missing: Math.max(target - realized, 0), pacing };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metrics, goals, daily, memberIds, members, activePeriod, values, resolveTarget, targetKeys, ltUpPeriodCount]);
+  }, [metrics, goals, daily, memberIds, members, activePeriod, values, resolveTarget, targetKeys, ltUpPeriodCount, ltPeriodCount]);
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
   const withGoal = rows.filter((r) => r.target > 0);
@@ -125,15 +131,18 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const others: OtherCard[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
     .map((r) => {
-      const extra = r.m.key === "vendas_dia" ? ltCount : r.m.key === "mrr_dia" ? ltMrr : 0;
+      // Vendas já somam low-touch em `realized`; só o MRR do dia recebe o acréscimo aqui.
+      const extra = r.m.key === "mrr_dia" ? ltMrr : 0;
+      const lowTouchShown = r.m.key === "vendas_dia" ? ltCount : extra;
       return {
         id: r.m.id,
         label: labelOf(r.m.label),
         unit: r.m.unit,
         value: r.realized + extra,
-        note: extra > 0 ? `inclui low-touch: ${formatMetric(extra, r.m.unit)}` : undefined,
+        note: lowTouchShown > 0 ? `inclui low-touch: ${formatMetric(lowTouchShown, r.m.unit)}` : undefined,
       };
     });
+
 
   const sumMetricByKey = (key: string) => {
     const ids = metrics.filter((m) => m.key === key).map((m) => m.id);

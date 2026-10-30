@@ -1,6 +1,11 @@
 # Roadmap
 
+## Metas Táticas — Vendas no Período com low-touch (30/10/2026)
+- [x] Contar as vendas Low-touch no card de meta "Vendas no período" (outubro: 90 de 132, antes 73)
+- [x] Testar a partição (low-touch soma em Vendas e em Upsell, nunca nas demais métricas) e validar no navegador sem duplicar o card pequeno
+
 ## Metas Táticas — filtro de período "de até" (30/10/2026)
+
 - [x] Seletor Hoje / 7 dias / 30 dias / Mês atual / Trimestre atual / Personalizado, com data "de" e "até"
 - [x] Acumular realizados e metas do período nos cards, no placar e na missão individual (metas somadas por dia útil)
 - [x] Limitar o intervalo a no máximo 1 ano e paginar as leituras de volume (1.086 conversões pagas em 2026)
