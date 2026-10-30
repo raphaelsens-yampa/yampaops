@@ -78,6 +78,8 @@ export function useProjectedResult() {
       const latest = new Map<string, any>();
       for (const r of preRes.data) {
         if (String(r.data_ref) !== latestRef) continue;
+        // churn previsto até o dia da leitura já está refletido na base do Metabase
+        if (String(r.future_churn_at).slice(0, 10) <= latestRef) continue;
         latest.set(`${normEmail(r.email_norm)}|${r.tipo}`, r);
       }
       const churn: ChurnRow[] = [...latest.values()]
