@@ -52,3 +52,21 @@ describe("média de novas vendas (30 dias)", () => {
     expect(computeProjectedResult([], [], [], "4blue", recent, 30).mediaVendasMrr).toBe(20);
   });
 });
+
+describe("recuperação oficial do Metas Táticas", () => {
+  it("soma todo recuperado, mesmo já na base, e não soma retido", () => {
+    const r = computeProjectedResult(
+      [{ email: "a@x", mrr: 120.73, origin: "yampa" }, { email: "b@x", mrr: 279.02, origin: "yampa" }],
+      [
+        { email: "a@x", kind: "recovered", mrr: 120.73, previousMrr: 0, origin: "yampa" },
+        { email: "b@x", kind: "recovered", mrr: 279.02, previousMrr: 0, origin: "yampa" },
+        { email: "c@x", kind: "retained", mrr: 198.65, previousMrr: 0, origin: "yampa" },
+      ],
+      [{ email: "b@x", mrr: 279.02, origin: "yampa", date: "2026-10-31", tipo: "inadimplente" },
+       { email: "c@x", mrr: 198.65, origin: "yampa", date: "2026-10-31", tipo: "inadimplente" }],
+      "all",
+    );
+    expect(r.recuperadosMrr).toBeCloseTo(399.75);
+    expect(r.churnMrr).toBeCloseTo(279.02);
+  });
+});
