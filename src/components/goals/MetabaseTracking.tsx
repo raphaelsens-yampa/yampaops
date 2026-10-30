@@ -2023,7 +2023,7 @@ function SortableCategoryRow({ category: c, monthList, targetMap, realizedMap, r
                 <span className="block text-[9px] text-muted-foreground line-through">{fmt(c, original)}</span>
               )}
             </TableCell>
-            <TableCell className="text-right text-xs">{r > 0 ? fmt(c, r) : "—"}</TableCell>
+            <TableCell className="text-right text-xs">{realizedMap.has(`${c.id}|${idx}`) ? fmt(c, r) : "—"}</TableCell>
             <TableCell className={`text-right text-xs font-semibold ${t > 0 ? pctColor(pct, lte) : "text-muted-foreground"}`}>
               {t > 0 ? `${pct.toFixed(0)}%` : "—"}
             </TableCell>
