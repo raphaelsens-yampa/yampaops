@@ -100,6 +100,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
   const [monthlyLoading, setMonthlyLoading] = useState(true);
   const [stripeToday, setStripeToday] = useState<{ sales: number; cs: number } | null>(null);
+  // Dias abertos (após a base Metabase fechada) até hoje, somados pela Stripe.
+  const [stripeOpenDays, setStripeOpenDays] = useState<Map<string, { sales: number; cs: number }>>(new Map());
   const [stripeTodayLoading, setStripeTodayLoading] = useState(true);
 
   useEffect(() => {
@@ -117,20 +119,23 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   useEffect(() => {
     let cancelled = false;
     setStripeTodayLoading(true);
-    const from = `${todayKey}T00:00:00-03:00`;
+    const openStart = actualSnapshotDate && actualSnapshotDate < todayKey
+      ? (() => { const d = new Date(`${actualSnapshotDate}T12:00:00`); d.setDate(d.getDate() + 1); return toBRDateKey(d); })()
+      : todayKey;
+    const from = `${openStart}T00:00:00-03:00`;
     const to = `${todayKey}T23:59:59.999-03:00`;
     Promise.all([
-      // paged-ok: vendas de um único dia
+      // paged-ok: poucos dias abertos após a base fechada
       supabase
         .from("stripe_conversions")
-        .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source")
+        .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at")
         .eq("payment_status", "paid")
         .gte("converted_at", from)
         .lte("converted_at", to)
         .limit(1000),
       supabase
         .from("stripe_churn_events")
-        .select("mrr_lost")
+        .select("mrr_lost, canceled_at")
         .gte("canceled_at", from)
         .lte("canceled_at", to)
         .limit(1000),
@@ -139,28 +144,31 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       const conversions = ((conversionResult.data as any[]) || []).filter(
         (row) => !originFiltered || stripeConversionOrigin(row) === origin,
       );
-      const sales = conversions.reduce((sum, row) => {
+      const days = new Map<string, { sales: number; cs: number }>();
+      const bucket = (ts: string) => {
+        const key = toBRDateKey(new Date(ts));
+        if (!days.has(key)) days.set(key, { sales: 0, cs: 0 });
+        return days.get(key)!;
+      };
+      for (const row of conversions) {
         const type = String(row.conversion_type || "").toLowerCase();
-        if (type === "upsell") return sum + Math.max(Number(row.delta_mrr || 0), 0);
-        if (row.is_reactivation || type === "new" || !type) return sum + Number(row.mrr_net ?? row.mrr ?? 0);
-        return sum;
-      }, 0);
-      const downsell = conversions.reduce((sum, row) => (
-        String(row.conversion_type || "").toLowerCase() === "downgrade"
-          ? sum + Math.abs(Number(row.delta_mrr || 0))
-          : sum
-      ), 0);
-      const cs = downsell + ((churnResult.data as any[]) || []).reduce(
-        (sum, row) => sum + Math.max(Number(row.mrr_lost || 0), 0),
-        0,
-      );
+        const b = bucket(row.converted_at);
+        if (type === "upsell") b.sales += Math.max(Number(row.delta_mrr || 0), 0);
+        else if (row.is_reactivation || type === "new" || !type) b.sales += Number(row.mrr_net ?? row.mrr ?? 0);
+        else if (type === "downgrade") b.cs += Math.abs(Number(row.delta_mrr || 0));
+      }
+      for (const row of ((churnResult.data as any[]) || [])) {
+        bucket(row.canceled_at).cs += Math.max(Number(row.mrr_lost || 0), 0);
+      }
+      const today = days.get(todayKey) ?? { sales: 0, cs: 0 };
       // Cancelamentos da Stripe não trazem origem: no recorte, o dia de CS
       // segue a base cliente a cliente (Metabase).
-      setStripeToday({ sales, cs: originFiltered ? Number.NaN : cs });
+      setStripeToday({ sales: today.sales, cs: originFiltered ? Number.NaN : today.cs });
+      setStripeOpenDays(days);
       setStripeTodayLoading(false);
     });
     return () => { cancelled = true; };
-  }, [supabase, todayKey, origin, originFiltered]);
+  }, [supabase, todayKey, origin, originFiltered, actualSnapshotDate]);
   const { monthly: originMonthly, loading: originLoading } = useOriginRealized(
     origin,
     refMonth.getFullYear(),
@@ -251,9 +259,24 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     const stripeDayRealized = rawStripeDay !== null && Number.isNaN(rawStripeDay) ? null : rawStripeDay;
     const metabaseToday = period.dayRealized ?? 0;
     const dayRealized = usesStripeToday ? stripeDayRealized : period.dayRealized;
-    const weekRealized = usesStripeToday && period.weeklyRealized[selectedWeek] !== null && stripeDayRealized !== null
-      ? Math.max((period.weeklyRealized[selectedWeek] ?? 0) - metabaseToday, 0) + stripeDayRealized
-      : period.weeklyRealized[selectedWeek] ?? null;
+    // Semana = base fechada (Metabase) + dias ainda abertos lidos da Stripe.
+    const weekStartKey = week ? toBRDateKey(week.start) : "";
+    const weekEndKey = week ? toBRDateKey(week.end) : "";
+    const canUseStripeOpen = !(originFiltered && area === "cs");
+    let openSum = 0;
+    let hasOpen = false;
+    if (canUseStripeOpen) {
+      for (const [key, v] of stripeOpenDays) {
+        if (key >= weekStartKey && key <= weekEndKey && key >= monthStartKey && key <= monthEndKey
+          && (!actualSnapshotDate || key > actualSnapshotDate)) {
+          openSum += v[area];
+          hasOpen = true;
+        }
+      }
+    }
+    const baseWeek = period.weeklyRealized[selectedWeek] ?? null;
+    void metabaseToday;
+    const weekRealized = hasOpen ? (baseWeek ?? 0) + openSum : baseWeek;
 
     return {
       config,
@@ -267,7 +290,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, originFiltered, originMonthly]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, stripeOpenDays, actualSnapshotDate, originFiltered, originMonthly]);
 
   if (!allowedAreas.length) {
     return (
