@@ -17,7 +17,8 @@ import { toast } from "sonner";
 import { TvLinksDialog } from "./TvLinksDialog";
 import { toBRDateKey, weeksOfMonth } from "./tactical/types";
 import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
-import { buildOperationalPeriodModel } from "./operationalGoalsModel";
+import { buildOperationalPeriodModel, resolveOperationalDayRealized } from "./operationalGoalsModel";
+import { fetchAllPaged } from "@/lib/supabasePaged";
 import { OperationalMonthReport } from "./OperationalMonthReport";
 import { useOriginRealized } from "./useOriginRealized";
 import {
@@ -124,20 +125,19 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     const from = `${openStart}T00:00:00-03:00`;
     const to = `${todayKey}T23:59:59.999-03:00`;
     Promise.all([
-      // paged-ok: poucos dias abertos após a base fechada
-      supabase
+      fetchAllPaged<any>(() => supabase
         .from("stripe_conversions")
         .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at")
         .eq("payment_status", "paid")
         .gte("converted_at", from)
         .lte("converted_at", to)
-        .limit(5000),
-      supabase
+        .order("converted_at").order("id")),
+      fetchAllPaged<any>(() => supabase
         .from("stripe_churn_events")
         .select("mrr_lost, canceled_at")
         .gte("canceled_at", from)
         .lte("canceled_at", to)
-        .limit(1000),
+        .order("canceled_at").order("id")),
     ]).then(([conversionResult, churnResult]) => {
       if (cancelled) return;
       const conversions = ((conversionResult.data as any[]) || []).filter(
@@ -146,8 +146,11 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       const days = new Map<string, { sales: number; cs: number }>();
       const bucket = (ts: string) => {
         const key = toBRDateKey(new Date(ts));
-        if (!days.has(key)) days.set(key, { sales: 0, cs: 0 });
-        return days.get(key)!;
+        const existing = days.get(key);
+        if (existing) return existing;
+        const next = { sales: 0, cs: 0 };
+        days.set(key, next);
+        return next;
       };
       for (const row of conversions) {
         const type = String(row.conversion_type || "").toLowerCase();
@@ -253,11 +256,14 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       ? canonicalMonthValues.reduce((sum, value) => sum + value, 0)
       : null;
 
-    const usesStripeToday = !(originFiltered && area === "cs") && selectedDay === todayKey && monthStartKey <= todayKey && monthEndKey >= todayKey;
-    const rawStripeDay = stripeToday?.[area] ?? null;
-    const stripeDayRealized = rawStripeDay !== null && Number.isNaN(rawStripeDay) ? null : rawStripeDay;
-    const metabaseToday = period.dayRealized ?? 0;
-    const dayRealized = usesStripeToday ? stripeDayRealized : period.dayRealized;
+    const dayRealized = resolveOperationalDayRealized({
+      selectedDay,
+      todayKey,
+      snapshotDate: actualSnapshotDate,
+      metabaseRealized: period.dayRealized,
+      stripeRealized: stripeOpenDays.get(selectedDay)?.[area] ?? 0,
+      canUseStripe: !(originFiltered && area === "cs"),
+    });
     // Semana = base fechada (Metabase) + dias ainda abertos lidos da Stripe.
     const weekStartKey = week ? toBRDateKey(week.start) : "";
     const weekEndKey = week ? toBRDateKey(week.end) : "";
@@ -279,7 +285,6 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       }
     }
     const baseWeek = period.weeklyRealized[selectedWeek] ?? null;
-    void metabaseToday;
     // Semana = soma de cada venda paga na Stripe (mesma lógica das Metas Táticas).
     const weekRealized = canUseStripeOpen ? openSum : baseWeek;
     void hasOpen;
@@ -463,10 +468,6 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
               )}
             </section>
           </CardContent>
-          <div className="flex items-center justify-between border-t bg-muted/35 px-4 py-3 text-xs text-muted-foreground sm:px-6">
-            <span>{actualSnapshotDate ? `Base conferida em ${actualSnapshotDate.split("-").reverse().join("/")}` : "Base diária indisponível"}</span>
-            <span className="flex items-center gap-2 font-semibold text-foreground"><span className="h-2 w-2 rounded-full bg-accent" />Dados consolidados</span>
-          </div>
         </Card>
       </div>
       {!tvArea && <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} origin={origin} />}
