@@ -17,11 +17,11 @@ export const ORIGIN_OPTIONS: { value: OriginFilter; label: string }[] = [
 ];
 
 /** Primeira data em que a base marca `origem_cliente`. */
-export const ORIGIN_MIN_DATE = "2026-08-07";
+export const ORIGIN_MIN_DATE = "2026-01-31";
 
 export const ORIGIN_UNAVAILABLE_LABEL = "—";
 export const ORIGIN_NO_SPLIT_HINT = "Sem recorte por origem na base";
-export const ORIGIN_MIN_DATE_HINT = "Origem disponível a partir de 07/08/2026";
+export const ORIGIN_MIN_DATE_HINT = "Origem disponível a partir de 31/01/2026";
 
 export function originLabel(origin: OriginFilter) {
   return ORIGIN_OPTIONS.find((o) => o.value === origin)?.label ?? "Visão Geral";
