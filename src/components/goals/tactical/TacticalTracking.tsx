@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { addDays, addYears, format, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useTacticalData } from "./useTacticalData";
@@ -39,6 +39,18 @@ import { useGrowthBaselines } from "@/hooks/useGrowthBaselines";
 import { GoalScenarioSelector } from "@/components/goals/GoalScenarioSelector";
 import { ORIGIN_OPTIONS, ORIGIN_MIN_DATE_HINT, isOriginFiltered, type OriginFilter } from "@/lib/origins";
 
+import {
+  formatTacticalPeriod,
+  isSingleDayPeriod,
+  periodSpanLabel,
+  safeTacticalPeriod,
+  tacticalPeriodError,
+  tacticalPeriodKeys,
+  tacticalPresetRange,
+  type TacticalPeriod,
+  type TacticalPeriodPreset,
+} from "./tacticalPeriod";
+
 const ALL_TEAMS = "__all__";
 const LOW_TOUCH = "__lowtouch__";
 
@@ -48,7 +60,21 @@ export function TacticalTracking() {
   const realToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const [refDate, setRefDate] = useState<Date>(realToday);
   const today = useMemo(() => { const d = new Date(refDate); d.setHours(0, 0, 0, 0); return d; }, [refDate]);
-  const rangeStart = useMemo(() => { const d = new Date(today); d.setDate(d.getDate() - 89); return d; }, [today]);
+  const [periodPreset, setPeriodPreset] = useState<TacticalPeriodPreset>("day");
+  const [customFrom, setCustomFrom] = useState<Date>(() => startOfMonth(new Date()));
+  /** Janela "de ... até ..." exibida nos cards de meta e no placar. */
+  const requestedPeriod = useMemo(
+    () => tacticalPresetRange(periodPreset, today, customFrom),
+    [periodPreset, today, customFrom],
+  );
+  const periodError = useMemo(() => tacticalPeriodError(requestedPeriod), [requestedPeriod]);
+  const period = useMemo<TacticalPeriod>(() => safeTacticalPeriod(requestedPeriod), [requestedPeriod]);
+  const isSingleDay = useMemo(() => isSingleDayPeriod(period), [period]);
+  const rangeStart = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 89);
+    return period.from < d ? period.from : d;
+  }, [today, period]);
   const [reloadKey, setReloadKey] = useState(0);
   const [teamId, setTeamId] = useState<string>("");
   const [focusUser, setFocusUser] = useState<string>("");
@@ -118,11 +144,12 @@ export function TacticalTracking() {
     () => summarizeChannels(recoveryRows.filter((r) => r.dateKey >= monthStartKey && r.dateKey <= todayKeyStr)),
     [recoveryRows, monthStartKey, todayKeyStr],
   );
-  const recoveryTodayRows = useMemo(
-    () => recoveryRows.filter((r) => r.dateKey === todayKeyStr),
-    [recoveryRows, todayKeyStr],
+  const periodKeySet = useMemo(() => new Set(tacticalPeriodKeys(period)), [period]);
+  const recoveryPeriodRows = useMemo(
+    () => recoveryRows.filter((r) => periodKeySet.has(r.dateKey)),
+    [recoveryRows, periodKeySet],
   );
-  const recoveryBySeller = useMemo(() => channelsBySeller(recoveryTodayRows), [recoveryTodayRows]);
+  const recoveryBySeller = useMemo(() => channelsBySeller(recoveryPeriodRows), [recoveryPeriodRows]);
 
 
 
@@ -184,12 +211,54 @@ export function TacticalTracking() {
             </div>
 
 
-            {/* Linha 2: data + visão + ações */}
+            {/* Linha 2: período + data + visão + ações */}
             <div className="flex flex-wrap items-center gap-2">
+              <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as TacticalPeriodPreset)}>
+                <SelectTrigger className="h-10 md:h-9 w-full md:w-44 flex-1 md:flex-none" aria-label="Período">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Hoje (1 dia)</SelectItem>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="month">Mês atual</SelectItem>
+                  <SelectItem value="quarter">Trimestre atual</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {periodPreset === "custom" && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal">
+                      <CalendarIcon className="h-4 w-4 mr-1 shrink-0" />
+                      de {format(customFrom, "dd/MM/yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customFrom}
+                      onSelect={(d) => d && setCustomFrom(d)}
+                      disabled={(d) => d > today || d < addDays(addYears(startOfDay(today), -1), 1)}
+                      locale={ptBR}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal")}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal")}
+                    aria-label={isSingleDay ? "Data" : "Data final do período"}
+                  >
                     <CalendarIcon className="h-4 w-4 mr-1 shrink-0" />
+                    {isSingleDay ? "" : "até "}
                     {format(today, "dd/MM/yyyy")}
                   </Button>
                 </PopoverTrigger>
@@ -254,6 +323,13 @@ export function TacticalTracking() {
         </p>
       )}
 
+      {!isLowTouch && (periodError || !isSingleDay) && (
+        <p className={cn("text-xs", periodError ? "text-destructive" : "text-muted-foreground")}>
+          {periodError ??
+            `Performance acumulada de ${formatTacticalPeriod(period)} · ${periodSpanLabel(period)} · metas somadas por dia útil.`}
+        </p>
+      )}
+
       {isOriginFiltered(originFilter) && !isLowTouch && (
 
         <p className="text-xs text-muted-foreground">
@@ -307,6 +383,7 @@ export function TacticalTracking() {
               members={members}
               teams={teams}
               today={today}
+              period={period}
               revisedView={revisedView}
               lowTouchSales={lowTouch.sales}
               lowTouchUpsells={lowTouch.upsells}
@@ -325,8 +402,9 @@ export function TacticalTracking() {
               goals={goals}
               daily={daily}
               today={today}
+              period={period}
               revisedView={revisedView}
-              recoveryToday={summarizeChannels(recoveryTodayRows.filter((r) => r.sellerId === focusUser))}
+              recoveryToday={summarizeChannels(recoveryPeriodRows.filter((r) => r.sellerId === focusUser))}
             />
 
           )}
@@ -344,6 +422,7 @@ export function TacticalTracking() {
           teamId={isOverview ? null : teamId || null}
           teamName={activeTeam?.name ?? null}
           today={today}
+          period={period}
           groupByTeam={isOverview}
           teams={teams}
           members={members}

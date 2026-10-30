@@ -14,6 +14,15 @@ import {
   resolveDailyTarget,
   toBRDateKey,
 } from "./types";
+import {
+  buildPeriodValues,
+  createPeriodTargetResolver,
+  formatTacticalPeriod,
+  isSingleDayPeriod,
+  tacticalPeriodKeys,
+  tacticalTargetPeriodKeys,
+  type TacticalPeriod,
+} from "./tacticalPeriod";
 import type { TeamMember } from "./useTacticalData";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_UPSELL } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
@@ -29,6 +38,8 @@ interface Props {
   members: TeamMember[];
   teams: Team[];
   today: Date;
+  /** Janela "de ... até ..." acumulada nos cards. Sem ela, vale só o dia de referência. */
+  period?: TacticalPeriod;
   revisedView?: boolean;
   lowTouchSales?: LowTouchSale[];
   /** Upsells Low-touch (áreas sem ação de Sales/CS), contabilizados como Upsell. */
@@ -36,8 +47,6 @@ interface Props {
   /** Recorte Cobrança x CS das recuperações/retenções no mês corrente. */
   recoveryChannels?: ChannelSummary;
 }
-
-
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   const r = 34;
@@ -63,43 +72,54 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, period, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
-  const ltUpTodayCount = lowTouchUpsells.filter((s) => s.dateKey === todayKey).length;
+  const activePeriod = useMemo<TacticalPeriod>(() => period ?? { from: today, to: today }, [period, today]);
+  const singleDay = isSingleDayPeriod(activePeriod);
+  const periodKeys = useMemo(() => new Set(tacticalPeriodKeys(activePeriod)), [activePeriod]);
+  const targetKeys = useMemo(() => tacticalTargetPeriodKeys(activePeriod), [activePeriod]);
+  const values = useMemo(() => buildPeriodValues(daily, periodKeys), [daily, periodKeys]);
+  const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
+  /** "Vendas do dia" deixa de ser "do dia" quando o recorte é um período. */
+  const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
+
+  const ltUpPeriodCount = lowTouchUpsells.filter((s) => periodKeys.has(s.dateKey)).length;
   const rows = useMemo(() => {
     const teamOf = new Map(members.map((m) => [m.user_id, m.team_id]));
     return metrics.filter((m) => m.key !== "call_realizada").map((m) => {
       let target = 0;
+      let dailyTarget = 0;
       let realized = 0;
       for (const uid of memberIds) {
-        target += resolveDailyTarget(goals, m.id, uid, teamOf.get(uid) ?? null, today);
-        realized += daily.find((x) => x.user_id === uid && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
+        const scopeTeam = teamOf.get(uid) ?? null;
+        target += resolveTarget(m.id, uid, scopeTeam, targetKeys);
+        dailyTarget += resolveDailyTarget(goals, m.id, uid, scopeTeam, today);
+        realized += values.get(`${uid}|${m.id}`) ?? 0;
       }
-      // Upsell low-touch do dia (sem vendedor) também conta para a meta de Upsell.
-      if (m.key === "upsell_dia") realized += ltUpTodayCount;
+      // Upsell low-touch do período (sem vendedor) também conta para a meta de Upsell.
+      if (m.key === "upsell_dia") realized += ltUpPeriodCount;
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const monthBefore = realizedMonthBeforeToday(daily, m.id, memberIds, today);
-      const pacing = monthPacing(today, target, monthBefore);
-      return { m, target, realized, pct, missing: Math.max(target - realized, 0), pacing };
+      const pacing = monthPacing(today, dailyTarget, monthBefore);
+      return { m, target, dailyTarget, realized, pct, missing: Math.max(target - realized, 0), pacing };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metrics, goals, daily, memberIds, members, todayKey, ltUpTodayCount]);
-
+  }, [metrics, goals, daily, memberIds, members, activePeriod, values, resolveTarget, targetKeys, ltUpPeriodCount]);
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
   const withGoal = rows.filter((r) => r.target > 0);
 
-  // Vendas/MRR Low-touch de hoje (áreas sem ação de Sales/CS)
-  const ltToday = lowTouchSales.filter((s) => s.dateKey === todayKey);
-  const ltCount = ltToday.length;
-  const ltMrr = ltToday.reduce((s, x) => s + (x.mrr ?? 0), 0);
-  // Upsells Low-touch de hoje: o histórico vem do Metabase (D-1), então o dia
+  // Vendas/MRR Low-touch do período (áreas sem ação de Sales/CS)
+  const ltPeriod = lowTouchSales.filter((s) => periodKeys.has(s.dateKey));
+  const ltCount = ltPeriod.length;
+  const ltMrr = ltPeriod.reduce((s, x) => s + (x.mrr ?? 0), 0);
+  // Upsells Low-touch do período: o histórico vem do Metabase (D-1), então o dia
   // vigente é coberto pelo Stripe aqui, sem duplicar com o realizado canônico.
-  const ltUpToday = lowTouchUpsells.filter((s) => s.dateKey === todayKey);
-  const ltUpCount = ltUpToday.length;
-  const ltUpMrr = ltUpToday.reduce((s, x) => s + (x.mrr ?? 0), 0);
+  const ltUpPeriod = lowTouchUpsells.filter((s) => periodKeys.has(s.dateKey));
+  const ltUpCount = ltUpPeriod.length;
+  const ltUpMrr = ltUpPeriod.reduce((s, x) => s + (x.mrr ?? 0), 0);
 
   type OtherCard = { id: string; label: string; unit: TacticalMetric["unit"]; value: number; note?: string };
   const others: OtherCard[] = rows
@@ -108,7 +128,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       const extra = r.m.key === "vendas_dia" ? ltCount : r.m.key === "mrr_dia" ? ltMrr : 0;
       return {
         id: r.m.id,
-        label: r.m.label,
+        label: labelOf(r.m.label),
         unit: r.m.unit,
         value: r.realized + extra,
         note: extra > 0 ? `inclui low-touch: ${formatMetric(extra, r.m.unit)}` : undefined,
@@ -117,9 +137,9 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
 
   const sumMetricByKey = (key: string) => {
     const ids = metrics.filter((m) => m.key === key).map((m) => m.id);
-    return daily
-      .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && ids.includes(x.metric_id))
-      .reduce((s, x) => s + (x.value ?? 0), 0);
+    let total = 0;
+    for (const uid of memberIds) for (const id of ids) total += values.get(`${uid}|${id}`) ?? 0;
+    return total;
   };
 
   if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
@@ -132,10 +152,11 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   }
 
   // MRR separado por origem (vendas x recuperações x retenções)
-  const sumVirtual = (vid: string) =>
-    daily
-      .filter((x) => memberIds.includes(x.user_id) && x.date === todayKey && x.metric_id === vid)
-      .reduce((s, x) => s + (x.value ?? 0), 0);
+  const sumVirtual = (vid: string) => {
+    let total = 0;
+    for (const uid of memberIds) total += values.get(`${uid}|${vid}`) ?? 0;
+    return total;
+  };
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
   const mrrRetention = sumVirtual(VIRTUAL_MRR_RETENTION);
@@ -144,7 +165,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const upsellQty = sumMetricByKey("upsell_dia");
 
   if (mrrSales > 0 || mrrRecovery > 0 || ltMrr > 0 || mrrRetention > 0) {
-    const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
+    const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas"));
     const salesCard: OtherCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency", value: mrrSales };
     if (idxVendas >= 0) others.splice(idxVendas + 1, 0, salesCard);
     else others.push(salesCard);
@@ -173,7 +194,6 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     others.push({ id: "lowtouch-mrr-card", label: "MRR Low-touch", unit: "currency", value: ltMrr });
   }
 
-
   const othersGridClass =
     others.length === 1
       ? "grid-cols-1"
@@ -187,7 +207,6 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
               ? "grid-cols-2 sm:grid-cols-3"
               : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5";
   const done = withGoal.filter((r) => r.missing === 0).length;
-
 
 
   return (
@@ -204,20 +223,22 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
           </h2>
         </div>
         <div className="text-left sm:text-right">
-          <p className="text-[11px] sm:text-xs text-muted-foreground capitalize">{dateLabel}</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground capitalize">
+            {singleDay ? dateLabel : formatTacticalPeriod(activePeriod)}
+          </p>
           {withGoal.length > 0 && (
             <p className="text-xs sm:text-sm font-medium">
-              {done} de {withGoal.length} metas do dia
+              {done} de {withGoal.length} metas do {singleDay ? "dia" : "período"}
             </p>
           )}
         </div>
       </div>
 
       <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-        {withGoal.map(({ m, target, realized, pct, missing, pacing }) => {
+        {withGoal.map(({ m, target, dailyTarget, realized, pct, missing, pacing }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
-          const behind = revisedView && pacing.adjusted > target + 0.05;
+          const behind = revisedView && pacing.adjusted > dailyTarget + 0.05;
           return (
             <Card key={m.id} className={`relative overflow-hidden border ${hit ? "border-success/40 bg-success/5" : ""}`}>
               <CardContent className={`p-4 sm:p-5 flex items-center gap-3 sm:gap-4 ${single ? "sm:justify-center" : ""}`}>
@@ -229,7 +250,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                 </div>
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold truncate">{m.label}</p>
+                    <p className="text-sm font-semibold truncate">{labelOf(m.label)}</p>
                     {behind && (
                       <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px]">
                         Meta ajustada {formatMetric(Math.ceil(pacing.adjusted * 100) / 100, m.unit)}/dia
@@ -246,7 +267,8 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                     </p>
                   )}
                   <p className="text-[11px] sm:text-xs text-muted-foreground">
-                    {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta diária consolidada
+                    {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta{" "}
+                    {singleDay ? "diária consolidada" : "acumulada do período"}
                   </p>
                   {behind && (
                     <p className="text-[11px] text-amber-600">
@@ -329,4 +351,3 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     </div>
   );
 }
-
