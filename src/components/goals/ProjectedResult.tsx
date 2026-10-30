@@ -106,7 +106,7 @@ export function ProjectedResult() {
   const saldo = r.projectedMrr - r.baseMrr;
   const bridge: [string, number, boolean][] = [
     [`Base oficial (${br(data.snapshot)})`, r.baseMrr, false],
-    [`+ Novas vendas, incl. recuperados FT (${r.vendasQtd})`, r.vendasMrr, true],
+    [`+ Novas vendas (${r.vendasQtd})`, r.vendasMrr, true],
     ["+ Upsell", r.upsellMrr, true],
     [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média 30 dias · ~${r.mediaVendasQtd}/dia)`, r.mediaVendasMrr, true],
     [`+ Recuperação (${r.recuperadosQtd})`, r.recuperadosMrr, true],
