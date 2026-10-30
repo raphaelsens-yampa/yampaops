@@ -25,6 +25,7 @@ import { ProjectedResult } from "@/components/goals/ProjectedResult";
 
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 import { ORIGIN_OPTIONS, originLabel, type OriginFilter } from "@/lib/origins";
+import { GOAL_ORIGIN_FILTER_OPTIONS, matchesGoalOrigin, type GoalOriginFilter } from "@/lib/goalOriginFilter";
 
 
 type GoalScope = "company" | "team" | "user" | "campaign";
@@ -51,6 +52,7 @@ export default function GoalsPage() {
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [filterScope, setFilterScope] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterOrigin, setFilterOrigin] = useState<GoalOriginFilter>("all");
 
   // Form state
   const [gScope, setGScope] = useState<GoalScope>("company");
@@ -156,7 +158,10 @@ export default function GoalsPage() {
     loadData();
   }
 
-  const filteredGoals = goals.filter((g) => {
+  // O recorte por origem vale para os cards de escopo e para a lista.
+  const originGoals = goals.filter((g) => matchesGoalOrigin(g, filterOrigin));
+
+  const filteredGoals = originGoals.filter((g) => {
     if (filterScope !== "all" && g.scope !== filterScope) return false;
     if (filterCategory !== "all") {
       if (filterCategory === "none" ? g.category_id : g.category_id !== filterCategory) return false;
@@ -379,6 +384,12 @@ export default function GoalsPage() {
                   })}
                 </SelectContent>
               </Select>
+              <Select value={filterOrigin} onValueChange={(v) => setFilterOrigin(v as GoalOriginFilter)}>
+                <SelectTrigger className="w-full sm:w-44 h-10"><SelectValue placeholder="Origem" /></SelectTrigger>
+                <SelectContent>
+                  {GOAL_ORIGIN_FILTER_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
                 {role === "admin" && (
                   <GoalsImportDialog
@@ -406,7 +417,7 @@ export default function GoalsPage() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {Object.entries(SCOPE_LABELS).map(([key, label]) => {
-                const count = goals.filter((g) => g.scope === key).length;
+                const count = originGoals.filter((g) => g.scope === key).length;
                 const active = filterScope === key;
                 return (
                   <Card
