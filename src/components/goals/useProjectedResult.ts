@@ -72,12 +72,13 @@ export function useProjectedResult() {
         const kind = r.entry_kind === "retained" ? "retained" : "recovered";
         ops.push({ email: normEmail(r.customer_email), kind, mrr: Number(r.mrr || 0), previousMrr: 0, origin: normOrigin(r.origem_cliente) });
       }
-      // pré-churn repete o cliente por dia de leitura: usa a leitura mais recente de cada cliente+tipo
+      // pré-churn repete o cliente por dia de leitura: vale só a leitura mais recente da base
+      // (igual ao Metabase oficial); quem sumiu da última leitura já se resolveu
+      const latestRef = preRes.data.reduce((m: string, r: any) => (String(r.data_ref) > m ? String(r.data_ref) : m), "");
       const latest = new Map<string, any>();
       for (const r of preRes.data) {
-        const k = `${normEmail(r.email_norm)}|${r.tipo}`;
-        const p = latest.get(k);
-        if (!p || String(r.data_ref) > String(p.data_ref)) latest.set(k, r);
+        if (String(r.data_ref) !== latestRef) continue;
+        latest.set(`${normEmail(r.email_norm)}|${r.tipo}`, r);
       }
       const churn: ChurnRow[] = [...latest.values()]
         .filter((r) => normEmail(r.email_norm))
