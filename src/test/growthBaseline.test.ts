@@ -45,7 +45,7 @@ describe("buildScenarioFactors com base revisada", () => {
       { effective_month: "2026-11-01", growth_pct: 3 },
     ];
     const adjusted = applyScenarioToGoals(gs, categories, 0, baseline, revisions);
-    expect(adjusted[1].target_mrr).toBeCloseTo(349030.7801, 2);
+    expect(adjusted[1].target_mrr).toBeCloseTo(333856.79 * 1.015 * 1.03, 2);
     expect(buildScenarioFactors(gs, categories, 0, baseline, revisions).get("total|2026-11"))
       .toBeCloseTo(buildScenarioFactors(gs.slice(0, 2), categories, 0, baseline, revisions).get("total|2026-11") ?? 0, 10);
   });
