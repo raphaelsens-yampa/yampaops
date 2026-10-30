@@ -25,7 +25,23 @@ export interface ChurnRow { email: string; mrr: number; origin: ProjOrigin; date
 export interface ChurnCase extends ChurnRow { avoided: boolean; avoidedBy?: string }
 
 export interface RecentSale { mrr: number; origin: ProjOrigin }
-export const AVG_WINDOW_DAYS = 30;
+/** Janela da média de produção: os últimos dias úteis, sem contar hoje. */
+export const AVG_BUSINESS_DAYS = 5;
+
+/** Dias úteis (seg–sex) imediatamente anteriores a `today`, do mais recente ao mais antigo. */
+export function lastBusinessDays(today: string, count = AVG_BUSINESS_DAYS): string[] {
+  const out: string[] = [];
+  let cursor = today;
+  while (out.length < count) {
+    const d = new Date(`${cursor}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    cursor = d.toISOString().slice(0, 10);
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) out.push(cursor);
+  }
+  return out;
+}
+
 
 export interface ProjectedResult {
   mediaVendasMrr: number;
@@ -55,11 +71,12 @@ export function computeProjectedResult(
   churn: ChurnRow[],
   origin: OriginFilter,
   recentSales: RecentSale[] = [],
-  days = AVG_WINDOW_DAYS,
+  days = AVG_BUSINESS_DAYS,
 ): ProjectedResult {
   const rs = recentSales.filter((r) => inOrigin(r.origin, origin));
   const mediaVendasMrr = days > 0 ? rs.reduce((s, r) => s + r.mrr, 0) / days : 0;
-  const mediaVendasQtd = days > 0 ? Math.round(rs.length / days) : 0;
+  // com poucos dias na janela, arredondar para inteiro esconderia a produção real
+  const mediaVendasQtd = days > 0 ? Math.round((rs.length / days) * 10) / 10 : 0;
   const b = base.filter((r) => inOrigin(r.origin, origin));
   const baseEmails = new Set(b.map((r) => r.email));
   const baseMrr = b.reduce((s, r) => s + r.mrr, 0);
