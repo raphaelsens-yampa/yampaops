@@ -210,12 +210,54 @@ export function TacticalTracking() {
             </div>
 
 
-            {/* Linha 2: data + visão + ações */}
+            {/* Linha 2: período + data + visão + ações */}
             <div className="flex flex-wrap items-center gap-2">
+              <Select value={periodPreset} onValueChange={(v) => setPeriodPreset(v as TacticalPeriodPreset)}>
+                <SelectTrigger className="h-10 md:h-9 w-full md:w-44 flex-1 md:flex-none" aria-label="Período">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Hoje (1 dia)</SelectItem>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="month">Mês atual</SelectItem>
+                  <SelectItem value="quarter">Trimestre atual</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {periodPreset === "custom" && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal">
+                      <CalendarIcon className="h-4 w-4 mr-1 shrink-0" />
+                      de {format(customFrom, "dd/MM/yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customFrom}
+                      onSelect={(d) => d && setCustomFrom(d)}
+                      disabled={(d) => d > today || d < addDays(addYears(startOfDay(today), -1), 1)}
+                      locale={ptBR}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal")}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("h-10 md:h-9 flex-1 md:flex-none justify-start text-left font-normal")}
+                    aria-label={isSingleDay ? "Data" : "Data final do período"}
+                  >
                     <CalendarIcon className="h-4 w-4 mr-1 shrink-0" />
+                    {isSingleDay ? "" : "até "}
                     {format(today, "dd/MM/yyyy")}
                   </Button>
                 </PopoverTrigger>
