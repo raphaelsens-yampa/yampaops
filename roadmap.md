@@ -3,7 +3,7 @@
 ## Metas Operacionais — dias sem base (30/10/2026)
 - [x] Remover a nota do rodapé
 - [x] Usar pagamentos confirmados na Stripe para dias sem base fechada, incluindo 29/10
-- [ ] Validar testes e realizado diário no painel
+- [x] Validar testes e 29/10 no sistema e na TV (R$ 1.777)
 
 ## Metas Táticas — Recuperados FT como vendas + padrão do placar (30/10/2026)
 - [x] Recuperados FT somam como venda nova em "Vendas do dia / no período" (contados na fonte do realizado, sem duplicar o MRR)
