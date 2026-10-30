@@ -105,11 +105,12 @@ export function ProjectedResult() {
   const bridge: [string, number, boolean][] = [
     [`Base oficial (${br(data.snapshot)})`, r.baseMrr, false],
     [`+ Novas vendas (${r.vendasQtd})`, r.vendasMrr, true],
-    [`+ Recuperados (${r.recuperadosQtd})`, r.recuperadosMrr, true],
+    // recuperação/retenção do Metas Táticas soma de volta o MRR que estava previsto como churn
+    [`+ Recuperação / retenção (${r.recuperadosQtd + r.avoidedQtd})`, r.recuperadosMrr + r.avoidedMrr, true],
     ["+ Upsell", r.upsellMrr, true],
     [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média 30 dias · ~${r.mediaVendasQtd}/dia)`, r.mediaVendasMrr, true],
     ["− Downsell", -r.downsellMrr, true],
-    [`− Churn previsto (${r.churnQtd})`, -r.churnMrr, true],
+    [`− Churn previsto (${r.churnQtd + r.avoidedQtd})`, -(r.churnMrr + r.avoidedMrr), true],
   ];
 
   const headCell = (k: ChurnSortKey) => (
@@ -209,7 +210,6 @@ export function ProjectedResult() {
               <span>{label}</span><span className="font-medium tabular-nums">{delta ? signed(v, brl) : brl(v)}</span>
             </div>
           ))}
-          <div className="flex justify-between text-muted-foreground"><span>Churn evitado ({r.avoidedQtd}, não descontado)</span><span className="tabular-nums">{brl(r.avoidedMrr)}</span></div>
           <div className="flex justify-between pt-1 font-semibold"><span>MRR projetado</span><span className="tabular-nums">{brl(r.projectedMrr)}</span></div>
         </CardContent>
       </Card>
