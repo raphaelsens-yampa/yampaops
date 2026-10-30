@@ -138,3 +138,12 @@
 - [x] Táticas: dias fechados e vendas Stripe/low-touch pela origem real
 - [x] Operacionais: filtro de Origem + relatório do mês filtrado
 - [ ] Metas específicas da Yampa — aguardando o usuário cadastrar/definir
+
+## Resultado Projetado — tabela de churn previsto (30/10/2026)
+- [x] Ordem padrão: data decrescente (mais recente no topo), empate por maior MRR
+- [x] Colunas reorganizáveis arrastando o cabeçalho; ordem salva no navegador
+- [x] Filtro por coluna: texto (cliente), data DD/MM, selects de tipo/origem/situação, MRR com >, <, =
+- [x] Botão "Colunas" para ocultar/mostrar + "Mostrar tudo e limpar filtros"
+- [x] Rodapé da tabela: clientes visíveis, filtros ativos e MRR somado
+- [x] Testes em src/test/churnCaseTable.test.ts (7) + ordem padrão no projectedResult.test.ts
+- [x] Validado no navegador: 45 linhas em 31/10 → 30/10, filtro 31/10 = 32, arraste persiste após recarregar

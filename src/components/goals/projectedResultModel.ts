@@ -78,7 +78,7 @@ export function computeProjectedResult(
   }
   const churnCases: ChurnCase[] = [...byEmail.values()]
     .map((c) => ({ ...c, avoided: savedBy.has(c.email), avoidedBy: savedBy.get(c.email) }))
-    .sort((a, b2) => b2.mrr - a.mrr);
+    .sort((a, b2) => (a.date === b2.date ? b2.mrr - a.mrr : a.date < b2.date ? 1 : -1));
   const lost = churnCases.filter((c) => !c.avoided);
   const saved = churnCases.filter((c) => c.avoided);
   const churnMrr = lost.reduce((s, c) => s + c.mrr, 0);
