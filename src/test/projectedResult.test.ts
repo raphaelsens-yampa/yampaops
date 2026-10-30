@@ -42,7 +42,7 @@ describe("Resultado Projetado", () => {
   });
 });
 
-describe("média de novas vendas (30 dias)", () => {
+describe("média de novas vendas (janela em dias úteis)", () => {
   it("soma a média diária das vendas novas ao projetado e respeita origem", async () => {
     const { computeProjectedResult } = await import("@/components/goals/projectedResultModel");
     const recent = [{ mrr: 3000, origin: "yampa" as const }, { mrr: 1500, origin: "yampa" as const }, { mrr: 600, origin: "4blue" as const }];
@@ -87,5 +87,33 @@ describe("retenção no churn previsto", () => {
     expect(r.churnQtd).toBe(0);
     expect(r.churnMrr).toBe(0);
     expect(r.churnCases[0].avoidedBy).toBe("Retido");
+  });
+});
+
+describe("janela de 5 dias úteis para a média de vendas", () => {
+  it("pega os 5 dias úteis anteriores, pulando o fim de semana", async () => {
+    const { lastBusinessDays } = await import("@/components/goals/projectedResultModel");
+    // 30/10/2026 é sexta: quintas...sexta da semana anterior
+    expect(lastBusinessDays("2026-10-30")).toEqual([
+      "2026-10-29", "2026-10-28", "2026-10-27", "2026-10-26", "2026-10-23",
+    ]);
+    // 02/11/2026 é segunda: volta ao sábado/domingo e pega a semana anterior
+    expect(lastBusinessDays("2026-11-02")).toEqual([
+      "2026-10-30", "2026-10-29", "2026-10-28", "2026-10-27", "2026-10-26",
+    ]);
+  });
+
+  it("divide a produção pela quantidade de dias úteis da janela", async () => {
+    const { computeProjectedResult, AVG_BUSINESS_DAYS } = await import("@/components/goals/projectedResultModel");
+    const recent = [
+      { mrr: 1000, origin: "yampa" as const }, { mrr: 500, origin: "yampa" as const },
+      { mrr: 250, origin: "4blue" as const },
+    ];
+    const r = computeProjectedResult([], [], [], "all", recent, AVG_BUSINESS_DAYS);
+    expect(AVG_BUSINESS_DAYS).toBe(5);
+    expect(r.mediaVendasMrr).toBe(350); // (1000+500+250) / 5
+    expect(r.projectedMrr).toBe(350);
+    expect(r.mediaVendasQtd).toBe(0.6); // 3 vendas / 5 dias úteis
+    expect(computeProjectedResult([], [], [], "4blue", recent, AVG_BUSINESS_DAYS).mediaVendasMrr).toBe(50);
   });
 });
