@@ -49,8 +49,8 @@ export default function TvScoreboard() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6 [zoom:1.35]">
-      <div className="w-full">
+    <div className="flex h-screen items-center justify-center overflow-hidden bg-background p-3">
+      <div className="w-full max-w-[1400px]">
         <DbProvider client={client as any}>
           <OperationalGoals key={tick} tvArea={area as "sales" | "cs"} />
         </DbProvider>
