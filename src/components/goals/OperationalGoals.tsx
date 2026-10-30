@@ -19,6 +19,14 @@ import { toBRDateKey, weeksOfMonth } from "./tactical/types";
 import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
 import { buildOperationalPeriodModel } from "./operationalGoalsModel";
 import { OperationalMonthReport } from "./OperationalMonthReport";
+import { useOriginRealized } from "./useOriginRealized";
+import {
+  CATEGORY_SLUG_TO_ORIGIN_METRIC,
+  ORIGIN_OPTIONS,
+  isOriginFiltered,
+  stripeConversionOrigin,
+  type OriginFilter,
+} from "@/lib/origins";
 
 type OperationalArea = "sales" | "cs";
 
@@ -84,8 +92,10 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       cancelled = true;
     };
   }, [refMonthKey, supabase, refReloadKey]);
+  const [origin, setOrigin] = useState<OriginFilter>("all");
+  const originFiltered = isOriginFiltered(origin);
   const { categories, targets, series, actualSnapshotDate, loading } = useCategoryWeeklyData(
-    refMonth, 0, "all", false, "all", area === "sales" ? salesRefPct : null,
+    refMonth, 0, origin, false, "all", area === "sales" ? salesRefPct : null,
   );
   const [monthlyRealized, setMonthlyRealized] = useState<Map<string, number>>(new Map());
   const [monthlyLoading, setMonthlyLoading] = useState(true);
@@ -113,7 +123,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       // paged-ok: vendas de um único dia
       supabase
         .from("stripe_conversions")
-        .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr")
+        .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source")
         .eq("payment_status", "paid")
         .gte("converted_at", from)
         .lte("converted_at", to)
@@ -126,13 +136,16 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         .limit(1000),
     ]).then(([conversionResult, churnResult]) => {
       if (cancelled) return;
-      const sales = ((conversionResult.data as any[]) || []).reduce((sum, row) => {
+      const conversions = ((conversionResult.data as any[]) || []).filter(
+        (row) => !originFiltered || stripeConversionOrigin(row) === origin,
+      );
+      const sales = conversions.reduce((sum, row) => {
         const type = String(row.conversion_type || "").toLowerCase();
         if (type === "upsell") return sum + Math.max(Number(row.delta_mrr || 0), 0);
         if (row.is_reactivation || type === "new" || !type) return sum + Number(row.mrr_net ?? row.mrr ?? 0);
         return sum;
       }, 0);
-      const downsell = ((conversionResult.data as any[]) || []).reduce((sum, row) => (
+      const downsell = conversions.reduce((sum, row) => (
         String(row.conversion_type || "").toLowerCase() === "downgrade"
           ? sum + Math.abs(Number(row.delta_mrr || 0))
           : sum
@@ -141,11 +154,18 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         (sum, row) => sum + Math.max(Number(row.mrr_lost || 0), 0),
         0,
       );
-      setStripeToday({ sales, cs });
+      // Cancelamentos da Stripe não trazem origem: no recorte, o dia de CS
+      // segue a base cliente a cliente (Metabase).
+      setStripeToday({ sales, cs: originFiltered ? Number.NaN : cs });
       setStripeTodayLoading(false);
     });
     return () => { cancelled = true; };
-  }, [supabase, todayKey]);
+  }, [supabase, todayKey, origin, originFiltered]);
+  const { monthly: originMonthly, loading: originLoading } = useOriginRealized(
+    origin,
+    refMonth.getFullYear(),
+    asOfKey,
+  );
   const revisedWeeklyTargets = useMemo(() => {
     try {
       return localStorage.getItem("category-weekly-goals-revised") !== "0";
@@ -213,15 +233,22 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       lowerIsBetter,
       revisedWeeklyTargets,
     });
+    const monthKey = monthStartKey.slice(0, 7);
     const canonicalMonthValues = (aggregate.component_category_ids ?? [])
-      .map((id) => monthlyRealized.get(id))
+      .map((id) => {
+        if (!originFiltered) return monthlyRealized.get(id);
+        const slug = categories.find((c) => c.id === id)?.slug;
+        const metric = slug ? CATEGORY_SLUG_TO_ORIGIN_METRIC[slug] : undefined;
+        return metric ? originMonthly.get(`${monthKey}|${metric}`)?.mrr ?? 0 : undefined;
+      })
       .filter((value): value is number => value !== undefined);
     const canonicalMonthRealized = canonicalMonthValues.length
       ? canonicalMonthValues.reduce((sum, value) => sum + value, 0)
       : null;
 
-    const usesStripeToday = selectedDay === todayKey && monthStartKey <= todayKey && monthEndKey >= todayKey;
-    const stripeDayRealized = stripeToday?.[area] ?? null;
+    const usesStripeToday = !(originFiltered && area === "cs") && selectedDay === todayKey && monthStartKey <= todayKey && monthEndKey >= todayKey;
+    const rawStripeDay = stripeToday?.[area] ?? null;
+    const stripeDayRealized = rawStripeDay !== null && Number.isNaN(rawStripeDay) ? null : rawStripeDay;
     const metabaseToday = period.dayRealized ?? 0;
     const dayRealized = usesStripeToday ? stripeDayRealized : period.dayRealized;
     const weekRealized = usesStripeToday && period.weeklyRealized[selectedWeek] !== null && stripeDayRealized !== null
@@ -240,7 +267,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, originFiltered, originMonthly]);
 
   if (!allowedAreas.length) {
     return (
@@ -252,7 +279,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     );
   }
 
-  if (loading || monthlyLoading || stripeTodayLoading || !model) {
+  if (loading || monthlyLoading || stripeTodayLoading || originLoading || !model) {
     return <p className="py-12 text-center text-sm text-muted-foreground">Carregando placar...</p>;
   }
 
@@ -288,6 +315,14 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                 <span className="text-xs text-muted-foreground">Atualiza a cada 5 min</span>
               ) : (
               <div className="flex items-center gap-1">
+                <Select value={origin} onValueChange={(v) => setOrigin(v as OriginFilter)}>
+                  <SelectTrigger className="h-9 w-[140px]" aria-label="Origem"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ORIGIN_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {role === "admin" && <TvLinksDialog />}
                 <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Mês anterior" onClick={() => setRefMonth((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}>
                   <ChevronLeft className="h-4 w-4" />
