@@ -86,6 +86,8 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
 
   const ltUpPeriodCount = lowTouchUpsells.filter((s) => periodKeys.has(s.dateKey)).length;
+  /** Vendas Low-touch do período: entram na meta de Vendas, não só no card avulso. */
+  const ltPeriodCount = lowTouchSales.filter((s) => periodKeys.has(s.dateKey)).length;
   const rows = useMemo(() => {
     const teamOf = new Map(members.map((m) => [m.user_id, m.team_id]));
     return metrics.filter((m) => m.key !== "call_realizada").map((m) => {
@@ -100,6 +102,9 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
       }
       // Upsell low-touch do período (sem vendedor) também conta para a meta de Upsell.
       if (m.key === "upsell_dia") realized += ltUpPeriodCount;
+      // Vendas low-touch (áreas sem ação de Sales/CS) também contam para a meta de Vendas.
+      if (m.key === "vendas_dia") realized += ltPeriodCount;
+
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const monthBefore = realizedMonthBeforeToday(daily, m.id, memberIds, today);
       const pacing = monthPacing(today, dailyTarget, monthBefore);
