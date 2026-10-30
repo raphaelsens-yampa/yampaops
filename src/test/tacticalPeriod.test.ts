@@ -102,7 +102,9 @@ describe("Tactical period accumulation", () => {
       goal({ daily_target: 6, period_end: "2026-10-30" }),
       goal({ id: "g2", daily_target: 10, period_start: "2026-10-31", period_end: "2026-11-30" }),
     ]);
+    // Sex 30/10 (meta 6) + Seg 02/11 (meta 10); sáb/dom não contam.
     const p = period("2026-10-30", "2026-11-02");
-    expect(resolve("m1", "u1", null, tacticalBusinessPeriodKeys(p))).toBe(26);
+    expect(tacticalBusinessPeriodKeys(p)).toEqual(["2026-10-30", "2026-11-02"]);
+    expect(resolve("m1", "u1", null, tacticalBusinessPeriodKeys(p))).toBe(16);
   });
 });
