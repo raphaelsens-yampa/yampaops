@@ -24,7 +24,12 @@ export interface OperationRow {
 export interface ChurnRow { email: string; mrr: number; origin: ProjOrigin; date: string; tipo: string }
 export interface ChurnCase extends ChurnRow { avoided: boolean; avoidedBy?: string }
 
+export interface RecentSale { mrr: number; origin: ProjOrigin }
+export const AVG_WINDOW_DAYS = 30;
+
 export interface ProjectedResult {
+  mediaVendasMrr: number;
+  mediaVendasQtd: number;
   baseMrr: number;
   baseUsers: number;
   vendasMrr: number;
@@ -49,7 +54,12 @@ export function computeProjectedResult(
   ops: OperationRow[],
   churn: ChurnRow[],
   origin: OriginFilter,
+  recentSales: RecentSale[] = [],
+  days = AVG_WINDOW_DAYS,
 ): ProjectedResult {
+  const rs = recentSales.filter((r) => inOrigin(r.origin, origin));
+  const mediaVendasMrr = days > 0 ? rs.reduce((s, r) => s + r.mrr, 0) / days : 0;
+  const mediaVendasQtd = days > 0 ? Math.round(rs.length / days) : 0;
   const b = base.filter((r) => inOrigin(r.origin, origin));
   const baseEmails = new Set(b.map((r) => r.email));
   const baseMrr = b.reduce((s, r) => s + r.mrr, 0);
@@ -84,11 +94,11 @@ export function computeProjectedResult(
   const churnMrr = lost.reduce((s, c) => s + c.mrr, 0);
   const avoidedMrr = saved.reduce((s, c) => s + c.mrr, 0);
 
-  const projectedMrr = baseMrr + vendasMrr + recuperadosMrr + upsellMrr - downsellMrr - churnMrr;
-  const projectedUsers = b.length + vendasQtd + recuperadosQtd - lost.length;
+  const projectedMrr = baseMrr + vendasMrr + recuperadosMrr + upsellMrr - downsellMrr - churnMrr + mediaVendasMrr;
+  const projectedUsers = b.length + vendasQtd + recuperadosQtd - lost.length + mediaVendasQtd;
   return {
     baseMrr, baseUsers: b.length, vendasMrr, vendasQtd, recuperadosMrr, recuperadosQtd,
     upsellMrr, downsellMrr, churnMrr, churnQtd: lost.length, avoidedMrr, avoidedQtd: saved.length,
-    projectedMrr, projectedUsers, churnCases,
+    projectedMrr, projectedUsers, churnCases, mediaVendasMrr, mediaVendasQtd,
   };
 }
