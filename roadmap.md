@@ -1,9 +1,15 @@
 # Roadmap
 
+## Metas Táticas — filtro de período "de até" (30/10/2026)
+- [x] Seletor Hoje / 7 dias / 30 dias / Mês atual / Trimestre atual / Personalizado, com data "de" e "até"
+- [x] Acumular realizados e metas do período nos cards, no placar e na missão individual (metas somadas por dia útil)
+- [x] Limitar o intervalo a no máximo 1 ano e paginar as leituras de volume (1.086 conversões pagas em 2026)
+- [x] Validar no navegador: hoje inalterado (meta diária consolidada), 7 dias (9 de 30), mês (73 de 132 = 6×22 dias úteis) e personalizado 15/10–30/10; 179 testes e typecheck OK
+
 ## Precificação — Tabela de Serviços (27/10/2026)
 - [x] Ordenação por valores nos cabeçalhos das colunas (validada no navegador)
 - [x] Custo/mês, Custo Total, Mínimo/mês e Mínimo Total independentes (validado no navegador)
-- [ ] Reordenar a sequência das colunas (arrastar o cabeçalho), com posição salva no navegador
+- [x] Reordenar a sequência das colunas (arrastar o cabeçalho), com posição salva no navegador (validado: Produto movido e mantido após recarregar)
 
 
 ## Precificação Serviços — salvamento da Keila (27/10/2026)
