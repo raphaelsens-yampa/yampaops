@@ -148,7 +148,12 @@ export function TacticalTracking() {
     () => recoveryRows.filter((r) => r.dateKey === todayKeyStr),
     [recoveryRows, todayKeyStr],
   );
-  const recoveryBySeller = useMemo(() => channelsBySeller(recoveryTodayRows), [recoveryTodayRows]);
+  const periodKeySet = useMemo(() => new Set(tacticalPeriodKeys(period)), [period]);
+  const recoveryPeriodRows = useMemo(
+    () => recoveryRows.filter((r) => periodKeySet.has(r.dateKey)),
+    [recoveryRows, periodKeySet],
+  );
+  const recoveryBySeller = useMemo(() => channelsBySeller(recoveryPeriodRows), [recoveryPeriodRows]);
 
 
 
@@ -382,6 +387,7 @@ export function TacticalTracking() {
               members={members}
               teams={teams}
               today={today}
+              period={period}
               revisedView={revisedView}
               lowTouchSales={lowTouch.sales}
               lowTouchUpsells={lowTouch.upsells}
@@ -400,8 +406,9 @@ export function TacticalTracking() {
               goals={goals}
               daily={daily}
               today={today}
+              period={period}
               revisedView={revisedView}
-              recoveryToday={summarizeChannels(recoveryTodayRows.filter((r) => r.sellerId === focusUser))}
+              recoveryToday={summarizeChannels(recoveryPeriodRows.filter((r) => r.sellerId === focusUser))}
             />
 
           )}
@@ -419,6 +426,7 @@ export function TacticalTracking() {
           teamId={isOverview ? null : teamId || null}
           teamName={activeTeam?.name ?? null}
           today={today}
+          period={period}
           groupByTeam={isOverview}
           teams={teams}
           members={members}
