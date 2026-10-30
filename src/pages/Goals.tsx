@@ -21,6 +21,7 @@ import { MetabaseTracking } from "@/components/goals/MetabaseTracking";
 import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
 import { OperationalGoals } from "@/components/goals/OperationalGoals";
+import { ProjectedResult } from "@/components/goals/ProjectedResult";
 
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 import { ORIGIN_OPTIONS, originLabel, type OriginFilter } from "@/lib/origins";
@@ -295,6 +296,12 @@ export default function GoalsPage() {
                   <span className="hidden md:inline">Metas Operacionais</span>
                 </TabsTrigger>
               )}
+              {canViewOperational && (
+                <TabsTrigger value="projected" className="whitespace-nowrap">
+                  <span className="md:hidden">Projetado</span>
+                  <span className="hidden md:inline">Resultado Projetado</span>
+                </TabsTrigger>
+              )}
               {isManager && (
                 <TabsTrigger value="setup" className="whitespace-nowrap">
                   <span className="md:hidden">Cadastro</span>
@@ -315,6 +322,12 @@ export default function GoalsPage() {
           {canViewOperational && (
             <TabsContent value="operational" className="space-y-6">
               <OperationalGoals />
+            </TabsContent>
+          )}
+
+          {canViewOperational && (
+            <TabsContent value="projected" className="space-y-6">
+              <ProjectedResult />
             </TabsContent>
           )}
 
