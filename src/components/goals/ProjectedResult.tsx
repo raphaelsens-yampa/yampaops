@@ -102,18 +102,16 @@ export function ProjectedResult() {
   if (error && !data) return <p className="text-sm text-destructive">Não foi possível carregar: {error}</p>;
   if (!data || !r) return null;
 
-  // Recuperação soma como MRR que volta; retenção não é MRR novo (cliente só não sai do churn)
-  const recov = r.churnCases.filter((c) => c.avoided && c.avoidedBy === "Recuperado");
-  const recovMrr = recov.reduce((s, c) => s + c.mrr, 0);
+  // Recuperação = realizado oficial do Metas Táticas; retenção não é MRR novo
   const saldo = r.projectedMrr - r.baseMrr;
   const bridge: [string, number, boolean][] = [
     [`Base oficial (${br(data.snapshot)})`, r.baseMrr, false],
     [`+ Novas vendas, incl. recuperados FT (${r.vendasQtd})`, r.vendasMrr, true],
     ["+ Upsell", r.upsellMrr, true],
     [`+ Novas vendas projetadas para ${br(data.tomorrow)} (média 30 dias · ~${r.mediaVendasQtd}/dia)`, r.mediaVendasMrr, true],
-    [`+ Recuperação (${r.recuperadosQtd + recov.length})`, r.recuperadosMrr + recovMrr, true],
+    [`+ Recuperação (${r.recuperadosQtd})`, r.recuperadosMrr, true],
     ["− Downsell", -r.downsellMrr, true],
-    [`− Churn previsto (${r.churnQtd + recov.length})`, -(r.churnMrr + recovMrr), true],
+    [`− Churn previsto (${r.churnQtd})`, -r.churnMrr, true],
     ["= Saldo MRR", saldo, true],
   ];
 
