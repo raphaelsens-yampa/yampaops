@@ -6831,6 +6831,16 @@ export type Database = {
         }[]
       }
       normalize_phone_digits: { Args: { p_phone: string }; Returns: string }
+      origin_daily_shares: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          classificacao: string
+          data: string
+          mrr_mtd: number
+          origem_cliente: string
+          qtd_mtd: number
+        }[]
+      }
       origin_monthly_realized: {
         Args: { p_as_of: string; p_from: string; p_to: string }
         Returns: {
