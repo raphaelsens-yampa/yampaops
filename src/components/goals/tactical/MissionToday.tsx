@@ -14,6 +14,15 @@ import {
   resolveDailyTargetInfo,
   toBRDateKey,
 } from "./types";
+import {
+  buildPeriodValues,
+  createPeriodTargetResolver,
+  formatTacticalPeriod,
+  isSingleDayPeriod,
+  tacticalPeriodKeys,
+  tacticalTargetPeriodKeys,
+  type TacticalPeriod,
+} from "./tacticalPeriod";
 import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL_MRR_UPSELL } from "./useTacticalData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
 import type { ChannelSummary } from "./useRecoveryChannelData";
@@ -31,8 +40,10 @@ interface Props {
   goals: TacticalGoal[];
   daily: DailyDatum[];
   today: Date;
+  /** Janela "de ... até ..." acumulada nos cards. Sem ela, vale só o dia de referência. */
+  period?: TacticalPeriod;
   revisedView?: boolean;
-  /** Recorte Cobrança x CS das recuperações/retenções de hoje deste colaborador. */
+  /** Recorte Cobrança x CS das recuperações/retenções do período deste colaborador. */
   recoveryToday?: ChannelSummary;
 }
 
@@ -78,37 +89,44 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
   );
 }
 
-
-export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, revisedView = false, recoveryToday }: Props) {
+export function MissionToday({ userId, userName, teamId, teamName, metrics, allMetrics, goals, daily, today, period, revisedView = false, recoveryToday }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+
+  const activePeriod = useMemo<TacticalPeriod>(() => period ?? { from: today, to: today }, [period, today]);
+  const singleDay = isSingleDayPeriod(activePeriod);
+  const periodKeys = useMemo(() => new Set(tacticalPeriodKeys(activePeriod)), [activePeriod]);
+  const targetKeys = useMemo(() => tacticalTargetPeriodKeys(activePeriod), [activePeriod]);
+  const values = useMemo(() => buildPeriodValues(daily, periodKeys), [daily, periodKeys]);
+  const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
+  const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
 
   const rows = metrics
     .filter((m) => m.key !== "call_realizada")
     .map((m) => {
       const info = resolveDailyTargetInfo(goals, m.id, userId, teamId, today);
-      const target = info.value;
-      const realized = daily.find((x) => x.user_id === userId && x.metric_id === m.id && x.date === todayKey)?.value ?? 0;
+      const dailyTarget = info.value;
+      const target = resolveTarget(m.id, userId, teamId, targetKeys);
+      const realized = values.get(`${userId}|${m.id}`) ?? 0;
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const missing = Math.max(target - realized, 0);
-      const streak = computeStreak(userId, m.id, target, daily, today);
+      const streak = computeStreak(userId, m.id, dailyTarget, daily, today);
       const monthBefore = realizedMonthBeforeToday(daily, m.id, [userId], today);
-      const pacing = monthPacing(today, target, monthBefore);
-      return { m, target, realized, pct, missing, streak, pacing, inherited: info.source === "inherited", inheritedFrom: info.goal };
+      const pacing = monthPacing(today, dailyTarget, monthBefore);
+      return { m, target, dailyTarget, realized, pct, missing, streak, pacing, inherited: info.source === "inherited", inheritedFrom: info.goal };
     });
-
 
   const globalKeys = ["mrr_dia", "vendas_dia", "clientes_recuperados", "clientes_retidos", "oportunidades_abertas"];
   const withGoal = rows.filter((r) => r.target > 0);
   const others: { id: string; label: string; unit: TacticalMetric["unit"]; value: number }[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
-    .map((r) => ({ id: r.m.id, label: r.m.label, unit: r.m.unit, value: r.realized }));
+    .map((r) => ({ id: r.m.id, label: labelOf(r.m.label), unit: r.m.unit, value: r.realized }));
 
   const sumMetricByKey = (key: string) => {
     const ids = (allMetrics ?? metrics).filter((m) => m.key === key).map((m) => m.id);
-    return daily
-      .filter((x) => x.user_id === userId && x.date === todayKey && ids.includes(x.metric_id))
-      .reduce((s, x) => s + (x.value ?? 0), 0);
+    let total = 0;
+    for (const id of ids) total += values.get(`${userId}|${id}`) ?? 0;
+    return total;
   };
 
   if (!others.some((o) => o.label.toLowerCase().includes("recuperad"))) {
@@ -121,10 +139,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   }
 
   // MRR separado por origem (vendas x recuperações x retenções)
-  const sumVirtual = (vid: string) =>
-    daily
-      .filter((x) => x.user_id === userId && x.date === todayKey && x.metric_id === vid)
-      .reduce((s, x) => s + (x.value ?? 0), 0);
+  const sumVirtual = (vid: string) => values.get(`${userId}|${vid}`) ?? 0;
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
   const mrrRetention = sumVirtual(VIRTUAL_MRR_RETENTION);
@@ -133,7 +148,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
   const upsellQty = sumMetricByKey("upsell_dia");
 
   if (mrrSales > 0 || mrrRecovery > 0 || mrrRetention > 0) {
-    const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas do dia"));
+    const idxVendas = others.findIndex((o) => o.label.toLowerCase().includes("vendas"));
     const salesCard = { id: "mrr-vendas-card", label: "MRR Vendas", unit: "currency" as const, value: mrrSales };
     if (idxVendas >= 0) others.splice(idxVendas + 1, 0, salesCard);
     else others.push(salesCard);
@@ -180,27 +195,31 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div className="min-w-0">
-          <p className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground">Sua missão hoje</p>
+          <p className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground">
+            {singleDay ? "Sua missão hoje" : "Sua missão no período"}
+          </p>
           <h2 className="text-lg sm:text-2xl font-heading font-bold leading-tight">
             {userName}
             {teamName && <span className="text-muted-foreground font-normal text-sm sm:text-base"> · Time {teamName}</span>}
           </h2>
         </div>
         <div className="text-left sm:text-right">
-          <p className="text-[11px] sm:text-xs text-muted-foreground capitalize">{dateLabel}</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground capitalize">
+            {singleDay ? dateLabel : formatTacticalPeriod(activePeriod)}
+          </p>
           {withGoal.length > 0 && (
             <p className="text-xs sm:text-sm font-medium">
-              {done} de {withGoal.length} metas do dia
+              {done} de {withGoal.length} metas do {singleDay ? "dia" : "período"}
             </p>
           )}
         </div>
       </div>
 
       <div className={`grid gap-3 ${withGoal.length === 1 ? "grid-cols-1" : "sm:grid-cols-2"}`}>
-        {withGoal.map(({ m, target, realized, pct, missing, streak, pacing, inherited, inheritedFrom }) => {
+        {withGoal.map(({ m, target, dailyTarget, realized, pct, missing, streak, pacing, inherited, inheritedFrom }) => {
           const hit = missing === 0;
           const single = withGoal.length === 1;
-          const behind = revisedView && pacing.adjusted > target + 0.05;
+          const behind = revisedView && pacing.adjusted > dailyTarget + 0.05;
 
           return (
             <Card
@@ -216,7 +235,7 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
                 </div>
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold truncate">{m.label}</p>
+                    <p className="text-sm font-semibold truncate">{labelOf(m.label)}</p>
                     {streak > 1 && (
                       <span className="flex items-center gap-0.5 text-xs text-warning font-medium">
                         <Flame className="h-3 w-3" /> {streak}
@@ -251,7 +270,8 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
                     </p>
                   )}
                   <p className="text-[11px] sm:text-xs text-muted-foreground">
-                    {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta diária
+                    {formatMetric(realized, m.unit)} de {formatMetric(target, m.unit)} · meta{" "}
+                    {singleDay ? "diária" : "acumulada do período"}
                   </p>
                   {behind && (
                     <p className="text-[11px] text-amber-600">
@@ -294,7 +314,9 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
 
       {recoveryToday && recoveryToday.total.qty > 0 && (
         <p className="text-[11px] sm:text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-medium text-foreground">Hoje por canal:</span>
+          <span className="font-medium text-foreground">
+            {singleDay ? "Hoje por canal:" : "No período por canal:"}
+          </span>
           <span>
             {CHANNEL_LABEL.cobranca} {recoveryToday.cobranca.qty} ·{" "}
             {recoveryToday.cobranca.mrr.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
@@ -316,4 +338,3 @@ export function MissionToday({ userId, userName, teamId, teamName, metrics, allM
     </div>
   );
 }
-

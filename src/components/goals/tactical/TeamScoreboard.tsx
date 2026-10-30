@@ -12,9 +12,17 @@ import {
   TacticalMetric,
   Team,
   formatMetric,
-  resolveDailyTarget,
   toBRDateKey,
 } from "./types";
+import {
+  buildPeriodValues,
+  createPeriodTargetResolver,
+  formatTacticalPeriod,
+  isSingleDayPeriod,
+  tacticalPeriodKeys,
+  tacticalTargetPeriodKeys,
+  type TacticalPeriod,
+} from "./tacticalPeriod";
 import type { TeamMember } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
@@ -29,11 +37,13 @@ interface Props {
   teamId: string | null;
   teamName: string | null;
   today: Date;
+  /** Janela "de ... até ..." acumulada no placar. Sem ela, vale só o dia de referência. */
+  period?: TacticalPeriod;
   groupByTeam?: boolean;
   teams?: Team[];
   members?: TeamMember[];
   lowTouchSales?: LowTouchSale[];
-  /** MRR recuperado/retido de hoje por vendedor, quebrado por canal. */
+  /** MRR recuperado/retido do período por vendedor, quebrado por canal. */
   recoveryChannels?: Map<string, SellerChannelTotals>;
 }
 
@@ -51,7 +61,7 @@ function defaultMetricId(metrics: TacticalMetric[], teamName: string | null, gro
   return metrics.find((m) => m.key === preferredKey)?.id ?? metrics[0]?.id ?? "";
 }
 
-export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
+export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, period, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
   const [open, setOpen] = useState(true);
   const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics, teamName, groupByTeam));
 
@@ -59,6 +69,13 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
     setMetricId(defaultMetricId(metrics, teamName, groupByTeam));
   }, [teamId, teamName, metrics, groupByTeam]);
   const metric = metrics.find((m) => m.id === metricId) ?? metrics[0];
+
+  const activePeriod = useMemo<TacticalPeriod>(() => period ?? { from: today, to: today }, [period, today]);
+  const singleDay = isSingleDayPeriod(activePeriod);
+  const periodKeys = useMemo(() => new Set(tacticalPeriodKeys(activePeriod)), [activePeriod]);
+  const targetKeys = useMemo(() => tacticalTargetPeriodKeys(activePeriod), [activePeriod]);
+  const values = useMemo(() => buildPeriodValues(daily, periodKeys), [daily, periodKeys]);
+  const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
 
 
   const { rows, teamToday, teamTarget, weekRealized, weekTarget } = useMemo(() => {
@@ -76,10 +93,8 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
 
     const userRows = memberIds.map((uid) => {
       const scopeTeam = groupByTeam ? teamOf.get(uid) ?? null : teamId;
-      const target = metric ? resolveDailyTarget(goals, metric.id, uid, scopeTeam, today) : 0;
-      const value = metric
-        ? daily.find((x) => x.user_id === uid && x.metric_id === metric.id && x.date === todayKey)?.value ?? 0
-        : 0;
+      const target = metric ? resolveTarget(metric.id, uid, scopeTeam, targetKeys) : 0;
+      const value = metric ? values.get(`${uid}|${metric.id}`) ?? 0 : 0;
       const week = metric
         ? daily
             .filter((x) => x.user_id === uid && x.metric_id === metric.id && weekKeys.includes(x.date))
@@ -116,12 +131,11 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
     }
     rows = [...rows].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 
-    // Linha Low-touch: vendas/MRR de áreas sem ação de Sales/CS
+    // Linha Low-touch: vendas/MRR de áreas sem ação de Sales/CS no período
     if (groupByTeam && (metric?.key === "vendas_dia" || metric?.key === "mrr_dia")) {
       const isMrr = metric.key === "mrr_dia";
-      const ltValue = lowTouchSales
-        .filter((s) => s.dateKey === todayKey)
-        .reduce((s, x) => s + (isMrr ? x.mrr : 1), 0);
+      const inPeriod = lowTouchSales.filter((s) => periodKeys.has(s.dateKey));
+      const ltValue = inPeriod.reduce((s, x) => s + (isMrr ? x.mrr : 1), 0);
       const ltWeek = lowTouchSales
         .filter((s) => weekKeys.includes(s.dateKey))
         .reduce((s, x) => s + (isMrr ? x.mrr : 1), 0);
@@ -138,7 +152,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
       return dt.getDay() !== 0 && dt.getDay() !== 6;
     }).length;
     return { rows, teamToday, teamTarget, weekRealized, weekTarget: teamTarget * businessDaysSoFar };
-  }, [metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members, lowTouchSales]);
+  }, [metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members, lowTouchSales, values, resolveTarget, targetKeys, periodKeys]);
 
 
 
@@ -151,7 +165,10 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
           <CollapseToggle open={open} onToggle={() => setOpen((v) => !v)} />
           <CardTitle className="text-sm sm:text-base flex items-center gap-2">
             <Trophy className="h-4 w-4 text-warning shrink-0" />
-            <span className="min-w-0">Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} · hoje</span>
+            <span className="min-w-0">
+              Placar {groupByTeam ? "geral por time" : teamName ? `do time ${teamName}` : "da equipe"} ·{" "}
+              {singleDay ? "hoje" : formatTacticalPeriod(activePeriod)}
+            </span>
           </CardTitle>
         </div>
         {open && (
@@ -200,7 +217,7 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
 
         <div className="grid grid-cols-2 gap-3 pt-2 border-t">
           <div>
-            <p className="text-xs text-muted-foreground">Time hoje</p>
+            <p className="text-xs text-muted-foreground">{singleDay ? "Time hoje" : "Time no período"}</p>
             <p className="text-lg font-heading font-bold">
               {formatMetric(teamToday, unit)}
               {teamTarget > 0 && (
