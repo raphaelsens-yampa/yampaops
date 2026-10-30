@@ -152,3 +152,9 @@
 - [x] Rodapé da tabela: clientes visíveis, filtros ativos e MRR somado
 - [x] Testes em src/test/churnCaseTable.test.ts (7) + ordem padrão no projectedResult.test.ts
 - [x] Validado no navegador: 45 linhas em 31/10 → 30/10, filtro 31/10 = 32, arraste persiste após recarregar
+
+## Cadastro de Metas — filtro de Origem (30/10/2026)
+- [x] Seletor "Origem" na linha de filtros: Todas as origens / Geral (sem origem) / Yampa / 4blue
+- [x] Filtro vale para os cards de escopo e para a lista de metas
+- [x] Helper puro src/lib/goalOriginFilter.ts + 4 testes (src/test/goalOriginFilter.test.ts)
+- [x] Validado no navegador: 159 no total, 3 em Yampa, 156 em Geral
