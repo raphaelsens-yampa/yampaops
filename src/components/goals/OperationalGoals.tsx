@@ -291,7 +291,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       config,
       aggregate,
       monthTarget,
-      monthRealized: canonicalMonthRealized,
+      monthRealized: monthRealizedTotal,
       week,
       weekTarget: period.weeklyTargets[selectedWeek] ?? 0,
       weekRealized,
