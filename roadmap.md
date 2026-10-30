@@ -3,7 +3,7 @@
 ## Metas Estratégicas — projeção geral por origem (30/10/2026)
 - [x] Reproduzir novembro com meta incorreta e confirmar mistura de metas gerais/Yampa no denominador
 - [x] Isolar fatores gerais e preservar metas específicas cadastradas por origem
-- [ ] Executar testes e validar os valores corrigidos na tela
+- [x] Executar 23 testes e validar na tela: geral Nov R$ 349.031/Dez R$ 352.521; Yampa Nov R$ 315.000/Dez R$ 320.000 preservados
 
 ## Metas Operacionais — dias sem base (30/10/2026)
 - [x] Remover a nota do rodapé

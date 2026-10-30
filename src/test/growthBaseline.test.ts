@@ -40,9 +40,12 @@ describe("buildScenarioFactors com base revisada", () => {
       { category_id: "total", period_start: "2026-11-01", period_end: "2026-11-30", target_mrr: 315000, origem_cliente: "yampa" },
     ];
     const baseline = { month: "2026-09", value: 333856.79, realizedByMonth: { "2026-09": 333856.79 } };
-    const revisions = [{ effective_month: "2026-10-01", growth_pct: 1.5 }];
+    const revisions = [
+      { effective_month: "2026-10-01", growth_pct: 1.5 },
+      { effective_month: "2026-11-01", growth_pct: 3 },
+    ];
     const adjusted = applyScenarioToGoals(gs, categories, 0, baseline, revisions);
-    expect(adjusted[1].target_mrr).toBeCloseTo(333856.79 * 1.015 * 1.015, 2);
+    expect(adjusted[1].target_mrr).toBeCloseTo(349030.7801, 2);
     expect(buildScenarioFactors(gs, categories, 0, baseline, revisions).get("total|2026-11"))
       .toBeCloseTo(buildScenarioFactors(gs.slice(0, 2), categories, 0, baseline, revisions).get("total|2026-11") ?? 0, 10);
   });
