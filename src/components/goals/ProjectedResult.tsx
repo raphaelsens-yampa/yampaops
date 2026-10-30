@@ -122,7 +122,7 @@ export function ProjectedResult() {
       onDrop={() => moveCol(dragCol.current, k)}
       title="Clique para ordenar · arraste para reordenar"
     >
-      <div className={`flex items-center gap-1 ${COLS[k].right ? "justify-end" : ""}`}>
+      <div className={`flex items-center gap-1 ${COLS[k].right ? "justify-end" : "justify-center"}`}>
         {COLS[k].label}
         {sort.key === k
           ? (sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
