@@ -70,3 +70,21 @@ describe("recuperação oficial do Metas Táticas", () => {
     expect(r.churnMrr).toBeCloseTo(279.02);
   });
 });
+
+describe("retenção no churn previsto", () => {
+  it("cliente retido sai do churn previsto e aparece como Retido, mesmo se também recuperado", async () => {
+    const { computeProjectedResult } = await import("@/components/goals/projectedResultModel");
+    const r = computeProjectedResult(
+      [{ email: "a@x.com", mrr: 100, origin: "yampa" }],
+      [
+        { email: "a@x.com", kind: "retained", mrr: 100, previousMrr: 0, origin: "yampa" },
+        { email: "a@x.com", kind: "recovered", mrr: 100, previousMrr: 0, origin: "yampa" },
+      ],
+      [{ email: "a@x.com", mrr: 100, origin: "yampa", date: "2026-10-31", tipo: "t" }],
+      "all", [], 30,
+    );
+    expect(r.churnQtd).toBe(0);
+    expect(r.churnMrr).toBe(0);
+    expect(r.churnCases[0].avoidedBy).toBe("Retido");
+  });
+});
