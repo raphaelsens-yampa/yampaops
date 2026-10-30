@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -38,6 +38,26 @@ export default function TvScoreboard() {
   const valid = (area === "sales" || area === "cs") && !!token;
   const client = useMemo(() => (valid ? makeTvClient(area as "sales" | "cs", token!) : null), [valid, area, token]);
   const [tick, setTick] = useState(0);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  // Ajusta o zoom para o painel caber inteiro na tela, sem rolagem vertical.
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const fit = () => {
+      const h = el.scrollHeight;
+      const w = el.scrollWidth;
+      if (!h || !w) return;
+      const next = Math.min(1.6, (window.innerHeight - 16) / h, (window.innerWidth - 16) / w);
+      setScale((prev) => (Math.abs(prev - next) > 0.01 ? next : prev));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    window.addEventListener("resize", fit);
+    return () => { ro.disconnect(); window.removeEventListener("resize", fit); };
+  });
 
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), REFRESH_MS);
@@ -50,7 +70,7 @@ export default function TvScoreboard() {
 
   return (
     <div className="flex h-screen items-center justify-center overflow-hidden bg-background p-3">
-      <div className="w-full max-w-[1400px]">
+      <div ref={contentRef} className="w-[1100px] shrink-0" style={{ zoom: scale }}>
         <DbProvider client={client as any}>
           <OperationalGoals key={tick} tvArea={area as "sales" | "cs"} />
         </DbProvider>
