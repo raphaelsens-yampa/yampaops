@@ -109,6 +109,20 @@ export interface RealizedSources {
 /** Sentinela usada quando o Metabase não tem quebra por vendedor e não há Stripe no dia. */
 export const METABASE_SENTINEL_USER = "__metabase__";
 
+/**
+ * Métricas de CONTABILIDADE (quantidade) que um lançamento do realizado
+ * alimenta.
+ *
+ * Recuperados FT contam também como venda nova: são CNPJs que não eram
+ * clientes e não converteram durante os dias de free trial. A quantidade
+ * aparece nas duas métricas (Vendas e Recuperados FT); o MRR por origem fica
+ * na métrica própria do lançamento, para não inflar "MRR Vendas".
+ */
+export function realizedCountMetricKeys(metricKey: RealizedMetricKey): RealizedMetricKey[] {
+  return metricKey === "recuperados_ft" ? ["recuperados_ft", "vendas_dia"] : [metricKey];
+}
+
+
 const CLASSIFICACAO_TO_METRIC: Record<string, RealizedMetricKey> = {
   // tabela dedicada (quebra dos novos pagantes)
   pagante_direto: "vendas_dia",

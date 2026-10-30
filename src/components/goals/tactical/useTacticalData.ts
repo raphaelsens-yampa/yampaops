@@ -7,10 +7,12 @@ import {
   fetchRealizedSources,
   resolveRealized,
   markAlreadyActive,
+  realizedCountMetricKeys,
   type RealizedOrigin,
   type StripeDayRow,
   type MetabaseDayValue,
 } from "./useTacticalRealized";
+
 import {
   buildOriginShares,
   isOriginFiltered,
@@ -251,17 +253,21 @@ export function useTacticalData(
         }
 
         if (mrr > 0 && mrrMetricId) bump(e.user_id, mrrMetricId, e.date, mrr);
-        if (e.metric_key === "vendas_dia") {
-          if (dealsMetric) bump(e.user_id, dealsMetric.id, e.date, qtd);
-          if (mrr > 0) bump(e.user_id, VIRTUAL_MRR_SALES, e.date, mrr);
-          
-        } else if (e.metric_key === "recuperados_ft") {
-          if (recoveredFtMetric) bump(e.user_id, recoveredFtMetric.id, e.date, qtd);
-          if (mrr > 0) bump(e.user_id, VIRTUAL_MRR_RECOVERED_FT, e.date, mrr);
-        } else if (e.metric_key === "upsell_dia") {
-          if (upsellMetric) bump(e.user_id, upsellMetric.id, e.date, qtd);
-          if (mrr > 0) bump(e.user_id, VIRTUAL_MRR_UPSELL, e.date, mrr);
+        // Quantidade: Recuperados FT contam também como venda nova (mesmo
+        // lançamento alimenta as duas métricas, sem duplicar o MRR).
+        for (const countMetric of realizedCountMetricKeys(e.metric_key)) {
+          if (countMetric === "vendas_dia" && dealsMetric) bump(e.user_id, dealsMetric.id, e.date, qtd);
+          else if (countMetric === "recuperados_ft" && recoveredFtMetric)
+            bump(e.user_id, recoveredFtMetric.id, e.date, qtd);
+          else if (countMetric === "upsell_dia" && upsellMetric) bump(e.user_id, upsellMetric.id, e.date, qtd);
         }
+        // MRR por origem segue a métrica própria do lançamento.
+        if (mrr > 0) {
+          if (e.metric_key === "vendas_dia") bump(e.user_id, VIRTUAL_MRR_SALES, e.date, mrr);
+          else if (e.metric_key === "recuperados_ft") bump(e.user_id, VIRTUAL_MRR_RECOVERED_FT, e.date, mrr);
+          else if (e.metric_key === "upsell_dia") bump(e.user_id, VIRTUAL_MRR_UPSELL, e.date, mrr);
+        }
+
       }
 
       // MRR, Vendas do dia, Upsell e Recuperados FT têm fonte canônica

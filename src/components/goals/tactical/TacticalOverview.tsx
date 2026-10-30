@@ -127,21 +127,37 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const ltUpCount = ltUpPeriod.length;
   const ltUpMrr = ltUpPeriod.reduce((s, x) => s + (x.mrr ?? 0), 0);
 
+  /** Recuperados FT do período: contam como venda nova (CNPJs que não converteram no FT). */
+  const ftPeriodCount = useMemo(() => {
+    const ids = metrics.filter((m) => m.key === "recuperados_ft").map((m) => m.id);
+    let total = 0;
+    for (const uid of memberIds) for (const id of ids) total += values.get(`${uid}|${id}`) ?? 0;
+    return Math.round(total);
+  }, [metrics, memberIds, values]);
+
   type OtherCard = { id: string; label: string; unit: TacticalMetric["unit"]; value: number; note?: string };
   const others: OtherCard[] = rows
     .filter((r) => (r.target <= 0 || globalKeys.includes(r.m.key)) && (r.realized > 0 || r.target > 0))
     .map((r) => {
-      // Vendas já somam low-touch em `realized`; só o MRR do dia recebe o acréscimo aqui.
+      // Vendas já somam low-touch e recuperados FT em `realized`; só o MRR do dia
+      // recebe o acréscimo aqui.
       const extra = r.m.key === "mrr_dia" ? ltMrr : 0;
-      const lowTouchShown = r.m.key === "vendas_dia" ? ltCount : extra;
+      const notes: string[] = [];
+      if (r.m.key === "vendas_dia") {
+        if (ltCount > 0) notes.push(`inclui low-touch: ${formatMetric(ltCount, r.m.unit)}`);
+        if (ftPeriodCount > 0) notes.push(`recuperados FT: ${formatMetric(ftPeriodCount, r.m.unit)}`);
+      } else if (extra > 0) {
+        notes.push(`inclui low-touch: ${formatMetric(extra, r.m.unit)}`);
+      }
       return {
         id: r.m.id,
         label: labelOf(r.m.label),
         unit: r.m.unit,
         value: r.realized + extra,
-        note: lowTouchShown > 0 ? `inclui low-touch: ${formatMetric(lowTouchShown, r.m.unit)}` : undefined,
+        note: notes.length ? notes.join(" · ") : undefined,
       };
     });
+
 
 
   const sumMetricByKey = (key: string) => {
@@ -310,7 +326,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
               <CardContent className="p-3">
                 <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight line-clamp-2">{o.label}</p>
                 <p className="text-base sm:text-lg font-heading font-bold mt-0.5">{formatMetric(o.value, o.unit)}</p>
-                {o.note && <p className="text-[10px] text-muted-foreground truncate">{o.note}</p>}
+                {o.note && <p className="text-[10px] text-muted-foreground line-clamp-2">{o.note}</p>}
               </CardContent>
             </Card>
           ))}

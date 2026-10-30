@@ -1,6 +1,12 @@
 # Roadmap
 
+## Metas Táticas — Recuperados FT como vendas + padrão do placar (30/10/2026)
+- [x] Recuperados FT somam como venda nova em "Vendas do dia / no período" (contados na fonte do realizado, sem duplicar o MRR)
+- [x] Testar a regra e validar no navegador o card de vendas com a nota de low-touch + recuperados FT
+- [x] Placar da direita abre por padrão em "MRR do dia"
+
 ## Metas Táticas — Vendas no Período com low-touch (30/10/2026)
+
 - [x] Contar as vendas Low-touch no card de meta "Vendas no período" (outubro: 90 de 132, antes 73)
 - [x] Testar a partição (low-touch soma em Vendas e em Upsell, nunca nas demais métricas) e validar no navegador sem duplicar o card pequeno
 

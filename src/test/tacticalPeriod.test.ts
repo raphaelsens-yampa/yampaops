@@ -110,3 +110,23 @@ describe("Tactical period accumulation", () => {
     expect(resolve("m1", "u1", null, tacticalBusinessPeriodKeys(p))).toBe(16);
   });
 });
+
+describe("Low-touch nas metas de venda", () => {
+  it("soma as vendas low-touch em Vendas do dia", () => {
+    expect(tacticalRealizedWithLowTouch("vendas_dia", 5, { sales: 3, upsells: 2 })).toBe(8);
+  });
+
+  it("soma os upsells low-touch em Clientes Upsell", () => {
+    expect(tacticalRealizedWithLowTouch("upsell_dia", 4, { sales: 3, upsells: 2 })).toBe(6);
+  });
+
+  it("não duplica o low-touch em outras métricas", () => {
+    expect(tacticalRealizedWithLowTouch("mrr_dia", 100, { sales: 3, upsells: 2 })).toBe(100);
+    expect(tacticalRealizedWithLowTouch("clientes_recuperados", 2, { sales: 3, upsells: 2 })).toBe(2);
+  });
+
+  it("mantém o realizado quando não há low-touch no período", () => {
+    expect(tacticalRealizedWithLowTouch("vendas_dia", 5, { sales: 0, upsells: 0 })).toBe(5);
+  });
+});
+
