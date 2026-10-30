@@ -99,7 +99,7 @@ export function TacticalTracking() {
     [rawGoals, scenarioFactor],
   );
   const [lowTouchKey, setLowTouchKey] = useState(0);
-  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey);
+  const lowTouch = useLowTouchData(rangeStart, today, reloadKey + lowTouchKey, originFilter);
 
   const isLowTouch = teamId === LOW_TOUCH;
 
