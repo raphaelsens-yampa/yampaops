@@ -113,7 +113,8 @@ describe("janela de 5 dias úteis para a média de vendas", () => {
     expect(AVG_BUSINESS_DAYS).toBe(5);
     expect(r.mediaVendasMrr).toBe(350); // (1000+500+250) / 5
     expect(r.projectedMrr).toBe(350);
-    expect(r.mediaVendasQtd).toBe(0.6); // 3 vendas / 5 dias úteis
+    expect(r.mediaVendasQtd).toBe(1); // 3 vendas / 5 dias úteis = 0,6 → 1 cliente
+    expect(Number.isInteger(r.projectedUsers)).toBe(true);
     expect(computeProjectedResult([], [], [], "4blue", recent, AVG_BUSINESS_DAYS).mediaVendasMrr).toBe(50);
   });
 });
