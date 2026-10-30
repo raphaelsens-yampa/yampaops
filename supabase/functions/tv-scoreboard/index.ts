@@ -10,7 +10,17 @@ const ALLOWED_TABLES = new Set([
   "metabase_monthly_agg",
   "goal_growth_baselines",
   "operational_goal_overrides",
+  "stripe_conversions",
+  "stripe_churn_events",
 ]);
+// Tabelas com dados de cliente: só colunas numéricas/categóricas (sem e-mail, nome etc.).
+const SAFE_COLUMNS: Record<string, Set<string>> = {
+  stripe_conversions: new Set([
+    "conversion_type", "is_reactivation", "mrr", "mrr_net", "delta_mrr",
+    "origem_cliente", "attribution_source", "payment_status", "converted_at",
+  ]),
+  stripe_churn_events: new Set(["mrr_lost", "canceled_at"]),
+};
 const ALLOWED_RPCS = new Set(["tactical_weekly_mrr_actual"]);
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -55,6 +65,14 @@ Deno.serve(async (req) => {
     }
     // Sem embeds: nada de trazer tabelas relacionadas pelo select.
     if ((url.searchParams.get("select") ?? "").includes("(")) return json({ error: "not allowed" }, 403);
+    const safe = SAFE_COLUMNS[segments[0]];
+    if (safe) {
+      const cols = (url.searchParams.get("select") ?? "").split(",").map((c) => c.trim()).filter(Boolean);
+      if (!cols.length || cols.some((c) => !safe.has(c))) return json({ error: "not allowed" }, 403);
+      for (const key of url.searchParams.keys()) {
+        if (!["select", "limit", "offset", "order"].includes(key) && !safe.has(key)) return json({ error: "not allowed" }, 403);
+      }
+    }
   }
 
   const upstream = await fetch(`${SUPABASE_URL}${url.pathname}${url.search}`, {
