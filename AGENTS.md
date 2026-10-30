@@ -1,4 +1,5 @@
 # Architecture decisions
+- Monthly origin NET MRR is the difference between that origin's current as-of active-paying MRR and its immediately preceding month-end MRR; missing baselines remain unavailable, keeping NET aligned with total MRR growth without relying on incomplete classified flows.
 - Growth scenario factors use only general goals and never modify explicit origin goals without an origin-specific baseline, preventing origin targets from diluting general projections.
 - Operational daily actuals use confirmed Stripe payments for today or days beyond the closed snapshot (and unavailable daily values), preserving valid closed zeros; internal and TV boards share this resolution.
 - Shared service pricing is published through a permission-checked atomic database function; only confirmed saves update the local catalog, so non-admin authors cannot lose new services or leave the active version unset.

@@ -1,5 +1,10 @@
 # Roadmap
 
+## Metas Estratégicas — NET MRR por origem (30/10/2026)
+- [x] Reproduzir Yampa com crescimento positivo e NET negativo; comparar fotos mensais e fluxos
+- [x] Calcular NET pela variação do MRR da mesma origem entre meses consecutivos e exibir valores negativos/zero
+- [x] 9 testes passaram; conferido na tela: outubro Yampa +R$ 953,46 e 4blue −R$ 1.820; sem alterar metas cadastradas
+
 ## Metas Estratégicas — projeção geral por origem (30/10/2026)
 - [x] Reproduzir novembro com meta incorreta e confirmar mistura de metas gerais/Yampa no denominador
 - [x] Isolar fatores gerais e preservar metas específicas cadastradas por origem

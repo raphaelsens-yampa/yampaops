@@ -289,23 +289,28 @@ export function buildOriginMonthly(
     // trial e demais status não entram em nenhuma métrica de meta
   }
 
-  // Derivadas: churn % (sobre a base ativa do mês anterior) e Net MRR.
+  // Derivadas: churn % e NET usam o mês imediatamente anterior, nunca
+  // o último mês disponível quando há uma lacuna na série.
   const months = Array.from(new Set(Array.from(out.keys()).map((k) => k.split("|")[0]))).sort();
-  months.forEach((month, i) => {
+  months.forEach((month) => {
     const churnQtd = out.get(`${month}|churn_qtd`)?.qtd ?? 0;
-    const prev = i > 0 ? months[i - 1] : null;
-    const prevActive = prev ? out.get(`${prev}|ativos`)?.qtd ?? 0 : 0;
+    const [year, monthNumber] = month.split("-").map(Number);
+    const prev = monthNumber === 1
+      ? `${year - 1}-12`
+      : `${year}-${String(monthNumber - 1).padStart(2, "0")}`;
+    const prevActive = out.get(`${prev}|ativos`)?.qtd ?? 0;
     if (prevActive > 0 && out.has(`${month}|churn_qtd`)) {
       const pct = (churnQtd / prevActive) * 100;
       out.set(`${month}|churn_pct`, { mrr: pct, qtd: pct });
     }
-    const inc =
-      (out.get(`${month}|novos_pagantes`)?.mrr ?? 0) +
-      (out.get(`${month}|recuperados`)?.mrr ?? 0) +
-      (out.get(`${month}|upsell`)?.mrr ?? 0);
-    const dec =
-      (out.get(`${month}|churn_mrr`)?.mrr ?? 0) + (out.get(`${month}|downsell`)?.mrr ?? 0);
-    if (inc || dec) out.set(`${month}|net_mrr`, { mrr: inc - dec, qtd: 0 });
+    // Os fluxos classificados não reconciliam necessariamente com o estoque
+    // (MRR integral de planos, migrações e ajustes). O crescimento líquido da
+    // origem deve usar as mesmas fotos que o Total de MRR e o crescimento a.m.
+    const currentMrr = out.get(`${month}|total_mrr`);
+    const previousMrr = out.get(`${prev}|total_mrr`);
+    if (currentMrr && previousMrr) {
+      out.set(`${month}|net_mrr`, { mrr: currentMrr.mrr - previousMrr.mrr, qtd: 0 });
+    }
   });
 
   return out;
