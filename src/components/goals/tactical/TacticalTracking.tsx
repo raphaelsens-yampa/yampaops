@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, startOfMonth } from "date-fns";
+import { addDays, addYears, format, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useTacticalData } from "./useTacticalData";
@@ -319,6 +319,13 @@ export function TacticalTracking() {
           Oportunidades abertas sem vendedor vinculado:{" "}
           {unmatchedOwners.map((o) => `${o.owner_name} (${o.count})`).join(", ")}. Vincule em Funis
           ActiveCampaign → Conexão para que contem no realizado.
+        </p>
+      )}
+
+      {!isLowTouch && (periodError || !isSingleDay) && (
+        <p className={cn("text-xs", periodError ? "text-destructive" : "text-muted-foreground")}>
+          {periodError ??
+            `Performance acumulada de ${formatTacticalPeriod(period)} · ${periodSpanLabel(period)} · metas somadas por dia útil.`}
         </p>
       )}
 
