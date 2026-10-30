@@ -8,6 +8,8 @@ import {
   tacticalPeriodError,
   tacticalPeriodKeys,
   tacticalPresetRange,
+  tacticalRealizedWithLowTouch,
+
   type TacticalPeriod,
 } from "@/components/goals/tactical/tacticalPeriod";
 import type { DailyDatum, TacticalGoal } from "@/components/goals/tactical/types";

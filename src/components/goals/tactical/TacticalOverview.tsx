@@ -100,10 +100,9 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
         dailyTarget += resolveDailyTarget(goals, m.id, uid, scopeTeam, today);
         realized += values.get(`${uid}|${m.id}`) ?? 0;
       }
-      // Upsell low-touch do período (sem vendedor) também conta para a meta de Upsell.
-      if (m.key === "upsell_dia") realized += ltUpPeriodCount;
-      // Vendas low-touch (áreas sem ação de Sales/CS) também contam para a meta de Vendas.
-      if (m.key === "vendas_dia") realized += ltPeriodCount;
+      // Low-touch conta nas metas: vendas em "Vendas do dia", upsells em "Clientes Upsell".
+      realized = tacticalRealizedWithLowTouch(m.key, realized, { sales: ltPeriodCount, upsells: ltUpPeriodCount });
+
 
       const pct = target > 0 ? (realized / target) * 100 : realized > 0 ? 100 : 0;
       const monthBefore = realizedMonthBeforeToday(daily, m.id, memberIds, today);
