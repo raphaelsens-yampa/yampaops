@@ -436,7 +436,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
           </div>
         </Card>
       </div>
-      {!tvArea && <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} />}
+      {!tvArea && <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} origin={origin} />}
     </TooltipProvider>
   );
 }

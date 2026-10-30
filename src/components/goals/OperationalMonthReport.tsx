@@ -6,16 +6,17 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OperationalCrmConversions } from "./OperationalCrmConversions";
 import { OperationalCsReversals } from "./OperationalCsReversals";
+import { isOriginFiltered, stripeConversionOrigin, type OriginFilter } from "@/lib/origins";
 
 type OpType = "Nova Venda" | "Recuperado" | "Upsell" | "Churn" | "Downsell";
-interface Row { key: string; client: string; plan: string; date: string; type: OpType; channel: string; seller: string; value: number }
+interface Row { origin?: string; key: string; client: string; plan: string; date: string; type: OpType; channel: string; seller: string; value: number }
 
 const CLASS_MAP: Record<string, OpType> = { "novo pagante": "Nova Venda", recuperado: "Recuperado", upsell: "Upsell", downsell: "Downsell" };
 const money = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const br = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
 
-export function OperationalMonthReport({ area, monthStartKey, monthEndKey, officialTotal }: { area: "sales" | "cs"; monthStartKey: string; monthEndKey: string; officialTotal?: number | null }) {
-  const [rows, setRows] = useState<Row[]>([]);
+export function OperationalMonthReport({ area, monthStartKey, monthEndKey, officialTotal, origin = "all" }: { area: "sales" | "cs"; monthStartKey: string; monthEndKey: string; officialTotal?: number | null; origin?: OriginFilter }) {
+  const [allRows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
 
@@ -54,7 +55,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
         const mrr = Number(r.mrr || 0), prev = Number(r.previous_mrr || 0);
         const value = type === "Upsell" ? Math.max(mrr - prev, 0) : type === "Downsell" ? Math.max(prev - mrr, 0) : mrr;
         if (value <= 0) return;
-        base.push({ key: k, client: r.email, plan: r.plano || r.nome_oferta || "—", date: r.data_inicio, type, channel: r.origem_cliente || "—", value });
+        base.push({ key: k, client: r.email, plan: r.plano || r.nome_oferta || "—", date: r.data_inicio, type, channel: r.origem_cliente || "—", origin: String(r.origem_cliente || "").toLowerCase(), value });
       });
 
       if (area === "cs") {
@@ -71,7 +72,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
         }
         seen.forEach((c, k) => {
           const value = Number(c.total_mrr || 0);
-          if (value > 0) base.push({ key: k, client: c.email, plan: c.plano || c.nome_oferta || "—", date: c.d, type: "Churn", channel: c.origem_cliente || "—", value });
+          if (value > 0) base.push({ key: k, client: c.email, plan: c.plano || c.nome_oferta || "—", date: c.d, type: "Churn", channel: c.origem_cliente || "—", origin: String(c.origem_cliente || "").toLowerCase(), value });
         });
       }
 
@@ -84,7 +85,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
         if (stripeFrom <= monthEndKey) {
           const { data: convs } = await fetchAllPaged<any>(() =>
             supabase.from("stripe_conversions")
-              .select("id, customer_email, plan_name, product_name, mrr, mrr_net, delta_mrr, conversion_type, is_reactivation, converted_at")
+              .select("id, customer_email, plan_name, product_name, mrr, mrr_net, delta_mrr, conversion_type, is_reactivation, converted_at, origem_cliente, attribution_source")
               .eq("payment_status", "paid")
               .gte("converted_at", `${stripeFrom}T03:00:00Z`)
               .lt("converted_at", `${new Date(new Date(`${monthEndKey}T03:00:00Z`).getTime() + 86400000).toISOString()}`)
@@ -103,7 +104,7 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
             if (!email || covered.has(`${email}|${type}`)) continue;
             covered.add(`${email}|${type}`);
             const d = new Date(new Date(c.converted_at).getTime() - 3 * 3600000).toISOString().slice(0, 10);
-            base.push({ key: `stripe|${c.id}`, client: c.customer_email, plan: c.plan_name || c.product_name || "—", date: d, type, channel: "Stripe (aguardando Metabase)", value });
+            base.push({ key: `stripe|${c.id}`, client: c.customer_email, plan: c.plan_name || c.product_name || "—", date: d, type, channel: "Stripe (aguardando Metabase)", origin: stripeConversionOrigin(c), value });
           }
         }
       }
@@ -133,6 +134,10 @@ export function OperationalMonthReport({ area, monthStartKey, monthEndKey, offic
     return () => { cancelled = true; };
   }, [area, monthStartKey, monthEndKey, tick]);
 
+  const rows = useMemo(
+    () => (isOriginFiltered(origin) ? allRows.filter((r) => r.origin === origin) : allRows),
+    [allRows, origin],
+  );
   const total = useMemo(() => rows.reduce((s, r) => s + r.value, 0), [rows]);
 
   const opsTable = loading ? (
