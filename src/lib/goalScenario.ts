@@ -24,6 +24,7 @@ export interface ScenarioGoalLike {
   target_deals?: number | null;
   target_tpv?: number | null;
   target_pct?: number | null;
+  origem_cliente?: string | null;
 }
 
 export interface ScenarioCategoryLike {
@@ -168,6 +169,9 @@ export function buildScenarioFactors(
   const orig = new Map<string, number>(); // `${categoryId}|${month}`
   const months = new Set<string>();
   for (const goal of goals) {
+    // A base de crescimento é geral: metas específicas de origem não podem
+    // aumentar seu denominador nem receber fatores ancorados na base geral.
+    if (String(goal.origem_cliente ?? "").trim()) continue;
     if (!goal.category_id) continue;
     const month = monthKeyOf(goal.period_start);
     const value =
@@ -358,6 +362,7 @@ export function applyScenarioToGoals<T extends ScenarioGoalLike>(
   const factors = buildScenarioFactors(goals, categories, growthPct, baseline, baselines);
   if (!factors.size) return goals;
   return goals.map((goal) => {
+    if (String(goal.origem_cliente ?? "").trim()) return goal;
     const f = scenarioFactorFor(factors, goal.category_id, goal.period_start);
     if (f === 1) return goal;
     return {

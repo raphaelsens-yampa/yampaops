@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildScenarioFactors, makeGrowthRate, type GrowthBaseline } from "@/lib/goalScenario";
+import { applyScenarioToGoals, buildScenarioFactors, makeGrowthRate, type GrowthBaseline } from "@/lib/goalScenario";
 
 const BASELINES: GrowthBaseline[] = [{ effective_month: "2026-09-01", growth_pct: 1.2 }];
 
@@ -33,6 +33,31 @@ describe("makeGrowthRate", () => {
 });
 
 describe("buildScenarioFactors com base revisada", () => {
+  it("metas Yampa não reduzem a projeção geral de novembro", () => {
+    const gs = [
+      { category_id: "total", period_start: "2026-10-01", period_end: "2026-10-31", target_mrr: 335853 },
+      { category_id: "total", period_start: "2026-11-01", period_end: "2026-11-30", target_mrr: 343500 },
+      { category_id: "total", period_start: "2026-11-01", period_end: "2026-11-30", target_mrr: 315000, origem_cliente: "yampa" },
+    ];
+    const baseline = { month: "2026-09", value: 333856.79, realizedByMonth: { "2026-09": 333856.79 } };
+    const revisions = [{ effective_month: "2026-10-01", growth_pct: 1.5 }];
+    const adjusted = applyScenarioToGoals(gs, categories, 0, baseline, revisions);
+    expect(adjusted[1].target_mrr).toBeCloseTo(333856.79 * 1.015 * 1.015, 2);
+    expect(buildScenarioFactors(gs, categories, 0, baseline, revisions).get("total|2026-11"))
+      .toBeCloseTo(buildScenarioFactors(gs.slice(0, 2), categories, 0, baseline, revisions).get("total|2026-11") ?? 0, 10);
+  });
+
+  it("preserva metas explícitas da Yampa e 4blue sem aplicar a base geral", () => {
+    const gs = [
+      ...goals,
+      { category_id: "total", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 315000, origem_cliente: "yampa" },
+      { category_id: "total", period_start: "2026-09-01", period_end: "2026-09-30", target_mrr: 28000, origem_cliente: "4blue" },
+    ];
+    const adjusted = applyScenarioToGoals(gs, categories, 5, { month: "2026-08", value: 1000 }, BASELINES);
+    expect(adjusted[4].target_mrr).toBe(315000);
+    expect(adjusted[5].target_mrr).toBe(28000);
+  });
+
   it("não altera meses até a âncora e eleva o mês seguinte", () => {
     const factors = buildScenarioFactors(goals, categories, 0, { month: "2026-08", value: 1000 }, BASELINES);
     expect(factors.get("total|2026-08")).toBe(1);

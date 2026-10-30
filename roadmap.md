@@ -1,5 +1,10 @@
 # Roadmap
 
+## Metas Estratégicas — projeção geral por origem (30/10/2026)
+- [x] Reproduzir novembro com meta incorreta e confirmar mistura de metas gerais/Yampa no denominador
+- [x] Isolar fatores gerais e preservar metas específicas cadastradas por origem
+- [ ] Executar testes e validar os valores corrigidos na tela
+
 ## Metas Operacionais — dias sem base (30/10/2026)
 - [x] Remover a nota do rodapé
 - [x] Usar pagamentos confirmados na Stripe para dias sem base fechada, incluindo 29/10

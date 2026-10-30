@@ -1,4 +1,5 @@
 # Architecture decisions
+- Growth scenario factors use only general goals and never modify explicit origin goals without an origin-specific baseline, preventing origin targets from diluting general projections.
 - Operational daily actuals use confirmed Stripe payments for today or days beyond the closed snapshot (and unavailable daily values), preserving valid closed zeros; internal and TV boards share this resolution.
 - Shared service pricing is published through a permission-checked atomic database function; only confirmed saves update the local catalog, so non-admin authors cannot lose new services or leave the active version unset.
 - Campaign cohort phone enrichment reads existing permission-filtered rows by email in one confidence order (phone stored by the live Stripe consult, then CRM, Chatwoot, sales contacts, then the Metabase pre-churn and churn bases), and the live Stripe consult stores the billing phone on the campaign contact; table and exports share enriched rows, without duplicating stored phone or campaign names.
