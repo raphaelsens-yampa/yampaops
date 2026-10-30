@@ -76,10 +76,13 @@ export function computeProjectedResult(
       if (reactivated.has(r.email)) continue;
       reactivated.add(r.email);
       recuperadosMrr += r.mrr; recuperadosQtd += 1;
-    } else if (r.kind === "retained") savedBy.set(r.email, "Retido");
+    } else if (r.kind === "retained") continue;
     else if (r.kind === "upsell") { upsellMrr += Math.max(0, r.mrr - r.previousMrr); savedBy.set(r.email, savedBy.get(r.email) ?? "Pagamento confirmado"); }
     else if (r.kind === "downgrade") { downsellMrr += Math.max(0, r.previousMrr - r.mrr); savedBy.set(r.email, savedBy.get(r.email) ?? "Pagamento confirmado"); }
   }
+
+  // retenção sempre vence: o cliente sai do churn previsto e aparece como "Retido"
+  for (const r of o) if (r.kind === "retained") savedBy.set(r.email, "Retido");
 
   // um caso por cliente (maior MRR)
   const byEmail = new Map<string, ChurnRow>();

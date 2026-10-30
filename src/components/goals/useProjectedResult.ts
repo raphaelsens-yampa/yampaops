@@ -19,6 +19,9 @@ export interface ProjectedData {
   recentSales: RecentSale[];
 }
 
+// retenção registrada nos últimos dias tira o cliente do churn previsto
+const RETAINED_LOOKBACK_DAYS = 7;
+
 export function useProjectedResult() {
   const [data, setData] = useState<ProjectedData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,8 +49,8 @@ export function useProjectedResult() {
           .select("id,customer_email,mrr,previous_mrr,conversion_type,origem_cliente,attribution_source")
           .eq("payment_status", "paid").gte("converted_at", `${openFrom}T03:00:00Z`).order("id")),
         fetchAllPaged<any>(() => supabase.from("tactical_recoveries")
-          .select("id,customer_email,mrr,entry_kind,origem_cliente")
-          .gte("recovered_at", openFrom).lte("recovered_at", today).order("id")),
+          .select("id,customer_email,mrr,entry_kind,origem_cliente,recovered_at")
+          .gte("recovered_at", addDays(openFrom, -RETAINED_LOOKBACK_DAYS)).lte("recovered_at", today).order("id")),
         fetchAllPaged<any>(() => (supabase as any).from("metas_pre_churn")
           .select("id,email_norm,mrr,origem_cliente,future_churn_at,tipo,data_ref")
           .gte("future_churn_at", openFrom).lte("future_churn_at", tomorrow).order("id")),
@@ -70,6 +73,8 @@ export function useProjectedResult() {
       }
       for (const r of recRes.data) {
         const kind = r.entry_kind === "retained" ? "retained" : "recovered";
+        // retenções recentes só tiram o cliente do churn; recuperações antigas já estão na base
+        if (kind === "recovered" && String(r.recovered_at) < openFrom) continue;
         ops.push({ email: normEmail(r.customer_email), kind, mrr: Number(r.mrr || 0), previousMrr: 0, origin: normOrigin(r.origem_cliente) });
       }
       // pré-churn repete o cliente por dia de leitura: vale só a leitura mais recente da base
