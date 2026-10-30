@@ -310,3 +310,39 @@ export function buildOriginMonthly(
 
   return out;
 }
+
+/**
+ * Origem de uma conversão da Stripe. Vendas 4blue chegam marcadas
+ * (`origem_cliente` = 4blue / `attribution_source` = metabase_4blue); toda
+ * conversão nativa da Stripe sem marcação pertence à base Yampa.
+ */
+export function stripeConversionOrigin(row: {
+  origem_cliente?: string | null;
+  attribution_source?: string | null;
+}): "4blue" | "yampa" {
+  const o = String(row.origem_cliente ?? "").trim().toLowerCase();
+  if (o === "4blue" || row.attribution_source === "metabase_4blue") return "4blue";
+  return "yampa";
+}
+
+/**
+ * Participação diária por origem calculada cliente a cliente na base de
+ * ativos pagantes (`origin_daily_shares`), no mesmo formato de
+ * `OriginShareRow`. Substitui `metas_price_daily`, que deixou de marcar
+ * origem a partir de 16/10/2026.
+ */
+export async function fetchOriginDailyShares(
+  client: { rpc: (fn: string, args: Record<string, unknown>) => any },
+  from: string,
+  to: string,
+): Promise<OriginShareRow[]> {
+  const { data, error } = await client.rpc("origin_daily_shares", { p_from: from, p_to: to });
+  if (error) throw error;
+  return ((data as any[]) || []).map((r) => ({
+    data: String(r.data).slice(0, 10),
+    classificacao: r.classificacao,
+    origem_cliente: r.origem_cliente,
+    qtd_mtd: Number(r.qtd_mtd || 0),
+    mrr_mtd: Number(r.mrr_mtd || 0),
+  }));
+}

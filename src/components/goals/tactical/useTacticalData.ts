@@ -16,6 +16,8 @@ import {
 import {
   buildOriginShares,
   isOriginFiltered,
+  fetchOriginDailyShares,
+  stripeConversionOrigin,
   originShareAsOf,
   TACTICAL_METRIC_TO_CLASSIFICATION,
   type OriginFilter,
@@ -87,7 +89,7 @@ export function useTacticalData(
         fetchAllPaged<any>(() =>
           supabase
             .from("stripe_conversions")
-            .select("assigned_seller_id, converted_at, mrr_net, mrr, delta_mrr, is_reactivation, customer_email, conversion_type")
+            .select("assigned_seller_id, converted_at, mrr_net, mrr, delta_mrr, is_reactivation, customer_email, conversion_type, origem_cliente, attribution_source")
             .eq("payment_status", "paid")
             .gte("converted_at", fromISO.toISOString())
             .lte("converted_at", toISO.toISOString())
@@ -114,15 +116,7 @@ export function useTacticalData(
         ),
         fetchRealizedSources(fromISO, toISO),
         isOriginFiltered(origin)
-          ? fetchAllPaged<any>(() =>
-              supabase
-                .from("metas_price_daily")
-                .select("data, classificacao, origem_cliente, qtd_mtd, mrr_mtd")
-                .lte("data", toDateStr)
-                .not("origem_cliente", "is", null)
-                .order("data", { ascending: true })
-                .order("id", { ascending: true }) as any,
-            )
+          ? fetchOriginDailyShares(supabase as any, "2026-01-01", toDateStr).then((data) => ({ data, error: null }))
           : Promise.resolve({ data: [] as any[], error: null }),
         supabase.from("ac_stage_move_config").select("*").eq("metric_key", "oportunidades_abertas").maybeSingle(),
         supabase.from("ac_owner_seller_map").select("ac_group_id, owner_name, seller_id"),
@@ -177,6 +171,8 @@ export function useTacticalData(
           ? Math.max(Number((c as any).delta_mrr ?? 0), 0)
           : Number((c as any).mrr_net ?? (c as any).mrr ?? 0);
         if (!(value > 0)) continue;
+        // Recorte por origem: cada venda da Stripe usa a própria origem.
+        if (isOriginFiltered(origin) && stripeConversionOrigin(c as any) !== origin) continue;
         stripeRows.push({
           user_id: seller,
           date: toBRDateKey(parseDateBR((c as any).converted_at)),
@@ -248,7 +244,8 @@ export function useTacticalData(
           if (sq === null || sm === null) continue;
           qtd = qtd * sq;
           mrr = mrr * sm;
-        } else if (fromStripe && !includeStripeOrigin) {
+        } else if (e.origin === "override" && !includeStripeOrigin) {
+          // Ajustes manuais do realizado são da operação Yampa.
           continue;
         }
 
