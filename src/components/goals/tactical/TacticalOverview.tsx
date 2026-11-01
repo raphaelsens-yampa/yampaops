@@ -416,15 +416,59 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
             <DialogHeader>
               <DialogTitle>Recuperações × base oficial</DialogTitle>
             </DialogHeader>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {selected.length === 0
+                  ? "Marque os clientes para alterar o tipo em lote"
+                  : `${selected.length} ${selected.length === 1 ? "cliente selecionado" : "clientes selecionados"}`}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs ml-auto"
+                disabled={selected.length === 0 || busy}
+                onClick={async () => {
+                  setBusy(true);
+                  const ok = await changeRecoveryKinds(selected, "retained", onRecoveryChanged);
+                  if (ok) setRawSelected([]);
+                  setBusy(false);
+                }}
+              >
+                Marcar como Retido
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                disabled={selected.length === 0 || busy}
+                onClick={() => setRawSelected([])}
+              >
+                Limpar seleção
+              </Button>
+            </div>
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground border-b">
+                  <th className="py-1 w-6">
+                    <Checkbox
+                      aria-label="Selecionar todos os clientes"
+                      checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
+                      onCheckedChange={(v) => setRawSelected(setAllRecoverySelection(reconIds, v === true))}
+                    />
+                  </th>
                   <th className="py-1">Cliente</th><th>Data</th><th>Base de</th><th className="text-right">MRR</th><th className="pl-2">Situação</th><th className="pl-2">Tipo</th>
                 </tr>
               </thead>
               <tbody>
-                {[...recon.rows].sort((a, b) => b.recoveredAt.localeCompare(a.recoveredAt)).map((r) => (
+                {reconRows.map((r) => (
                   <tr key={r.id} className="border-b last:border-0">
+                    <td className="py-1">
+                      <Checkbox
+                        aria-label={`Selecionar ${r.name || r.email}`}
+                        checked={selected.includes(r.id)}
+                        onCheckedChange={() => setRawSelected(toggleRecoverySelection(selected, r.id))}
+                      />
+                    </td>
                     <td className="py-1 break-all">{r.name || r.email}</td>
                     <td>{r.recoveredAt.split("-").reverse().join("/")}</td>
                     <td>{r.baseDate ? r.baseDate.split("-").reverse().join("/") : "—"}</td>
@@ -435,7 +479,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                       </Badge>
                     </td>
                     <td className="pl-2">
-                      <Select value="recovered" onValueChange={(v) => v !== "recovered" && changeRecoveryKind(r.id, v as "retained", onRecoveryChanged)}>
+                      <Select value="recovered" onValueChange={(v) => v !== "recovered" && changeRecoveryKinds([r.id], v as "retained", onRecoveryChanged)}>
                         <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="recovered">Recuperado</SelectItem>
