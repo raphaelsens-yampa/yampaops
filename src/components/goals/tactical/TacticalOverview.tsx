@@ -34,6 +34,19 @@ import { useRecoveryReconciliation } from "./useRecoveryReconciliation";
 import type { OriginFilter } from "@/lib/origins";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Info } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+async function changeRecoveryKind(id: string, kind: "recovered" | "retained", done?: () => void) {
+  const { error } = await supabase.from("tactical_recoveries").update({ entry_kind: kind }).eq("id", id);
+  if (error) {
+    toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
+    return;
+  }
+  toast({ title: kind === "retained" ? "Marcado como Retido" : "Marcado como Recuperado" });
+  done?.();
+}
 
 
 interface Props {
@@ -54,6 +67,8 @@ interface Props {
   recoveryChannels?: ChannelSummary;
   origin?: OriginFilter;
   refreshKey?: number;
+  /** Chamado após trocar o tipo de uma recuperação, para recarregar o painel. */
+  onRecoveryChanged?: () => void;
 }
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
@@ -80,7 +95,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, period, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels, origin = "all", refreshKey = 0 }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, period, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels, origin = "all", refreshKey = 0, onRecoveryChanged }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -378,7 +393,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground border-b">
-                  <th className="py-1">Cliente</th><th>Data</th><th>Base de</th><th className="text-right">MRR</th><th className="pl-2">Situação</th>
+                  <th className="py-1">Cliente</th><th>Data</th><th>Base de</th><th className="text-right">MRR</th><th className="pl-2">Situação</th><th className="pl-2">Tipo</th>
                 </tr>
               </thead>
               <tbody>
@@ -392,6 +407,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                       <Badge variant={r.status === "official" ? "default" : "secondary"}>
                         {r.status === "official" ? "Soma no MRR" : "Já na base"}
                       </Badge>
+                    </td>
+                    <td className="pl-2">
+                      <Select value="recovered" onValueChange={(v) => v !== "recovered" && changeRecoveryKind(r.id, v as "retained", onRecoveryChanged)}>
+                        <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="recovered">Recuperado</SelectItem>
+                          <SelectItem value="retained">Retido</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </td>
                   </tr>
                 ))}
