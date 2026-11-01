@@ -38,3 +38,20 @@ describe("pickBaseDate", () => {
     expect(pickBaseDate("2026-10-27", ["2026-10-24", "2026-10-25", "2026-10-27"])).toBe("2026-10-25");
   });
 });
+
+describe("seleção em lote de recuperações", () => {
+  it("inclui e remove um cliente da seleção", () => {
+    const once = toggleRecoverySelection([], "a");
+    expect(once).toEqual(["a"]);
+    expect(toggleRecoverySelection(once, "a")).toEqual([]);
+    expect(toggleRecoverySelection(once, "b")).toEqual(["a", "b"]);
+  });
+  it("marca e desmarca todos os clientes listados", () => {
+    const ids = ["a", "b", "c"];
+    expect(setAllRecoverySelection(ids, true)).toEqual(ids);
+    expect(setAllRecoverySelection(ids, false)).toEqual([]);
+  });
+  it("descarta seleção de clientes que saíram da lista", () => {
+    expect(pruneRecoverySelection(["a", "b", "c"], ["a", "c"])).toEqual(["a", "c"]);
+  });
+});
