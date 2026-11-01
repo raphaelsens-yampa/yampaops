@@ -76,6 +76,7 @@ export function useRecoveryReconciliation(
             id: r.id,
             email: r.customer_email,
             name: r.customer_name,
+            sellerId: r.seller_id,
             recoveredAt: String(r.recovered_at).slice(0, 10),
             mrr: Number(r.mrr) || 0,
           })),

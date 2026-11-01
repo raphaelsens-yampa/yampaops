@@ -428,6 +428,8 @@ export function TacticalTracking() {
           members={members}
           lowTouchSales={isOverview ? lowTouch.sales : []}
           recoveryChannels={recoveryBySeller}
+          origin={originFilter}
+          refreshKey={reloadKey}
 
         />
 
