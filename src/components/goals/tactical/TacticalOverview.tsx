@@ -30,6 +30,10 @@ import { VIRTUAL_MRR_SALES, VIRTUAL_MRR_RECOVERY, VIRTUAL_MRR_RETENTION, VIRTUAL
 import type { LowTouchSale } from "./useLowTouchData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
 import type { ChannelSummary } from "./useRecoveryChannelData";
+import { useRecoveryReconciliation } from "./useRecoveryReconciliation";
+import type { OriginFilter } from "@/lib/origins";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Info } from "lucide-react";
 
 
 interface Props {
@@ -48,6 +52,8 @@ interface Props {
   lowTouchUpsells?: LowTouchSale[];
   /** Recorte Cobrança x CS das recuperações/retenções no mês corrente. */
   recoveryChannels?: ChannelSummary;
+  origin?: OriginFilter;
+  refreshKey?: number;
 }
 
 function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
@@ -74,7 +80,7 @@ function ProgressRing({ pct, done }: { pct: number; done: boolean }) {
 }
 
 
-export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, period, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels }: Props) {
+export function TacticalOverview({ metrics, goals, daily, memberIds, members, teams, today, period, revisedView = false, lowTouchSales = [], lowTouchUpsells = [], recoveryChannels, origin = "all", refreshKey = 0 }: Props) {
   const todayKey = toBRDateKey(today);
   const dateLabel = today.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
@@ -83,6 +89,9 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const periodKeys = useMemo(() => new Set(tacticalPeriodKeys(activePeriod)), [activePeriod]);
   const targetKeys = useMemo(() => tacticalTargetPeriodKeys(activePeriod), [activePeriod]);
   const values = useMemo(() => buildPeriodValues(daily, periodKeys), [daily, periodKeys]);
+  const recon = useRecoveryReconciliation(
+    toBRDateKey(activePeriod.from), toBRDateKey(activePeriod.to), memberIds, origin, refreshKey,
+  );
   const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
   /** "Vendas do dia" deixa de ser "do dia" quando o recorte é um período. */
   const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
@@ -346,6 +355,50 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
             </Card>
           ))}
         </div>
+      )}
+
+      {recon && recon.declared.qty > 0 && (
+        <Dialog>
+          <DialogTrigger asChild>
+            <button className="w-full text-left rounded-md border border-dashed bg-muted/40 p-3 text-xs flex gap-2 items-start hover:bg-muted">
+              <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+              <span>
+                <strong>Recuperações conferidas com a base oficial.</strong> Declarado pelo CS:{" "}
+                {formatMetric(recon.declared.mrr, "currency")} ({recon.declared.qty}) · Entra no MRR oficial:{" "}
+                <strong>{formatMetric(recon.official.mrr, "currency")} ({recon.official.qty})</strong> · Já estava na base:{" "}
+                {formatMetric(recon.preserved.mrr, "currency")} ({recon.preserved.qty}). O MRR do período soma só o que entra no
+                MRR oficial. <span className="underline">Ver cliente a cliente</span>
+              </span>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Recuperações × base oficial</DialogTitle>
+            </DialogHeader>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b">
+                  <th className="py-1">Cliente</th><th>Data</th><th>Base de</th><th className="text-right">MRR</th><th className="pl-2">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...recon.rows].sort((a, b) => b.recoveredAt.localeCompare(a.recoveredAt)).map((r) => (
+                  <tr key={r.id} className="border-b last:border-0">
+                    <td className="py-1 break-all">{r.name || r.email}</td>
+                    <td>{r.recoveredAt.split("-").reverse().join("/")}</td>
+                    <td>{r.baseDate ? r.baseDate.split("-").reverse().join("/") : "—"}</td>
+                    <td className="text-right">{formatMetric(r.mrr, "currency")}</td>
+                    <td className="pl-2">
+                      <Badge variant={r.status === "official" ? "default" : "secondary"}>
+                        {r.status === "official" ? "Soma no MRR" : "Já na base"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </DialogContent>
+        </Dialog>
       )}
 
       {recoveryChannels && recoveryChannels.total.qty > 0 && (
