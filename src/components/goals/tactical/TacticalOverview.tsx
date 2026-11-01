@@ -33,6 +33,11 @@ import type { LowTouchSale } from "./useLowTouchData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
 import type { ChannelSummary } from "./useRecoveryChannelData";
 import { useRecoveryReconciliation } from "./useRecoveryReconciliation";
+import {
+  pruneRecoverySelection,
+  setAllRecoverySelection,
+  toggleRecoverySelection,
+} from "@/lib/recoveryReconciliation";
 import type { OriginFilter } from "@/lib/origins";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Info } from "lucide-react";
@@ -40,14 +45,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-async function changeRecoveryKind(id: string, kind: "recovered" | "retained", done?: () => void) {
-  const { error } = await supabase.from("tactical_recoveries").update({ entry_kind: kind }).eq("id", id);
+/** Troca o tipo de uma ou várias recuperações de uma vez (seleção em lote). */
+async function changeRecoveryKinds(ids: string[], kind: "recovered" | "retained", done?: () => void) {
+  if (ids.length === 0) return false;
+  const { error } = await supabase.from("tactical_recoveries").update({ entry_kind: kind }).in("id", ids);
   if (error) {
     toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
-    return;
+    return false;
   }
-  toast({ title: kind === "retained" ? "Marcado como Retido" : "Marcado como Recuperado" });
+  toast({
+    title: ids.length === 1
+      ? (kind === "retained" ? "Marcado como Retido" : "Marcado como Recuperado")
+      : (kind === "retained" ? "Marcados como Retido" : "Marcados como Recuperado"),
+    description: `${ids.length} ${ids.length === 1 ? "cliente" : "clientes"} atualizado${ids.length === 1 ? "" : "s"}`,
+  });
   done?.();
+  return true;
 }
 
 
