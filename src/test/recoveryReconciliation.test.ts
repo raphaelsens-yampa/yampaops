@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { classifyRecoveries, pickBaseDate } from "@/lib/recoveryReconciliation";
+import {
+  classifyRecoveries,
+  pickBaseDate,
+  pruneRecoverySelection,
+  setAllRecoverySelection,
+  toggleRecoverySelection,
+} from "@/lib/recoveryReconciliation";
 
 const base = new Map([["2026-10-25", new Set(["ja@base.com"])]]);
 const baseOf = () => "2026-10-25";
