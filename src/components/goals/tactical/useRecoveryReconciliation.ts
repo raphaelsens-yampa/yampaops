@@ -46,7 +46,9 @@ export function useRecoveryReconciliation(
         }),
       );
       const baseDates = [...new Set([...baseByDate.values()].filter(Boolean))] as string[];
-      const emails = [...new Set(list.map((r) => normEmail(r.customer_email)).filter(Boolean))];
+      const emails = [
+        ...new Set(list.flatMap((r) => [normEmail(r.customer_email), String(r.customer_email ?? "").trim()]).filter(Boolean)),
+      ];
       const active = new Map<string, Set<string>>();
       if (baseDates.length && emails.length) {
         for (let i = 0; i < emails.length; i += 100) {

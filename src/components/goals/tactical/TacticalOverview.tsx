@@ -184,6 +184,15 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   };
   const mrrSales = sumVirtual(VIRTUAL_MRR_SALES);
   const mrrRecovery = sumVirtual(VIRTUAL_MRR_RECOVERY);
+  // Recuperação que já estava na base oficial só preserva MRR: sai do total do período.
+  const preservedMrr = recon?.preserved.mrr ?? 0;
+  if (preservedMrr > 0) {
+    const mrrCard = others.find((o) => rows.some((r) => r.m.id === o.id && r.m.key === "mrr_dia"));
+    if (mrrCard) {
+      mrrCard.value = Math.max(mrrCard.value - preservedMrr, 0);
+      mrrCard.note = [mrrCard.note, `sem ${formatMetric(preservedMrr, "currency")} já na base`].filter(Boolean).join(" · ");
+    }
+  }
   const mrrRetention = sumVirtual(VIRTUAL_MRR_RETENTION);
   const mrrUpsell = sumVirtual(VIRTUAL_MRR_UPSELL);
   const retainedQty = sumMetricByKey("clientes_retidos");
@@ -196,7 +205,13 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
     else others.push(salesCard);
 
     const idxRec = others.findIndex((o) => o.label.toLowerCase().includes("recuperad") && o.unit !== "currency");
-    const recCard: OtherCard = { id: "mrr-recuperados-card", label: "MRR Clientes Recuperados", unit: "currency", value: mrrRecovery };
+    const recCard: OtherCard = {
+      id: "mrr-recuperados-card",
+      label: "MRR Clientes Recuperados",
+      unit: "currency",
+      value: recon ? Math.max(mrrRecovery - preservedMrr, 0) : mrrRecovery,
+      note: recon && preservedMrr > 0 ? `declarado: ${formatMetric(mrrRecovery, "currency")}` : undefined,
+    };
     if (idxRec >= 0) others.splice(idxRec + 1, 0, recCard);
     else others.push(recCard);
   }
