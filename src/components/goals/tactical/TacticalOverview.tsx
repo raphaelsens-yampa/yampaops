@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Check } from "lucide-react";
 import {
   DailyDatum,
@@ -31,6 +33,11 @@ import type { LowTouchSale } from "./useLowTouchData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
 import type { ChannelSummary } from "./useRecoveryChannelData";
 import { useRecoveryReconciliation } from "./useRecoveryReconciliation";
+import {
+  pruneRecoverySelection,
+  setAllRecoverySelection,
+  toggleRecoverySelection,
+} from "@/lib/recoveryReconciliation";
 import type { OriginFilter } from "@/lib/origins";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Info } from "lucide-react";
@@ -38,14 +45,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-async function changeRecoveryKind(id: string, kind: "recovered" | "retained", done?: () => void) {
-  const { error } = await supabase.from("tactical_recoveries").update({ entry_kind: kind }).eq("id", id);
+/** Troca o tipo de uma ou várias recuperações de uma vez (seleção em lote). */
+async function changeRecoveryKinds(ids: string[], kind: "recovered" | "retained", done?: () => void) {
+  if (ids.length === 0) return false;
+  const { error } = await supabase.from("tactical_recoveries").update({ entry_kind: kind }).in("id", ids);
   if (error) {
     toast({ title: "Não foi possível alterar", description: error.message, variant: "destructive" });
-    return;
+    return false;
   }
-  toast({ title: kind === "retained" ? "Marcado como Retido" : "Marcado como Recuperado" });
+  toast({
+    title: ids.length === 1
+      ? (kind === "retained" ? "Marcado como Retido" : "Marcado como Recuperado")
+      : (kind === "retained" ? "Marcados como Retido" : "Marcados como Recuperado"),
+    description: `${ids.length} ${ids.length === 1 ? "cliente" : "clientes"} atualizado${ids.length === 1 ? "" : "s"}`,
+  });
   done?.();
+  return true;
 }
 
 
@@ -107,6 +122,17 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const recon = useRecoveryReconciliation(
     toBRDateKey(activePeriod.from), toBRDateKey(activePeriod.to), memberIds, origin, refreshKey,
   );
+
+  /** Seleção em lote na lista "Recuperações × base oficial". */
+  const [rawSelected, setRawSelected] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const reconRows = useMemo(
+    () => [...(recon?.rows ?? [])].sort((a, b) => b.recoveredAt.localeCompare(a.recoveredAt)),
+    [recon],
+  );
+  const reconIds = useMemo(() => reconRows.map((r) => r.id), [reconRows]);
+  const selected = pruneRecoverySelection(rawSelected, reconIds);
+  const allSelected = selected.length > 0 && selected.length === reconIds.length;
   const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
   /** "Vendas do dia" deixa de ser "do dia" quando o recorte é um período. */
   const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
@@ -390,15 +416,59 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
             <DialogHeader>
               <DialogTitle>Recuperações × base oficial</DialogTitle>
             </DialogHeader>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {selected.length === 0
+                  ? "Marque os clientes para alterar o tipo em lote"
+                  : `${selected.length} ${selected.length === 1 ? "cliente selecionado" : "clientes selecionados"}`}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs ml-auto"
+                disabled={selected.length === 0 || busy}
+                onClick={async () => {
+                  setBusy(true);
+                  const ok = await changeRecoveryKinds(selected, "retained", onRecoveryChanged);
+                  if (ok) setRawSelected([]);
+                  setBusy(false);
+                }}
+              >
+                Marcar como Retido
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                disabled={selected.length === 0 || busy}
+                onClick={() => setRawSelected([])}
+              >
+                Limpar seleção
+              </Button>
+            </div>
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground border-b">
+                  <th className="py-1 w-6">
+                    <Checkbox
+                      aria-label="Selecionar todos os clientes"
+                      checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
+                      onCheckedChange={(v) => setRawSelected(setAllRecoverySelection(reconIds, v === true))}
+                    />
+                  </th>
                   <th className="py-1">Cliente</th><th>Data</th><th>Base de</th><th className="text-right">MRR</th><th className="pl-2">Situação</th><th className="pl-2">Tipo</th>
                 </tr>
               </thead>
               <tbody>
-                {[...recon.rows].sort((a, b) => b.recoveredAt.localeCompare(a.recoveredAt)).map((r) => (
+                {reconRows.map((r) => (
                   <tr key={r.id} className="border-b last:border-0">
+                    <td className="py-1">
+                      <Checkbox
+                        aria-label={`Selecionar ${r.name || r.email}`}
+                        checked={selected.includes(r.id)}
+                        onCheckedChange={() => setRawSelected(toggleRecoverySelection(selected, r.id))}
+                      />
+                    </td>
                     <td className="py-1 break-all">{r.name || r.email}</td>
                     <td>{r.recoveredAt.split("-").reverse().join("/")}</td>
                     <td>{r.baseDate ? r.baseDate.split("-").reverse().join("/") : "—"}</td>
@@ -409,7 +479,7 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
                       </Badge>
                     </td>
                     <td className="pl-2">
-                      <Select value="recovered" onValueChange={(v) => v !== "recovered" && changeRecoveryKind(r.id, v as "retained", onRecoveryChanged)}>
+                      <Select value="recovered" onValueChange={(v) => v !== "recovered" && changeRecoveryKinds([r.id], v as "retained", onRecoveryChanged)}>
                         <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="recovered">Recuperado</SelectItem>

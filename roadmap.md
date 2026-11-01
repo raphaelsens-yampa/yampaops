@@ -163,3 +163,11 @@
 - [x] Filtro vale para os cards de escopo e para a lista de metas
 - [x] Helper puro src/lib/goalOriginFilter.ts + 4 testes (src/test/goalOriginFilter.test.ts)
 - [x] Validado no navegador: 159 no total, 3 em Yampa, 156 em Geral
+
+## Metas Táticas — seleção em lote em "Recuperações × base oficial" (01/11/2026)
+- [x] Coluna de checkbox em cada linha + "selecionar todos" no cabeçalho (estado indeterminado)
+- [x] Barra de ação: contagem de selecionados, "Marcar como Retido" e "Limpar seleção"
+- [x] Gravação única com `in("id", ...)`, toast com a quantidade e recarga do painel
+- [x] Helpers puros testados: toggleRecoverySelection / setAllRecoverySelection / pruneRecoverySelection
+- [x] Painel não desmonta durante o recarregamento, então o diálogo continua aberto após salvar
+- [x] Validado no navegador: 56 linhas, selecionar 2 → "2 clientes selecionados", selecionar todos → 56, limpar volta ao aviso; marcar 1 remove a linha e mantém o diálogo aberto

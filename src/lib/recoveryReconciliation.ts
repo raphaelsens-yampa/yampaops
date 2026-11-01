@@ -77,3 +77,19 @@ export function pickBaseDate(recoveredAt: string, snapshotDates: string[]): stri
   for (const d of sorted) if (d < recoveredAt) best = d;
   return best ?? null;
 }
+
+/** Alterna um cliente na seleção em lote da conferência de recuperações. */
+export function toggleRecoverySelection(selected: string[], id: string): string[] {
+  return selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+}
+
+/** Marca (on=true) ou desmarca (on=false) todos os clientes listados. */
+export function setAllRecoverySelection(ids: string[], on: boolean): string[] {
+  return on ? [...ids] : [];
+}
+
+/** Descarta seleções de clientes que saíram da lista (mudança de período/filtro). */
+export function pruneRecoverySelection(selected: string[], ids: string[]): string[] {
+  const valid = new Set(ids);
+  return selected.filter((s) => valid.has(s));
+}
