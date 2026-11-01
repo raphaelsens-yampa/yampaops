@@ -122,6 +122,17 @@ export function TacticalOverview({ metrics, goals, daily, memberIds, members, te
   const recon = useRecoveryReconciliation(
     toBRDateKey(activePeriod.from), toBRDateKey(activePeriod.to), memberIds, origin, refreshKey,
   );
+
+  /** Seleção em lote na lista "Recuperações × base oficial". */
+  const [rawSelected, setRawSelected] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const reconRows = useMemo(
+    () => [...(recon?.rows ?? [])].sort((a, b) => b.recoveredAt.localeCompare(a.recoveredAt)),
+    [recon],
+  );
+  const reconIds = useMemo(() => reconRows.map((r) => r.id), [reconRows]);
+  const selected = pruneRecoverySelection(rawSelected, reconIds);
+  const allSelected = selected.length > 0 && selected.length === reconIds.length;
   const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
   /** "Vendas do dia" deixa de ser "do dia" quando o recorte é um período. */
   const labelOf = (l: string) => (singleDay ? l : l.replace(/\bdo dia\b/i, "no período"));
