@@ -388,6 +388,7 @@ export function TacticalTracking() {
               recoveryChannels={recoveryMonthSummary}
               origin={originFilter}
               refreshKey={reloadKey}
+              onRecoveryChanged={() => setReloadKey((k) => k + 1)}
 
             />
           ) : (
