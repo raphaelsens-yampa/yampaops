@@ -163,7 +163,9 @@ export function TacticalTracking() {
   }, [user, isAdmin, memberIds, focusUser, isOverview]);
 
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  // Só a primeira leitura esconde o painel: recarregamentos (ex.: após marcar
+  // recuperações em lote) mantêm o conteúdo montado, para não fechar diálogos abertos.
+  if (loading && metrics.length === 0) return <p className="text-muted-foreground">Carregando...</p>;
 
   const focusName = profiles.find((p) => p.user_id === focusUser)?.full_name || "Você";
 
