@@ -9,6 +9,7 @@ export interface RecoveryInput {
   id: string;
   email: string | null;
   name?: string | null;
+  sellerId?: string | null;
   recoveredAt: string; // YYYY-MM-DD
   mrr: number;
 }
@@ -57,6 +58,16 @@ export function classifyRecoveries(
     out.rows.push({ ...r, mrr, status, baseDate });
   }
   return out;
+}
+
+/** MRR que só preservou a base, somado por vendedor. */
+export function preservedBySeller(recon: RecoveryReconciliation | null): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of recon?.rows ?? []) {
+    if (r.status !== "preserved" || !r.sellerId) continue;
+    m.set(r.sellerId, (m.get(r.sellerId) ?? 0) + r.mrr);
+  }
+  return m;
 }
 
 /** Foto anterior mais próxima (estritamente antes da recuperação); senão a mais recente disponível. */

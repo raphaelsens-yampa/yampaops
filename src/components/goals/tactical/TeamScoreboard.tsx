@@ -27,6 +27,9 @@ import type { TeamMember } from "./useTacticalData";
 import type { LowTouchSale } from "./useLowTouchData";
 import { CHANNEL_LABEL } from "./recoveryChannels";
 import type { SellerChannelTotals } from "./useRecoveryChannelData";
+import { useRecoveryReconciliation } from "./useRecoveryReconciliation";
+import { preservedBySeller } from "@/lib/recoveryReconciliation";
+import type { OriginFilter } from "@/lib/origins";
 
 interface Props {
   metrics: TacticalMetric[];
@@ -45,6 +48,8 @@ interface Props {
   lowTouchSales?: LowTouchSale[];
   /** MRR recuperado/retido do período por vendedor, quebrado por canal. */
   recoveryChannels?: Map<string, SellerChannelTotals>;
+  origin?: OriginFilter;
+  refreshKey?: number;
 }
 
 
@@ -60,7 +65,7 @@ function defaultMetricId(metrics: TacticalMetric[]) {
 }
 
 
-export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, period, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels }: Props) {
+export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, teamId, teamName, today, period, groupByTeam, teams = [], members = [], lowTouchSales = [], recoveryChannels, origin = "all", refreshKey = 0 }: Props) {
   const [open, setOpen] = useState(true);
   const [metricId, setMetricId] = useState<string>(() => defaultMetricId(metrics));
 
@@ -75,9 +80,21 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
   const targetKeys = useMemo(() => tacticalTargetPeriodKeys(activePeriod), [activePeriod]);
   const values = useMemo(() => buildPeriodValues(daily, periodKeys), [daily, periodKeys]);
   const resolveTarget = useMemo(() => createPeriodTargetResolver(goals), [goals]);
+  const weekStart = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - d.getDay());
+    return toBRDateKey(d);
+  }, [today]);
+  const reconPeriod = useRecoveryReconciliation(
+    toBRDateKey(activePeriod.from), toBRDateKey(activePeriod.to), memberIds, origin, refreshKey,
+  );
+  const reconWeek = useRecoveryReconciliation(weekStart, toBRDateKey(today), memberIds, origin, refreshKey);
+  const isMrrMetric = metric?.key === "mrr_dia";
+  const prePeriod = useMemo(() => (isMrrMetric ? preservedBySeller(reconPeriod) : new Map<string, number>()), [isMrrMetric, reconPeriod]);
+  const preWeek = useMemo(() => (isMrrMetric ? preservedBySeller(reconWeek) : new Map<string, number>()), [isMrrMetric, reconWeek]);
 
 
-  const { rows, teamToday, teamTarget, weekRealized, weekTarget } = useMemo(() => {
+  const { rows, teamToday, teamTarget, weekRealized, teamDeclared, weekDeclaredTotal, weekTarget } = useMemo(() => {
     const todayKey = toBRDateKey(today);
     const weekKeys: string[] = [];
     const d = new Date(today);
@@ -93,13 +110,17 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
     const userRows = memberIds.map((uid) => {
       const scopeTeam = groupByTeam ? teamOf.get(uid) ?? null : teamId;
       const target = metric ? resolveTarget(metric.id, uid, scopeTeam, targetKeys) : 0;
-      const value = metric ? values.get(`${uid}|${metric.id}`) ?? 0 : 0;
-      const week = metric
+      const declared = metric ? values.get(`${uid}|${metric.id}`) ?? 0 : 0;
+      const value = Math.max(declared - (prePeriod.get(uid) ?? 0), 0);
+      const weekDeclared = metric
         ? daily
             .filter((x) => x.user_id === uid && x.metric_id === metric.id && weekKeys.includes(x.date))
             .reduce((s, x) => s + x.value, 0)
         : 0;
+      const week = Math.max(weekDeclared - (preWeek.get(uid) ?? 0), 0);
       return {
+        declared,
+        weekDeclared,
         uid,
         teamId: scopeTeam,
         name: profiles.find((p) => p.user_id === uid)?.full_name || "—",
@@ -112,12 +133,14 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
 
     let rows = userRows;
     if (groupByTeam) {
-      const agg = new Map<string, { uid: string; name: string; value: number; target: number; week: number; pct: number }>();
+      const agg = new Map<string, { uid: string; name: string; value: number; declared: number; weekDeclared: number; target: number; week: number; pct: number }>();
       for (const r of userRows) {
         const key = r.teamId ?? "sem-time";
         const label = teams.find((t) => t.id === r.teamId)?.name ?? "Sem time";
-        const prev = agg.get(key) ?? { uid: key, name: `Time ${label}`, value: 0, target: 0, week: 0, pct: 0 };
+        const prev = agg.get(key) ?? { uid: key, name: `Time ${label}`, value: 0, declared: 0, weekDeclared: 0, target: 0, week: 0, pct: 0 };
         prev.value += r.value;
+        prev.declared += r.declared;
+        prev.weekDeclared += r.weekDeclared;
         prev.target += r.target;
         prev.week += r.week;
         agg.set(key, prev);
@@ -139,19 +162,21 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
         .filter((s) => weekKeys.includes(s.dateKey))
         .reduce((s, x) => s + (isMrr ? x.mrr : 1), 0);
       if (ltValue > 0 || ltWeek > 0) {
-        rows = [...rows, { uid: "low-touch", teamId: null as string | null, name: "Low-touch", value: ltValue, target: 0, week: ltWeek, pct: ltValue > 0 ? 100 : 0 }];
+        rows = [...rows, { uid: "low-touch", teamId: null as string | null, name: "Low-touch", value: ltValue, declared: ltValue, weekDeclared: ltWeek, target: 0, week: ltWeek, pct: ltValue > 0 ? 100 : 0 }];
       }
     }
 
     const teamToday = rows.reduce((s, r) => s + r.value, 0);
     const teamTarget = rows.reduce((s, r) => s + r.target, 0);
     const weekRealized = rows.reduce((s, r) => s + r.week, 0);
+    const teamDeclared = rows.reduce((s, r) => s + r.declared, 0);
+    const weekDeclaredTotal = rows.reduce((s, r) => s + r.weekDeclared, 0);
     const businessDaysSoFar = weekKeys.filter((k) => {
       const dt = new Date(`${k}T00:00:00`);
       return dt.getDay() !== 0 && dt.getDay() !== 6;
     }).length;
-    return { rows, teamToday, teamTarget, weekRealized, weekTarget: teamTarget * businessDaysSoFar };
-  }, [metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members, lowTouchSales, values, resolveTarget, targetKeys, periodKeys]);
+    return { rows, teamToday, teamTarget, weekRealized, teamDeclared, weekDeclaredTotal, weekTarget: teamTarget * businessDaysSoFar };
+  }, [prePeriod, preWeek, metric, goals, daily, profiles, memberIds, teamId, today, groupByTeam, teams, members, lowTouchSales, values, resolveTarget, targetKeys, periodKeys]);
 
 
 
@@ -191,9 +216,12 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
                   <span className="w-5 text-center">{MEDALS[i] ?? i + 1}</span>
                   <span className="truncate font-medium">{r.name}</span>
                 </span>
-                <span className="text-muted-foreground whitespace-nowrap">
+                <span className="text-muted-foreground whitespace-nowrap text-right">
                   {formatMetric(r.value, unit)}
                   {r.target > 0 && ` / ${formatMetric(r.target, unit)}`}
+                  {Math.abs(r.declared - r.value) > 0.005 && (
+                    <span className="block text-[10px]">(declarado {formatMetric(r.declared, unit)})</span>
+                  )}
                 </span>
               </div>
               <Progress value={r.pct} className="h-1.5" />
@@ -223,6 +251,9 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
                 <span className="text-xs text-muted-foreground font-normal"> / {formatMetric(teamTarget, unit)}</span>
               )}
             </p>
+            {Math.abs(teamDeclared - teamToday) > 0.005 && (
+              <p className="text-[11px] text-muted-foreground">(declarado {formatMetric(teamDeclared, unit)})</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Semana</p>
@@ -232,6 +263,9 @@ export function TeamScoreboard({ metrics, goals, daily, profiles, memberIds, tea
                 <span className="text-xs text-muted-foreground font-normal"> / {formatMetric(weekTarget, unit)}</span>
               )}
             </p>
+            {Math.abs(weekDeclaredTotal - weekRealized) > 0.005 && (
+              <p className="text-[11px] text-muted-foreground">(declarado {formatMetric(weekDeclaredTotal, unit)})</p>
+            )}
           </div>
         </div>
       </CardContent>
