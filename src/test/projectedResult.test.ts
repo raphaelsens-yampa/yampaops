@@ -130,3 +130,13 @@ describe("janela de 5 dias úteis para a média de vendas", () => {
     expect(computeProjectedResult([], [], [], "all", [three[0]], 5).mediaVendasQtd).toBe(0);
   });
 });
+
+import { computeProjectedResult as cpr } from "@/components/goals/projectedResultModel";
+describe("base oficial do dia da consulta", () => {
+  it("usa o total do Metabase de hoje e rateia origens pela foto por cliente", () => {
+    const base = [{ email: "a", mrr: 300, origin: "yampa" as const }, { email: "b", mrr: 100, origin: "4blue" as const }];
+    expect(cpr(base, [], [], "all", [], 5, { mrr: 330226.89, users: 2149 }).baseMrr).toBeCloseTo(330226.89);
+    expect(cpr(base, [], [], "all", [], 5, { mrr: 330226.89, users: 2149 }).baseUsers).toBe(2149);
+    expect(cpr(base, [], [], "4blue", [], 5, { mrr: 1000, users: 10 }).baseMrr).toBeCloseTo(250);
+  });
+});

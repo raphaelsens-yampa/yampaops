@@ -11,6 +11,7 @@ const addDays = (iso: string, n: number) => {
 
 export interface ProjectedData {
   snapshot: string | null;
+  officialBase: { mrr: number; users: number } | null;
   today: string;
   tomorrow: string;
   base: BaseRow[];
@@ -36,17 +37,30 @@ export function useProjectedResult() {
         .from("metas_ativos_pagantes_daily").select("data_snapshot")
         .order("data_snapshot", { ascending: false }).limit(1);
       if (e1) throw e1;
-      const snapshot = (last?.[0] as any)?.data_snapshot ?? null;
-      const openFrom = snapshot ? addDays(snapshot, 1) : today;
+      const clientSnapshot = (last?.[0] as any)?.data_snapshot ?? null;
+      // base oficial: foto diária do Metabase mais recente (hoje), com MRR total e ativos pagantes
+      const { data: off, error: e2 } = await (supabase as any).from("metas_snapshot_diario")
+        .select("data,metric_key,realized_amount").is("origem_cliente", null)
+        .in("metric_key", ["total_mrr", "ativos_pagantes"]).lte("data", today)
+        .not("realized_amount", "is", null).order("data", { ascending: false }).limit(4);
+      if (e2) throw e2;
+      const offDate = off?.[0]?.data ?? null;
+      const offMrr = off?.find((r: any) => r.data === offDate && r.metric_key === "total_mrr");
+      const offUsers = off?.find((r: any) => r.data === offDate && r.metric_key === "ativos_pagantes");
+      const useOfficial = !!(offDate && offMrr && offUsers && (!clientSnapshot || offDate > clientSnapshot));
+      const officialBase = useOfficial ? { mrr: Number(offMrr.realized_amount), users: Number(offUsers.realized_amount) } : null;
+      const snapshot = useOfficial ? offDate : clientSnapshot;
+      // foto de hoje: operações de hoje entram por cima; foto antiga: a partir do dia seguinte
+      const openFrom = snapshot ? (snapshot >= today ? today : addDays(snapshot, 1)) : today;
 
       // média de produção: últimos dias úteis; hoje fica de fora porque já conta como realizado
       const businessDays = lastBusinessDays(today, AVG_BUSINESS_DAYS);
       const avgFrom = businessDays[businessDays.length - 1];
       const avgSet = new Set(businessDays);
       const [baseRes, convRes, recRes, preRes, avgRes] = await Promise.all([
-        snapshot
+        clientSnapshot
           ? fetchAllPaged<any>(() => supabase.from("metas_ativos_pagantes_daily")
-              .select("id,email,mrr,origem_cliente").eq("data_snapshot", snapshot)
+              .select("id,email,mrr,origem_cliente").eq("data_snapshot", clientSnapshot)
               .eq("status_assinatura", "ativo").order("id"))
           : Promise.resolve({ data: [], error: null }),
         fetchAllPaged<any>(() => supabase.from("stripe_conversions")
@@ -99,7 +113,7 @@ export function useProjectedResult() {
       const recentSales: RecentSale[] = avgRes.data
         .filter((r) => avgSet.has(spDate(new Date(r.converted_at))))
         .map((r) => ({ mrr: Number(r.mrr || 0), origin: stripeConversionOrigin(r) }));
-      setData({ snapshot, today, tomorrow, base, ops, churn, recentSales, avgDays: businessDays.length });
+      setData({ snapshot, officialBase, today, tomorrow, base, ops, churn, recentSales, avgDays: businessDays.length });
       setError(null);
     } catch (e: any) {
       setError(e?.message || "Erro ao carregar");

@@ -43,7 +43,7 @@ const readList = (key: string): string[] | null => {
 export function ProjectedResult() {
   const { data, loading, error } = useProjectedResult();
   const [origin, setOrigin] = useState<OriginFilter>("all");
-  const r = useMemo(() => (data ? computeProjectedResult(data.base, data.ops, data.churn, origin, data.recentSales, data.avgDays) : null), [data, origin]);
+  const r = useMemo(() => (data ? computeProjectedResult(data.base, data.ops, data.churn, origin, data.recentSales, data.avgDays, data.officialBase) : null), [data, origin]);
 
   const [sort, setSort] = useState<ChurnSort>(DEFAULT_CHURN_SORT);
   const [filters, setFilters] = useState<ChurnFilters>({});

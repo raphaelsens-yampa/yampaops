@@ -75,6 +75,7 @@ export function computeProjectedResult(
   origin: OriginFilter,
   recentSales: RecentSale[] = [],
   days = AVG_BUSINESS_DAYS,
+  officialBase: { mrr: number; users: number } | null = null,
 ): ProjectedResult {
   const rs = recentSales.filter((r) => inOrigin(r.origin, origin));
   const mediaVendasMrr = days > 0 ? rs.reduce((s, r) => s + r.mrr, 0) / days : 0;
@@ -82,7 +83,15 @@ export function computeProjectedResult(
   const mediaVendasQtd = days > 0 ? roundHalfUp(rs.length / days) : 0;
   const b = base.filter((r) => inOrigin(r.origin, origin));
   const baseEmails = new Set(b.map((r) => r.email));
-  const baseMrr = b.reduce((s, r) => s + r.mrr, 0);
+  // base oficial do dia (Metabase): total de hoje; origens rateadas pela última foto por cliente
+  const allMrr = base.reduce((s, r) => s + r.mrr, 0);
+  const rawMrr = b.reduce((s, r) => s + r.mrr, 0);
+  const baseMrr = officialBase
+    ? (origin === "all" || allMrr <= 0 ? officialBase.mrr : officialBase.mrr * (rawMrr / allMrr))
+    : rawMrr;
+  const baseUsers = officialBase
+    ? (origin === "all" || base.length === 0 ? officialBase.users : roundHalfUp(officialBase.users * (b.length / base.length)))
+    : b.length;
 
   const o = ops.filter((r) => inOrigin(r.origin, origin));
   const savedBy = new Map<string, string>();
@@ -122,9 +131,9 @@ export function computeProjectedResult(
   const avoidedMrr = saved.reduce((s, c) => s + c.mrr, 0);
 
   const projectedMrr = baseMrr + vendasMrr + recuperadosMrr + upsellMrr - downsellMrr - churnMrr + mediaVendasMrr;
-  const projectedUsers = b.length + vendasQtd + recuperadosQtd - lost.length + mediaVendasQtd;
+  const projectedUsers = baseUsers + vendasQtd + recuperadosQtd - lost.length + mediaVendasQtd;
   return {
-    baseMrr, baseUsers: b.length, vendasMrr, vendasQtd, recuperadosMrr, recuperadosQtd,
+    baseMrr, baseUsers, vendasMrr, vendasQtd, recuperadosMrr, recuperadosQtd,
     upsellMrr, downsellMrr, churnMrr, churnQtd: lost.length, avoidedMrr, avoidedQtd: saved.length,
     projectedMrr, projectedUsers, churnCases, mediaVendasMrr, mediaVendasQtd,
   };
