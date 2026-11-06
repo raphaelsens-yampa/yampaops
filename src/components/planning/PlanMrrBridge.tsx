@@ -38,7 +38,7 @@ interface Props {
 export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
   const today = useMemo(() => monthKeyOfToday(), []);
   const [editing, setEditing] = useState<PlanRow | null>(null);
-  const [form, setForm] = useState({ newMrr: "", churnMrr: "", deals: "", ativos: "", notes: "" });
+  const [form, setForm] = useState({ newMrr: "", upsell: "", churnMrr: "", deals: "", ativos: "", notes: "" });
   const [saving, setSaving] = useState(false);
 
   const chartData = useMemo(
@@ -57,6 +57,7 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
     setEditing(row);
     setForm({
       newMrr: row.source === "override" && row.newMrrTarget != null ? String(Math.round(row.newMrrTarget)) : "",
+      upsell: row.upsellTarget != null ? String(Math.round(row.upsellTarget)) : "",
       churnMrr: row.source === "override" && row.churnMrrTarget != null ? String(Math.round(row.churnMrrTarget)) : "",
       deals: row.source === "override" && row.dealsTarget != null ? String(row.dealsTarget) : "",
       ativos: row.source === "override" && row.ativosTarget != null ? String(row.ativosTarget) : "",
@@ -71,6 +72,7 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
       const n = (v: string) => (v.trim() === "" ? null : Number(v.replace(/\./g, "").replace(",", ".")));
       await onSave(editing.yearMonth, {
         target_new_mrr: n(form.newMrr),
+        target_upsell_mrr: n(form.upsell),
         target_churn_mrr: n(form.churnMrr),
         target_deals: form.deals.trim() === "" ? null : Number(form.deals),
         target_ativos: form.ativos.trim() === "" ? null : Number(form.ativos),
@@ -114,12 +116,15 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
                 <TableHead>Mês</TableHead>
                 <TableHead className="text-right">Taxa (a.m.)</TableHead>
                 <TableHead className="text-right">New MRR alvo</TableHead>
+                <TableHead className="text-right">Upsell alvo</TableHead>
                 <TableHead className="text-right">Churn MRR alvo</TableHead>
                 <TableHead className="text-right">Net MRR alvo</TableHead>
                 <TableHead className="text-right">MRR fim previsto</TableHead>
                 <TableHead className="text-right">Ativos prev.</TableHead>
                 <TableHead className="text-right">Deals alvo</TableHead>
                 <TableHead className="text-right">R. New MRR</TableHead>
+                <TableHead className="text-right">R. Upsell</TableHead>
+                <TableHead className="text-right">Ating. Upsell</TableHead>
                 <TableHead className="text-right">R. Churn MRR</TableHead>
                 <TableHead className="text-right">R. MRR fim</TableHead>
                 <TableHead className="text-right">Atingimento</TableHead>
@@ -128,13 +133,16 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
             </TableHeader>
             <TableBody>
               {loading && (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground">Carregando plano...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={16} className="text-center text-muted-foreground">Carregando plano...</TableCell></TableRow>
               )}
               {!loading && rows.map((r) => {
                 const isCurrent = r.yearMonth === today;
                 const past = r.yearMonth < today;
                 const achievement = r.newMrrTarget != null && r.realized?.newMrr != null
                   ? r.realized.newMrr / r.newMrrTarget
+                  : null;
+                const upsellAch = r.upsellTarget && r.realized?.upsellMrr != null
+                  ? r.realized.upsellMrr / r.upsellTarget
                   : null;
                 return (
                   <TableRow key={r.yearMonth} className={isCurrent ? "bg-muted/40 font-medium" : past ? "text-muted-foreground" : ""}>
@@ -144,12 +152,15 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
                     </TableCell>
                     <TableCell className="text-right">{r.growthPct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.newMrrTarget)}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(r.upsellTarget)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.churnMrrTarget)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.netMrrTarget)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.mrrEnd)}</TableCell>
                     <TableCell className="text-right">{fmtInt(r.ativosTarget)}</TableCell>
                     <TableCell className="text-right">{fmtInt(r.dealsTarget)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.realized?.newMrr)}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(r.realized?.upsellMrr)}</TableCell>
+                    <TableCell className="text-right">{fmtPct(upsellAch)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.realized?.churnMrr)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.realized?.totalMrr)}</TableCell>
                     <TableCell className="text-right">{fmtPct(achievement)}</TableCell>
@@ -179,6 +190,10 @@ export function PlanMrrBridge({ rows, loading, canEdit, onSave }: Props) {
               <div className="space-y-1.5">
                 <Label htmlFor="plan-new-mrr">New MRR (R$)</Label>
                 <Input id="plan-new-mrr" inputMode="decimal" value={form.newMrr} onChange={(e) => setForm({ ...form, newMrr: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="plan-upsell">Upsell (R$, dentro do New MRR)</Label>
+                <Input id="plan-upsell" inputMode="decimal" value={form.upsell} onChange={(e) => setForm({ ...form, upsell: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="plan-churn-mrr">Churn MRR (R$)</Label>

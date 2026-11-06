@@ -17,6 +17,7 @@ export interface CommercialPlanMonthRow {
   target_churn_mrr: number | null;
   target_deals: number | null;
   target_ativos: number | null;
+  target_upsell_mrr?: number | null;
   notes: string | null;
   is_locked: boolean | null;
 }
@@ -48,7 +49,7 @@ const REALIZED_METRICS = new Set([
 ]);
 
 interface RawMonth { ym: string; m: Record<string, number> }
-interface FourBlueMonth { newMrr: number; churnMrr: number; totalMrr: number; ativos: number }
+interface FourBlueMonth { newMrr: number; upsellMrr: number; churnMrr: number; totalMrr: number; ativos: number }
 
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined) return null;
@@ -129,12 +130,12 @@ export function useCommercialPlan(include4blue = false) {
     for (const r of (originRows as any[]) || []) {
       if (String(r.origem || "").toLowerCase() !== "4blue") continue;
       const ym = String(r.year_month || "").slice(0, 7);
-      const e = fb.get(ym) || { newMrr: 0, churnMrr: 0, totalMrr: 0, ativos: 0 };
+      const e = fb.get(ym) || { newMrr: 0, upsellMrr: 0, churnMrr: 0, totalMrr: 0, ativos: 0 };
       const mrr = Number(r.mrr || 0), qtd = Number(r.qtd || 0);
       const cls = String(r.classificacao || "").toLowerCase();
       const status = String(r.status || "").toLowerCase();
       if (r.kind === "flow") {
-        if (["novo pagante", "recuperado", "upsell"].includes(cls)) e.newMrr += mrr;
+        if (["novo pagante", "recuperado", "upsell"].includes(cls)) { e.newMrr += mrr; if (cls === "upsell") e.upsellMrr += mrr; }
         else if (cls === "downsell") e.churnMrr += mrr;
       } else if (r.kind === "stock") {
         if (status === "ativo") { e.totalMrr += mrr; e.ativos += qtd; }
@@ -210,6 +211,7 @@ export function useCommercialPlan(include4blue = false) {
       newMrr: n,
       churnMrr: c,
       netMrr: n != null && c != null ? n - c : null,
+      upsellMrr: has("upsell_mrr") ? sub(m.upsell_mrr || 0, b?.upsellMrr) : null,
       totalMrr: sub(totalMrr, b?.totalMrr),
       ativos: sub(ativos, b?.ativos),
     };

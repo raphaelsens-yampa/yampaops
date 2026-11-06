@@ -22,6 +22,8 @@ export interface RealizedMonth {
   newMrr: number | null;
   churnMrr: number | null;
   netMrr: number | null;
+  /** Upsell (parte do New MRR). */
+  upsellMrr?: number | null;
   totalMrr: number | null;
   ativos: number | null;
 }
@@ -36,6 +38,7 @@ export interface PlanOverrideLike {
   target_churn_mrr: number | string | null;
   target_deals: number | string | null;
   target_ativos: number | string | null;
+  target_upsell_mrr?: number | string | null;
 }
 
 export interface PlanRow {
@@ -44,6 +47,8 @@ export interface PlanRow {
   growthPct: number;
   newMrrTarget: number | null;
   churnMrrTarget: number | null;
+  /** Meta de Upsell cadastrada (parte do New MRR); null = sem meta. */
+  upsellTarget: number | null;
   /** New MRR alvo − Churn MRR alvo. */
   netMrrTarget: number | null;
   mrrStart: number | null;
@@ -192,7 +197,7 @@ export function buildPlanMonths(opts: {
 
     const dealsTarget = dealsOverride ?? (newTarget != null && avgTicket && avgTicket > 0 ? Math.round(newTarget / avgTicket) : null);
 
-    const hasOverride = newOverride != null || churnOverride != null || dealsOverride != null || ativosOverride != null;
+    const hasOverride = num(ov?.target_upsell_mrr) != null || newOverride != null || churnOverride != null || dealsOverride != null || ativosOverride != null;
 
     // Encadeia para o próximo mês: prioridade ao realizado de mês FECHADO
     // (projetar sobre fechado — o parcial do mês em curso não ancora a cadeia).
@@ -205,6 +210,7 @@ export function buildPlanMonths(opts: {
       growthPct: g,
       newMrrTarget: newTarget,
       churnMrrTarget: churnTarget,
+      upsellTarget: num(ov?.target_upsell_mrr),
       netMrrTarget: newTarget != null && churnTarget != null ? newTarget - churnTarget : null,
       mrrStart,
       mrrEnd,
