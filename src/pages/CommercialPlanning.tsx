@@ -17,6 +17,8 @@ import { averageFunnelKpis } from "@/lib/commercialPlan";
 import { PlanMrrBridge } from "@/components/planning/PlanMrrBridge";
 import { QuotasPanel } from "@/components/planning/QuotasPanel";
 import { PipelineCoverage } from "@/components/planning/PipelineCoverage";
+import { BaseExpansionPanel } from "@/components/planning/BaseExpansionPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const fmtBRL = (v: number | null | undefined) =>
   v == null ? "—" : `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
@@ -119,6 +121,13 @@ export default function CommercialPlanningPage() {
           </div>
         )}
 
+        <Tabs defaultValue="plano">
+          <TabsList>
+            <TabsTrigger value="plano">Plano de MRR & Quotas</TabsTrigger>
+            <TabsTrigger value="base">Potencial da Base (Upsell & Cross-sell)</TabsTrigger>
+          </TabsList>
+          <TabsContent value="base" className="mt-4"><BaseExpansionPanel /></TabsContent>
+          <TabsContent value="plano" className="mt-4 space-y-6">
         {plan.loading ? (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Carregando plano...</CardContent></Card>
         ) : (
@@ -154,6 +163,8 @@ export default function CommercialPlanningPage() {
             />
           </>
         )}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );

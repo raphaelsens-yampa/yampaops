@@ -21,3 +21,4 @@
 - Tabelas com controles de coluna mantêm ordenação, filtros por coluna e reordenação em helpers puros testados junto ao componente, e guardam a ordem e as colunas ocultas no navegador, para que os controles se repitam iguais em qualquer tela.
 - Tactical recovered MRR is reconciled per client against the active-paying snapshot before the recovery date; clients already in that base only preserve MRR and are excluded from the period MRR total, keeping it aligned with official MRR growth.
 - Panels keep their previous content mounted while refetching (the loading gate only fires on the first empty read), so background refreshes after a save never unmount open dialogs or tables the user is working in.
+- Potencial da Base (Planejamento Comercial) calcula toda projeção de upsell/cross-sell em `src/lib/baseExpansion.ts` (puro, testado) a partir da Carteira de CS ativa e da versão ativa da Precificação, para que preços e base nunca fiquem estáticos.
