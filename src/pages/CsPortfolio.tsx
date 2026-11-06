@@ -23,12 +23,25 @@ import { AssignmentRules } from "@/components/cs-portfolio/AssignmentRules";
 import { EnrichmentImportDialog } from "@/components/cs-portfolio/EnrichmentImportDialog";
 import { PortfolioReports } from "@/components/cs-portfolio/PortfolioReports";
 import { useAuth } from "@/hooks/useAuth";
+import { useProductUsage } from "@/hooks/useProductUsage";
+import { UsageImportDialog } from "@/components/cs-portfolio/UsageImportDialog";
+import { PQL_TIER_LABEL, USAGE_TIER_LABEL } from "@/lib/productUsage";
 import { useCsClientTags, useCsTags } from "@/hooks/useCsTags";
 import { CsTagPicker, CsTagsManager } from "@/components/cs-portfolio/ClientTags";
 
 export default function CsPortfolio() {
   const { user, role } = useAuth();
-  const { data: rows = [], isLoading } = useCsPortfolio();
+  const { data: rawRows = [], isLoading } = useCsPortfolio();
+  const usage = useProductUsage();
+  const rows = useMemo(() => {
+    const m = usage.data?.byEmail;
+    if (!m) return rawRows;
+    return rawRows.map((r) => {
+      const u = m.get(r.email.toLowerCase());
+      return u ? { ...r, usage_tier: u.tier, usage_ie: u.ie, usage_pql_tier: u.pql_tier, usage_last_activity: u.ultima_atividade } : r;
+    });
+  }, [rawRows, usage.data]);
+  const [usageImportOpen, setUsageImportOpen] = useState(false);
   const { data: segments = [] } = useCsSegments();
   const { data: assignmentRules = [] } = useCsAssignmentRules();
   const { data: analysts = [] } = useCsAnalysts();
@@ -87,6 +100,10 @@ export default function CsPortfolio() {
       Ramo: r.industry || "",
       "Engajamento": r.engagement_score ?? "",
       "Faixa": r.engagement_band || "",
+      "Uso do produto (Tier)": r.usage_tier ? USAGE_TIER_LABEL[r.usage_tier] || r.usage_tier : "",
+      "IE": r.usage_ie ?? "",
+      "PQL Tier": r.usage_pql_tier ? PQL_TIER_LABEL[r.usage_pql_tier] || r.usage_pql_tier : "",
+      "Última atividade no produto": fmtDate(r.usage_last_activity ?? null),
       "Risco de churn": r.churn_risk_score ?? "",
       "Conversas 90d": r.conversations_90d,
       "Cliente desde": fmtDate(r.data_inicio),
@@ -128,6 +145,9 @@ export default function CsPortfolio() {
               <>
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" /> Ramo de atuação
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setUsageImportOpen(true)}>
+                  <Upload className="h-4 w-4 mr-1" /> Uso do produto
                 </Button>
                 <Button
                   size="sm"
@@ -286,6 +306,7 @@ export default function CsPortfolio() {
       />
       <ContactLogDialog row={logRow} open={!!logRow} onOpenChange={(v) => !v && setLogRow(null)} />
       <EnrichmentImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <UsageImportDialog open={usageImportOpen} onOpenChange={setUsageImportOpen} />
     </Layout>
   );
 }

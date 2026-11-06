@@ -3,6 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { CADENCE_LABEL, ENGAGEMENT_LABEL, type CsPortfolioRow, type CsSegment } from "@/lib/csPortfolio";
 import { X } from "lucide-react";
+import { USAGE_TIERS, USAGE_TIER_LABEL } from "@/lib/productUsage";
 import type { CsTag } from "@/hooks/useCsTags";
 
 export interface PortfolioFilterState {
@@ -15,10 +16,11 @@ export interface PortfolioFilterState {
   band: string;
   cadence: string;
   tagId: string;
+  usageTier: string;
 }
 
 export const EMPTY_FILTERS: PortfolioFilterState = {
-  q: "", segmentId: "all", csUserId: "all", plano: "all", origem: "all", industry: "all", band: "all", cadence: "all", tagId: "all",
+  q: "", segmentId: "all", csUserId: "all", plano: "all", origem: "all", industry: "all", band: "all", cadence: "all", tagId: "all", usageTier: "all",
 };
 
 function uniq(rows: CsPortfolioRow[], key: keyof CsPortfolioRow) {
@@ -95,6 +97,14 @@ export function PortfolioFilters({
           {Object.entries(ENGAGEMENT_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
         </SelectContent>
       </Select>
+      <Select value={value.usageTier} onValueChange={(v) => set({ usageTier: v })}>
+        <SelectTrigger className="h-9"><SelectValue placeholder="Uso do produto" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todo uso do produto</SelectItem>
+          {USAGE_TIERS.map((k) => <SelectItem key={k} value={k}>Uso: {USAGE_TIER_LABEL[k]}</SelectItem>)}
+          <SelectItem value="none">Uso: sem dado</SelectItem>
+        </SelectContent>
+      </Select>
       <Select value={value.cadence} onValueChange={(v) => set({ cadence: v })}>
         <SelectTrigger className="h-9"><SelectValue placeholder="Cadência" /></SelectTrigger>
         <SelectContent>
@@ -142,6 +152,7 @@ export function applyPortfolioFilters(
     if (f.origem !== "all" && (r.origem_cliente || "") !== f.origem) return false;
     if (f.industry === "none" ? !!r.industry : f.industry !== "all" && (r.industry || "") !== f.industry) return false;
     if (f.band !== "all" && (r.engagement_band || "") !== f.band) return false;
+    if (f.usageTier === "none" ? !!r.usage_tier : f.usageTier !== "all" && (r.usage_tier || "") !== f.usageTier) return false;
     if (f.cadence !== "all" && cadenceOf(r) !== f.cadence) return false;
     if (f.tagId === "none" ? tagsOf(r).length > 0 : f.tagId !== "all" && !tagsOf(r).includes(f.tagId)) return false;
     return true;

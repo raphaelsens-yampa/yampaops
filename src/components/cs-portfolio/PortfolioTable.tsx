@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CADENCE_LABEL, ENGAGEMENT_LABEL, cadenceStatus, daysOverdue, fmtBRL, fmtDate, type CadenceStatus, type CsPortfolioRow, type CsSegment } from "@/lib/csPortfolio";
 import { CheckCircle2, User } from "lucide-react";
 import { ClientTagsCell } from "./ClientTags";
+import { USAGE_TIER_LABEL } from "@/lib/productUsage";
 import type { CsTag } from "@/hooks/useCsTags";
 
 const CADENCE_VARIANT: Record<CadenceStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -91,6 +92,7 @@ export function PortfolioTable({
               <TableHead>Plano</TableHead>
               <TableHead className="text-right">MRR</TableHead>
               <TableHead className="text-right">Engaj.</TableHead>
+              <TableHead>Uso do produto</TableHead>
               <TableHead>Último contato</TableHead>
               <TableHead>Próximo</TableHead>
               <TableHead>Status</TableHead>
@@ -130,6 +132,11 @@ export function PortfolioTable({
                   <TableCell className="text-right">{fmtBRL(r.mrr)}</TableCell>
                   <TableCell className="text-right">
                     {r.engagement_score != null ? r.engagement_score : "—"}
+                  </TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    {r.usage_tier ? (
+                      <Badge variant="outline">{USAGE_TIER_LABEL[r.usage_tier] || r.usage_tier} · IE {r.usage_ie ?? "—"}</Badge>
+                    ) : <span className="text-muted-foreground text-xs">—</span>}
                   </TableCell>
                   <TableCell className="text-sm">{fmtDate(r.last_contact_at)}</TableCell>
                   <TableCell className="text-sm">{fmtDate(r.next_contact_due)}</TableCell>
