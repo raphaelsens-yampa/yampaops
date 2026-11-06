@@ -263,7 +263,7 @@ export function BaseExpansionPanel() {
                 <td className="text-xs whitespace-nowrap">{c.usage_tier ? `${USAGE_TIER_LABEL[c.usage_tier] || c.usage_tier} (${c.usage_ie ?? "—"})` : "—"}</td><td className="text-xs">{frentes.join(" · ")}</td></tr>
             ))}</tbody>
           </table>
-          {opportunities.length > 300 && <p className="text-xs text-muted-foreground mt-2">Mostrando os 300 clientes com mais tempo de casa.</p>}
+          {opportunities.length > 300 && <p className="text-xs text-muted-foreground mt-2">Mostrando os 300 clientes com maior uso do produto (IE) e mais tempo de casa.</p>}
         </CardContent>
       </Card>
 
