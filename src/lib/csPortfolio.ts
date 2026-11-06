@@ -57,6 +57,11 @@ export interface CsPortfolioRow {
   next_contact_due: string | null;
   cadence_days: number | null;
   is_active: boolean;
+  /** Uso do produto (planilha importada), anexado no cliente. */
+  usage_tier?: string | null;
+  usage_ie?: number | null;
+  usage_pql_tier?: string | null;
+  usage_last_activity?: string | null;
 }
 
 export interface CsContactLog {
