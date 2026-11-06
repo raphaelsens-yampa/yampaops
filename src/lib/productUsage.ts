@@ -42,16 +42,20 @@ export function referenceDateFromFileName(name: string): string | null {
   return name.match(/(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
 }
 
+const normHeader = (h: string) =>
+  h.replace(/^\uFEFF/, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+const CANON = new Map<string, string>(USAGE_COLUMNS.map((c) => [normHeader(c), c]));
+
 export function missingColumns(headers: string[]) {
-  const set = new Set(headers.map((h) => h.trim()));
-  return USAGE_COLUMNS.filter((c) => !set.has(c));
+  const set = new Set(headers.map(normHeader));
+  return USAGE_COLUMNS.filter((c) => !set.has(normHeader(c)));
 }
 
 export function parseUsageRecords(records: Record<string, unknown>[]): UsageRow[] {
   const out: UsageRow[] = [];
   for (const raw of records) {
     const r: Record<string, unknown> = {};
-    for (const k of Object.keys(raw)) r[k.trim()] = raw[k];
+    for (const k of Object.keys(raw)) r[CANON.get(normHeader(k)) ?? k.trim()] = raw[k];
     const company_id = txt(r["Company ID"]);
     if (!company_id) continue;
     const email = txt(r["E-mail"])?.toLowerCase() ?? null;
