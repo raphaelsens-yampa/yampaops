@@ -2982,6 +2982,72 @@ export type Database = {
           },
         ]
       }
+      cs_product_usage: {
+        Row: {
+          canal: string | null
+          company_id: string
+          email: string | null
+          ie: number | null
+          imported_at: string
+          imported_by: string | null
+          modulos: number | null
+          plano: string | null
+          pql_score: number | null
+          pql_tier: string | null
+          pts_a: number | null
+          pts_b: number | null
+          pts_c: number | null
+          recorrencia: string | null
+          reference_date: string
+          segmento: string | null
+          tier: string | null
+          ultima_atividade: string | null
+          usuarios: number | null
+        }
+        Insert: {
+          canal?: string | null
+          company_id: string
+          email?: string | null
+          ie?: number | null
+          imported_at?: string
+          imported_by?: string | null
+          modulos?: number | null
+          plano?: string | null
+          pql_score?: number | null
+          pql_tier?: string | null
+          pts_a?: number | null
+          pts_b?: number | null
+          pts_c?: number | null
+          recorrencia?: string | null
+          reference_date: string
+          segmento?: string | null
+          tier?: string | null
+          ultima_atividade?: string | null
+          usuarios?: number | null
+        }
+        Update: {
+          canal?: string | null
+          company_id?: string
+          email?: string | null
+          ie?: number | null
+          imported_at?: string
+          imported_by?: string | null
+          modulos?: number | null
+          plano?: string | null
+          pql_score?: number | null
+          pql_tier?: string | null
+          pts_a?: number | null
+          pts_b?: number | null
+          pts_c?: number | null
+          recorrencia?: string | null
+          reference_date?: string
+          segmento?: string | null
+          tier?: string | null
+          ultima_atividade?: string | null
+          usuarios?: number | null
+        }
+        Relationships: []
+      }
       cs_segments: {
         Row: {
           cadence_days: number
@@ -6788,6 +6854,10 @@ export type Database = {
         Returns: boolean
       }
       cs_portfolio_refresh: { Args: never; Returns: Json }
+      cs_product_usage_import: {
+        Args: { p_reference_date: string; p_rows: Json }
+        Returns: number
+      }
       cs_segment_preview: {
         Args: { p_rules: Json }
         Returns: {
