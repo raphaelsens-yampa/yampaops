@@ -22,6 +22,7 @@ import { SegmentBuilder } from "@/components/cs-portfolio/SegmentBuilder";
 import { AssignmentRules } from "@/components/cs-portfolio/AssignmentRules";
 import { EnrichmentImportDialog } from "@/components/cs-portfolio/EnrichmentImportDialog";
 import { PortfolioReports } from "@/components/cs-portfolio/PortfolioReports";
+import { UsageReports } from "@/components/cs-portfolio/UsageReports";
 import { useAuth } from "@/hooks/useAuth";
 import { useProductUsage } from "@/hooks/useProductUsage";
 import { UsageImportDialog } from "@/components/cs-portfolio/UsageImportDialog";
@@ -285,7 +286,10 @@ export default function CsPortfolio() {
           </TabsContent>
 
           <TabsContent value="relatorios" className="mt-4">
-            <PortfolioReports rows={filtered} segments={segments} analystName={analystName} />
+            <div className="space-y-6">
+              <UsageReports rows={filtered} />
+              <PortfolioReports rows={filtered} segments={segments} analystName={analystName} />
+            </div>
           </TabsContent>
 
           {role === "admin" && (
