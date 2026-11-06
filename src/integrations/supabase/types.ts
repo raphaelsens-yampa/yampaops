@@ -1928,6 +1928,7 @@ export type Database = {
           target_churn_mrr: number | null
           target_deals: number | null
           target_new_mrr: number | null
+          target_upsell_mrr: number | null
           updated_at: string
           year_month: string
         }
@@ -1940,6 +1941,7 @@ export type Database = {
           target_churn_mrr?: number | null
           target_deals?: number | null
           target_new_mrr?: number | null
+          target_upsell_mrr?: number | null
           updated_at?: string
           year_month: string
         }
@@ -1952,6 +1954,7 @@ export type Database = {
           target_churn_mrr?: number | null
           target_deals?: number | null
           target_new_mrr?: number | null
+          target_upsell_mrr?: number | null
           updated_at?: string
           year_month?: string
         }
