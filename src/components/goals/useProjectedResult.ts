@@ -39,6 +39,7 @@ export function useProjectedResult() {
       if (e1) throw e1;
       const clientSnapshot = (last?.[0] as any)?.data_snapshot ?? null;
       // base oficial: foto diária do Metabase mais recente (hoje), com MRR total e ativos pagantes
+      // paged-ok: .limit(4) — só as duas métricas da foto mais recente
       const { data: off, error: e2 } = await (supabase as any).from("metas_snapshot_diario")
         .select("data,metric_key,realized_amount").is("origem_cliente", null)
         .in("metric_key", ["total_mrr", "ativos_pagantes"]).lte("data", today)
