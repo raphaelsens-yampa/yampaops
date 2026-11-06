@@ -2713,6 +2713,9 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          engagement_band: string | null
+          engagement_imported_at: string | null
+          engagement_score: number | null
           id: string
           industry: string | null
           notes: string | null
@@ -2723,6 +2726,9 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          engagement_band?: string | null
+          engagement_imported_at?: string | null
+          engagement_score?: number | null
           id?: string
           industry?: string | null
           notes?: string | null
@@ -2733,6 +2739,9 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          engagement_band?: string | null
+          engagement_imported_at?: string | null
+          engagement_score?: number | null
           id?: string
           industry?: string | null
           notes?: string | null
