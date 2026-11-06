@@ -16,7 +16,10 @@ export function UsageImportDialog({ open, onOpenChange }: { open: boolean; onOpe
   const [missing, setMissing] = useState<string[]>([]);
 
   async function onFile(file: File) {
-    const wb = XLSX.read(await file.arrayBuffer(), { raw: true });
+    const isCsv = /\.csv$/i.test(file.name) || file.type === "text/csv";
+    const wb = isCsv
+      ? XLSX.read(new TextDecoder("utf-8").decode(await file.arrayBuffer()).replace(/^\uFEFF/, ""), { type: "string", raw: true })
+      : XLSX.read(await file.arrayBuffer(), { raw: true });
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
     const headers = (XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] || []).map(String);
