@@ -8,6 +8,9 @@ export type BaseClient = {
   mrr: number;
   tenure_days: number | null;
   origem_cliente: string | null;
+  /** Tier de uso do produto (planilha de uso). Ausente = sem dado. */
+  usage_tier?: string | null;
+  usage_ie?: number | null;
 };
 
 export type CatalogService = { nome: string; preco_mensal: number; custo: number; meses: number };
@@ -26,6 +29,8 @@ export type ExpansionTrack = {
   /** Cross-sell: serviço do catálogo. */
   serviceName?: string;
   adoptionPct: Record<Scenario, number>;
+  /** Tiers de uso aceitos; vazio/ausente = todos (inclusive sem dado). */
+  usageTiers?: string[];
 };
 
 export type OriginFilter = "todas" | "yampa" | "4blue";
@@ -70,7 +75,9 @@ export function planSummary(base: BaseClient[]) {
 
 export function eligibleClients(base: BaseClient[], t: ExpansionTrack) {
   const plans = new Set(t.eligiblePlans.map(normPlan));
-  return base.filter((c) => plans.has(normPlan(c.plano)) && (c.tenure_days ?? 0) >= t.minTenureDays);
+  const tiers = t.usageTiers?.length ? new Set(t.usageTiers) : null;
+  return base.filter((c) => plans.has(normPlan(c.plano)) && (c.tenure_days ?? 0) >= t.minTenureDays
+    && (!tiers || (!!c.usage_tier && tiers.has(c.usage_tier))));
 }
 
 /** MRR adicional médio por contrato fechado nesta frente. */

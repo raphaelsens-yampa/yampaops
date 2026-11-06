@@ -11,6 +11,8 @@ import {
   DEFAULT_TRACKS, SCENARIOS, filterByOrigin, planSummary, projectTrack, rampPlan, eligibleClients, normPlan, excludeInternal, newUpsellTrack,
   type BaseClient, type CatalogService, type ExpansionTrack, type OriginFilter, type Scenario,
 } from "@/lib/baseExpansion";
+import { useProductUsage } from "@/hooks/useProductUsage";
+import { USAGE_TIERS, USAGE_TIER_LABEL } from "@/lib/productUsage";
 
 const brl = (v: number) => `R$ ${Math.round(v).toLocaleString("pt-BR")}`;
 const SC_LABEL: Record<Scenario, string> = { pessimista: "Pessimista", realista: "Realista", otimista: "Otimista" };
@@ -50,7 +52,20 @@ export function BaseExpansionPanel() {
   const [scenario, setScenario] = useState<Scenario>("realista");
   const [rampMonths, setRampMonths] = useState(6);
 
-  const clients = useMemo(() => filterByOrigin(excludeInternal(base.data || []), origin), [base.data, origin]);
+  const usage = useProductUsage();
+  const clients = useMemo(() => {
+    const m = usage.data?.byEmail;
+    const enriched = (base.data || []).map((c) => {
+      const u = m?.get((c.email || "").toLowerCase());
+      return u ? { ...c, usage_tier: u.tier, usage_ie: u.ie } : c;
+    });
+    return filterByOrigin(excludeInternal(enriched), origin);
+  }, [base.data, usage.data, origin]);
+  const tierCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const c of clients) { const k = c.usage_tier || "sem_dado"; out[k] = (out[k] || 0) + 1; }
+    return out;
+  }, [clients]);
   const plans = useMemo(() => planSummary(clients), [clients]);
   const cat = catalog.data || [];
   const projections = useMemo(() => tracks.map((t) => projectTrack(clients, t, cat)), [tracks, clients, cat]);
@@ -70,7 +85,7 @@ export function BaseExpansionPanel() {
       r.frentes.push(t.label);
       seen.set(c.email, r);
     }
-    return [...seen.values()].sort((a, b) => (b.c.tenure_days ?? 0) - (a.c.tenure_days ?? 0) || b.c.mrr - a.c.mrr);
+    return [...seen.values()].sort((a, b) => (b.c.usage_ie ?? -1) - (a.c.usage_ie ?? -1) || (b.c.tenure_days ?? 0) - (a.c.tenure_days ?? 0) || b.c.mrr - a.c.mrr);
   }, [tracks, clients]);
 
   if (base.isLoading || catalog.isLoading)
@@ -122,6 +137,10 @@ export function BaseExpansionPanel() {
               <tr key={p.plano} className="border-t"><td className="py-1">{p.plano}</td><td className="text-right">{p.clientes}</td><td className="text-right">{brl(p.mrr)}</td><td className="text-right">{brl(p.ticket)}</td></tr>
             ))}</tbody>
           </table>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <span className="text-muted-foreground">Uso do produto{usage.data?.referenceDate ? ` (planilha de ${usage.data.referenceDate.split("-").reverse().join("/")})` : " (nenhuma planilha importada)"}:</span>
+            {[...USAGE_TIERS, "sem_dado"].map((k) => <Badge key={k} variant="outline">{USAGE_TIER_LABEL[k]}: {tierCounts[k] || 0}</Badge>)}
+          </div>
         </CardContent>
       </Card>
 
@@ -161,6 +180,19 @@ export function BaseExpansionPanel() {
                       </Button>
                     );
                   })}
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-xs text-muted-foreground mr-1">Uso do produto:</span>
+                  {USAGE_TIERS.map((k) => {
+                    const on = (t.usageTiers || []).includes(k);
+                    return (
+                      <Button key={k} size="sm" variant={on ? "secondary" : "outline"} className="h-7 text-xs"
+                        onClick={() => update(t.key, { usageTiers: on ? (t.usageTiers || []).filter((x) => x !== k) : [...(t.usageTiers || []), k] })}>
+                        {USAGE_TIER_LABEL[k]}
+                      </Button>
+                    );
+                  })}
+                  <span className="text-xs text-muted-foreground ml-1">{t.usageTiers?.length ? "(clientes sem dado de uso ficam de fora)" : "(todos)"}</span>
                 </div>
                 <div className="grid gap-3 md:grid-cols-5 items-end">
                   <label className="text-xs text-muted-foreground space-y-1">Tempo de casa mín. (dias)
@@ -224,13 +256,14 @@ export function BaseExpansionPanel() {
         <CardHeader><CardTitle className="text-base">Oportunidades na base ({opportunities.length})</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto max-h-[480px] overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="text-muted-foreground sticky top-0 bg-card"><tr className="text-left"><th className="py-1">Cliente</th><th>Plano</th><th className="text-right">MRR</th><th className="text-right">Dias de casa</th><th>Frentes</th></tr></thead>
+            <thead className="text-muted-foreground sticky top-0 bg-card"><tr className="text-left"><th className="py-1">Cliente</th><th>Plano</th><th className="text-right">MRR</th><th className="text-right">Dias de casa</th><th>Uso (IE)</th><th>Frentes</th></tr></thead>
             <tbody>{opportunities.slice(0, 300).map(({ c, frentes }) => (
               <tr key={c.email} className="border-t"><td className="py-1">{c.company_name || c.email}</td><td>{normPlan(c.plano)}</td>
-                <td className="text-right">{brl(c.mrr)}</td><td className="text-right">{c.tenure_days ?? "—"}</td><td className="text-xs">{frentes.join(" · ")}</td></tr>
+                <td className="text-right">{brl(c.mrr)}</td><td className="text-right">{c.tenure_days ?? "—"}</td>
+                <td className="text-xs whitespace-nowrap">{c.usage_tier ? `${USAGE_TIER_LABEL[c.usage_tier] || c.usage_tier} (${c.usage_ie ?? "—"})` : "—"}</td><td className="text-xs">{frentes.join(" · ")}</td></tr>
             ))}</tbody>
           </table>
-          {opportunities.length > 300 && <p className="text-xs text-muted-foreground mt-2">Mostrando os 300 clientes com mais tempo de casa.</p>}
+          {opportunities.length > 300 && <p className="text-xs text-muted-foreground mt-2">Mostrando os 300 clientes com maior uso do produto (IE) e mais tempo de casa.</p>}
         </CardContent>
       </Card>
 
