@@ -32,3 +32,11 @@ describe("baseExpansion", () => {
     expect(r[2].mrrAcumulado).toBe(500);
   });
 });
+
+import { excludeInternal } from "@/lib/baseExpansion";
+describe("contas internas", () => {
+  it("lau.marcelly@gmail.com (MRR virtual) fica fora da análise", () => {
+    const rows = excludeInternal([{ email: "lau.marcelly@gmail.com", company_name: null, plano: "PROFIT", mrr: 999, tenure_days: 100, origem_cliente: "yampa" }]);
+    expect(rows).toHaveLength(0);
+  });
+});

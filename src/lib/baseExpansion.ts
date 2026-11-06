@@ -34,6 +34,21 @@ export const roundUsers = (n: number) => Math.floor(n + 0.5);
 
 export const normPlan = (p: string | null | undefined) => (p || "SEM PLANO").trim().toUpperCase();
 
+/** Contas internas com MRR virtual (não são clientes reais). */
+export const EXCLUDED_EMAILS = ["lau.marcelly@gmail.com"];
+
+export function excludeInternal(base: BaseClient[]) {
+  const ex = new Set(EXCLUDED_EMAILS);
+  return base.filter((c) => !ex.has((c.email || "").trim().toLowerCase()));
+}
+
+export function newUpsellTrack(n: number): ExpansionTrack {
+  return {
+    key: `upsell_${Date.now()}_${n}`, label: `Upsell ${n}`, kind: "upsell", eligiblePlans: [],
+    minTenureDays: 60, targetPlan: undefined, adoptionPct: { pessimista: 3, realista: 6, otimista: 10 },
+  };
+}
+
 export function filterByOrigin(base: BaseClient[], origin: OriginFilter) {
   if (origin === "todas") return base;
   return base.filter((c) => (c.origem_cliente || "yampa").toLowerCase() === origin);
@@ -115,7 +130,7 @@ export function rampPlan(contratos: number, ticket: number, months: number) {
 export const DEFAULT_TRACKS: ExpansionTrack[] = [
   {
     key: "upsell_control",
-    label: "Upsell CONTROL → PROFIT",
+    label: "Upsell",
     kind: "upsell",
     eligiblePlans: ["CONTROL"],
     minTenureDays: 60,

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  DEFAULT_TRACKS, SCENARIOS, filterByOrigin, planSummary, projectTrack, rampPlan, eligibleClients, normPlan,
+  DEFAULT_TRACKS, SCENARIOS, filterByOrigin, planSummary, projectTrack, rampPlan, eligibleClients, normPlan, excludeInternal, newUpsellTrack,
   type BaseClient, type CatalogService, type ExpansionTrack, type OriginFilter, type Scenario,
 } from "@/lib/baseExpansion";
 
@@ -50,7 +50,7 @@ export function BaseExpansionPanel() {
   const [scenario, setScenario] = useState<Scenario>("realista");
   const [rampMonths, setRampMonths] = useState(6);
 
-  const clients = useMemo(() => filterByOrigin(base.data || [], origin), [base.data, origin]);
+  const clients = useMemo(() => filterByOrigin(excludeInternal(base.data || []), origin), [base.data, origin]);
   const plans = useMemo(() => planSummary(clients), [clients]);
   const cat = catalog.data || [];
   const projections = useMemo(() => tracks.map((t) => projectTrack(clients, t, cat)), [tracks, clients, cat]);
@@ -126,14 +126,29 @@ export function BaseExpansionPanel() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Premissas por frente</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Premissas por frente</CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setTracks((ts) => {
+            const n = ts.filter((x) => x.kind === "upsell").length + 1;
+            const idx = ts.map((x) => x.kind).lastIndexOf("upsell");
+            const copy = [...ts]; copy.splice(idx + 1, 0, newUpsellTrack(n)); return copy;
+          })}>+ Adicionar bloco de upsell</Button>
+        </CardHeader>
         <CardContent className="space-y-5">
           {tracks.map((t, i) => {
             const p = projections[i];
             return (
               <div key={t.key} className="rounded-md border p-3 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">{t.label} <Badge variant="outline" className="ml-2">{t.kind === "upsell" ? "Upsell" : "Cross-sell"}</Badge></div>
+                  <div className="flex items-center gap-2 font-medium">
+                    {t.kind === "upsell"
+                      ? <Input className="h-8 w-56" value={t.label} onChange={(e) => update(t.key, { label: e.target.value })} aria-label="Nome do bloco de upsell" />
+                      : t.label}
+                    <Badge variant="outline">{t.kind === "upsell" ? "Upsell" : "Cross-sell"}</Badge>
+                    {t.kind === "upsell" && tracks.filter((x) => x.kind === "upsell").length > 1 && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => setTracks((ts) => ts.filter((x) => x.key !== t.key))}>Remover</Button>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">{p.elegiveis} elegíveis · ticket adicional {brl(p.ticket)}/mês</div>
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -161,7 +176,7 @@ export function BaseExpansionPanel() {
                   ) : (
                     <label className="text-xs text-muted-foreground space-y-1">Plano destino
                       <Select value={t.targetPlan} onValueChange={(v) => update(t.key, { targetPlan: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger>
                         <SelectContent>{plans.map((pl) => <SelectItem key={pl.plano} value={pl.plano}>{pl.plano} · {brl(pl.ticket)}</SelectItem>)}</SelectContent>
                       </Select>
                     </label>
