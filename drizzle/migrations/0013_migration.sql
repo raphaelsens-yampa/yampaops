@@ -1,0 +1,1 @@
+ALTER TABLE public.commercial_plan_months ADD COLUMN IF NOT EXISTS target_upsell_mrr numeric;
