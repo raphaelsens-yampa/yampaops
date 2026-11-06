@@ -17,7 +17,7 @@ import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
-  DESFECHO_LABEL, dedupeCases, groupStats, riskQueue, tenureBand, TIPO_LABEL, type ChurnCase, type GroupStat,
+  DESFECHO_LABEL, dedupeCases, acquisitionChannelByEmail, type AcquisitionRow, groupStats, riskQueue, tenureBand, TIPO_LABEL, type ChurnCase, type GroupStat,
 } from "@/lib/churnAnalysis";
 
 const brl = (v: number | null | undefined) =>
@@ -31,6 +31,7 @@ const monthsAgo = (n: number) => {
 };
 
 const DIMENSIONS: { key: string; label: string; fn: (r: ChurnCase) => string | null }[] = [
+  { key: "canal_venda", label: "Canal de venda", fn: (r) => r.canal_venda ?? null },
   { key: "motivo", label: "Motivo", fn: (r) => r.motivo },
   { key: "plano", label: "Plano", fn: (r) => r.plano },
   { key: "segmento", label: "Segmento", fn: (r) => r.segmento },
@@ -78,10 +79,22 @@ export default function ChurnAnalysis() {
     },
   });
 
+  const channelsQ = useQuery({
+    queryKey: ["churn-acquisition-channels"],
+    queryFn: async () => {
+      const { data, error } = await fetchAllPaged<AcquisitionRow>(
+        () => supabase.from("stripe_conversions").select("customer_email, area, converted_at")
+          .eq("conversion_type", "new").eq("payment_status", "paid").order("converted_at").order("id"),
+      );
+      if (error) throw new Error(error);
+      return acquisitionChannelByEmail(data);
+    },
+  });
   const rows = useMemo(
     () => dedupeCases(casesQ.data || []).filter((r) =>
-      (tipo === "all" || r.tipo === tipo) && (include4blue || (r.origem_cliente || "").toLowerCase() !== "4blue")),
-    [casesQ.data, tipo, include4blue],
+      (tipo === "all" || r.tipo === tipo) && (include4blue || (r.origem_cliente || "").toLowerCase() !== "4blue"))
+      .map((r) => ({ ...r, canal_venda: channelsQ.data?.get((r.email || "").toLowerCase()) ?? "Sem venda registrada" })),
+    [casesQ.data, tipo, include4blue, channelsQ.data],
   );
   const today = todaySP();
   const total = groupStats(rows, () => "total")[0];

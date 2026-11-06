@@ -25,6 +25,7 @@ export interface ChurnCase {
   tenure_days: number | null;
   recuperado_em: string | null;
   recovery_channel: string | null;
+  canal_venda?: string | null;
 }
 
 export const TIPO_LABEL: Record<string, string> = {
@@ -107,4 +108,19 @@ export function dedupeCases(rows: ChurnCase[]): ChurnCase[] {
     if (!prev || r.data_ref > prev.data_ref) map.set(k, r);
   }
   return [...map.values()];
+}
+
+export interface AcquisitionRow { customer_email: string | null; area: string | null; converted_at: string | null; }
+
+/** Canal de venda = área da PRIMEIRA venda nova paga do cliente (aquisição), por e-mail normalizado. */
+export function acquisitionChannelByEmail(rows: AcquisitionRow[]): Map<string, string> {
+  const best = new Map<string, { at: string; area: string }>();
+  for (const r of rows) {
+    const em = (r.customer_email || "").trim().toLowerCase();
+    if (!em) continue;
+    const at = r.converted_at || "9999";
+    const cur = best.get(em);
+    if (!cur || at < cur.at) best.set(em, { at, area: r.area && r.area !== "desconhecida" ? r.area : "Não identificado" });
+  }
+  return new Map([...best].map(([k, v]) => [k, v.area]));
 }
