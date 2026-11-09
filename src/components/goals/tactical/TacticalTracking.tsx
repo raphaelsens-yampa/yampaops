@@ -19,6 +19,7 @@ import { TeamConversionsTable } from "./TeamConversionsTable";
 import { TeamRecoveriesTable } from "./TeamRecoveriesTable";
 import { ManualEntryDialog } from "./ManualEntryDialog";
 import { TacticalOverview } from "./TacticalOverview";
+import { NewMrrPacingPanel } from "./NewMrrPacingPanel";
 import { TacticalProgressChart } from "./TacticalProgressChart";
 import { WeeklyGoalsPanel } from "./WeeklyGoalsPanel";
 import { UnattributedSalesAlert } from "./UnattributedSalesAlert";
@@ -372,6 +373,7 @@ export function TacticalTracking() {
         </>
       ) : (
         <>
+      {isOverview && <NewMrrPacingPanel today={today} origin={originFilter} refreshKey={reloadKey} />}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <div className="space-y-4">
           {isOverview ? (
