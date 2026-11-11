@@ -193,7 +193,7 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
                   <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   {data.keys.map((k, i) => (
                     <Line key={k} type="monotone" dataKey={k} dot={false} connectNulls={false}
-                      stroke={colors[i % colors.length]} strokeWidth={i === 0 ? 3 : 2}
+                      stroke={k === "Tendência" ? colors[0] : colors[i % colors.length]} strokeWidth={i === 0 ? 3 : 2}
                       strokeDasharray={k === "Tendência" ? "6 4" : k === "Média 90d" ? "2 3" : undefined} />
                   ))}
                 </LineChart>
