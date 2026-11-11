@@ -28,6 +28,11 @@
     --accent-foreground: 205 90% 11%;
 
     /* Chart: azul do logo Yampa (realizado) e azul claro suave (meta) */
+    --pacing-1: 193 99% 40%;
+    --pacing-2: 24 95% 52%;
+    --pacing-3: 142 70% 38%;
+    --pacing-4: 340 75% 50%;
+    --pacing-5: 264 60% 50%;
     --chart-logo: 194 86% 59%;
     --chart-logo-soft: 191 100% 88%;
     --chart-cx: 264 55% 48%;
@@ -72,6 +77,11 @@
     --primary: 193 87% 65%;
     --primary-foreground: 205 90% 11%;
 
+    --pacing-1: 193 99% 40%;
+    --pacing-2: 24 95% 52%;
+    --pacing-3: 142 70% 38%;
+    --pacing-4: 340 75% 50%;
+    --pacing-5: 264 60% 50%;
     --chart-logo: 194 86% 59%;
     --chart-logo-soft: 191 100% 88%;
 
