@@ -94,7 +94,7 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
     return { mrr: build("mrr"), qty: build("qty") };
   }, [events, comp, curYm, todayDay, todayIso]);
 
-  const colors = ["hsl(var(--primary))", "hsl(var(--primary))", "hsl(var(--secondary))", "hsl(var(--muted-foreground))", "hsl(var(--accent-foreground))"];
+  const colors = [1, 2, 3, 4, 5].map((n) => `hsl(var(--pacing-${n}))`);
   const pct = (a: number, b: number) => (b ? `${a >= b ? "+" : ""}${(((a - b) / b) * 100).toFixed(1).replace(".", ",")}%` : "—");
 
   const ProjCard = ({ title, c, isMrr }: { title: string; c: typeof cards.mrr; isMrr: boolean }) => {
@@ -190,10 +190,10 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => (metric === "mrr" ? `${Math.round(v / 1000)}k` : String(v))} />
                   <Tooltip formatter={(v: any) => fmt(Number(v))} labelFormatter={(d) => `Dia ${d}`} />
-                  <Legend />
+                  <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                   {data.keys.map((k, i) => (
                     <Line key={k} type="monotone" dataKey={k} dot={false} connectNulls={false}
-                      stroke={colors[i % colors.length]} strokeWidth={i === 0 ? 2.5 : 1.5}
+                      stroke={colors[i % colors.length]} strokeWidth={i === 0 ? 3 : 2}
                       strokeDasharray={k === "Tendência" ? "6 4" : k === "Média 90d" ? "2 3" : undefined} />
                   ))}
                 </LineChart>
