@@ -404,7 +404,7 @@ try {
       return json({ error: 'Corpo JSON inválido' }, 400);
     }
 
-    const dataSnapshot = toDate(body.data_snapshot) ?? (body.data_snapshot ? null : yesterdaySP());
+    const dataSnapshot = toDate(body.data_snapshot) ?? (body.data_snapshot ? null : spDateISO());
     if (!dataSnapshot) return json({ error: 'data_snapshot inválido (use YYYY-MM-DD)' }, 400);
 
     const [yy, mm] = dataSnapshot.split('-');
@@ -523,18 +523,11 @@ try {
 
 
     // ---- Fonte 1: ativos ----
-    const ativosRaw = await metabase(
-      '/api/dashboard/3/dashcard/110/card/103/query/json',
-      apiKey,
-      {
-        parameters: [{
-          id: 'df91507f',
-          type: 'date/all-options',
-          value: 'past1days',
-          target: ['dimension', ['field', 82250, { 'base-type': 'type/Date' }]],
-        }],
-      },
-    );
+    // O ETL do Metabase carimba o snapshot no dia corrente (D-0), então a
+    // leitura usa o mesmo dia de data_snapshot nas duas pontas do intervalo,
+    // via /api/dataset/json (sem o teto de 2.000 linhas e com a trava de
+    // truncamento).
+    const ativosRaw = await metabaseDatasetCard103(apiKey, dataSnapshot, dataSnapshot);
 
     const datasEncontradas = Array.from(new Set(ativosRaw.map((r) => toDate(r['Data Ref Analise']) ?? String(r['Data Ref Analise'] ?? ''))));
     const divergentes = datasEncontradas.filter((d) => d !== dataSnapshot);
