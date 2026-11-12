@@ -6906,6 +6906,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_internal_user: { Args: { _user_id: string }; Returns: boolean }
       is_tatico_or_admin: { Args: { _user_id: string }; Returns: boolean }
       metabase_campaign_entries_monthly: {
         Args: { p_as_of: string; p_year: number }
