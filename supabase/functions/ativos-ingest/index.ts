@@ -820,19 +820,28 @@ try {
     // Analítico de churn (metas_churn_daily). visto_primeira_vez_em é gravado
     // apenas na inserção — nunca sobrescrito em update.
     if (churnDailyRows.length > 0) {
-      const existentes = new Set<string>();
+      const existentes = new Map<string, string>();
+      let leituraOk = true;
+      const PAGE = 1000;
       const meses = Array.from(new Set(churnDailyRows.map((r) => String(r.mes_ref))));
-      for (let i = 0; i < meses.length; i += 50) {
+      leitura: for (let i = 0; i < meses.length; i += 50) {
         const fatia = meses.slice(i, i + 50);
-        const { data, error } = await supabase
-          .from('metas_churn_daily')
-          .select('mes_ref, company_id')
-          .in('mes_ref', fatia);
-        if (error) {
-          avisos.push(`Falha ao ler chaves existentes de metas_churn_daily: ${error.message}`);
-          break;
+        for (let offset = 0; ; offset += PAGE) {
+          const { data, error } = await supabase
+            .from('metas_churn_daily')
+            .select('mes_ref, company_id, visto_primeira_vez_em')
+            .in('mes_ref', fatia)
+            .order('mes_ref')
+            .order('company_id')
+            .range(offset, offset + PAGE - 1);
+          if (error) {
+            avisos.push(`Falha ao ler chaves existentes de metas_churn_daily: ${error.message}`);
+            leituraOk = false;
+            break leitura;
+          }
+          for (const row of data ?? []) existentes.set(`${row.mes_ref}|${row.company_id}`, row.visto_primeira_vez_em);
+          if ((data ?? []).length < PAGE) break;
         }
-        for (const row of data ?? []) existentes.add(`${row.mes_ref}|${row.company_id}`);
       }
 
       const novas = churnDailyRows
@@ -840,10 +849,15 @@ try {
         .map((r) => ({ ...r, visto_primeira_vez_em: dataExecucao, revertido_em: null }));
       const atualizadas = churnDailyRows
         .filter((r) => existentes.has(`${r.mes_ref}|${r.company_id}`))
-        .map((r) => ({ ...r, revertido_em: null }));
+        .map((r) => ({
+          ...r,
+          visto_primeira_vez_em: existentes.get(`${r.mes_ref}|${r.company_id}`),
+          revertido_em: null,
+        }));
 
-      let churnGravacaoOk = true;
-      for (const conjunto of [novas, atualizadas]) {
+      // Leitura parcial aborta o bloco: nada é gravado nem marcado como revertido.
+      let churnGravacaoOk = leituraOk;
+      for (const conjunto of leituraOk ? [novas, atualizadas] : []) {
         for (let i = 0; i < conjunto.length; i += BATCH) {
           const chunk = conjunto.slice(i, i + BATCH);
           const { error } = await supabase
