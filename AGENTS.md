@@ -26,3 +26,4 @@
 - New MRR pacing (Metas Táticas) is computed by pure helpers in `src/lib/newMrrPacing.ts` from paid Stripe sales, non-retained recoveries and positive upsell deltas, projecting by business days so trend lines and cards share one calculation.
 - CS Portfolio churn is derived per e-mail: inactive rows whose e-mail has no active subscription, dated by `cs_portfolio.churned_at` (trigger on is_active), so plan swaps never count as churn.
 - In the open month, New MRR components (new sales, recovered, upsell) on Metas Operacionais and Estratégicas come from paid Stripe conversions via `src/lib/openMonthStripeRealized.ts`, because the Metabase monthly aggregate undercounts when daily snapshots have gaps; closed months stay on Metabase.
+- Churn pacing (Metas Táticas) reads non-reverted rows of `metas_churn_daily` dated by `churn_at` (Stripe churn events are empty), reusing the `newMrrPacing` helpers with scenarios relabeled so lower churn is optimistic.
