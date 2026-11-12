@@ -99,6 +99,13 @@
       "when": 1793971454680,
       "tag": "0013_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794484809199,
+      "tag": "0014_cs_portfolio_churned_at",
+      "breakpoints": true
     }
   ]
 }

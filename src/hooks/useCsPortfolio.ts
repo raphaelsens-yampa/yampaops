@@ -47,6 +47,34 @@ export function useCsPortfolio(includeInactive = false) {
       if (error) throw new Error(error);
       return data;
     },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCsPortfolioInactive(enabled: boolean) {
+  return useQuery({
+    queryKey: ["cs-portfolio-inactive"],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await fetchAllPaged<CsPortfolioRow & { churned_at: string | null }>(() =>
+        supabase.from("cs_portfolio").select("*").eq("is_active", false).order("email").order("id") as any);
+      if (error) throw new Error(error);
+      return data;
+    },
+  });
+}
+
+export function useCsPortfolioLastUpdate() {
+  return useQuery({
+    queryKey: ["cs-portfolio-last-update"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cs_portfolio").select("updated_at")
+        .eq("is_active", true).order("updated_at", { ascending: false }).limit(1);
+      if (error) throw error;
+      return (data?.[0]?.updated_at as string | undefined) ?? null;
+    },
   });
 }
 

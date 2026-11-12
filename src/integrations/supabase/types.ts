@@ -2882,6 +2882,7 @@ export type Database = {
           assignment_source: string
           cadence_days: number | null
           churn_risk_score: number | null
+          churned_at: string | null
           company_name: string | null
           conversations_90d: number
           created_at: string
@@ -2915,6 +2916,7 @@ export type Database = {
           assignment_source?: string
           cadence_days?: number | null
           churn_risk_score?: number | null
+          churned_at?: string | null
           company_name?: string | null
           conversations_90d?: number
           created_at?: string
@@ -2948,6 +2950,7 @@ export type Database = {
           assignment_source?: string
           cadence_days?: number | null
           churn_risk_score?: number | null
+          churned_at?: string | null
           company_name?: string | null
           conversations_90d?: number
           created_at?: string

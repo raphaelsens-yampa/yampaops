@@ -111,6 +111,9 @@ export function PortfolioTable({
                   <TableCell className="max-w-[240px]">
                     <p className="font-medium truncate">{r.company_name || r.email}</p>
                     <p className="text-xs text-muted-foreground truncate">{r.email}</p>
+                    {(r as any).churned_at && (
+                      <Badge variant="destructive" className="mt-1 text-[10px]">Churn em {fmtDate((r as any).churned_at)}</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {r.segment_id ? (

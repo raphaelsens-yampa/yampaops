@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, RefreshCw, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
-  useCsAnalysts, useCsAssignmentRules, useCsPortfolio, useCsPortfolioMutations, useCsSegments,
+  useCsAnalysts, useCsAssignmentRules, useCsPortfolio, useCsPortfolioInactive, useCsPortfolioLastUpdate, useCsPortfolioMutations, useCsSegments,
 } from "@/hooks/useCsPortfolio";
 import {
   cadenceStatus, fmtBRL, fmtDate, queuePriority, type CsPortfolioRow,
@@ -28,11 +29,30 @@ import { useProductUsage } from "@/hooks/useProductUsage";
 import { UsageImportDialog } from "@/components/cs-portfolio/UsageImportDialog";
 import { PQL_TIER_LABEL, USAGE_TIER_LABEL } from "@/lib/productUsage";
 import { useCsClientTags, useCsTags } from "@/hooks/useCsTags";
+import { churnedClients, filterByChurnWindow, isStale, type PortfolioStatus } from "@/lib/csChurn";
 import { CsTagPicker, CsTagsManager } from "@/components/cs-portfolio/ClientTags";
 
 export default function CsPortfolio() {
   const { user, role } = useAuth();
-  const { data: rawRows = [], isLoading } = useCsPortfolio();
+  const [status, setStatus] = useState<PortfolioStatus>("ativos");
+  const [page, setPage] = useState(0);
+  const { data: activeRows = [], isLoading: loadingActive } = useCsPortfolio();
+  const inactiveQ = useCsPortfolioInactive(status !== "ativos");
+  const { data: lastUpdate } = useCsPortfolioLastUpdate();
+  const churnAll = useMemo(
+    () => (status === "ativos" ? [] : churnedClients(activeRows, inactiveQ.data || [])),
+    [status, activeRows, inactiveQ.data],
+  );
+  const rawRows = useMemo(
+    () => (status === "ativos" ? activeRows : filterByChurnWindow(churnAll, status === "churn_recente" ? 90 : null)),
+    [status, activeRows, churnAll],
+  );
+  const churnMonth = useMemo(() => {
+    const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
+    const list = churnAll.filter((r) => r.churned_at && new Date(r.churned_at) >= start);
+    return { count: list.length, mrr: list.reduce((s, r) => s + r.mrr, 0) };
+  }, [churnAll]);
+  const isLoading = loadingActive || (status !== "ativos" && inactiveQ.isLoading);
   const usage = useProductUsage();
   const rows = useMemo(() => {
     const m = usage.data?.byEmail;
@@ -47,6 +67,7 @@ export default function CsPortfolio() {
   const { data: assignmentRules = [] } = useCsAssignmentRules();
   const { data: analysts = [] } = useCsAnalysts();
   const { refresh, assign } = useCsPortfolioMutations();
+  const qc = useQueryClient();
   const { data: tags = [] } = useCsTags();
   const { data: clientTags = {} } = useCsClientTags();
   const tagsOf = (r: CsPortfolioRow) => clientTags[r.email.toLowerCase()] || [];
@@ -58,25 +79,26 @@ export default function CsPortfolio() {
   const [importOpen, setImportOpen] = useState(false);
   const [bulkCs, setBulkCs] = useState("");
 
-  const analystName = (id: string | null) => {
-    if (!id) return "Sem CS";
-    const a = analysts.find((x) => x.user_id === id);
-    return a?.full_name || a?.email || "—";
-  };
+  const analystMap = useMemo(() => new Map(analysts.map((a) => [a.user_id, a.full_name || a.email || "—"])), [analysts]);
+  const analystName = (id: string | null) => (id ? analystMap.get(id) || "—" : "Sem CS");
 
   const filtered = useMemo(
     () => applyPortfolioFilters(rows, filters, (r) => cadenceStatus(r), tagsOf),
     [rows, filters, clientTags],
   );
+  const PAGE = 50;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const curPage = Math.min(page, pageCount - 1);
+  const pageRows = useMemo(() => filtered.slice(curPage * PAGE, curPage * PAGE + PAGE), [filtered, curPage]);
 
   const queue = useMemo(
     () =>
-      rows
+      activeRows
         .filter((r) => role === "admin" || !r.cs_user_id || r.cs_user_id === user?.id)
         .filter((r) => ["vencido", "nunca", "vence_breve"].includes(cadenceStatus(r)))
         .sort((a, b) => queuePriority(b) - queuePriority(a))
         .slice(0, 100),
-    [rows, role, user?.id],
+    [activeRows, role, user?.id],
   );
 
   const kpis = useMemo(() => {
@@ -137,6 +159,11 @@ export default function CsPortfolio() {
             <p className="text-sm text-muted-foreground">
               Controle de clientes ativos pagantes por analista, segmento e cadência de atendimento.
             </p>
+            <Badge variant={isStale(lastUpdate ?? null) ? "destructive" : "secondary"} className="mt-2 font-normal">
+              {lastUpdate
+                ? `Base atualizada em ${new Date(lastUpdate).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", " às")}`
+                : "Data da última atualização indisponível"}
+            </Badge>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={exportXlsx}>
@@ -156,6 +183,8 @@ export default function CsPortfolio() {
                   onClick={async () => {
                     try {
                       const res = await refresh.mutateAsync();
+                      qc.invalidateQueries({ queryKey: ["cs-portfolio-last-update"] });
+                      qc.invalidateQueries({ queryKey: ["cs-portfolio-inactive"] });
                       toast.success(
                         `Carteira atualizada: ${res?.upserted ?? 0} clientes, ${res?.assigned ?? 0} encarteirados, ${res?.deactivated ?? 0} inativados`,
                       );
@@ -179,6 +208,11 @@ export default function CsPortfolio() {
           <Kpi label="Nunca atendidos" value={String(kpis.never)} />
           <Kpi label="Sem CS" value={String(kpis.noCs)} />
         </div>
+        {status !== "ativos" && (
+          <p className="text-sm text-muted-foreground">
+            Churns no mês: <strong>{churnMonth.count}</strong> clientes · {fmtBRL(churnMonth.mrr)} de MRR perdido
+          </p>
+        )}
 
         <Tabs defaultValue="carteira">
           <TabsList className="flex-wrap h-auto">
@@ -189,12 +223,23 @@ export default function CsPortfolio() {
           </TabsList>
 
           <TabsContent value="carteira" className="space-y-3 mt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Situação</span>
+              <Select value={status} onValueChange={(v) => { setStatus(v as PortfolioStatus); setPage(0); setSelected(new Set()); }}>
+                <SelectTrigger className="h-9 w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativos">Ativos</SelectItem>
+                  <SelectItem value="churn_recente">Churn recente (90 dias)</SelectItem>
+                  <SelectItem value="churn_todos">Todos os churns</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <PortfolioFilters
               rows={rows}
               segments={segments}
               analysts={analysts}
               value={filters}
-              onChange={setFilters}
+              onChange={(f) => { setFilters(f); setPage(0); }}
               tags={tags}
             />
             <div className="flex justify-end"><CsTagsManager tags={tags} /></div>
@@ -225,7 +270,7 @@ export default function CsPortfolio() {
                   <p className="text-sm text-muted-foreground py-10 text-center">Carregando carteira...</p>
                 ) : (
                   <PortfolioTable
-                    rows={filtered.slice(0, 500)}
+                    rows={pageRows}
                     segments={segments}
                     analystName={analystName}
                     selected={selected}
@@ -237,7 +282,7 @@ export default function CsPortfolio() {
                       })
                     }
                     onToggleAll={(checked) =>
-                      setSelected(checked ? new Set(filtered.slice(0, 500).map((r) => r.id)) : new Set())
+                      setSelected(checked ? new Set(pageRows.map((r) => r.id)) : new Set())
                     }
                     onOpen={setDrawerRow}
                     onLog={setLogRow}
@@ -245,10 +290,14 @@ export default function CsPortfolio() {
                     tagsOf={tagsOf}
                   />
                 )}
-                {filtered.length > 500 && (
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Exibindo os 500 primeiros de {filtered.length} clientes. Refine os filtros ou use a exportação.
-                  </p>
+                {filtered.length > PAGE && (
+                  <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+                    <span>{curPage * PAGE + 1}–{Math.min(filtered.length, (curPage + 1) * PAGE)} de {filtered.length} clientes</span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" disabled={curPage === 0} onClick={() => setPage(curPage - 1)}>Anterior</Button>
+                      <Button size="sm" variant="outline" disabled={curPage >= pageCount - 1} onClick={() => setPage(curPage + 1)}>Próxima</Button>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

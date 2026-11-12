@@ -8,6 +8,7 @@ export type StoredUsageRow = UsageRow & { reference_date: string; imported_at: s
 export function useProductUsage() {
   return useQuery({
     queryKey: ["cs-product-usage"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await fetchAllPaged<StoredUsageRow>(() =>
         supabase.from("cs_product_usage").select("*").order("company_id") as any);

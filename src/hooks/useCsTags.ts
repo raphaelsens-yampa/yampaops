@@ -7,6 +7,7 @@ export type CsTag = { id: string; name: string; color: string };
 export function useCsTags() {
   return useQuery({
     queryKey: ["cs-tags"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.from("cs_tags").select("id, name, color").order("name");
       if (error) throw error;
@@ -19,6 +20,7 @@ export function useCsTags() {
 export function useCsClientTags() {
   return useQuery({
     queryKey: ["cs-client-tags"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await fetchAllPaged<{ email: string; tag_id: string }>(
         () => supabase.from("cs_client_tags").select("email, tag_id").order("email").order("tag_id") as any,
