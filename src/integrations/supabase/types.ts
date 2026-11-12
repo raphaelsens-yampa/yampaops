@@ -6639,6 +6639,7 @@ export type Database = {
           mrr_yampa: number | null
           qtd_4blue: number | null
           qtd_yampa: number | null
+          revertidos: number | null
           sem_email: number | null
           ultima_extracao: string | null
           voluntario: number | null
