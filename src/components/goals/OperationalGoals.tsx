@@ -28,6 +28,7 @@ import {
   stripeConversionOrigin,
   type OriginFilter,
 } from "@/lib/origins";
+import { isCountedSale, salesCountForRange, salesTargetForRange, type SalesGoal } from "@/lib/operationalSalesCount";
 
 type OperationalArea = "sales" | "cs";
 
@@ -104,6 +105,24 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
   // Dias abertos (após a base Metabase fechada) até hoje, somados pela Stripe.
   const [stripeOpenDays, setStripeOpenDays] = useState<Map<string, { sales: number; cs: number }>>(new Map());
   const [stripeTodayLoading, setStripeTodayLoading] = useState(true);
+  const [salesCountByDay, setSalesCountByDay] = useState<Map<string, number>>(new Map());
+  const [salesGoals, setSalesGoals] = useState<SalesGoal[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: metric } = await supabase.from("tactical_metrics").select("id").eq("key", "vendas_dia").maybeSingle();
+      if (!metric) return;
+      const { data } = await fetchAllPaged<any>(() => supabase
+        .from("tactical_goals")
+        .select("period_start, period_end, daily_target")
+        .eq("metric_id", (metric as any).id)
+        .is("team_id", null)
+        .is("user_id", null)
+        .order("period_end").order("id") as any);
+      if (!cancelled) setSalesGoals(((data as any[]) || []) as SalesGoal[]);
+    })();
+    return () => { cancelled = true; };
+  }, [supabase]);
 
   useEffect(() => {
     if (!allowedAreas.includes(area) && allowedAreas[0]) setArea(allowedAreas[0]);
@@ -152,7 +171,12 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         days.set(key, next);
         return next;
       };
+      const counts = new Map<string, number>();
       for (const row of conversions) {
+        if (isCountedSale(row)) {
+          const k = toBRDateKey(new Date(row.converted_at));
+          counts.set(k, (counts.get(k) ?? 0) + 1);
+        }
         const type = String(row.conversion_type || "").toLowerCase();
         const b = bucket(row.converted_at);
         if (type === "upsell") b.sales += Math.max(Number(row.delta_mrr || 0), 0);
@@ -167,6 +191,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       // segue a base cliente a cliente (Metabase).
       setStripeToday({ sales: today.sales, cs: originFiltered ? Number.NaN : today.cs });
       setStripeOpenDays(days);
+      setSalesCountByDay(counts);
       setStripeTodayLoading(false);
     });
     return () => { cancelled = true; };
@@ -293,7 +318,18 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       ? (canonicalMonthRealized ?? 0) + monthOpenSum
       : canonicalMonthRealized;
 
+    const weekFrom = weekStartKey < monthStartKey ? monthStartKey : weekStartKey;
+    const weekTo = weekEndKey > monthEndKey ? monthEndKey : weekEndKey;
+    const sales = {
+      monthTarget: salesTargetForRange(salesGoals, monthStartKey, monthEndKey),
+      monthRealized: salesCountForRange(salesCountByDay, monthStartKey, monthEndKey),
+      weekTarget: week ? salesTargetForRange(salesGoals, weekFrom, weekTo) : null,
+      weekRealized: week ? salesCountForRange(salesCountByDay, weekFrom, weekTo) : 0,
+      dayTarget: salesTargetForRange(salesGoals, selectedDay, selectedDay),
+      dayRealized: salesCountForRange(salesCountByDay, selectedDay, selectedDay),
+    };
     return {
+      sales,
       config,
       aggregate,
       monthTarget,
@@ -305,7 +341,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, stripeOpenDays, actualSnapshotDate, originFiltered, originMonthly]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, stripeOpenDays, actualSnapshotDate, originFiltered, originMonthly, salesGoals, salesCountByDay]);
 
   if (!allowedAreas.length) {
     return (
@@ -424,6 +460,12 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                     <span>{monthPct === null ? "Sem percentual" : `${monthPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do ${model.lowerIsBetter ? "limite" : "objetivo"}`}</span>
                     <span>{monthBalance === null ? "Saldo indisponível" : `${model.lowerIsBetter ? "Margem" : "Saldo"}: ${formatMoney(Math.abs(monthBalance))}`}</span>
                   </div>
+                  {area === "sales" && (
+                    <div className="mt-3 flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                      <span className="text-xs font-semibold uppercase text-muted-foreground">Vendas (qtd)</span>
+                      <span>Meta <b>{model.sales.monthTarget === null ? "—" : model.sales.monthTarget.toLocaleString("pt-BR")}</b> · Realizado <b>{model.sales.monthRealized.toLocaleString("pt-BR")}</b>{model.sales.monthTarget ? ` (${((model.sales.monthRealized / model.sales.monthTarget) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%)` : ""}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="relative">
@@ -439,8 +481,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                     </Select>
                   </div>
                   <div className="flex items-end justify-between gap-4">
-                    <div><p className="text-[10px] uppercase text-muted-foreground">Meta</p><p className="font-heading font-bold">{formatMoney(model.weekTarget)}</p></div>
-                    <div className="text-right"><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="font-heading font-bold">{formatMoney(model.weekRealized)}</p></div>
+                    <div><p className="text-[10px] uppercase text-muted-foreground">Meta</p><p className="font-heading font-bold">{formatMoney(model.weekTarget)}</p>{area === "sales" && <p className="text-xs text-muted-foreground">{model.sales.weekTarget === null ? "—" : model.sales.weekTarget.toLocaleString("pt-BR")} vendas</p>}</div>
+                    <div className="text-right"><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="font-heading font-bold">{formatMoney(model.weekRealized)}</p>{area === "sales" && <p className="text-xs text-muted-foreground">{model.sales.weekRealized} vendas</p>}</div>
                   </div>
                    <Progress value={clampProgress(model.weekRealized, model.weekTarget)} className="mt-3 h-1.5 [&>div]:bg-warning" />
                 </div>
@@ -452,8 +494,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
                       <Input type="date" value={selectedDay} min={monthStartKey} max={maxDay} onChange={(event) => setSelectedDay(event.target.value)} className="h-9 w-40 bg-card" />
                     </div>
                     <div className="grid grid-cols-2 gap-5 text-right">
-                      <div><p className="text-[10px] uppercase text-muted-foreground">Meta do dia</p><p className="text-sm font-bold">{formatMoney(model.dayTarget)}</p></div>
-                       <div><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="text-sm font-bold">{formatMoney(model.dayRealized)}</p>{selectedDay === todayKey && <p className="text-[10px] text-muted-foreground">Stripe · hoje</p>}</div>
+                      <div><p className="text-[10px] uppercase text-muted-foreground">Meta do dia</p><p className="text-sm font-bold">{formatMoney(model.dayTarget)}</p>{area === "sales" && <p className="text-[11px] text-muted-foreground">{model.sales.dayTarget === null ? "—" : model.sales.dayTarget.toLocaleString("pt-BR")} vendas</p>}</div>
+                       <div><p className="text-[10px] uppercase text-muted-foreground">Realizado</p><p className="text-sm font-bold">{formatMoney(model.dayRealized)}</p>{area === "sales" && <p className="text-[11px] text-muted-foreground">{model.sales.dayRealized} vendas</p>}{selectedDay === todayKey && <p className="text-[10px] text-muted-foreground">Stripe · hoje</p>}</div>
                     </div>
                   </div>
                 </div>
