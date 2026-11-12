@@ -1,4 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaged } from "@/lib/supabasePaged";
+import { dailySalesTarget, type SalesGoal } from "@/lib/operationalSalesCount";
+import { useCategoryWeeklyData } from "./useCategoryWeeklyData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,6 +46,33 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
   const fromDate = `${monthOptions[monthOptions.length - 1]}-01`;
   const { events, loading, error } = useNewMrrPacing(fromDate, todayIso, origin, refreshKey);
 
+  // Meta do mês (New MRR geral) e meta diária de vendas da empresa.
+  const curMonthDate = useMemo(() => new Date(`${curYm}-01T12:00:00`), [curYm]);
+  const { categories: goalCats, targets: goalTargets } = useCategoryWeeklyData(curMonthDate, 0, origin, false, "all", null);
+  const mrrMonthTarget = useMemo(() => {
+    const agg = goalCats.find((c: any) => c.slug === "mrr_increase");
+    return agg ? goalTargets.get(agg.id) ?? 0 : 0;
+  }, [goalCats, goalTargets]);
+  const [salesGoals, setSalesGoals] = useState<SalesGoal[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: m } = await supabase.from("tactical_metrics").select("id").eq("key", "vendas_dia").maybeSingle();
+      if (!m) return;
+      const { data } = await fetchAllPaged<any>(() => supabase.from("tactical_goals")
+        .select("period_start, period_end, daily_target").eq("metric_id", (m as any).id)
+        .is("team_id", null).is("user_id", null).order("period_end").order("id") as any);
+      if (!cancelled) setSalesGoals(((data as any[]) || []) as SalesGoal[]);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const toggleLine = (key: string) => setHidden((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
   const fmt = (n: number) => (metric === "mrr" ? brl(n) : String(roundHalfUp(n)));
 
   const data = useMemo(() => {
@@ -63,10 +94,25 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
     const proj = projectMonth(curDaily, curYm, todayDay, businessDayAverage(events, todayIso, 21, metric, comp));
     const trend = view === "cum" ? trendLine(cumulative(curDaily), curYm, todayDay, proj.dailyPace) : [];
     let avgAcc = 0;
+    let goalAcc = 0;
+    const nDays = daysInMonth(curYm);
+    let bizDays = 0;
+    for (let i = 0; i < nDays; i++) {
+      const iso = `${curYm}-${String(i + 1).padStart(2, "0")}`;
+      if (![0, 6].includes(new Date(`${iso}T12:00:00Z`).getUTCDay())) bizDays++;
+    }
+    const showGoal = comp === "total";
+    let hasGoal = false;
     for (let i = 0; i < daysInMonth(curYm); i++) {
       const iso = `${curYm}-${String(i + 1).padStart(2, "0")}`;
       const bd = ![0, 6].includes(new Date(`${iso}T12:00:00Z`).getUTCDay());
       avgAcc += bd ? avg90 : 0;
+      let dayGoal: number | null = null;
+      if (showGoal) {
+        if (metric === "mrr") dayGoal = mrrMonthTarget > 0 && bizDays ? (bd ? mrrMonthTarget / bizDays : 0) : null;
+        else { const t = dailySalesTarget(salesGoals, iso); dayGoal = t == null ? null : bd ? t : 0; }
+      }
+      if (dayGoal != null) { hasGoal = true; goalAcc += dayGoal; }
       rows.push({
         day: i + 1,
         [label(curYm)]: i + 1 <= todayDay ? cur[i] : null,
@@ -74,10 +120,13 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
         [label(prevMonth(curYm))]: prev[i] ?? null,
         [label(extraMonth)]: extra[i] ?? null,
         "Média 90d": view === "cum" ? avgAcc : bd ? avg90 : 0,
+        Meta: dayGoal == null ? null : view === "cum" ? goalAcc : dayGoal,
       });
     }
-    return { rows, keys: [label(curYm), "Tendência", label(prevMonth(curYm)), label(extraMonth), "Média 90d"] };
-  }, [events, metric, comp, view, mode, monthA, monthB, curYm, extraMonth, todayDay, todayIso]);
+    const keys = [label(curYm), "Tendência", label(prevMonth(curYm)), label(extraMonth), "Média 90d"];
+    if (hasGoal) keys.push("Meta");
+    return { rows, keys };
+  }, [events, metric, comp, view, mode, monthA, monthB, curYm, extraMonth, todayDay, todayIso, mrrMonthTarget, salesGoals]);
 
   const cards = useMemo(() => {
     const build = (m: PacingMetric) => {
@@ -190,11 +239,13 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => (metric === "mrr" ? `${Math.round(v / 1000)}k` : String(v))} />
                   <Tooltip formatter={(v: any) => fmt(Number(v))} labelFormatter={(d) => `Dia ${d}`} />
-                  <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, paddingTop: 8, cursor: "pointer" }}
+                    onClick={(e: any) => e?.dataKey && toggleLine(String(e.dataKey))}
+                    formatter={(value: string) => <span className={hidden.has(value) ? "text-muted-foreground line-through opacity-60" : undefined}>{value}</span>} />
                   {data.keys.map((k, i) => (
-                    <Line key={k} type="monotone" dataKey={k} dot={false} connectNulls={false}
-                      stroke={k === "Tendência" ? colors[0] : colors[i % colors.length]} strokeWidth={i === 0 ? 3 : 2}
-                      strokeDasharray={k === "Tendência" ? "6 4" : k === "Média 90d" ? "2 3" : undefined} />
+                    <Line key={k} type="monotone" dataKey={k} dot={false} connectNulls={false} hide={hidden.has(k)}
+                      stroke={k === "Tendência" ? colors[0] : k === "Meta" ? "hsl(var(--destructive))" : colors[i % colors.length]} strokeWidth={i === 0 ? 3 : 2}
+                      strokeDasharray={k === "Tendência" ? "6 4" : k === "Média 90d" ? "2 3" : k === "Meta" ? "8 3 2 3" : undefined} />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
