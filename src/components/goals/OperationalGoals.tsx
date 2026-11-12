@@ -20,6 +20,8 @@ import { useCategoryWeeklyData } from "./tactical/useCategoryWeeklyData";
 import { buildOperationalPeriodModel, resolveOperationalDayRealized } from "./operationalGoalsModel";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { OperationalMonthReport } from "./OperationalMonthReport";
+import { OperationalDailyChart } from "./OperationalDailyChart";
+import { buildDailyChartRows } from "@/lib/operationalDailyChart";
 import { useOriginRealized } from "./useOriginRealized";
 import {
   CATEGORY_SLUG_TO_ORIGIN_METRIC,
@@ -343,6 +345,37 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     };
   }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, stripeOpenDays, actualSnapshotDate, originFiltered, originMonthly, salesGoals, salesCountByDay]);
 
+  const dailyChart = useMemo(() => {
+    const config = NORTH_STAR[area];
+    const aggregate = categories.find((category) => category.slug === config.slug);
+    if (!aggregate) return null;
+    const monthTarget = targets.get(aggregate.id) ?? 0;
+    const lowerIsBetter = isBetterBelow(aggregate.goal_direction);
+    const asOf = new Date(`${asOfKey}T00:00:00`);
+    const canUseStripe = !(originFiltered && area === "cs");
+    const days: string[] = [];
+    for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) days.push(toBRDateKey(d));
+    const mrr = days.map((day) => {
+      const p = buildOperationalPeriodModel({
+        slug: config.slug as "mrr_increase" | "mrr_decrease",
+        categories, series, weeks, monthStart, monthEnd, asOf, selectedDay: day, monthTarget, lowerIsBetter, revisedWeeklyTargets,
+      });
+      const realized = resolveOperationalDayRealized({
+        selectedDay: day, todayKey, snapshotDate: actualSnapshotDate, metabaseRealized: p.dayRealized,
+        stripeRealized: stripeOpenDays.get(day)?.[area] ?? 0, canUseStripe,
+      });
+      return { day, target: p.dayTarget, realized };
+    });
+    const count = area === "sales"
+      ? days.map((day) => ({ day, target: salesTargetForRange(salesGoals, day, day), realized: day > todayKey ? null : salesCountForRange(salesCountByDay, day, day) }))
+      : undefined;
+    return {
+      lowerIsBetter,
+      mrrRows: buildDailyChartRows(mrr, lowerIsBetter),
+      countRows: count ? buildDailyChartRows(count, false) : undefined,
+    };
+  }, [area, categories, targets, series, weeks, monthStart, monthEnd, asOfKey, todayKey, revisedWeeklyTargets, stripeOpenDays, actualSnapshotDate, originFiltered, salesGoals, salesCountByDay]);
+
   if (!allowedAreas.length) {
     return (
       <Card>
@@ -512,6 +545,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
           </CardContent>
         </Card>
       </div>
+      {!tvArea && dailyChart && <div className="mt-6"><OperationalDailyChart title={area === "sales" ? "Sales · New MRR" : "CS · Churn MRR"} mrrRows={dailyChart.mrrRows} countRows={dailyChart.countRows} lowerIsBetter={dailyChart.lowerIsBetter} /></div>}
       {!tvArea && <OperationalMonthReport area={area} monthStartKey={monthStartKey} monthEndKey={monthEndKey} officialTotal={model.monthRealized} origin={origin} />}
     </TooltipProvider>
   );
