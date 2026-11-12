@@ -24,6 +24,7 @@ import {
   ORIGIN_MONTHLY_MIN_HINT,
   ORIGIN_OPTIONS,
   isOriginFiltered,
+  stripeConversionOrigin,
   type OriginFilter,
   type OriginMetric,
 } from "@/lib/origins";
@@ -39,6 +40,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
 import { resolveSnapshotAsOf } from "@/lib/snapshotAsOf";
+import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS } from "@/lib/openMonthStripeRealized";
 
 
 type Period = "day" | "week" | "month" | "custom" | "year";
@@ -522,15 +524,61 @@ export function MetabaseTracking() {
     return out;
   }, [originFilter, originMonthly, originMetricByCategoryId, categories, year]);
 
+  // Mês aberto: vendas novas, recuperados e upsell vêm dos pagamentos
+  // confirmados da Stripe (mesma base das Metas Táticas e Operacionais).
+  const [openMonthStripeRows, setOpenMonthStripeRows] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (historicalMode) { setOpenMonthStripeRows(null); return; }
+    let cancelled = false;
+    const monthStart = `${todayKey.slice(0, 7)}-01`;
+    fetchAllPaged<any>(() => supabase
+      .from("stripe_conversions")
+      .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at")
+      .eq("payment_status", "paid")
+      .gte("converted_at", `${monthStart}T00:00:00-03:00`)
+      .lte("converted_at", `${todayKey}T23:59:59.999-03:00`)
+      .order("converted_at").order("id") as never,
+    ).then(({ data }) => { if (!cancelled) setOpenMonthStripeRows((data as any[]) || []); });
+    return () => { cancelled = true; };
+  }, [historicalMode, todayKey]);
+
+  const applyOpenMonthStripe = (rows: AggRow[]): AggRow[] => {
+    if (historicalMode || !openMonthStripeRows) return rows;
+    const ym = `${todayKey.slice(0, 7)}-01`;
+    if (!ym.startsWith(String(year))) return rows;
+    const filtered = isOriginFiltered(originFilter)
+      ? openMonthStripeRows.filter((r) => stripeConversionOrigin(r) === originFilter)
+      : openMonthStripeRows;
+    const sales = openMonthSalesFromStripe(filtered);
+    const idBySlug = new Map<string, string>();
+    categories.forEach((c) => {
+      const slug = (c as any).slug as string;
+      if ((OPEN_MONTH_STRIPE_SLUGS as readonly string[]).includes(slug)) idBySlug.set(slug, c.id);
+    });
+    const ids = new Set(idBySlug.values());
+    const kept = rows.filter((r) => !(r.year_month === ym && r.scope === "company" && !r.team_id && !r.user_id && !r.campaign_id && r.category_id && ids.has(r.category_id)));
+    const added: AggRow[] = [];
+    idBySlug.forEach((id, slug) => {
+      const cat = categories.find((c) => c.id === id);
+      added.push({
+        year_month: ym, metric_key: `stripe_open_${slug}`, scope: "company", team_id: null, user_id: null, campaign_id: null,
+        category_id: id, area: (cat as any)?.area ?? null,
+        realized_amount: sales[slug as keyof typeof sales], deals_count: 0,
+      } as AggRow);
+    });
+    return [...kept, ...added];
+  };
+
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
-    if (!isOriginFiltered(originFilter)) return [...base, ...tacticalRetentionAgg];
+    if (!isOriginFiltered(originFilter)) return [...applyOpenMonthStripe(base), ...tacticalRetentionAgg];
     // Registros táticos de retenção são lançamentos da operação Yampa.
-    if (originFilter === "yampa") return [...originAgg, ...tacticalRetentionAgg];
-    return originAgg;
-  }, [originFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg]);
+    if (originFilter === "yampa") return [...applyOpenMonthStripe(originAgg), ...tacticalRetentionAgg];
+    return applyOpenMonthStripe(originAgg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg, openMonthStripeRows, categories, year, todayKey]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {

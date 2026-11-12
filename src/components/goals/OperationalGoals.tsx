@@ -1,3 +1,4 @@
+import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS, type OpenMonthSales } from "@/lib/openMonthStripeRealized";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -194,10 +195,12 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       setStripeToday({ sales: today.sales, cs: originFiltered ? Number.NaN : today.cs });
       setStripeOpenDays(days);
       setSalesCountByDay(counts);
+      setOpenMonthSales(openMonthSalesFromStripe(conversions));
       setStripeTodayLoading(false);
     });
     return () => { cancelled = true; };
   }, [supabase, todayKey, monthStartKey, origin, originFiltered, actualSnapshotDate]);
+  const [openMonthSales, setOpenMonthSales] = useState<OpenMonthSales | null>(null);
   const { monthly: originMonthly, loading: originLoading } = useOriginRealized(
     origin,
     refMonth.getFullYear(),
@@ -271,8 +274,14 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       revisedWeeklyTargets,
     });
     const monthKey = monthStartKey.slice(0, 7);
+    const isOpenMonth = todayKey >= monthStartKey && todayKey <= monthEndKey;
+    const useStripeMonth = isOpenMonth && area === "sales" && !!openMonthSales;
     const canonicalMonthValues = (aggregate.component_category_ids ?? [])
       .map((id) => {
+        if (useStripeMonth) {
+          const slug = categories.find((c) => c.id === id)?.slug as keyof OpenMonthSales | undefined;
+          if (slug && (OPEN_MONTH_STRIPE_SLUGS as readonly string[]).includes(slug)) return openMonthSales![slug];
+        }
         if (!originFiltered) return monthlyRealized.get(id);
         const slug = categories.find((c) => c.id === id)?.slug;
         const metric = slug ? CATEGORY_SLUG_TO_ORIGIN_METRIC[slug] : undefined;
@@ -316,7 +325,9 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
     const weekRealized = canUseStripeOpen ? openSum : baseWeek;
     void hasOpen;
     // Mês = base fechada (Metabase) + dias ainda abertos lidos da Stripe.
-    const monthRealizedTotal = hasMonthOpen
+    const monthRealizedTotal = useStripeMonth
+      ? canonicalMonthRealized
+      : hasMonthOpen
       ? (canonicalMonthRealized ?? 0) + monthOpenSum
       : canonicalMonthRealized;
 
@@ -343,7 +354,7 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       dayRealized,
       lowerIsBetter,
     };
-  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, stripeOpenDays, actualSnapshotDate, originFiltered, originMonthly, salesGoals, salesCountByDay]);
+  }, [area, categories, targets, series, monthlyRealized, monthStart, monthEnd, monthStartKey, monthEndKey, todayKey, asOfKey, weeks, selectedWeek, selectedDay, revisedWeeklyTargets, stripeToday, stripeOpenDays, actualSnapshotDate, originFiltered, originMonthly, salesGoals, salesCountByDay, openMonthSales]);
 
   const dailyChart = useMemo(() => {
     const config = NORTH_STAR[area];
