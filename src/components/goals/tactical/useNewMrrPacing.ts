@@ -4,6 +4,11 @@ import { fetchAllPaged } from "@/lib/supabasePaged";
 import { stripeConversionOrigin, type OriginFilter } from "@/lib/origins";
 import type { PacingEvent } from "@/lib/newMrrPacing";
 
+/** Origem de uma recuperação: marcação do cliente; sem marcação = Yampa. */
+export function recoveryOrigin(r: { origem_cliente?: string | null }): "yampa" | "4blue" {
+  return String(r.origem_cliente || "").toLowerCase().includes("4blue") ? "4blue" : "yampa";
+}
+
 const spDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 /** Eventos de New MRR (vendas pagas, recuperações não-retidas, upsell positivo) entre duas datas. */
@@ -28,17 +33,15 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
             .order("converted_at", { ascending: true })
             .order("id", { ascending: true }) as any,
         ),
-        origin === "all"
-          ? fetchAllPaged<any>(() =>
+        fetchAllPaged<any>(() =>
               supabase
                 .from("tactical_recoveries")
-                .select("id, recovered_at, mrr, entry_kind")
+                .select("id, recovered_at, mrr, entry_kind, origem_cliente")
                 .gte("recovered_at", fromDate)
                 .lte("recovered_at", toDate)
                 .order("recovered_at", { ascending: true })
                 .order("id", { ascending: true }) as any,
-            )
-          : Promise.resolve({ data: [] as any[], error: null }),
+            ),
       ]);
       if (!alive) return;
       const out: PacingEvent[] = [];
@@ -54,6 +57,7 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
       }
       for (const r of rec.data) {
         if (r.entry_kind === "retained") continue;
+        if (origin !== "all" && recoveryOrigin(r) !== origin) continue;
         out.push({ date: String(r.recovered_at).slice(0, 10), kind: "recuperados", mrr: Number(r.mrr ?? 0) });
       }
       setEvents(out);

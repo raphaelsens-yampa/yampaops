@@ -23,7 +23,7 @@ const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", curren
 
 interface Props { today: Date; origin: OriginFilter; refreshKey?: number }
 
-export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
+export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Props) {
   const todayIso = today.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const curYm = todayIso.slice(0, 7);
   const todayDay = Number(todayIso.slice(8, 10));
@@ -35,6 +35,8 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
   }, [curYm]);
 
   const [open, setOpen] = useState(true);
+  const [origin, setOrigin] = useState<OriginFilter>(pageOrigin);
+  useEffect(() => { setOrigin(pageOrigin); }, [pageOrigin]);
   const [mode, setMode] = useState<"mtd" | "closed">("mtd");
   const [metric, setMetric] = useState<PacingMetric>("mrr");
   const [comp, setComp] = useState<PacingComposition>("total");
@@ -196,6 +198,11 @@ export function NewMrrPacingPanel({ today, origin, refreshKey }: Props) {
               <ToggleGroup type="single" size="sm" variant="outline" value={view} onValueChange={(v) => v && setView(v as any)}>
                 <ToggleGroupItem value="cum">Acumulado</ToggleGroupItem>
                 <ToggleGroupItem value="daily">Diário</ToggleGroupItem>
+              </ToggleGroup>
+              <ToggleGroup type="single" size="sm" variant="outline" value={origin} onValueChange={(v) => v && setOrigin(v as OriginFilter)} aria-label="Origem do gráfico">
+                <ToggleGroupItem value="all">Geral</ToggleGroupItem>
+                <ToggleGroupItem value="yampa">Yampa</ToggleGroupItem>
+                <ToggleGroupItem value="4blue">4blue</ToggleGroupItem>
               </ToggleGroup>
               <Select value={comp} onValueChange={(v) => setComp(v as PacingComposition)}>
                 <SelectTrigger className="h-8 w-[150px]"><SelectValue /></SelectTrigger>
