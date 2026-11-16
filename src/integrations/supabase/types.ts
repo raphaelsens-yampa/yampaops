@@ -5695,6 +5695,42 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_bpo_mrr_runs: {
+        Row: {
+          added_ativos: number
+          added_mrr: number
+          base_ativos: number
+          base_mrr: number
+          data: string
+          details: Json
+          ran_at: string
+          written_ativos: number
+          written_mrr: number
+        }
+        Insert: {
+          added_ativos?: number
+          added_mrr?: number
+          base_ativos: number
+          base_mrr: number
+          data: string
+          details?: Json
+          ran_at?: string
+          written_ativos: number
+          written_mrr: number
+        }
+        Update: {
+          added_ativos?: number
+          added_mrr?: number
+          base_ativos?: number
+          base_mrr?: number
+          data?: string
+          details?: Json
+          ran_at?: string
+          written_ativos?: number
+          written_mrr?: number
+        }
+        Relationships: []
+      }
       stripe_churn_events: {
         Row: {
           assigned_seller_id: string | null
