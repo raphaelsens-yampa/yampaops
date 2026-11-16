@@ -117,8 +117,9 @@ Deno.serve(async (req) => {
       let via = "email";
       if (existing === undefined) { const a = aliasKey(email); if (a && mrrByAlias.has(a)) { existing = mrrByAlias.get(a)!; via = "alias"; } }
       const isNew = existing === undefined;
-      const diff = r2(s.mrr - (existing ?? 0));
-      if (diff <= 0) continue;
+      // Regra: base >= Stripe mantém; base < Stripe soma o valor Stripe inteiro; ausente entra com o valor Stripe.
+      if (!isNew && existing! >= s.mrr) continue;
+      const diff = r2(s.mrr);
       details.push({ email, stripe_mrr: s.mrr, base_mrr: existing ?? 0, added: diff, novo: isNew, via, status: s.status });
       addedMrr = r2(addedMrr + diff);
       if (isNew) addedAtivos++;
