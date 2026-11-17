@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { can, inheritParents } from "@/lib/accessRegistry";
 import { CRM_SECTIONS, getSectionForArea, type CrmAreaKey, type AreaPermission, type Permissions, type SectionKey } from "@/components/AccessLevelManager";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -86,12 +87,12 @@ function defaultsForRole(role: AppRole): Permissions {
 // no nível herdam o valor do default do papel (compat. retroativa).
 function mergePermissions(levelPerms: Permissions | null | undefined, role: AppRole): Permissions {
   const defaults = defaultsForRole(role);
-  if (!levelPerms) return defaults;
+  if (!levelPerms) return inheritParents(defaults);
   const merged: Permissions = { ...defaults };
   for (const [k, v] of Object.entries(levelPerms)) {
     if (v) merged[k as CrmAreaKey] = v as AreaPermission;
   }
-  return merged;
+  return inheritParents(merged);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -159,14 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (permissions[section as CrmAreaKey]?.view) return true;
     // Seção também é visível se qualquer subseção estiver liberada
     const def = CRM_SECTIONS.find((s) => s.key === section);
-    return !!def?.areas.some((a) => permissions[a.key as CrmAreaKey]?.view);
+    return !!def?.areas.some((a) => can(a.key as CrmAreaKey, "view", { role, permissions }));
   };
 
   const checkArea = (area: CrmAreaKey, perm: keyof AreaPermission) => {
-    if (isAdmin) return true;
-    // A subseção é a fonte de verdade — não bloqueia por flag da seção pai
-    // (o checkbox da seção no editor de níveis funciona como "marcar tudo").
-    return !!permissions[area]?.[perm];
+    // Regra única (lib/accessRegistry): nível de acesso libera E papel atende o mínimo.
+    return can(area, perm, { role, permissions });
   };
 
   const canView = (area: CrmAreaKey) => checkArea(area, "view");

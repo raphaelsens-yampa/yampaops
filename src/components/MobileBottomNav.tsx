@@ -50,22 +50,22 @@ export function MobileBottomNav() {
       label: "Operações", section: "operations",
       items: [
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos" },
-        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", managerOnly: true },
+        { title: "Atividade de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity" },
         { title: "Auditoria IA", url: "/atendimentos/auditoria", icon: Sparkles, area: "auditoria_ia" },
       ],
     },
     {
       label: "Sales", section: "sales",
       items: [
-        { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "campaign_history", managerOnly: true },
-        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns", managerOnly: true },
+        { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "campaign_history" },
+        { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns" },
         { title: "Comissionamento", url: "/comissionamento", icon: DollarSign, area: "comissionamento" },
         { title: "Gerador de Ofertas", url: "/link-builder", icon: Link2, area: "link_builder" },
         { title: "Precificação Serviços", url: "/precificacao", icon: Calculator, area: "precificacao" },
       ],
     },
     {
-      label: "Gestão", section: "gestao", adminOnly: true,
+      label: "Gestão", section: "gestao",
       items: [
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
         { title: "Usuários & Acessos", url: "/users", icon: ShieldCheck, area: "users" },
@@ -73,22 +73,19 @@ export function MobileBottomNav() {
     },
 
     {
-      label: "Integrações", section: "integracoes", adminOnly: true,
+      label: "Integrações", section: "integracoes",
       items: [
-        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true },
-        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true },
+        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe" },
+        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot" },
       ],
     },
   ];
 
   const visibleGroups = groups
-    .filter((g) => !g.adminOnly || role === "admin")
     .filter((g) => !g.section || role === "admin" || canViewSection(g.section))
     .map((g) => ({
       ...g,
       items: g.items.filter((it) => {
-        if (it.adminOnly && role !== "admin") return false;
-        if (it.managerOnly && role !== "admin" && role !== "tatico") return false;
         if (!it.area) return true;
         return role === "admin" ? true : canView(it.area);
       }),

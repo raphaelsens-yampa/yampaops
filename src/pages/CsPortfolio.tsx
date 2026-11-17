@@ -35,7 +35,7 @@ import { TasksTab } from "@/components/cs-portfolio/TasksTab";
 import { CsTagPicker, CsTagsManager } from "@/components/cs-portfolio/ClientTags";
 
 export default function CsPortfolio() {
-  const { user, role } = useAuth();
+  const { user, role, canView } = useAuth();
   const [status, setStatus] = useState<PortfolioStatus>("ativos");
   const [page, setPage] = useState(0);
   const { data: activeRows = [], isLoading: loadingActive } = useCsPortfolio();
@@ -180,7 +180,7 @@ export default function CsPortfolio() {
             <Button variant="outline" size="sm" onClick={exportXlsx}>
               <Download className="h-4 w-4 mr-1" /> Exportar
             </Button>
-            {role === "admin" && (
+            {canView("cs_usage_import") && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" /> Ramo de atuação
@@ -228,8 +228,8 @@ export default function CsPortfolio() {
         <Tabs defaultValue="carteira">
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="carteira">Carteira</TabsTrigger>
-            <TabsTrigger value="fila">Fila do dia</TabsTrigger>
-            <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
+            {canView("cs_queue") && <TabsTrigger value="fila">Fila do dia</TabsTrigger>}
+            {canView("cs_tasks") && <TabsTrigger value="tarefas">Tarefas</TabsTrigger>}
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
             {role === "admin" && <TabsTrigger value="config">Configurações</TabsTrigger>}
           </TabsList>

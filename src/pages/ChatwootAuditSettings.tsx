@@ -48,7 +48,6 @@ function MarkdownEditor({ value, onChange, rows = 18 }: { value: string; onChang
 
 export default function ChatwootAuditSettings() {
   const { role } = useAuth();
-  if (role !== "admin") return <Navigate to="/atendimentos/auditoria" replace />;
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({

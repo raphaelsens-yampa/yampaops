@@ -148,7 +148,6 @@ export default function StripeIntegration() {
   const [unmapped, setUnmapped] = useState<UnmappedPrice[]>([]);
   const [loading, setLoading] = useState(true);
 
-  if (role !== "admin") return <Navigate to="/" replace />;
 
   async function loadAll() {
     setLoading(true);

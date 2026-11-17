@@ -26,7 +26,7 @@ const fmtBRL = (v: number | null | undefined) =>
 const SCENARIO_PRESETS = [0, 5, 10];
 
 export default function CommercialPlanningPage() {
-  const { role } = useAuth();
+  const { role, canView } = useAuth();
   const canEdit = role === "admin" || role === "tatico";
   const [include4blue, setInclude4blue] = useState(false);
   const plan = useCommercialPlan(include4blue);
@@ -124,9 +124,9 @@ export default function CommercialPlanningPage() {
         <Tabs defaultValue="plano">
           <TabsList>
             <TabsTrigger value="plano">Plano de MRR & Quotas</TabsTrigger>
-            <TabsTrigger value="base">Potencial da Base (Upsell & Cross-sell)</TabsTrigger>
+            {canView("base_expansion") && <TabsTrigger value="base">Potencial da Base (Upsell & Cross-sell)</TabsTrigger>}
           </TabsList>
-          <TabsContent value="base" className="mt-4"><BaseExpansionPanel /></TabsContent>
+          {canView("base_expansion") && <TabsContent value="base" className="mt-4"><BaseExpansionPanel /></TabsContent>}
           <TabsContent value="plano" className="mt-4 space-y-6">
         {plan.loading ? (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Carregando plano...</CardContent></Card>

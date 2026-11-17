@@ -59,7 +59,6 @@ export default function ChatwootIntegration() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [cwUserName, setCwUserName] = useState("");
 
-  if (role !== "admin") return <Navigate to="/" replace />;
 
   async function loadAll() {
     const [s, c, e] = await Promise.all([

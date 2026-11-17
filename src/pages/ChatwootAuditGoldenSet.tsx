@@ -14,7 +14,6 @@ import { useChatwootIntegration } from "@/hooks/useChatwootIntegration";
 
 export default function ChatwootAuditGoldenSet() {
   const { role } = useAuth();
-  if (role !== "admin") return <Navigate to="/atendimentos/auditoria" replace />;
   const qc = useQueryClient();
   const { buildConversationUrl } = useChatwootIntegration();
   const [testResult, setTestResult] = useState<any>(null);

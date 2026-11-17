@@ -244,7 +244,6 @@ function DateRangeFilter({
 
 export default function ChatwootReports() {
   const { role } = useAuth();
-  if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);

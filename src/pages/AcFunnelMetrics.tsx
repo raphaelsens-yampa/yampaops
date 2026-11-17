@@ -172,7 +172,6 @@ export default function AcFunnelMetrics() {
   const [audit, setAudit] = useState<any | null>(null);
 
 
-  if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   async function loadAll(selected?: string) {
     setLoading(true);

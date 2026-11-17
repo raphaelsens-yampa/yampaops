@@ -284,37 +284,41 @@ export default function GoalsPage() {
           <h1 className="text-xl sm:text-2xl font-heading font-bold">Metas</h1>
         </div>
 
-        <Tabs defaultValue="metabase" className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
+        <Tabs defaultValue={canView("goals_strategic") ? "metabase" : canView("goals_tactical") ? "tactical" : "operational"} className="space-y-5 md:space-y-6" onValueChange={(v) => { if (v === "setup") loadCategories(); }}>
           <div className="-mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 overflow-x-auto no-scrollbar">
             <TabsList className="w-max min-w-full justify-start gap-1">
+              {canView("goals_strategic") && (
               <TabsTrigger value="metabase" className="whitespace-nowrap">
                 <span className="md:hidden">Estratégicas</span>
                 <span className="hidden md:inline">Metas Estratégicas</span>
               </TabsTrigger>
+              )}
+              {canView("goals_tactical") && (
               <TabsTrigger value="tactical" className="whitespace-nowrap">
                 <span className="md:hidden">Táticas</span>
                 <span className="hidden md:inline">Metas Táticas</span>
               </TabsTrigger>
+              )}
               {canViewOperational && (
                 <TabsTrigger value="operational" className="whitespace-nowrap">
                   <span className="md:hidden">Operacionais</span>
                   <span className="hidden md:inline">Metas Operacionais</span>
                 </TabsTrigger>
               )}
-              {canViewOperational && (
+              {canView("goals_projected") && (
                 <TabsTrigger value="projected" className="whitespace-nowrap">
                   <span className="md:hidden">Projetado</span>
                   <span className="hidden md:inline">Resultado Projetado</span>
                 </TabsTrigger>
               )}
-              {isManager && (
+              {canView("goals_registry") && (
                 <TabsTrigger value="setup" className="whitespace-nowrap">
                   <span className="md:hidden">Cadastro</span>
                   <span className="hidden md:inline">Cadastro de Metas</span>
                 </TabsTrigger>
               )}
               {role === "admin" && <TabsTrigger value="categories" className="whitespace-nowrap">Categorias</TabsTrigger>}
-              {isManager && (
+              {canView("goals_settings") && (
                 <TabsTrigger value="finance" className="whitespace-nowrap">
                   <span className="md:hidden">Config.</span>
                   <span className="hidden md:inline">Configurações</span>
@@ -330,19 +334,23 @@ export default function GoalsPage() {
             </TabsContent>
           )}
 
-          {canViewOperational && (
+          {canView("goals_projected") && (
             <TabsContent value="projected" className="space-y-6">
               <ProjectedResult />
             </TabsContent>
           )}
 
+          {canView("goals_strategic") && (
           <TabsContent value="metabase" className="space-y-6">
             <MetabaseTracking />
           </TabsContent>
+          )}
 
+          {canView("goals_tactical") && (
           <TabsContent value="tactical" className="space-y-6">
             <TacticalTracking />
           </TabsContent>
+          )}
 
           {role === "admin" && (
             <TabsContent value="categories" className="space-y-6">

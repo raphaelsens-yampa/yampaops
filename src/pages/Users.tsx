@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, UserPlus, Pencil, Users, Trash2, UserX, UserCheck } from "lucide-react";
 import { AccessLevelManager, CRM_AREAS, type AccessLevel, type Permissions } from "@/components/AccessLevelManager";
+import { AccessMatrix } from "@/components/AccessMatrix";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -291,6 +292,7 @@ export default function UsersPage() {
           <TabsList>
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="levels">Níveis de Acesso</TabsTrigger>
+            <TabsTrigger value="matrix">Matriz</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="mt-4">
@@ -395,6 +397,9 @@ export default function UsersPage() {
 
           <TabsContent value="levels" className="mt-4">
             <AccessLevelManager levels={accessLevels} onUpdate={loadData} />
+          </TabsContent>
+          <TabsContent value="matrix" className="mt-4">
+            <AccessMatrix levels={accessLevels} />
           </TabsContent>
         </Tabs>
       </div>

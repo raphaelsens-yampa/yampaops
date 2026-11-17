@@ -227,7 +227,7 @@ export function AppSidebar() {
       items: [
         // { title: "Pipeline", url: "/pipeline", icon: Kanban, area: "pipeline" }, // archived
         { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, area: "atendimentos", subsection: "Suporte" },
-        { title: "Atividades de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", managerOnly: true, subsection: "Suporte" },
+        { title: "Atividades de Agentes", url: "/atividade-agentes", icon: Headset, area: "agent_activity", subsection: "Suporte" },
         {
           title: "Auditoria IA",
           subsection: "Suporte",
@@ -236,9 +236,9 @@ export function AppSidebar() {
           area: "auditoria_ia",
           children: [
             ...(role === "admin" ? [
-              { title: "Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, area: "auditoria_ia_admin" as CrmAreaKey },
+              { title: "Fila de Revisão", url: "/atendimentos/auditoria/revisao", icon: Sparkles, area: "auditoria_ia_config" as CrmAreaKey },
               { title: "Insights", url: "/atendimentos/auditoria/insights", icon: Sparkles, area: "auditoria_ia_admin" as CrmAreaKey },
-              { title: "Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, area: "auditoria_ia_admin" as CrmAreaKey },
+              { title: "Golden Set", url: "/atendimentos/auditoria/golden-set", icon: Sparkles, area: "auditoria_ia_config" as CrmAreaKey },
             ] : []),
             ...(role === "seller" ? [
               { title: "Minhas Auditorias", url: "/atendimentos/auditoria/minhas", icon: Sparkles, area: "auditoria_ia" as CrmAreaKey },
@@ -264,14 +264,13 @@ export function AppSidebar() {
           url: "/sales-campaigns/history",
           icon: Megaphone,
           // agrupador: visibilidade derivada dos filhos
-          managerOnly: true,
           children: [
             { title: "Histórico de Campanhas", url: "/sales-campaigns/history", icon: FileBarChart, area: "campaign_history" as CrmAreaKey },
             { title: "Planejamento de Campanhas", url: "/sales-campaigns/planejamento", icon: Calculator, area: "campaign_planning" as CrmAreaKey },
             { title: "Campanhas de Sales", url: "/sales-campaigns", icon: Megaphone, area: "sales_campaigns" as CrmAreaKey },
           ],
         },
-        { title: "Funis CRM", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels", managerOnly: true },
+        { title: "Funis CRM", url: "/integrations/ac-funnels", icon: Filter, area: "integration_ac_funnels" },
         { title: "Planejamento Comercial", url: "/planejamento-comercial", icon: CalendarRange, area: "planejamento_comercial" },
 
         
@@ -287,7 +286,6 @@ export function AppSidebar() {
       section: "gestao",
       collapsible: true,
       defaultOpen: openGestao,
-      adminOnly: true,
       items: [
         // { title: "Contatos", url: "/contacts", icon: Contact, area: "contacts" }, // archived
         { title: "Equipe", url: "/team", icon: Users, area: "team" },
@@ -302,11 +300,10 @@ export function AppSidebar() {
       section: "integracoes",
       collapsible: true,
       defaultOpen: openIntegr,
-      adminOnly: true,
       items: [
         // ActiveCampaign integration archived
-        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", adminOnly: true, rightSlot: "stripe-status" },
-        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", adminOnly: true, rightSlot: "chatwoot-status" },
+        { title: "Stripe", url: "/integrations/stripe", icon: DollarSign, area: "integration_stripe", rightSlot: "stripe-status" },
+        { title: "Chatwoot", url: "/integrations/chatwoot", icon: MessageCircle, area: "integration_chatwoot", rightSlot: "chatwoot-status" },
         
         // Integration Audit archived (AC-centric)
       ],
@@ -315,22 +312,18 @@ export function AppSidebar() {
 
   // Filtra itens visíveis em cada grupo (respeitando section + área)
   const visibleGroups = groups
-    .filter((g) => !g.adminOnly || role === "admin")
     .filter((g) => !g.section || role === "admin" || canViewSection(g.section))
     .map((g) => ({
       ...g,
       items: g.items
         .filter((it) => {
-          if (it.adminOnly && role !== "admin") return false;
-          if (it.managerOnly && role !== "admin" && role !== "tatico") return false;
           if (!it.area) return true;
-          return role === "admin" ? true : canView(it.area);
+          return canView(it.area);
         })
         .map((it) => {
           const children = it.children?.filter((c) => {
-            if (c.adminOnly && role !== "admin") return false;
             if (!c.area) return true;
-            return role === "admin" ? true : canView(c.area);
+            return canView(c.area);
           });
           // Se o item é apenas um agrupador com filhos, aponta para o primeiro filho visível
           const url = children && children.length > 0 && !it.area ? children[0].url : it.url;

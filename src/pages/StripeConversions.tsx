@@ -124,7 +124,7 @@ const PERIOD_PRESETS = [
 const presetRange = conversionPreset;
 
 export default function StripeConversions() {
-  const { role } = useAuth();
+  const { role, canView } = useAuth();
   const { toast } = useToast();
 
 
@@ -178,7 +178,7 @@ export default function StripeConversions() {
 
   const { data: allPeriodRows = [], isLoading, isFetching, error: queryError, refetch } = useQuery({
     queryKey: ["stripe-conversions", period, safraEnabled, safra],
-    enabled: rangeValid && (role === "admin" || role === "tatico"),
+    enabled: rangeValid && canView("conversions"),
     placeholderData: keepPreviousData,
     refetchInterval: 120000,
     queryFn: async () => {
@@ -663,7 +663,6 @@ export default function StripeConversions() {
   }
 
 
-  if (role !== "admin" && role !== "tatico") return <Navigate to="/" replace />;
 
   return (
     <Layout>

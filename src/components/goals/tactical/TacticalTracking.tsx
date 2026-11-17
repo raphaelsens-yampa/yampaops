@@ -57,7 +57,7 @@ const ALL_TEAMS = "__all__";
 const LOW_TOUCH = "__lowtouch__";
 
 export function TacticalTracking() {
-  const { user, role } = useAuth();
+  const { user, role, canView } = useAuth();
   const isAdmin = role === "admin" || role === "tatico";
   const realToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const [refDate, setRefDate] = useState<Date>(realToday);
@@ -374,8 +374,8 @@ export function TacticalTracking() {
         </>
       ) : (
         <>
-      {isOverview && <NewMrrPacingPanel today={today} origin={originFilter} refreshKey={reloadKey} />}
-      {isOverview && <ChurnPacingPanel today={today} origin={originFilter} refreshKey={reloadKey} />}
+      {isOverview && canView("goals_pacing") && <NewMrrPacingPanel today={today} origin={originFilter} refreshKey={reloadKey} />}
+      {isOverview && canView("goals_pacing") && <ChurnPacingPanel today={today} origin={originFilter} refreshKey={reloadKey} />}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <div className="space-y-4">
           {isOverview ? (

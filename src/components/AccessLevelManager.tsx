@@ -14,81 +14,15 @@ import { Plus, Pencil, Trash2, Shield, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-// Definição declarativa das seções e subseções (alinhadas ao sidebar)
-export const CRM_SECTIONS = [
-  {
-    key: "overview",
-    label: "Visão Geral",
-    areas: [
-      { key: "one_page_diretoria", label: "OnePage Diretoria" },
-      { key: "goals", label: "Metas" },
-      { key: "goals_operational_sales", label: "Metas Operacionais — Sales" },
-      { key: "goals_operational_cs", label: "Metas Operacionais — CS" },
-      { key: "conversions", label: "Conversões por Área" },
-      { key: "reports", label: "Relatórios" },
-    ],
-
-  },
-  {
-    key: "operations",
-    label: "Operações",
-    areas: [
-      { key: "atendimentos", label: "Atendimentos" },
-      { key: "agent_activity", label: "Atividade de Agentes" },
-      { key: "auditoria_ia", label: "Auditoria IA" },
-      { key: "auditoria_ia_admin", label: "Auditoria IA — Revisão/Insights/Golden Set/Config" },
-      { key: "voz_do_cliente", label: "Voz do Cliente (temas e dores)" },
-      { key: "engajamento_cs", label: "Engajamento CS" },
-      { key: "carteira_cs", label: "Carteira de CS (low-touch)" },
-      { key: "analise_churn", label: "Análise do Churn" },
-    ],
-  },
-  {
-    key: "sales",
-    label: "Sales",
-    areas: [
-      { key: "campaign_history", label: "Histórico de Campanhas" },
-      { key: "campaign_planning", label: "Planejamento de Campanhas" },
-      { key: "sales_campaigns", label: "Campanhas de Sales" },
-      { key: "comissionamento", label: "Comissionamento" },
-      { key: "link_builder", label: "Gerador de Ofertas" },
-      { key: "precificacao", label: "Precificação Serviços" },
-      { key: "planejamento_comercial", label: "Planejamento Comercial" },
-    ],
-  },
-  {
-    key: "gestao",
-    label: "Gestão",
-    areas: [
-      { key: "team", label: "Equipe" },
-      { key: "users", label: "Usuários & Acessos" },
-    ],
-
-  },
-  {
-    key: "integracoes",
-    label: "Integrações",
-    areas: [
-      { key: "integration_stripe", label: "Stripe" },
-      { key: "integration_chatwoot", label: "Chatwoot" },
-      { key: "integration_ac_funnels", label: "Funis ActiveCampaign" },
-    ],
-  },
-] as const;
-
-
-export type SectionKey = typeof CRM_SECTIONS[number]["key"];
-export type AreaKey = typeof CRM_SECTIONS[number]["areas"][number]["key"];
-export type CrmAreaKey = SectionKey | AreaKey;
+import { CRM_SECTIONS, AREA_DEFS, ROLE_LABEL, type SectionKey, type AreaKey, type CrmAreaKey, type AreaPermission, type Permissions } from "@/lib/accessRegistry";
+export { CRM_SECTIONS };
+export type { SectionKey, AreaKey, CrmAreaKey, AreaPermission, Permissions };
 
 // Lista plana de todas as chaves (seções + áreas)
 export const CRM_AREAS: { key: CrmAreaKey; label: string }[] = CRM_SECTIONS.flatMap((s) => [
   { key: s.key as CrmAreaKey, label: s.label },
   ...s.areas.map((a) => ({ key: a.key as CrmAreaKey, label: a.label })),
 ]);
-
-export type AreaPermission = { view: boolean; create: boolean; edit: boolean };
-export type Permissions = Partial<Record<CrmAreaKey, AreaPermission>>;
 
 export interface AccessLevel {
   id: string;
@@ -403,7 +337,15 @@ export function AccessLevelManager({ levels, onUpdate }: Props) {
                                 const sectionBlocked = !sp.view;
                                 return (
                                   <TableRow key={area.key} className={cn(sectionBlocked && "opacity-50")}>
-                                    <TableCell className="font-medium text-sm">{area.label}</TableCell>
+                                    <TableCell className="font-medium text-sm">
+                                      {area.label}
+                                      {AREA_DEFS[area.key]?.minRole && (
+                                        <Badge variant="outline" className="ml-2 text-[10px]">requer papel {ROLE_LABEL[AREA_DEFS[area.key].minRole!]}</Badge>
+                                      )}
+                                      {AREA_DEFS[area.key]?.readOnly && (
+                                        <Badge variant="secondary" className="ml-2 text-[10px]">somente leitura</Badge>
+                                      )}
+                                    </TableCell>
                                     <TableCell className="text-center">
                                       <Checkbox checked={p.view} onCheckedChange={() => togglePermission(area.key as CrmAreaKey, "view")} />
                                     </TableCell>

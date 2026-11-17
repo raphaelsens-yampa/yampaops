@@ -132,10 +132,10 @@ function AppRoutes() {
       {/* Integration Audit archived */}
       <Route path="/atendimentos" element={<RequireArea area="atendimentos"><ChatwootReports /></RequireArea>} />
       <Route path="/atendimentos/auditoria" element={<RequireArea area="auditoria_ia"><ChatwootAudit /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/configuracoes" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditSettings /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/revisao" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditReview /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/configuracoes" element={<RequireArea area="auditoria_ia_config"><ChatwootAuditSettings /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/revisao" element={<RequireArea area="auditoria_ia_config"><ChatwootAuditReview /></RequireArea>} />
       <Route path="/atendimentos/auditoria/insights" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditInsights /></RequireArea>} />
-      <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia_admin"><ChatwootAuditGoldenSet /></RequireArea>} />
+      <Route path="/atendimentos/auditoria/golden-set" element={<RequireArea area="auditoria_ia_config"><ChatwootAuditGoldenSet /></RequireArea>} />
       <Route path="/atendimentos/auditoria/minhas" element={<RequireArea area="auditoria_ia"><ChatwootAuditMine /></RequireArea>} />
       <Route path="/atendimentos/voz-do-cliente" element={<RequireArea area="voz_do_cliente"><ChatwootVoiceOfCustomer /></RequireArea>} />
       <Route path="/atendimentos/carteira-cs" element={<RequireArea area="carteira_cs"><CsPortfolio /></RequireArea>} />

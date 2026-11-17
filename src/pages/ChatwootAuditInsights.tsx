@@ -25,7 +25,6 @@ export default function ChatwootAuditInsights() {
   const [days, setDays] = useState<string>("14");
   const [rowLimit, setRowLimit] = useState<string>("1000");
 
-  if (role !== "admin" && role !== "tatico") return <Navigate to="/atendimentos/auditoria" replace />;
 
   const since = useMemo(() => subDays(new Date(), Number(days)).toISOString(), [days]);
   const limit = Number(rowLimit);
