@@ -2,7 +2,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { CADENCE_LABEL, ENGAGEMENT_LABEL, type CsPortfolioRow, type CsSegment } from "@/lib/csPortfolio";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { USAGE_TIERS, USAGE_TIER_LABEL } from "@/lib/productUsage";
 import type { CsTag } from "@/hooks/useCsTags";
 
@@ -15,12 +17,14 @@ export interface PortfolioFilterState {
   industry: string;
   band: string;
   cadence: string;
-  tagId: string;
+  /** all = sem filtro; any = pelo menos 1 tag; none = sem tag; pick = qualquer das tagIds */
+  tagMode: "all" | "any" | "none" | "pick";
+  tagIds: string[];
   usageTier: string;
 }
 
 export const EMPTY_FILTERS: PortfolioFilterState = {
-  q: "", segmentId: "all", csUserId: "all", plano: "all", origem: "all", industry: "all", band: "all", cadence: "all", tagId: "all", usageTier: "all",
+  q: "", segmentId: "all", csUserId: "all", plano: "all", origem: "all", industry: "all", band: "all", cadence: "all", tagMode: "all", tagIds: [], usageTier: "all",
 };
 
 function uniq(rows: CsPortfolioRow[], key: keyof CsPortfolioRow) {
@@ -120,14 +124,43 @@ export function PortfolioFilters({
           {industries.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Select value={value.tagId} onValueChange={(v) => set({ tagId: v })}>
-        <SelectTrigger className="h-9"><SelectValue placeholder="Tag" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas as tags</SelectItem>
-          <SelectItem value="none">Sem tag</SelectItem>
-          {tags.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="h-9 justify-between font-normal px-3">
+            <span className="truncate">
+              {value.tagMode === "any" ? "Com pelo menos 1 tag" : value.tagMode === "none" ? "Sem tag"
+                : value.tagMode === "pick" && value.tagIds.length
+                  ? (value.tagIds.length === 1 ? tags.find((t) => t.id === value.tagIds[0])?.name || "1 tag" : `${value.tagIds.length} tags`)
+                  : "Todas as tags"}
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="start">
+          {([["all", "Todas as tags"], ["any", "Com pelo menos 1 tag"], ["none", "Sem tag"]] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => set({ tagMode: k, tagIds: [] })}
+              className={`w-full text-left rounded px-2 py-1.5 text-sm hover:bg-muted ${value.tagMode === k ? "bg-muted font-medium" : ""}`}>
+              {l}
+            </button>
+          ))}
+          {tags.length > 0 && <p className="px-2 pt-2 pb-1 text-xs text-muted-foreground">Clientes com qualquer uma das tags:</p>}
+          <div className="max-h-60 overflow-y-auto">
+            {tags.map((t) => {
+              const checked = value.tagMode === "pick" && value.tagIds.includes(t.id);
+              return (
+                <label key={t.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+                  <Checkbox checked={checked} onCheckedChange={() => {
+                    const cur = value.tagMode === "pick" ? value.tagIds : [];
+                    const next = checked ? cur.filter((x) => x !== t.id) : [...cur, t.id];
+                    set({ tagIds: next, tagMode: next.length ? "pick" : "all" });
+                  }} />
+                  <span className="truncate">{t.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
       {dirty && (
         <Button variant="ghost" size="sm" className="h-9" onClick={() => onChange({ ...EMPTY_FILTERS })}>
           <X className="h-4 w-4 mr-1" /> Limpar
@@ -154,7 +187,10 @@ export function applyPortfolioFilters(
     if (f.band !== "all" && (r.engagement_band || "") !== f.band) return false;
     if (f.usageTier === "none" ? !!r.usage_tier : f.usageTier !== "all" && (r.usage_tier || "") !== f.usageTier) return false;
     if (f.cadence !== "all" && cadenceOf(r) !== f.cadence) return false;
-    if (f.tagId === "none" ? tagsOf(r).length > 0 : f.tagId !== "all" && !tagsOf(r).includes(f.tagId)) return false;
+    const rt = tagsOf(r);
+    if (f.tagMode === "none" && rt.length > 0) return false;
+    if (f.tagMode === "any" && rt.length === 0) return false;
+    if (f.tagMode === "pick" && f.tagIds.length && !f.tagIds.some((id) => rt.includes(id))) return false;
     return true;
   });
 }
