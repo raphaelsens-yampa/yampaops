@@ -30,6 +30,7 @@ import { UsageImportDialog } from "@/components/cs-portfolio/UsageImportDialog";
 import { PQL_TIER_LABEL, USAGE_TIER_LABEL } from "@/lib/productUsage";
 import { useCsClientTags, useCsTags } from "@/hooks/useCsTags";
 import { churnedClients, filterByChurnWindow, isStale, type PortfolioStatus } from "@/lib/csChurn";
+import { TaskDialog } from "@/components/cs-portfolio/TaskDialog";
 import { TasksTab } from "@/components/cs-portfolio/TasksTab";
 import { CsTagPicker, CsTagsManager } from "@/components/cs-portfolio/ClientTags";
 
@@ -76,6 +77,7 @@ export default function CsPortfolio() {
   const [filters, setFilters] = useState<PortfolioFilterState>({ ...EMPTY_FILTERS });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerRow, setDrawerRow] = useState<CsPortfolioRow | null>(null);
+  const [taskRow, setTaskRow] = useState<CsPortfolioRow | null>(null);
   const [logRow, setLogRow] = useState<CsPortfolioRow | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [bulkCs, setBulkCs] = useState("");
@@ -288,6 +290,7 @@ export default function CsPortfolio() {
                     }
                     onOpen={setDrawerRow}
                     onLog={setLogRow}
+                    onTask={setTaskRow}
                     tags={tags}
                     tagsOf={tagsOf}
                   />
@@ -329,6 +332,7 @@ export default function CsPortfolio() {
                   onToggleAll={(checked) => setSelected(checked ? new Set(queue.map((r) => r.id)) : new Set())}
                   onOpen={setDrawerRow}
                   onLog={setLogRow}
+                    onTask={setTaskRow}
                     tags={tags}
                     tagsOf={tagsOf}
                 />
@@ -364,6 +368,7 @@ export default function CsPortfolio() {
         onLog={(r) => setLogRow(r)}
       />
       <ContactLogDialog row={logRow} open={!!logRow} onOpenChange={(v) => !v && setLogRow(null)} />
+      <TaskDialog open={!!taskRow} onOpenChange={(v) => !v && setTaskRow(null)} client={taskRow} />
       <EnrichmentImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <UsageImportDialog open={usageImportOpen} onOpenChange={setUsageImportOpen} />
     </Layout>

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CADENCE_LABEL, ENGAGEMENT_LABEL, cadenceStatus, daysOverdue, fmtBRL, fmtDate, type CadenceStatus, type CsPortfolioRow, type CsSegment } from "@/lib/csPortfolio";
-import { CheckCircle2, User } from "lucide-react";
+import { CalendarPlus, CheckCircle2, User } from "lucide-react";
 import { ClientTagsCell } from "./ClientTags";
 import { USAGE_TIER_LABEL } from "@/lib/productUsage";
 import type { CsTag } from "@/hooks/useCsTags";
@@ -24,6 +24,7 @@ export function PortfolioTable({
   onToggleAll,
   onOpen,
   onLog,
+  onTask,
   tags = [],
   tagsOf = () => [],
 }: {
@@ -35,6 +36,7 @@ export function PortfolioTable({
   onToggleAll: (checked: boolean) => void;
   onOpen: (row: CsPortfolioRow) => void;
   onLog: (row: CsPortfolioRow) => void;
+  onTask?: (row: CsPortfolioRow) => void;
   tags?: CsTag[];
   tagsOf?: (r: CsPortfolioRow) => string[];
 }) {
@@ -69,9 +71,16 @@ export function PortfolioTable({
               <p className="text-[11px] text-muted-foreground">
                 CS: {analystName(r.cs_user_id)} · Próx.: {fmtDate(r.next_contact_due)}
               </p>
-              <Button size="sm" variant="outline" className="w-full mt-1" onClick={() => onLog(r)}>
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Registrar atendimento
-              </Button>
+              <div className="flex gap-2 mt-1">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => onLog(r)}>
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Registrar atendimento
+                </Button>
+                {onTask && (
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => onTask(r)}>
+                    <CalendarPlus className="h-4 w-4 mr-1" /> Criar tarefa
+                  </Button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -149,7 +158,14 @@ export function PortfolioTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="outline" onClick={() => onLog(r)}>Atendi</Button>
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="outline" onClick={() => onLog(r)}>Atendi</Button>
+                      {onTask && (
+                        <Button size="sm" variant="outline" className="px-2" title="Criar tarefa" aria-label="Criar tarefa" onClick={() => onTask(r)}>
+                          <CalendarPlus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
