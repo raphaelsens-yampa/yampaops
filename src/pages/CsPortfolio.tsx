@@ -30,6 +30,7 @@ import { UsageImportDialog } from "@/components/cs-portfolio/UsageImportDialog";
 import { PQL_TIER_LABEL, USAGE_TIER_LABEL } from "@/lib/productUsage";
 import { useCsClientTags, useCsTags } from "@/hooks/useCsTags";
 import { churnedClients, filterByChurnWindow, isStale, type PortfolioStatus } from "@/lib/csChurn";
+import { TasksTab } from "@/components/cs-portfolio/TasksTab";
 import { CsTagPicker, CsTagsManager } from "@/components/cs-portfolio/ClientTags";
 
 export default function CsPortfolio() {
@@ -218,6 +219,7 @@ export default function CsPortfolio() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="carteira">Carteira</TabsTrigger>
             <TabsTrigger value="fila">Fila do dia</TabsTrigger>
+            <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
             {role === "admin" && <TabsTrigger value="config">Configurações</TabsTrigger>}
           </TabsList>
@@ -332,6 +334,10 @@ export default function CsPortfolio() {
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="tarefas" className="mt-4">
+            <TasksTab clients={activeRows} userName={(id) => analystMap.get(id) || (id === user?.id ? "Eu" : "—")} />
           </TabsContent>
 
           <TabsContent value="relatorios" className="mt-4">

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExternalLink, MessageSquare } from "lucide-react";
+import { ClientTasksBlock } from "./ClientTasksBlock";
 import { useCsClient360 } from "@/hooks/useCsClient360";
 import { useChatwootIntegration } from "@/hooks/useChatwootIntegration";
 import {
@@ -70,6 +71,9 @@ export function ClientDrawer360({
               </div>
 
               <Button className="w-full" onClick={() => onLog(row)}>Registrar atendimento</Button>
+
+              <Separator />
+              <ClientTasksBlock row={row} userName={(id) => { const n = analystName(id); return n === "Sem CS" ? "—" : n; }} />
 
               <Separator />
 
