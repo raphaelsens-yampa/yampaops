@@ -94,14 +94,22 @@ export default function CsPortfolio() {
   const curPage = Math.min(page, pageCount - 1);
   const pageRows = useMemo(() => filtered.slice(curPage * PAGE, curPage * PAGE + PAGE), [filtered, curPage]);
 
+  const seesAll = role === "admin" || role === "tatico";
+  const [queueFilters, setQueueFilters] = useState<PortfolioFilterState>({ ...EMPTY_FILTERS });
+  const queueBase = useMemo(
+    () =>
+      rows
+        .filter((r) => r.is_active !== false)
+        .filter((r) => seesAll || r.cs_user_id === user?.id)
+        .filter((r) => ["vencido", "nunca", "vence_breve"].includes(cadenceStatus(r))),
+    [rows, seesAll, user?.id],
+  );
   const queue = useMemo(
     () =>
-      activeRows
-        .filter((r) => role === "admin" || !r.cs_user_id || r.cs_user_id === user?.id)
-        .filter((r) => ["vencido", "nunca", "vence_breve"].includes(cadenceStatus(r)))
+      applyPortfolioFilters(queueBase, queueFilters, (r) => cadenceStatus(r), tagsOf)
         .sort((a, b) => queuePriority(b) - queuePriority(a))
         .slice(0, 100),
-    [activeRows, role, user?.id],
+    [queueBase, queueFilters, clientTags],
   );
 
   const kpis = useMemo(() => {
@@ -313,10 +321,18 @@ export default function CsPortfolio() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Fila do dia</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Prioridade por atraso na cadência, risco de churn e MRR. Mostra seus clientes e os sem CS.
+                  Prioridade por atraso na cadência, risco de churn e MRR. {seesAll ? "Mostra todos os clientes da carteira." : "Mostra apenas os clientes da sua carteira."} Até 100 clientes.
                 </p>
               </CardHeader>
-              <CardContent className="p-3 sm:p-4 md:p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6 space-y-3">
+                <PortfolioFilters
+                  rows={queueBase}
+                  segments={segments}
+                  analysts={analysts}
+                  value={queueFilters}
+                  onChange={setQueueFilters}
+                  tags={tags}
+                />
                 <PortfolioTable
                   rows={queue}
                   segments={segments}
