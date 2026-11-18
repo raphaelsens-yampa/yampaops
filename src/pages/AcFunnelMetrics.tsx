@@ -76,6 +76,7 @@ type Funnel = {
   last_sync_at: string | null;
   last_webhook_at: string | null;
   deals_count: number;
+  crm_source?: string | null;
 };
 
 type Stage = { ac_stage_id: string; ac_group_id: string; title: string; position: number; color: string | null };
@@ -566,6 +567,21 @@ export default function AcFunnelMetrics() {
     }
   }
 
+  const [rdSyncing, setRdSyncing] = useState(false);
+  async function runRdSync() {
+    setRdSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke("rd-crm-sync", { body: {} });
+      if (error) throw error;
+      toast.success("Sincronização do RD iniciada. Os números atualizam em cerca de 1 minuto.");
+      setTimeout(() => loadAll(groupId), 60000);
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar o RD: ${e?.message ?? e}`);
+    } finally {
+      setRdSyncing(false);
+    }
+  }
+
   async function runSync() {
 
     setSyncing(true);
@@ -691,6 +707,9 @@ export default function AcFunnelMetrics() {
 
   const connected = funnels.filter((f) => f.is_connected);
   const current = funnels.find((f) => f.ac_group_id === groupId) ?? null;
+  const rdFunnels = funnels.filter((f) => f.crm_source === "rd");
+  const acFunnels = funnels.filter((f) => f.crm_source !== "rd" && f.is_connected);
+  const rdLastSync = rdFunnels.map((f) => f.last_sync_at).filter(Boolean).sort().pop() ?? null;
 
   return (
     <Layout>
@@ -1356,47 +1375,32 @@ export default function AcFunnelMetrics() {
           {/* ---------------- CONEXÃO ---------------- */}
           <TabsContent value="conexao" className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Status</CardTitle>
-                <CardDescription>Ingestão em tempo quase real por webhook, com sync horário de segurança.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <InfoBox label="Funil atual" value={current?.title ?? "—"} />
-                  <InfoBox label="Último webhook" value={spDateTime(current?.last_webhook_at)} />
-                  <InfoBox label="Último sync" value={spDateTime(current?.last_sync_at)} />
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">RD Station CRM</CardTitle>
+                  <CardDescription>
+                    Negociações dos funis [Sales] e Outbound atualizadas automaticamente a cada hora.
+                  </CardDescription>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>URL do webhook (cole no ActiveCampaign, em Settings → Developer → Webhooks)</Label>
-                  <div className="flex gap-2">
-                    <Input readOnly value={`${WEBHOOK_URL}?secret=SEU_AC_WEBHOOK_SECRET`} className="font-mono text-xs" />
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${WEBHOOK_URL}?secret=SEU_AC_WEBHOOK_SECRET`);
-                        toast.success("URL copiada — troque SEU_AC_WEBHOOK_SECRET pelo segredo configurado");
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Assine os eventos de deal: deal_add, deal_update, deal_stage_change (ou "todos os eventos de negócio").
-                  </p>
+                <Button onClick={runRdSync} disabled={rdSyncing || role !== "admin"}>
+                  {rdSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Sincronizar agora
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                  <InfoBox label="Status" value={rdFunnels.length ? "Conectado" : "Sem funis"} />
+                  <InfoBox label="Funis acompanhados" value={String(rdFunnels.length)} />
+                  <InfoBox label="Negociações" value={rdFunnels.reduce((s, f) => s + (f.deals_count ?? 0), 0).toLocaleString("pt-BR")} />
+                  <InfoBox label="Último sync" value={spDateTime(rdLastSync)} />
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="text-base">Funis disponíveis</CardTitle>
-                  <CardDescription>Ligue o switch para acompanhar as métricas de um funil.</CardDescription>
-                </div>
-                <Button variant="outline" onClick={listFunnels} disabled={listing}>
-                  {listing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Atualizar lista do AC
-                </Button>
+              <CardHeader>
+                <CardTitle className="text-base">Funis do RD Station</CardTitle>
+                <CardDescription>Funis trazidos do RD Station CRM e usados nas métricas.</CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
@@ -1404,29 +1408,23 @@ export default function AcFunnelMetrics() {
                     <TableRow>
                       <TableHead>Funil</TableHead>
                       <TableHead className="hidden sm:table-cell">ID</TableHead>
-                      <TableHead className="hidden md:table-cell">Negócios</TableHead>
-                      <TableHead className="text-right">Conectado</TableHead>
+                      <TableHead className="text-right">Negociações</TableHead>
+                      <TableHead className="text-right">Último sync</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {funnels.map((f) => (
+                    {rdFunnels.map((f) => (
                       <TableRow key={f.ac_group_id}>
                         <TableCell className="font-medium">{f.title}</TableCell>
                         <TableCell className="hidden sm:table-cell text-muted-foreground">{f.ac_group_id}</TableCell>
-                        <TableCell className="hidden md:table-cell tabular-nums">{f.is_connected ? f.deals_count : "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <Switch
-                            checked={f.is_connected}
-                            disabled={role !== "admin"}
-                            onCheckedChange={(v) => toggleFunnel(f, v)}
-                          />
-                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{f.deals_count ?? 0}</TableCell>
+                        <TableCell className="text-right">{spDateTime(f.last_sync_at)}</TableCell>
                       </TableRow>
                     ))}
-                    {!funnels.length && (
+                    {!rdFunnels.length && (
                       <TableRow>
                         <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                          Clique em "Atualizar lista do AC" para carregar os funis.
+                          Nenhum funil do RD ainda. Clique em "Sincronizar agora".
                         </TableCell>
                       </TableRow>
                     )}
@@ -1436,58 +1434,32 @@ export default function AcFunnelMetrics() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="text-base">Auditoria de etapas</CardTitle>
-                  <CardDescription>
-                    Compara, negócio a negócio, o funil no ActiveCampaign com o que está gravado aqui. Não grava nada.
-                  </CardDescription>
-                </div>
-                <Button variant="outline" onClick={runAudit} disabled={auditing || !groupId}>
-                  {auditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Auditar agora
-                </Button>
+              <CardHeader>
+                <CardTitle className="text-base">Histórico ActiveCampaign</CardTitle>
+                <CardDescription>
+                  Somente leitura. O CRM do ActiveCampaign foi desativado; o histórico abaixo continua nas métricas.
+                </CardDescription>
               </CardHeader>
-              {!!audit && (
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                    <InfoBox label="Negócios no AC" value={String(audit.ac_total ?? 0)} />
-                    <InfoBox label="Negócios aqui" value={String(audit.db_total ?? 0)} />
-                    <InfoBox label="Faltando aqui" value={String(audit.missing_in_db ?? 0)} />
-                    <InfoBox label="Etapa/status diferente" value={String(audit.divergent ?? 0)} />
-                  </div>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Etapa (em aberto)</TableHead>
-                          <TableHead className="text-right">ActiveCampaign</TableHead>
-                          <TableHead className="text-right">Painel</TableHead>
-                          <TableHead className="text-right">Diferença</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(audit.stage_counts ?? []).map((s: any) => (
-                          <TableRow key={s.stage}>
-                            <TableCell className="font-medium">{s.stage}</TableCell>
-                            <TableCell className="text-right tabular-nums">{s.ac}</TableCell>
-                            <TableCell className="text-right tabular-nums">{s.db}</TableCell>
-                            <TableCell className={`text-right tabular-nums ${s.ac === s.db ? "text-muted-foreground" : "text-destructive"}`}>
-                              {s.db - s.ac}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  {(audit.missing_in_db > 0 || audit.extra_in_db > 0) && (
-                    <p className="text-xs text-muted-foreground">
-                      Clique em "Sincronizar agora" para corrigir: a sincronização importa os negócios faltantes e remove
-                      os que já saíram do funil.
-                    </p>
-                  )}
-                </CardContent>
-              )}
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Funil</TableHead>
+                      <TableHead className="text-right">Negociações</TableHead>
+                      <TableHead className="text-right">Último sync</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {acFunnels.map((f) => (
+                      <TableRow key={f.ac_group_id}>
+                        <TableCell className="font-medium">{f.title}</TableCell>
+                        <TableCell className="text-right tabular-nums">{f.deals_count ?? 0}</TableCell>
+                        <TableCell className="text-right">{spDateTime(f.last_sync_at)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
 
 
