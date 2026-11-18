@@ -172,9 +172,9 @@
 - [x] Painel não desmonta durante o recarregamento, então o diálogo continua aberto após salvar
 - [x] Validado no navegador: 56 linhas, selecionar 2 → "2 clientes selecionados", selecionar todos → 56, limpar volta ao aviso; marcar 1 remove a linha e mantém o diálogo aberto
 
-## Migração ActiveCampaign → RD Station (PAUSADA a pedido do usuário, 16/11/2026)
-- [ ] Fase 1: conectar RD Station CRM (conector próprio, token) e RD Marketing — aguardando retomada
-- [ ] Fase 2: sincronizar funis/etapas/negociações/tarefas do RD CRM
+## Migração ActiveCampaign → RD Station (retomada 18/11/2026)
+- [x] Fase 1: RD Station CRM conectado e testado (7 funis lidos); RD Marketing pendente de credenciais
+- [ ] Fase 2: sincronizar funis/etapas/negociações/tarefas do RD CRM — aguardando escolha dos funis
 - [ ] Fase 3: telas lendo AC (histórico) + RD
 - [ ] Fase 4: Chatwoot → notas no RD CRM
 - [ ] Fase 5: RD Marketing (leads e etiquetas)
