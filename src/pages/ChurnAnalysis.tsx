@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { SellerChurnTab } from "@/components/churn/SellerChurnTab";
 import {
   DESFECHO_LABEL, dedupeCases, acquisitionChannelByEmail, type AcquisitionRow, groupStats, riskQueue, tenureBand, TIPO_LABEL, type ChurnCase, type GroupStat,
 } from "@/lib/churnAnalysis";
@@ -190,6 +191,7 @@ export default function ChurnAnalysis() {
             <TabsTrigger value="padroes">Padrões</TabsTrigger>
             <TabsTrigger value="evolucao">Funil e evolução</TabsTrigger>
             <TabsTrigger value="ia">Ações com IA</TabsTrigger>
+            <TabsTrigger value="vendedor">Por Vendedor</TabsTrigger>
           </TabsList>
 
           <TabsContent value="fila">
@@ -292,6 +294,8 @@ export default function ChurnAnalysis() {
               </>
             )}
           </TabsContent>
+
+          <TabsContent value="vendedor"><SellerChurnTab /></TabsContent>
         </Tabs>
       </div>
     </Layout>
