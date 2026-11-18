@@ -671,6 +671,11 @@ Deno.serve(async (req) => {
     return json({ ok: true, results });
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
+    if (/Upgrade your account to enable the CRM/i.test(msg)) {
+      // AC account no longer includes the CRM (migrated to RD Station): history stays, sync is skipped.
+      console.warn("ac-funnel-sync skipped: ActiveCampaign CRM disabled");
+      return json({ ok: false, ac_disabled: true, error: "O CRM do ActiveCampaign foi desativado na conta. O histórico continua no painel e as negociações novas vêm do RD Station." });
+    }
     console.error("ac-funnel-sync error:", msg);
     return json({ error: msg }, 500);
   }

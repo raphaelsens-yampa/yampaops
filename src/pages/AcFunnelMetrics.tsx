@@ -554,6 +554,7 @@ export default function AcFunnelMetrics() {
         body: { action: "audit_stages", groupId },
       });
       if (error) throw error;
+      if ((data as any)?.ac_disabled) throw new Error((data as any).error);
       setAudit(data?.audit ?? null);
       const a = data?.audit;
       if (a && !a.missing_in_db && !a.extra_in_db && !a.divergent) toast.success("Snapshot idêntico ao ActiveCampaign");
@@ -573,6 +574,7 @@ export default function AcFunnelMetrics() {
         body: { action: "sync", groupId: groupId || undefined },
       });
       if (error) throw error;
+      if ((data as any)?.ac_disabled) throw new Error((data as any).error);
       const r = (data?.results ?? [])[0];
       toast.success(r ? `Sync concluído: ${r.deals} negócios, ${r.events} eventos novos` : "Sync concluído");
       await loadAll(groupId);
@@ -595,6 +597,7 @@ export default function AcFunnelMetrics() {
           body: { action: "backfill_activities", groupId, days: 365, startIndex, batchSize: 100 },
         });
         if (error) throw error;
+      if ((data as any)?.ac_disabled) throw new Error((data as any).error);
         events += Number(data?.written ?? 0);
         startIndex = Number(data?.next_index ?? startIndex);
         setBackfillProgress({ done: startIndex, total: Number(data?.total_deals ?? 0), events });
@@ -617,6 +620,7 @@ export default function AcFunnelMetrics() {
         body: { action: "backfill_closures", groupId, from, to },
       });
       if (error) throw error;
+      if ((data as any)?.ac_disabled) throw new Error((data as any).error);
       toast.success(`Fechamentos registrados: ${data?.won ?? 0} ganhos e ${data?.lost ?? 0} perdidos`);
       await loadAll(groupId);
     } catch (e: any) {
@@ -632,6 +636,7 @@ export default function AcFunnelMetrics() {
     try {
       const { data, error } = await supabase.functions.invoke("ac-funnel-sync", { body: { action: "list_funnels" } });
       if (error) throw error;
+      if ((data as any)?.ac_disabled) throw new Error((data as any).error);
       toast.success(`${data?.funnels?.length ?? 0} funis encontrados no ActiveCampaign`);
       await loadAll(groupId);
     } catch (e: any) {
@@ -643,10 +648,11 @@ export default function AcFunnelMetrics() {
 
   async function toggleFunnel(f: Funnel, connected: boolean) {
     try {
-      const { error } = await supabase.functions.invoke("ac-funnel-sync", {
+      const { data, error } = await supabase.functions.invoke("ac-funnel-sync", {
         body: { action: "connect", groupId: f.ac_group_id, title: f.title, connected },
       });
       if (error) throw error;
+      if ((data as any)?.ac_disabled) throw new Error((data as any).error);
       toast.success(connected ? `Funil "${f.title}" conectado e sincronizado` : `Funil "${f.title}" desconectado`);
       await loadAll(connected ? f.ac_group_id : groupId);
     } catch (e: any) {
