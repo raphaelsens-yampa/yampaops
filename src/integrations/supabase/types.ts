@@ -96,6 +96,7 @@ export type Database = {
           contact_email: string | null
           contact_name: string | null
           created_at: string
+          crm_source: string
           currency: string | null
           deal_created_at: string | null
           deal_updated_at: string | null
@@ -118,6 +119,7 @@ export type Database = {
           contact_email?: string | null
           contact_name?: string | null
           created_at?: string
+          crm_source?: string
           currency?: string | null
           deal_created_at?: string | null
           deal_updated_at?: string | null
@@ -140,6 +142,7 @@ export type Database = {
           contact_email?: string | null
           contact_name?: string | null
           created_at?: string
+          crm_source?: string
           currency?: string | null
           deal_created_at?: string | null
           deal_updated_at?: string | null
@@ -241,6 +244,7 @@ export type Database = {
           ac_group_id: string
           connected_at: string | null
           created_at: string
+          crm_source: string
           deals_count: number
           is_connected: boolean
           last_sync_at: string | null
@@ -252,6 +256,7 @@ export type Database = {
           ac_group_id: string
           connected_at?: string | null
           created_at?: string
+          crm_source?: string
           deals_count?: number
           is_connected?: boolean
           last_sync_at?: string | null
@@ -263,6 +268,7 @@ export type Database = {
           ac_group_id?: string
           connected_at?: string | null
           created_at?: string
+          crm_source?: string
           deals_count?: number
           is_connected?: boolean
           last_sync_at?: string | null
