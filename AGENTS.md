@@ -31,3 +31,4 @@
 
 - CS tasks live in `cs_tasks` keyed by normalized client e-mail; bucket/filter logic is pure in `src/lib/csTasks.ts` (São Paulo days) so tab, counters and client view agree.
 - Access control lives in `src/lib/accessRegistry.ts`: every route, menu item, tab or sensitive action must use an area registered there (with optional `minRole`/`parent`) and be checked via `canView/canCreate/canEdit` (level permission AND role minimum); new features default to Admin-only until levels are configured, and `accessRegistry.test.ts` fails on unregistered areas or new literal role comparisons, so menu, routes and level editor never diverge.
+- RD Station CRM deals sync (`rd-crm-sync`, hourly, one invocation per pipeline) into the existing `ac_funnel_*` tables tagged `crm_source='rd'`, so screens read ActiveCampaign history plus RD without separate code paths.

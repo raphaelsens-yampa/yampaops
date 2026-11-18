@@ -174,7 +174,7 @@
 
 ## Migração ActiveCampaign → RD Station (retomada 18/11/2026)
 - [x] Fase 1: RD Station CRM conectado e testado (7 funis lidos); RD Marketing pendente de credenciais
-- [ ] Fase 2: sincronizar funis/etapas/negociações/tarefas do RD CRM — aguardando escolha dos funis
+- [x] Fase 2: sincronizar funis/etapas/negociações/tarefas do RD CRM — aguardando escolha dos funis
 - [ ] Fase 3: telas lendo AC (histórico) + RD
 - [ ] Fase 4: Chatwoot → notas no RD CRM
 - [ ] Fase 5: RD Marketing (leads e etiquetas)
