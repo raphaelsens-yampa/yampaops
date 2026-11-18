@@ -17,6 +17,7 @@ import { Filter } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
+import { funnelLabel } from "@/lib/funnelLabel";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -669,7 +670,11 @@ export default function AcFunnelMetrics() {
       });
       if (error) throw error;
       if ((data as any)?.ac_disabled) throw new Error((data as any).error);
-      toast.success(connected ? `Funil "${f.title}" conectado e sincronizado` : `Funil "${f.title}" desconectado`);
+      toast.success(
+        connected
+          ? `Funil "${funnelLabel(f.title, f.crm_source)}" conectado e sincronizado`
+          : `Funil "${funnelLabel(f.title, f.crm_source)}" desconectado`,
+      );
       await loadAll(connected ? f.ac_group_id : groupId);
     } catch (e: any) {
       toast.error(`Falha: ${e?.message ?? e}`);
@@ -766,7 +771,7 @@ export default function AcFunnelMetrics() {
                     <SelectTrigger><SelectValue placeholder="Selecione o funil" /></SelectTrigger>
                     <SelectContent>
                       {connected.map((f) => (
-                        <SelectItem key={f.ac_group_id} value={f.ac_group_id}>{f.title}</SelectItem>
+                        <SelectItem key={f.ac_group_id} value={f.ac_group_id}>{funnelLabel(f.title, f.crm_source)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -1415,7 +1420,7 @@ export default function AcFunnelMetrics() {
                   <TableBody>
                     {rdFunnels.map((f) => (
                       <TableRow key={f.ac_group_id}>
-                        <TableCell className="font-medium">{f.title}</TableCell>
+                        <TableCell className="font-medium">{funnelLabel(f.title, f.crm_source)}</TableCell>
                         <TableCell className="hidden sm:table-cell text-muted-foreground">{f.ac_group_id}</TableCell>
                         <TableCell className="text-right tabular-nums">{f.deals_count ?? 0}</TableCell>
                         <TableCell className="text-right">{spDateTime(f.last_sync_at)}</TableCell>
@@ -1452,7 +1457,7 @@ export default function AcFunnelMetrics() {
                   <TableBody>
                     {acFunnels.map((f) => (
                       <TableRow key={f.ac_group_id}>
-                        <TableCell className="font-medium">{f.title}</TableCell>
+                        <TableCell className="font-medium">{funnelLabel(f.title, f.crm_source)}</TableCell>
                         <TableCell className="text-right tabular-nums">{f.deals_count ?? 0}</TableCell>
                         <TableCell className="text-right">{spDateTime(f.last_sync_at)}</TableCell>
                       </TableRow>

@@ -328,7 +328,7 @@ export function useSellerMonthHistory(sellers: SellerLite[]) {
 
 /** Taxas de conversão dos últimos meses fechados do funil selecionado. */
 export function useFunnelKpis(funnelId: string, monthsBack = 3) {
-  const [funnels, setFunnels] = useState<Array<{ ac_group_id: string; title: string; is_connected: boolean | null }>>([]);
+  const [funnels, setFunnels] = useState<Array<{ ac_group_id: string; title: string; is_connected: boolean | null; crm_source?: string | null }>>([]);
   const [loading, setLoading] = useState(false);
   const [kpis, setKpis] = useState<FunnelKpiMonth[]>([]);
   const [openPipeline, setOpenPipeline] = useState<number | null>(null);
@@ -337,7 +337,7 @@ export function useFunnelKpis(funnelId: string, monthsBack = 3) {
   useEffect(() => {
     (async () => {
       // Apenas funis sincronizados (is_connected) participam da cobertura de pipeline.
-      const { data } = await supabase.from("ac_funnels").select("ac_group_id, title, is_connected").eq("is_connected", true).order("title");
+      const { data } = await supabase.from("ac_funnels").select("ac_group_id, title, is_connected, crm_source").eq("is_connected", true).order("title");
       setFunnels((data as any[]) || []);
     })();
   }, []);

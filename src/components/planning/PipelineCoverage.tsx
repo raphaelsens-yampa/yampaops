@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle } from "lucide-react";
 import { averageFunnelKpis, buildCoverage, type PlanRow } from "@/lib/commercialPlan";
+import { funnelLabel } from "@/lib/funnelLabel";
 import type { FunnelKpiMonth } from "@/hooks/useCommercialPlan";
 
 const MONTHS_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -22,7 +23,7 @@ const fmtInt = (v: number | null | undefined) =>
   v == null ? "—" : Math.round(v).toLocaleString("pt-BR");
 
 interface Props {
-  funnels: Array<{ ac_group_id: string; title: string; is_connected: boolean | null }>;
+  funnels: Array<{ ac_group_id: string; title: string; is_connected: boolean | null; crm_source?: string | null }>;
   funnelId: string;
   onFunnelChange: (id: string) => void;
   kpis: FunnelKpiMonth[];
@@ -77,7 +78,7 @@ export function PipelineCoverage({ funnels, funnelId, onFunnelChange, kpis, open
                 <SelectContent>
                   {funnels.map((f) => (
                     <SelectItem key={f.ac_group_id} value={f.ac_group_id}>
-                      {f.title}
+                      {funnelLabel(f.title, f.crm_source)}
                     </SelectItem>
                   ))}
                 </SelectContent>
