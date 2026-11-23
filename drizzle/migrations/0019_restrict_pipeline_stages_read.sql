@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "Authenticated users can view stages" ON public.pipeline_stages;
+CREATE POLICY "Internal users can view stages" ON public.pipeline_stages FOR SELECT TO authenticated USING (public.is_internal_user(auth.uid()));

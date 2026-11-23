@@ -134,6 +134,13 @@
       "when": 1794919410734,
       "tag": "0018_cs_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795445269508,
+      "tag": "0019_restrict_pipeline_stages_read",
+      "breakpoints": true
     }
   ]
 }
