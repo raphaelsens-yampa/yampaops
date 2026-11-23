@@ -148,6 +148,12 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
     return { mrr: build("mrr"), qty: build("qty") };
   }, [filteredEvents, comp, curYm, todayDay, todayIso]);
 
+  const campaignCards = useMemo(() => {
+    const ev = filterPacingEvents(events, "campaign");
+    const b = (m: PacingMetric) => projectMonth(dailySeries(ev, curYm, m, comp), curYm, todayDay, businessDayAverage(ev, todayIso, 21, m, comp));
+    return { mrr: b("mrr"), qty: b("qty") };
+  }, [events, comp, curYm, todayDay, todayIso]);
+
   const colors = [1, 2, 3, 4, 5].map((n) => `hsl(var(--pacing-${n}))`);
   const pct = (a: number, b: number) => (b ? `${a >= b ? "+" : ""}${(((a - b) / b) * 100).toFixed(1).replace(".", ",")}%` : "—");
 
@@ -249,8 +255,8 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
                 <ProjCard title={`Potencial de Vendas em ${label(curYm)}`} c={cards.qty} isMrr={false} />
               </div>
             )}
-            {mode === "mtd" && campaign === "campaign" && (
-              <CampaignManualProjection ym={curYm} label={label(curYm)} realizedMrr={cards.mrr.atual.realized} realizedQty={cards.qty.atual.realized} autoMrr={cards.mrr.atual.projected} autoQty={cards.qty.atual.projected} />
+            {mode === "mtd" && campaign !== "non_campaign" && (
+              <CampaignManualProjection ym={curYm} label={label(curYm)} realizedMrr={campaignCards.mrr.realized} realizedQty={campaignCards.qty.realized} autoMrr={campaignCards.mrr.projected} autoQty={campaignCards.qty.projected} />
             )}
 
             <div className="h-[320px]">
