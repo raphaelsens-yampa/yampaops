@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { stripeConversionOrigin, type OriginFilter } from "@/lib/origins";
+import { isCampaignConversion, type CampaignContext } from "@/lib/stripeConversions";
 import type { PacingEvent } from "@/lib/newMrrPacing";
+import { fetchCampaignCouponIds } from "./campaignCoupons";
 
 /** Origem de uma recuperação: marcação do cliente; sem marcação = Yampa. */
 export function recoveryOrigin(r: { origem_cliente?: string | null }): "yampa" | "4blue" {
@@ -21,11 +23,11 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
     let alive = true;
     setLoading(true);
     (async () => {
-      const [conv, rec] = await Promise.all([
+      const [conv, rec, couponIds, manualLinks] = await Promise.all([
         fetchAllPaged<any>(() =>
           supabase
             .from("stripe_conversions")
-            .select("id, converted_at, mrr_net, mrr, delta_mrr, is_reactivation, conversion_type, origem_cliente, attribution_source")
+            .select("id, converted_at, customer_email, coupon_id, mrr_net, mrr, delta_mrr, is_reactivation, conversion_type, origem_cliente, attribution_source")
             .eq("payment_status", "paid")
             .in("conversion_type", ["new", "upsell"])
             .gte("converted_at", `${fromDate}T03:00:00Z`)
@@ -36,32 +38,45 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
         fetchAllPaged<any>(() =>
               supabase
                 .from("tactical_recoveries")
-                .select("id, recovered_at, mrr, entry_kind, origem_cliente")
+                .select("id, recovered_at, customer_email, mrr, entry_kind, origem_cliente")
                 .gte("recovered_at", fromDate)
                 .lte("recovered_at", toDate)
                 .order("recovered_at", { ascending: true })
                 .order("id", { ascending: true }) as any,
             ),
+        fetchCampaignCouponIds(),
+        fetchAllPaged<{ email_norm: string; is_campaign: boolean }>(() =>
+          supabase.from("tactical_campaign_manual_links").select("email_norm, is_campaign").order("email_norm") as any,
+        ),
       ]);
       if (!alive) return;
+      const manualByEmail = new Map<string, boolean>();
+      for (const link of manualLinks.data || []) {
+        const email = String(link.email_norm || "").trim().toLowerCase();
+        if (!email) continue;
+        manualByEmail.set(email, manualByEmail.get(email) === true ? true : Boolean(link.is_campaign));
+      }
+      const campaignCtx: CampaignContext = { couponIds, manualByEmail };
       const out: PacingEvent[] = [];
       for (const c of conv.data) {
         if (origin !== "all" && stripeConversionOrigin(c) !== origin) continue;
         const date = spDate(c.converted_at);
+        const campaign = isCampaignConversion(c, campaignCtx);
         if (c.conversion_type === "upsell") {
           const d = Number(c.delta_mrr ?? 0);
-          if (d > 0) out.push({ date, kind: "upsell", mrr: d });
+          if (d > 0) out.push({ date, kind: "upsell", mrr: d, campaign });
         } else {
-          out.push({ date, kind: c.is_reactivation ? "recuperados" : "novos", mrr: Number(c.mrr_net ?? c.mrr ?? 0) });
+          out.push({ date, kind: c.is_reactivation ? "recuperados" : "novos", mrr: Number(c.mrr_net ?? c.mrr ?? 0), campaign });
         }
       }
       for (const r of rec.data) {
         if (r.entry_kind === "retained") continue;
         if (origin !== "all" && recoveryOrigin(r) !== origin) continue;
-        out.push({ date: String(r.recovered_at).slice(0, 10), kind: "recuperados", mrr: Number(r.mrr ?? 0) });
+        const campaign = isCampaignConversion({ coupon_id: null, customer_email: r.customer_email }, campaignCtx);
+        out.push({ date: String(r.recovered_at).slice(0, 10), kind: "recuperados", mrr: Number(r.mrr ?? 0), campaign });
       }
       setEvents(out);
-      setError(conv.error || rec.error);
+      setError(conv.error || rec.error || manualLinks.error);
       setLoading(false);
     })();
     return () => { alive = false; };

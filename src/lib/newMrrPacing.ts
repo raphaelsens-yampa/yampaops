@@ -3,9 +3,17 @@
  * Datas no formato YYYY-MM-DD (fuso São Paulo já aplicado pelo chamador).
  */
 export type PacingKind = "novos" | "recuperados" | "upsell";
-export interface PacingEvent { date: string; kind: PacingKind; mrr: number }
+export interface PacingEvent { date: string; kind: PacingKind; mrr: number; campaign?: boolean }
 export type PacingMetric = "mrr" | "qty";
 export type PacingComposition = "total" | PacingKind;
+export type PacingCampaignFilter = "all" | "campaign" | "non_campaign";
+
+/** Geral preserva todos os eventos; os dois recortes são complementares. */
+export function filterPacingEvents(events: PacingEvent[], campaign: PacingCampaignFilter): PacingEvent[] {
+  if (campaign === "all") return events;
+  const wanted = campaign === "campaign";
+  return events.filter((event) => Boolean(event.campaign) === wanted);
+}
 
 export const roundHalfUp = (n: number) => Math.floor(n + 0.5);
 

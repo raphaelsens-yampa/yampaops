@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dailySeries, cumulative, projectMonth, roundHalfUp, trendLine, lastBusinessDaysPace, type PacingEvent } from "@/lib/newMrrPacing";
+import { dailySeries, cumulative, filterPacingEvents, projectMonth, roundHalfUp, trendLine, lastBusinessDaysPace, type PacingEvent } from "@/lib/newMrrPacing";
 
 const ev: PacingEvent[] = [
   { date: "2026-11-02", kind: "novos", mrr: 200 },
@@ -42,5 +42,16 @@ describe("newMrrPacing", () => {
   it("arredonda vendas meio para cima", () => {
     expect(roundHalfUp(2.5)).toBe(3);
     expect(roundHalfUp(2.49)).toBe(2);
+  });
+
+  it("campanha e sem campanha são complementares e somam o geral", () => {
+    const events: PacingEvent[] = [
+      { date: "2026-11-02", kind: "novos", mrr: 200, campaign: true },
+      { date: "2026-11-03", kind: "upsell", mrr: 100, campaign: false },
+      { date: "2026-11-04", kind: "recuperados", mrr: 50, campaign: true },
+    ];
+    expect(filterPacingEvents(events, "all")).toHaveLength(3);
+    expect(filterPacingEvents(events, "campaign").map((event) => event.mrr)).toEqual([200, 50]);
+    expect(filterPacingEvents(events, "non_campaign").map((event) => event.mrr)).toEqual([100]);
   });
 });

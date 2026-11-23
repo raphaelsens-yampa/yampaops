@@ -12,8 +12,8 @@ import { ChevronDown, TrendingUp } from "lucide-react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { OriginFilter } from "@/lib/origins";
 import {
-  businessDayAverage, cumulative, dailySeries, daysInMonth, lastBusinessDaysPace, pessimisticPace,
-  prevMonth, projectMonth, roundHalfUp, trendLine, type PacingComposition, type PacingMetric,
+  businessDayAverage, cumulative, dailySeries, daysInMonth, filterPacingEvents, lastBusinessDaysPace, pessimisticPace,
+  prevMonth, projectMonth, roundHalfUp, trendLine, type PacingCampaignFilter, type PacingComposition, type PacingMetric,
 } from "@/lib/newMrrPacing";
 import { useNewMrrPacing } from "./useNewMrrPacing";
 
@@ -40,6 +40,7 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
   const [mode, setMode] = useState<"mtd" | "closed">("mtd");
   const [metric, setMetric] = useState<PacingMetric>("mrr");
   const [comp, setComp] = useState<PacingComposition>("total");
+  const [campaign, setCampaign] = useState<PacingCampaignFilter>("all");
   const [view, setView] = useState<"cum" | "daily">("cum");
   const [extraMonth, setExtraMonth] = useState<string>(prevMonth(prevMonth(curYm)));
   const [monthA, setMonthA] = useState(prevMonth(curYm));
@@ -47,6 +48,7 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
 
   const fromDate = `${monthOptions[monthOptions.length - 1]}-01`;
   const { events, loading, error } = useNewMrrPacing(fromDate, todayIso, origin, refreshKey);
+  const filteredEvents = useMemo(() => filterPacingEvents(events, campaign), [events, campaign]);
 
   // Meta do mês (New MRR geral) e meta diária de vendas da empresa.
   const curMonthDate = useMemo(() => new Date(`${curYm}-01T12:00:00`), [curYm]);
@@ -79,7 +81,7 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
 
   const data = useMemo(() => {
     const series = (ym: string) => {
-      const d = dailySeries(events, ym, metric, comp);
+      const d = dailySeries(filteredEvents, ym, metric, comp);
       return view === "cum" ? cumulative(d) : d;
     };
     const rows: Record<string, any>[] = [];
@@ -88,12 +90,12 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
       for (let i = 0; i < 31; i++) rows.push({ day: i + 1, [label(monthA)]: a[i] ?? null, [label(monthB)]: b[i] ?? null });
       return { rows, keys: [label(monthA), label(monthB)] };
     }
-    const curDaily = dailySeries(events, curYm, metric, comp);
+    const curDaily = dailySeries(filteredEvents, curYm, metric, comp);
     const cur = view === "cum" ? cumulative(curDaily) : curDaily;
     const prev = series(prevMonth(curYm));
     const extra = series(extraMonth);
-    const avg90 = businessDayAverage(events, todayIso, 90, metric, comp);
-    const proj = projectMonth(curDaily, curYm, todayDay, businessDayAverage(events, todayIso, 21, metric, comp));
+    const avg90 = businessDayAverage(filteredEvents, todayIso, 90, metric, comp);
+    const proj = projectMonth(curDaily, curYm, todayDay, businessDayAverage(filteredEvents, todayIso, 21, metric, comp));
     const trend = view === "cum" ? trendLine(cumulative(curDaily), curYm, todayDay, proj.dailyPace) : [];
     let avgAcc = 0;
     let goalAcc = 0;
@@ -103,7 +105,7 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
       const iso = `${curYm}-${String(i + 1).padStart(2, "0")}`;
       if (![0, 6].includes(new Date(`${iso}T12:00:00Z`).getUTCDay())) bizDays++;
     }
-    const showGoal = comp === "total";
+    const showGoal = comp === "total" && campaign === "all";
     let hasGoal = false;
     for (let i = 0; i < daysInMonth(curYm); i++) {
       const iso = `${curYm}-${String(i + 1).padStart(2, "0")}`;
@@ -128,22 +130,22 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
     const keys = [label(curYm), "Tendência", label(prevMonth(curYm)), label(extraMonth), "Média 90d"];
     if (hasGoal) keys.push("Meta");
     return { rows, keys };
-  }, [events, metric, comp, view, mode, monthA, monthB, curYm, extraMonth, todayDay, todayIso, mrrMonthTarget, salesGoals]);
+  }, [filteredEvents, metric, comp, campaign, view, mode, monthA, monthB, curYm, extraMonth, todayDay, todayIso, mrrMonthTarget, salesGoals]);
 
   const cards = useMemo(() => {
     const build = (m: PacingMetric) => {
-      const daily = dailySeries(events, curYm, m, comp);
-      const fallback = businessDayAverage(events, todayIso, 21, m, comp);
+      const daily = dailySeries(filteredEvents, curYm, m, comp);
+      const fallback = businessDayAverage(filteredEvents, todayIso, 21, m, comp);
       const atual = projectMonth(daily, curYm, todayDay, fallback);
       const pess = projectMonth(daily, curYm, todayDay, fallback, pessimisticPace(daily, curYm, todayDay));
-      const acel = projectMonth(daily, curYm, todayDay, fallback, lastBusinessDaysPace(events, todayIso, 7, m, comp));
-      const prevDaily = dailySeries(events, prevMonth(curYm), m, comp);
+      const acel = projectMonth(daily, curYm, todayDay, fallback, lastBusinessDaysPace(filteredEvents, todayIso, 7, m, comp));
+      const prevDaily = dailySeries(filteredEvents, prevMonth(curYm), m, comp);
       const prevSame = cumulative(prevDaily)[Math.min(todayDay, prevDaily.length) - 1] ?? 0;
       const prevTotal = prevDaily.reduce((a, b) => a + b, 0);
       return { atual, pess, acel, prevSame, prevTotal };
     };
     return { mrr: build("mrr"), qty: build("qty") };
-  }, [events, comp, curYm, todayDay, todayIso]);
+  }, [filteredEvents, comp, curYm, todayDay, todayIso]);
 
   const colors = [1, 2, 3, 4, 5].map((n) => `hsl(var(--pacing-${n}))`);
   const pct = (a: number, b: number) => (b ? `${a >= b ? "+" : ""}${(((a - b) / b) * 100).toFixed(1).replace(".", ",")}%` : "—");
@@ -204,6 +206,14 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
                 <ToggleGroupItem value="yampa">Yampa</ToggleGroupItem>
                 <ToggleGroupItem value="4blue">4blue</ToggleGroupItem>
               </ToggleGroup>
+              <div className="flex items-center gap-2" title="Recorte por campanha">
+                <span className="text-xs text-muted-foreground">Campanha:</span>
+                <ToggleGroup type="single" size="sm" variant="outline" value={campaign} onValueChange={(v) => v && setCampaign(v as PacingCampaignFilter)} aria-label="Filtro de campanha">
+                  <ToggleGroupItem value="all">Geral</ToggleGroupItem>
+                  <ToggleGroupItem value="campaign">Campanha</ToggleGroupItem>
+                  <ToggleGroupItem value="non_campaign">Sem Campanha</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
               <Select value={comp} onValueChange={(v) => setComp(v as PacingComposition)}>
                 <SelectTrigger className="h-8 w-[150px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -275,7 +285,7 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
             </div>
             <p className="text-xs text-muted-foreground">
               Tendência por dias úteis no ritmo do mês (nos 3 primeiros dias úteis, mistura com a média recente). Pessimista exclui os 25% melhores dias; Acelerado usa os últimos 7 dias úteis.
-              Recuperados usam o MRR registrado e aparecem só sem filtro de origem.
+              Recuperados usam o MRR registrado. Campanha usa os cupons marcados e as marcações manuais, que têm precedência; Sem Campanha é o complemento do Geral.
             </p>
           </CardContent>
         </CollapsibleContent>
