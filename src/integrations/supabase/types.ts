@@ -942,6 +942,42 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_projections: {
+        Row: {
+          end_date: string
+          id: string
+          mrr: number | null
+          name: string
+          qty: number | null
+          start_date: string
+          updated_at: string
+          updated_by: string | null
+          year_month: string
+        }
+        Insert: {
+          end_date: string
+          id?: string
+          mrr?: number | null
+          name?: string
+          qty?: number | null
+          start_date: string
+          updated_at?: string
+          updated_by?: string | null
+          year_month: string
+        }
+        Update: {
+          end_date?: string
+          id?: string
+          mrr?: number | null
+          name?: string
+          qty?: number | null
+          start_date?: string
+          updated_at?: string
+          updated_by?: string | null
+          year_month?: string
+        }
+        Relationships: []
+      }
       chatwoot_ac_note_links: {
         Row: {
           ac_contact_id: string

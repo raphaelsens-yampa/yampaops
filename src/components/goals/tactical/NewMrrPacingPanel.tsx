@@ -13,10 +13,10 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import type { OriginFilter } from "@/lib/origins";
 import {
   businessDayAverage, cumulative, dailySeries, daysInMonth, filterPacingEvents, lastBusinessDaysPace, pessimisticPace,
-  prevMonth, projectMonth, roundHalfUp, trendLine, type PacingCampaignFilter, type PacingComposition, type PacingMetric,
+  prevMonth, projectMonth, roundHalfUp, trendLine, declaredCampaignFuture, declaredTrendLine, type PacingCampaignFilter, type PacingComposition, type PacingMetric,
 } from "@/lib/newMrrPacing";
 import { useNewMrrPacing } from "./useNewMrrPacing";
-import { CampaignManualProjection } from "./CampaignManualProjection";
+import { CampaignManualProjection, type CampaignProjectionRow } from "./CampaignManualProjection";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const label = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]}/${ym.slice(2, 4)}`;
@@ -71,6 +71,30 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
     })();
     return () => { cancelled = true; };
   }, []);
+  const [projs, setProjs] = useState<CampaignProjectionRow[]>([]);
+  const [projKey, setProjKey] = useState(0);
+  useEffect(() => {
+    supabase.from("campaign_projections").select("id,name,start_date,end_date,mrr,qty").eq("year_month", `${curYm}-01`).order("start_date")
+      .then(({ data }) => setProjs(((data as any[]) || []).map((r) => ({ ...r, mrr: r.mrr == null ? null : Number(r.mrr) }))));
+  }, [curYm, projKey]);
+
+  /** Tendência acumulada do mês atual para um recorte, aplicando a projeção declarada das campanhas. */
+  const trendFor = useMemo(() => (m: PacingMetric, camp: PacingCampaignFilter): (number | null)[] => {
+    const auto = (ev: typeof events) => {
+      const d = dailySeries(ev, curYm, m, comp);
+      const p = projectMonth(d, curYm, todayDay, businessDayAverage(ev, todayIso, 21, m, comp));
+      return trendLine(cumulative(d), curYm, todayDay, p.dailyPace);
+    };
+    const campEv = filterPacingEvents(events, "campaign");
+    const campDaily = dailySeries(campEv, curYm, m, comp);
+    const future = comp === "total" ? declaredCampaignFuture(projs, curYm, campDaily, todayDay, m) : null;
+    const campTrend = future ? declaredTrendLine(cumulative(campDaily), future, todayDay) : auto(campEv);
+    if (camp === "campaign") return campTrend;
+    const nonTrend = auto(filterPacingEvents(events, "non_campaign"));
+    if (camp === "non_campaign") return nonTrend;
+    return nonTrend.map((v, i) => (v == null ? null : v + (campTrend[i] ?? 0)));
+  }, [events, comp, curYm, todayDay, todayIso, projs]);
+
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggleLine = (key: string) => setHidden((prev) => {
     const next = new Set(prev);
@@ -97,7 +121,8 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
     const extra = series(extraMonth);
     const avg90 = businessDayAverage(filteredEvents, todayIso, 90, metric, comp);
     const proj = projectMonth(curDaily, curYm, todayDay, businessDayAverage(filteredEvents, todayIso, 21, metric, comp));
-    const trend = view === "cum" ? trendLine(cumulative(curDaily), curYm, todayDay, proj.dailyPace) : [];
+    const trend = view === "cum" ? trendFor(metric, campaign) : [];
+    void proj;
     let avgAcc = 0;
     let goalAcc = 0;
     const nDays = daysInMonth(curYm);
@@ -131,13 +156,16 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
     const keys = [label(curYm), "Tendência", label(prevMonth(curYm)), label(extraMonth), "Média 90d"];
     if (hasGoal) keys.push("Meta");
     return { rows, keys };
-  }, [filteredEvents, metric, comp, campaign, view, mode, monthA, monthB, curYm, extraMonth, todayDay, todayIso, mrrMonthTarget, salesGoals]);
+  }, [filteredEvents, metric, comp, campaign, view, mode, monthA, monthB, curYm, extraMonth, todayDay, todayIso, mrrMonthTarget, salesGoals, trendFor]);
 
   const cards = useMemo(() => {
     const build = (m: PacingMetric) => {
       const daily = dailySeries(filteredEvents, curYm, m, comp);
       const fallback = businessDayAverage(filteredEvents, todayIso, 21, m, comp);
-      const atual = projectMonth(daily, curYm, todayDay, fallback);
+      const base = projectMonth(daily, curYm, todayDay, fallback);
+      const t = trendFor(m, campaign);
+      const end = t[t.length - 1];
+      const atual = end == null ? base : { ...base, projected: end, dailyPace: base.remainingBusinessDays ? (end - base.realized) / base.remainingBusinessDays : base.dailyPace };
       const pess = projectMonth(daily, curYm, todayDay, fallback, pessimisticPace(daily, curYm, todayDay));
       const acel = projectMonth(daily, curYm, todayDay, fallback, lastBusinessDaysPace(filteredEvents, todayIso, 7, m, comp));
       const prevDaily = dailySeries(filteredEvents, prevMonth(curYm), m, comp);
@@ -146,13 +174,17 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
       return { atual, pess, acel, prevSame, prevTotal };
     };
     return { mrr: build("mrr"), qty: build("qty") };
-  }, [filteredEvents, comp, curYm, todayDay, todayIso]);
+  }, [filteredEvents, comp, curYm, todayDay, todayIso, trendFor, campaign]);
 
   const campaignCards = useMemo(() => {
     const ev = filterPacingEvents(events, "campaign");
-    const b = (m: PacingMetric) => projectMonth(dailySeries(ev, curYm, m, comp), curYm, todayDay, businessDayAverage(ev, todayIso, 21, m, comp));
+    const b = (m: PacingMetric) => {
+      const p = projectMonth(dailySeries(ev, curYm, m, comp), curYm, todayDay, businessDayAverage(ev, todayIso, 21, m, comp));
+      const t = trendFor(m, "campaign");
+      return { realized: p.realized, trend: t[t.length - 1] ?? p.projected };
+    };
     return { mrr: b("mrr"), qty: b("qty") };
-  }, [events, comp, curYm, todayDay, todayIso]);
+  }, [events, comp, curYm, todayDay, todayIso, trendFor]);
 
   const colors = [1, 2, 3, 4, 5].map((n) => `hsl(var(--pacing-${n}))`);
   const pct = (a: number, b: number) => (b ? `${a >= b ? "+" : ""}${(((a - b) / b) * 100).toFixed(1).replace(".", ",")}%` : "—");
@@ -256,7 +288,7 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
               </div>
             )}
             {mode === "mtd" && campaign !== "non_campaign" && (
-              <CampaignManualProjection ym={curYm} label={label(curYm)} realizedMrr={campaignCards.mrr.realized} realizedQty={campaignCards.qty.realized} autoMrr={campaignCards.mrr.projected} autoQty={campaignCards.qty.projected} />
+              <CampaignManualProjection ym={curYm} label={label(curYm)} rows={projs} onSaved={() => setProjKey((k) => k + 1)} realizedMrr={campaignCards.mrr.realized} realizedQty={campaignCards.qty.realized} trendMrr={campaignCards.mrr.trend} trendQty={campaignCards.qty.trend} />
             )}
 
             <div className="h-[320px]">

@@ -55,3 +55,30 @@ describe("newMrrPacing", () => {
     expect(filterPacingEvents(events, "non_campaign").map((event) => event.mrr)).toEqual([100]);
   });
 });
+
+import { declaredCampaignFuture, declaredTrendLine } from "@/lib/newMrrPacing";
+describe("projeção declarada de campanha", () => {
+  const daily = Array(31).fill(0); daily[6] = 600; daily[9] = 400; // R$1.000 realizados em 07–11/12
+  const projs = [{ start_date: "2026-12-07", end_date: "2026-12-18", mrr: 3000, qty: null }];
+  it("divide o saldo pelos dias úteis restantes do período", () => {
+    const f = declaredCampaignFuture(projs, "2026-12", daily, 11, "mrr")!;
+    expect(f[13]).toBe(400); // 14/12
+    expect(f[17]).toBe(400); // 18/12
+    expect(f[12]).toBe(0);   // domingo
+    expect(f[18]).toBe(0);   // fora do período
+    expect(f.reduce((a, b) => a + b, 0)).toBe(2000);
+  });
+  it("sem valor na métrica retorna null", () => {
+    expect(declaredCampaignFuture(projs, "2026-12", daily, 11, "qty")).toBeNull();
+  });
+  it("tendência termina na projeção declarada", () => {
+    const cum = daily.map((_, i) => daily.slice(0, i + 1).reduce((a, b) => a + b, 0));
+    const t = declaredTrendLine(cum, declaredCampaignFuture(projs, "2026-12", daily, 11, "mrr")!, 11);
+    expect(t[9]).toBeNull();
+    expect(t[30]).toBe(3000);
+  });
+  it("realizado acima da projeção não gera saldo negativo", () => {
+    const f = declaredCampaignFuture([{ ...projs[0], mrr: 500 }], "2026-12", daily, 11, "mrr")!;
+    expect(f.reduce((a, b) => a + b, 0)).toBe(0);
+  });
+});

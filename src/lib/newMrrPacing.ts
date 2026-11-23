@@ -132,3 +132,44 @@ export const prevMonth = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
 };
+
+export interface CampaignProjection { start_date: string; end_date: string; mrr: number | null; qty: number | null }
+
+/**
+ * Projeção declarada de campanhas distribuída nos dias: para cada campanha, o saldo
+ * (projetado − realizado de campanha no período até hoje, nunca negativo) é dividido
+ * igualmente pelos dias úteis restantes do período dentro do mês. Retorna o acréscimo
+ * de cada dia futuro (índice 0 = dia 1), ou null se nenhuma campanha tem valor na métrica.
+ */
+export function declaredCampaignFuture(projs: CampaignProjection[], ym: string, campaignDaily: number[], todayDay: number, metric: PacingMetric): number[] | null {
+  const out = campaignDaily.map(() => 0);
+  let any = false;
+  for (const p of projs) {
+    const target = metric === "mrr" ? p.mrr : p.qty;
+    if (target == null) continue;
+    any = true;
+    let realized = 0;
+    const remainingDays: number[] = [];
+    for (let d = 1; d <= campaignDaily.length; d++) {
+      const iso = dayIso(ym, d);
+      if (iso < p.start_date || iso > p.end_date) continue;
+      if (d <= todayDay) realized += campaignDaily[d - 1];
+      else if (isBusinessDay(iso)) remainingDays.push(d);
+    }
+    const gap = Math.max(0, target - realized);
+    if (!remainingDays.length) continue;
+    for (const d of remainingDays) out[d - 1] += gap / remainingDays.length;
+  }
+  return any ? out : null;
+}
+
+/** Linha acumulada: null antes de hoje, a partir do acumulado de hoje soma os acréscimos futuros. */
+export function declaredTrendLine(cum: number[], future: number[], todayDay: number): (number | null)[] {
+  let acc = cum[todayDay - 1] ?? 0;
+  return cum.map((_, i) => {
+    const d = i + 1;
+    if (d < todayDay) return null;
+    if (d > todayDay) acc += future[i] ?? 0;
+    return acc;
+  });
+}
