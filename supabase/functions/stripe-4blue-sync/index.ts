@@ -89,6 +89,9 @@ Deno.serve(async (req) => {
         origem_cliente: '4blue',
         attribution_source: 'metabase_4blue',
         stripe_event_id: c.eventId,
+        // Vem da base de ativos pagantes do Metabase: já é cliente pagante (não passa pela Stripe).
+        payment_status: 'paid',
+        payment_checked_at: new Date().toISOString(),
       }));
 
     let inserted = 0;
