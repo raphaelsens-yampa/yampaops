@@ -876,6 +876,30 @@ export type Database = {
           },
         ]
       }
+      campaign_month_projections: {
+        Row: {
+          mrr: number | null
+          qty: number | null
+          updated_at: string
+          updated_by: string | null
+          year_month: string
+        }
+        Insert: {
+          mrr?: number | null
+          qty?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          year_month: string
+        }
+        Update: {
+          mrr?: number | null
+          qty?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          year_month?: string
+        }
+        Relationships: []
+      }
       campaign_plan_scenarios: {
         Row: {
           base_campaign_ids: string[]

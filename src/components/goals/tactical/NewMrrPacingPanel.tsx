@@ -16,6 +16,7 @@ import {
   prevMonth, projectMonth, roundHalfUp, trendLine, type PacingCampaignFilter, type PacingComposition, type PacingMetric,
 } from "@/lib/newMrrPacing";
 import { useNewMrrPacing } from "./useNewMrrPacing";
+import { CampaignManualProjection } from "./CampaignManualProjection";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const label = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]}/${ym.slice(2, 4)}`;
@@ -247,6 +248,9 @@ export function NewMrrPacingPanel({ today, origin: pageOrigin, refreshKey }: Pro
                 <ProjCard title={`Potencial de New MRR em ${label(curYm)}`} c={cards.mrr} isMrr />
                 <ProjCard title={`Potencial de Vendas em ${label(curYm)}`} c={cards.qty} isMrr={false} />
               </div>
+            )}
+            {mode === "mtd" && campaign === "campaign" && (
+              <CampaignManualProjection ym={curYm} label={label(curYm)} realizedMrr={cards.mrr.atual.realized} realizedQty={cards.qty.atual.realized} autoMrr={cards.mrr.atual.projected} autoQty={cards.qty.atual.projected} />
             )}
 
             <div className="h-[320px]">
