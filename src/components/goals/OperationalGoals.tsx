@@ -1,3 +1,4 @@
+import { fetchOfficialCsRecoveries, type CsRecovery } from "@/lib/csRecoveries";
 import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS, type OpenMonthSales } from "@/lib/openMonthStripeRealized";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
@@ -160,7 +161,8 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         .gte("canceled_at", from)
         .lte("canceled_at", to)
         .order("canceled_at").order("id")),
-    ]).then(([conversionResult, churnResult]) => {
+      fetchOfficialCsRecoveries(openStart, todayKey).catch(() => [] as CsRecovery[]),
+    ]).then(([conversionResult, churnResult, csRecoveries]) => {
       if (cancelled) return;
       const conversions = ((conversionResult.data as any[]) || []).filter(
         (row) => !originFiltered || stripeConversionOrigin(row) === origin,
@@ -186,6 +188,12 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
         else if (row.is_reactivation || type === "new" || !type) b.sales += Number(row.mrr_net ?? row.mrr ?? 0);
         else if (type === "downgrade") b.cs += Math.abs(Number(row.delta_mrr || 0));
       }
+      const csRecs = csRecoveries.filter((r) => !originFiltered || r.origin === origin);
+      for (const r of csRecs) {
+        const b = days.get(r.day) ?? { sales: 0, cs: 0 };
+        b.sales += r.mrr;
+        days.set(r.day, b);
+      }
       for (const row of ((churnResult.data as any[]) || [])) {
         bucket(row.canceled_at).cs += Math.max(Number(row.mrr_lost || 0), 0);
       }
@@ -195,7 +203,9 @@ export function OperationalGoals({ tvArea }: { tvArea?: OperationalArea } = {}) 
       setStripeToday({ sales: today.sales, cs: originFiltered ? Number.NaN : today.cs });
       setStripeOpenDays(days);
       setSalesCountByDay(counts);
-      setOpenMonthSales(openMonthSalesFromStripe(conversions));
+      const monthSales = openMonthSalesFromStripe(conversions);
+      monthSales.recuperados += csRecs.reduce((a, r) => a + r.mrr, 0);
+      setOpenMonthSales(monthSales);
       setStripeTodayLoading(false);
     });
     return () => { cancelled = true; };

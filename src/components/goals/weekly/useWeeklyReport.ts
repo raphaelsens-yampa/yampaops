@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fetchOfficialCsRecoveries } from "@/lib/csRecoveries";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { dayKeySP } from "@/lib/stripeConversions";
@@ -16,12 +17,13 @@ export function useWeeklyReport(week: WeekRange, origin: OriginFilter) {
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const today = dayKeySP(new Date());
-      const refDay = week.end < today ? week.end : today;
+      // Mês do report até hoje (mesma régua das Metas); semanas de meses fechados usam o fim da semana.
+      const refDay = week.end < `${today.slice(0, 7)}-01` ? week.end : today;
       const month = monthBounds(refDay);
       const from = [addDays(week.start, -28), month.start].sort()[0];
       const to = week.end > month.end ? week.end : month.end;
 
-      const [cats, sales, churn, goals, snap, pre, projs, deals, profiles, notes] = await Promise.all([
+      const [cats, sales, churn, goals, snap, pre, projs, deals, profiles, csRecs, notes] = await Promise.all([
         supabase.from("goal_categories").select("id,slug"),
         fetchAllPaged<any>(() => supabase.from("stripe_conversions")
           .select("id,converted_at,conversion_type,is_reactivation,mrr,mrr_net,delta_mrr,area,assigned_seller_id,origem_cliente,attribution_source,coupon_id")
@@ -37,6 +39,7 @@ export function useWeeklyReport(week: WeekRange, origin: OriginFilter) {
         supabase.from("campaign_projections").select("name,start_date,end_date,mrr,qty").eq("year_month", `${refDay.slice(0, 7)}-01`),
         fetchAllPaged<any>(() => supabase.from("ac_funnel_deals").select("ac_deal_id,status,value,closed_at,deal_created_at").eq("crm_source", "rd").order("ac_deal_id")),
         supabase.from("profiles").select("user_id,full_name"),
+        fetchOfficialCsRecoveries(from, to),
         supabase.from("weekly_report_notes").select("*").eq("week_start", week.start).maybeSingle(),
       ]);
       for (const r of [sales, churn, pre, deals]) if (r.error) throw new Error(r.error);
@@ -50,18 +53,18 @@ export function useWeeklyReport(week: WeekRange, origin: OriginFilter) {
       const g = (slug: string) => (goals.data || []).filter((x: any) => slugOf[x.category_id] === slug && (origin === "all" ? !x.origem_cliente : String(x.origem_cliente || "").toLowerCase() === origin));
       const gMrr = (slug: string) => g(slug).reduce((a: number, x: any) => a + Number(x.target_mrr || 0), 0);
       const elapsed = businessDays(month.start, refDay), total = businessDays(month.start, month.end);
-      const mSales = summarizeSales(saleRows, mtd, origin);
+      const mSales = summarizeSales(saleRows, mtd, origin, csRecs);
       const mChurn = summarizeChurn(churnRows, mtd, origin);
       const snapOf = (k: string) => (snap.data || []).find((x: any) => x.metric_key === k);
 
-      const weekSales = summarizeSales(saleRows, week, origin);
+      const weekSales = summarizeSales(saleRows, week, origin, csRecs);
       const prevWeek = shiftWeek(week, -1);
-      const prevSales = summarizeSales(saleRows, prevWeek, origin);
-      const avg4 = avgSummaries([1, 2, 3, 4].map((i) => summarizeSales(saleRows, shiftWeek(week, -i), origin)));
+      const prevSales = summarizeSales(saleRows, prevWeek, origin, csRecs);
+      const avg4 = avgSummaries([1, 2, 3, 4].map((i) => summarizeSales(saleRows, shiftWeek(week, -i), origin, csRecs)));
       const weekChurn = summarizeChurn(churnRows, week, origin);
       const prevChurn = summarizeChurn(churnRows, prevWeek, origin);
       const days = Array.from({ length: 7 }, (_, i) => addDays(week.start, i)).map((day) => {
-        const s = summarizeSales(saleRows, { start: day, end: day }, origin);
+        const s = summarizeSales(saleRows, { start: day, end: day }, origin, csRecs);
         const wd = new Date(`${day}T12:00:00Z`).getUTCDay();
         const goalDay = wd === 0 || wd === 6 ? 0 : (gMrr("new_mrr") + gMrr("recuperados") + gMrr("upsell")) / (total || 1);
         return { day, realized: s.newMrr, goal: goalDay, qty: s.qty };
@@ -70,6 +73,9 @@ export function useWeeklyReport(week: WeekRange, origin: OriginFilter) {
       const names = Object.fromEntries((profiles.data || []).map((p: any) => [p.user_id, p.full_name]));
       const filtered = saleRows.filter((r) => origin === "all" || stripeConversionOrigin(r) === origin);
       const sellerKey = (r: SaleRow) => (r.assigned_seller_id ? names[r.assigned_seller_id] || "Vendedor" : "Sem vendedor");
+      const csF = csRecs.filter((c) => origin === "all" || c.origin === origin);
+      const csSeller = csF.map((c) => ({ day: c.day, mrr: c.mrr, key: c.sellerId ? names[c.sellerId] || "Vendedor" : "Sem vendedor" }));
+      const csArea = csF.map((c) => ({ day: c.day, mrr: c.mrr, key: "CS" }));
       const areaKey = (r: SaleRow) => AREA_LABEL[String(r.area || "").toLowerCase()] || (r.area || "Outros");
 
       const preSeen = new Set<string>();
@@ -96,8 +102,8 @@ export function useWeeklyReport(week: WeekRange, origin: OriginFilter) {
           elapsed, total,
         },
         weekly: { cur: weekSales, prev: prevSales, avg4, churn: weekChurn, prevChurn, days },
-        sellers: { week: rankBy(filtered, sellerKey, week), month: rankBy(filtered, sellerKey, mtd) },
-        areas: { week: rankBy(filtered, areaKey, week), month: rankBy(filtered, areaKey, mtd) },
+        sellers: { week: rankBy(filtered, sellerKey, week, csSeller), month: rankBy(filtered, sellerKey, mtd, csSeller) },
+        areas: { week: rankBy(filtered, areaKey, week, csArea), month: rankBy(filtered, areaKey, mtd, csArea) },
         campaigns: { projections: projs.data || [], realized: campaignRealized, nonCampaign: mSales.newMrr - campaignRealized.newMrr },
         risks: {
           preChurnMrr: preRows.reduce((a: number, r: any) => a + Number(r.mrr || 0), 0), preChurnCount: preRows.length,

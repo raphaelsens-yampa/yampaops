@@ -5,6 +5,7 @@ import { stripeConversionOrigin, type OriginFilter } from "@/lib/origins";
 import { isCampaignConversion, type CampaignContext } from "@/lib/stripeConversions";
 import type { PacingEvent } from "@/lib/newMrrPacing";
 import { fetchCampaignCouponIds } from "./campaignCoupons";
+import { fetchOfficialCsRecoveries, type CsRecovery } from "@/lib/csRecoveries";
 
 /** Origem de uma recuperação: marcação do cliente; sem marcação = Yampa. */
 export function recoveryOrigin(r: { origem_cliente?: string | null }): "yampa" | "4blue" {
@@ -13,7 +14,7 @@ export function recoveryOrigin(r: { origem_cliente?: string | null }): "yampa" |
 
 const spDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
-/** Eventos de New MRR (vendas pagas, recuperações não-retidas, upsell positivo) entre duas datas. */
+/** Eventos de New MRR (vendas pagas, recuperações do CS que entram de fato na base, upsell positivo) entre duas datas. */
 export function useNewMrrPacing(fromDate: string, toDate: string, origin: OriginFilter, refreshKey = 0) {
   const [events, setEvents] = useState<PacingEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,21 +30,12 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
             .from("stripe_conversions")
             .select("id, converted_at, customer_email, coupon_id, mrr_net, mrr, delta_mrr, is_reactivation, conversion_type, origem_cliente, attribution_source")
             .eq("payment_status", "paid")
-            .in("conversion_type", ["new", "upsell"])
-            .gte("converted_at", `${fromDate}T03:00:00Z`)
+            .gte("converted_at", `${fromDate}T00:00:00-03:00`)
             .lte("converted_at", `${toDate}T23:59:59-03:00`)
             .order("converted_at", { ascending: true })
             .order("id", { ascending: true }) as any,
         ),
-        fetchAllPaged<any>(() =>
-              supabase
-                .from("tactical_recoveries")
-                .select("id, recovered_at, customer_email, mrr, entry_kind, origem_cliente")
-                .gte("recovered_at", fromDate)
-                .lte("recovered_at", toDate)
-                .order("recovered_at", { ascending: true })
-                .order("id", { ascending: true }) as any,
-            ),
+        fetchOfficialCsRecoveries(fromDate, toDate).then((data) => ({ data, error: null as string | null })).catch((e) => ({ data: [] as CsRecovery[], error: String(e?.message || e) })),
         fetchCampaignCouponIds(),
         fetchAllPaged<{ email_norm: string; is_campaign: boolean }>(() =>
           supabase.from("tactical_campaign_manual_links").select("email_norm, is_campaign").order("email_norm") as any,
@@ -60,9 +52,11 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
       const out: PacingEvent[] = [];
       for (const c of conv.data) {
         if (origin !== "all" && stripeConversionOrigin(c) !== origin) continue;
+        const type = String(c.conversion_type || "new").toLowerCase();
+        if (type !== "new" && type !== "upsell") continue; // mesma regra de openMonthSalesFromStripe
         const date = spDate(c.converted_at);
         const campaign = isCampaignConversion(c, campaignCtx);
-        if (c.conversion_type === "upsell") {
+        if (type === "upsell") {
           const d = Number(c.delta_mrr ?? 0);
           if (d > 0) out.push({ date, kind: "upsell", mrr: d, campaign });
         } else {
@@ -70,10 +64,9 @@ export function useNewMrrPacing(fromDate: string, toDate: string, origin: Origin
         }
       }
       for (const r of rec.data) {
-        if (r.entry_kind === "retained") continue;
-        if (origin !== "all" && recoveryOrigin(r) !== origin) continue;
-        const campaign = isCampaignConversion({ coupon_id: null, customer_email: r.customer_email }, campaignCtx);
-        out.push({ date: String(r.recovered_at).slice(0, 10), kind: "recuperados", mrr: Number(r.mrr ?? 0), campaign });
+        if (origin !== "all" && r.origin !== origin) continue;
+        const campaign = isCampaignConversion({ coupon_id: null, customer_email: r.email }, campaignCtx);
+        out.push({ date: r.day, kind: "recuperados", mrr: r.mrr, campaign });
       }
       setEvents(out);
       setError(conv.error || rec.error || manualLinks.error);

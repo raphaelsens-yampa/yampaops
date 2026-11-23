@@ -27,3 +27,12 @@ describe("weeklyReport", () => {
     expect(pace(2100, 700, 7, 21)).toMatchObject({ expected: 700, trend: 2100 });
   });
 });
+
+describe("recuperados padronizados", () => {
+  it("soma reativação Stripe + recuperação oficial do CS na origem", () => {
+    const s = summarizeSales([sale({ is_reactivation: true, mrr_net: 80 })], { start: "2026-11-16", end: "2026-11-22" }, "yampa",
+      [{ day: "2026-11-18", mrr: 200, origin: "yampa" }, { day: "2026-11-18", mrr: 65, origin: "4blue" }, { day: "2026-11-25", mrr: 999, origin: "yampa" }]);
+    expect(s.recuperados).toBe(280);
+    expect(s.newMrr).toBe(280);
+  });
+});

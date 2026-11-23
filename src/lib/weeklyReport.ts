@@ -45,9 +45,12 @@ const originOk = (o: OriginFilter, row: { origem_cliente: string | null; attribu
   o === "all" || stripeConversionOrigin(row) === o;
 
 export interface SalesSummary { novos: number; recuperados: number; upsell: number; newMrr: number; qty: number }
-export function summarizeSales(rows: SaleRow[], r: WeekRange, origin: OriginFilter = "all"): SalesSummary {
+export interface CsRecoveryRow { day: string; mrr: number; origin: "yampa" | "4blue"; sellerKey?: string; areaKey?: string }
+/** Recuperados = reativações pagas Stripe + recuperações do CS que entram de fato na base. */
+export function summarizeSales(rows: SaleRow[], r: WeekRange, origin: OriginFilter = "all", cs: CsRecoveryRow[] = []): SalesSummary {
   const sel = rows.filter((x) => inRange(x.day, r) && originOk(origin, x));
   const s = openMonthSalesFromStripe(sel);
+  s.recuperados += cs.filter((x) => inRange(x.day, r) && (origin === "all" || x.origin === origin)).reduce((a, x) => a + x.mrr, 0);
   const qty = sel.filter((x) => String(x.conversion_type || "new").toLowerCase() !== "upsell").length;
   return { novos: s.new_mrr, recuperados: s.recuperados, upsell: s.upsell, newMrr: s.new_mrr + s.recuperados + s.upsell, qty };
 }
@@ -64,8 +67,13 @@ export function pace(goal: number, realized: number, elapsedBd: number, totalBd:
   return { goal, realized, pct: goal > 0 ? realized / goal : null, expected, trend };
 }
 
-export function rankBy<T extends { key: string }>(rows: SaleRow[], keyOf: (r: SaleRow) => string, r: WeekRange) {
+export function rankBy(rows: SaleRow[], keyOf: (r: SaleRow) => string, r: WeekRange, cs: { day: string; mrr: number; key: string }[] = []) {
   const map = new Map<string, { key: string; mrr: number; qty: number }>();
+  for (const c of cs) {
+    if (!inRange(c.day, r)) continue;
+    const cur = map.get(c.key) || { key: c.key, mrr: 0, qty: 0 };
+    cur.mrr += c.mrr; map.set(c.key, cur);
+  }
   for (const row of rows) {
     if (!inRange(row.day, r)) continue;
     const k = keyOf(row);

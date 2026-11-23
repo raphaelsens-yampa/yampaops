@@ -41,6 +41,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
 import { resolveSnapshotAsOf } from "@/lib/snapshotAsOf";
 import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS } from "@/lib/openMonthStripeRealized";
+import { fetchOfficialCsRecoveries, sumCsRecoveries, type CsRecovery } from "@/lib/csRecoveries";
 
 
 type Period = "day" | "week" | "month" | "custom" | "year";
@@ -527,6 +528,13 @@ export function MetabaseTracking() {
   // Mês aberto: vendas novas, recuperados e upsell vêm dos pagamentos
   // confirmados da Stripe (mesma base das Metas Táticas e Operacionais).
   const [openMonthStripeRows, setOpenMonthStripeRows] = useState<any[] | null>(null);
+  const [openMonthCsRecoveries, setOpenMonthCsRecoveries] = useState<CsRecovery[]>([]);
+  useEffect(() => {
+    if (historicalMode) { setOpenMonthCsRecoveries([]); return; }
+    let cancelled = false;
+    fetchOfficialCsRecoveries(`${todayKey.slice(0, 7)}-01`, todayKey).then((r) => { if (!cancelled) setOpenMonthCsRecoveries(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [historicalMode, todayKey]);
   useEffect(() => {
     if (historicalMode) { setOpenMonthStripeRows(null); return; }
     let cancelled = false;
@@ -550,6 +558,7 @@ export function MetabaseTracking() {
       ? openMonthStripeRows.filter((r) => stripeConversionOrigin(r) === originFilter)
       : openMonthStripeRows;
     const sales = openMonthSalesFromStripe(filtered);
+    sales.recuperados += sumCsRecoveries(openMonthCsRecoveries, `${todayKey.slice(0, 7)}-01`, todayKey, originFilter);
     const idBySlug = new Map<string, string>();
     categories.forEach((c) => {
       const slug = (c as any).slug as string;
