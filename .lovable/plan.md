@@ -1,6 +1,6 @@
 # Report Comercial Semanal (Diretoria)
 
-Nova tela "Report Semanal" em Metas, com seletor de semana (padrão: última semana fechada, seg–dom, horário de São Paulo), pronta para apresentar e exportar em PDF/Excel.
+Nova tela "Report Semanal" em Metas, com seletor de semana (padrão: última semana fechada, seg–dom, horário de São Paulo), pronta para apresentar e exportar para Google Apresentações, PDF ou Excel.
 
 ## Blocos da tela
 
@@ -26,7 +26,9 @@ Nova tela "Report Semanal" em Metas, com seletor de semana (padrão: última sem
    - Campo livre (destaques, riscos, ações), salvo por semana e incluído na exportação.
 
 ## Exportação
-- Botão "Exportar PDF" (layout de apresentação, uma página por bloco) e "Exportar Excel" (uma aba por bloco).
+- Botão principal "Gerar no Google Apresentações": cria uma apresentação nova na conta Google conectada, com um slide por bloco (números, gráficos e comentários) nas cores da Yampa, e abre o link.
+- Opcional: usar uma apresentação modelo da Yampa como base, se você tiver uma.
+- Botões secundários "Exportar PDF" (layout de apresentação, uma página por bloco) e "Exportar Excel" (uma aba por bloco).
 - Cabeçalho com semana, data de geração e data da última foto do Metabase.
 
 ## Acesso
@@ -36,5 +38,6 @@ Nova tela "Report Semanal" em Metas, com seletor de semana (padrão: última sem
 - Reaproveitar cálculos existentes (sem números novos ou estáticos): `openMonthStripeRealized`, `newMrrPacing`, churn pacing, `ProjectedResult`, placar tático, `campaign_projections`, `ac_funnel_*` (RD). Leituras com `fetchAllPaged`.
 - Montagem do report em helper puro `src/lib/weeklyReport.ts` com testes (limites da semana SP, comparativos, somas que reconciliam com as telas de origem).
 - Tabela `weekly_report_notes` (semana, texto, autor) com RLS de equipe interna; escrita para Admin/Tático.
+- Google Apresentações via conector Google Slides (conta da empresa), chamado por função de backend `weekly-report-slides`; gráficos gerados como imagem e salvos em armazenamento público temporário para entrar nos slides.
 - PDF via geração no navegador (jsPDF + captura dos blocos); Excel via xlsx.
 - Registrar área `weekly-report` em `accessRegistry.ts` e item no menu de Metas.
