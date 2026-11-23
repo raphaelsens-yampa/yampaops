@@ -155,6 +155,13 @@
       "when": 1795454168051,
       "tag": "0021_campaign_projections",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795457629670,
+      "tag": "0022_weekly_report_notes",
+      "breakpoints": true
     }
   ]
 }

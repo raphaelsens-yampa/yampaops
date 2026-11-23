@@ -6765,6 +6765,33 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_report_notes: {
+        Row: {
+          actions: string
+          highlights: string
+          risks: string
+          updated_at: string
+          updated_by: string | null
+          week_start: string
+        }
+        Insert: {
+          actions?: string
+          highlights?: string
+          risks?: string
+          updated_at?: string
+          updated_by?: string | null
+          week_start: string
+        }
+        Update: {
+          actions?: string
+          highlights?: string
+          risks?: string
+          updated_at?: string
+          updated_by?: string | null
+          week_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       metas_ativos_ingest_status: {

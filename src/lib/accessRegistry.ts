@@ -35,6 +35,7 @@ export const CRM_SECTIONS = [
       { key: "goals_projected", label: "Metas — Resultado Projetado", parent: "goals_operational_sales" },
       { key: "goals_registry", label: "Metas — Cadastro de Metas", parent: "goals", minRole: "tatico" },
       { key: "goals_settings", label: "Metas — Configurações", parent: "goals", minRole: "tatico" },
+      { key: "goals_weekly_report", label: "Metas — Report Semanal (Diretoria)", parent: "goals", minRole: "admin" },
       { key: "conversions", label: "Conversões por Área", route: "/insights/conversions", minRole: "tatico" },
       { key: "reports", label: "Relatórios", route: "/reports" },
     ],

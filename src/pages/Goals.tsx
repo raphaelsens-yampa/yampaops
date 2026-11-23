@@ -22,6 +22,7 @@ import { TacticalTracking } from "@/components/goals/tactical/TacticalTracking";
 import { GoalsImportDialog } from "@/components/goals/GoalsImportDialog";
 import { OperationalGoals } from "@/components/goals/OperationalGoals";
 import { ProjectedResult } from "@/components/goals/ProjectedResult";
+import { WeeklyReport } from "@/components/goals/weekly/WeeklyReport";
 
 import { AREA_LABELS, type GoalCategory } from "@/lib/goalCategories";
 import { ORIGIN_OPTIONS, originLabel, type OriginFilter } from "@/lib/origins";
@@ -311,6 +312,12 @@ export default function GoalsPage() {
                   <span className="hidden md:inline">Resultado Projetado</span>
                 </TabsTrigger>
               )}
+              {canView("goals_weekly_report") && (
+                <TabsTrigger value="weekly" className="whitespace-nowrap">
+                  <span className="md:hidden">Report</span>
+                  <span className="hidden md:inline">Report Semanal</span>
+                </TabsTrigger>
+              )}
               {canView("goals_registry") && (
                 <TabsTrigger value="setup" className="whitespace-nowrap">
                   <span className="md:hidden">Cadastro</span>
@@ -337,6 +344,12 @@ export default function GoalsPage() {
           {canView("goals_projected") && (
             <TabsContent value="projected" className="space-y-6">
               <ProjectedResult />
+            </TabsContent>
+          )}
+
+          {canView("goals_weekly_report") && (
+            <TabsContent value="weekly" className="space-y-6">
+              <WeeklyReport />
             </TabsContent>
           )}
 
