@@ -61,7 +61,17 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* vazio */ }
   const dryRun = body?.dry_run === true;
-  const date = dryRun && /^\d{4}-\d{2}-\d{2}$/.test(body?.date ?? "") ? body.date : spToday();
+  const explicitDate = /^\d{4}-\d{2}-\d{2}$/.test(body?.date ?? "") ? body.date as string : null;
+  let date = explicitDate ?? spToday();
+  if (!explicitDate) {
+    // Se a foto de hoje ainda não trouxe ativos, ajusta a última foto com ativos
+    // (é ela que as telas exibem como MRR atual).
+    const { data: last } = await supabase.from("metas_ativos_pagantes_daily")
+      .select("data_snapshot").eq("status_assinatura", "ativo").lte("data_snapshot", date)
+      .not("company_id", "like", "stripe-bpo-%")
+      .order("data_snapshot", { ascending: false }).limit(1).maybeSingle();
+    if (last?.data_snapshot) date = String(last.data_snapshot).slice(0, 10);
+  }
 
   try {
     // 1) Assinaturas Stripe dos produtos BPO
