@@ -4,7 +4,7 @@
 // (metas_snapshot_diario) e do mês (metabase_monthly_agg). Idempotente: refaz
 // as linhas de ajuste do dia e usa stripe_bpo_mrr_runs para não somar duas vezes.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import Stripe from "npm:stripe@14.21.0";
 import { authenticateCronRequest } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
@@ -61,14 +61,22 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* vazio */ }
   const dryRun = body?.dry_run === true;
-  const date = spToday();
+  const date = dryRun && /^\d{4}-\d{2}-\d{2}$/.test(body?.date ?? "") ? body.date : spToday();
 
   try {
     // 1) Assinaturas Stripe dos produtos BPO
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2024-06-20" });
     const byEmail = new Map<string, { mrr: number; status: string; price: string; nome: string; product: string }>();
-    for (const status of STATUSES) {
-      for await (const sub of stripe.subscriptions.list({ status, limit: 100, expand: ["data.customer"] })) {
+    // Lista só as assinaturas dos preços BPO (varrer a conta inteira estourava o tempo limite).
+    const priceIds: string[] = [];
+    for (const product of PRODUCTS) {
+      for await (const pr of stripe.prices.list({ product, limit: 100 })) priceIds.push(pr.id);
+    }
+    const seenSubs = new Set<string>();
+    for (const status of STATUSES) for (const price of priceIds) {
+      for await (const sub of stripe.subscriptions.list({ status, price, limit: 100, expand: ["data.customer"] })) {
+        if (seenSubs.has(sub.id)) continue;
+        seenSubs.add(sub.id);
         const cust = sub.customer as Stripe.Customer;
         const email = (cust?.email || "").trim().toLowerCase();
         if (!email) continue;
@@ -80,6 +88,34 @@ Deno.serve(async (req) => {
           if (status === "active") cur.status = "active";
           byEmail.set(email, cur);
         }
+      }
+    }
+
+    // 1b) Vindi (novo gateway desde 23/11): assinaturas ativas na Vindi com venda paga
+    //     registrada pelo vindi-sync. Regra própria: vale o MAIOR valor (base x Vindi),
+    //     pois quem migrou da Stripe pode já estar na base.
+    const vindiByEmail = new Map<string, { mrr: number; price: string; nome: string }>();
+    const vkey = Deno.env.get("VINDI_API_KEY")?.trim();
+    if (vkey) {
+      const activeIds = new Set<string>();
+      for (let page = 1; page < 200; page++) {
+        const r = await fetch(`https://app.vindi.com.br/api/v1/subscriptions?per_page=50&page=${page}&query=${encodeURIComponent("status=active")}`,
+          { headers: { Authorization: "Basic " + btoa(`${vkey}:`) } });
+        if (!r.ok) throw new Error(`Vindi ${r.status}`);
+        const items = (await r.json())?.subscriptions ?? [];
+        for (const it of items) activeIds.add(`vindi_sub_${it.id}`);
+        if (items.length < 50) break;
+      }
+      const { data: vc, error: ve } = await supabase.from("stripe_conversions")
+        .select("stripe_subscription_id, customer_email, mrr, mrr_net, stripe_price_id, plan_name")
+        .like("stripe_subscription_id", "vindi_%").eq("payment_status", "paid");
+      if (ve) throw new Error(ve.message);
+      for (const c of vc ?? []) {
+        const email = (c.customer_email || "").trim().toLowerCase();
+        if (!email || !activeIds.has(c.stripe_subscription_id)) continue;
+        const cur = vindiByEmail.get(email) ?? { mrr: 0, price: c.stripe_price_id, nome: c.plan_name || "Vindi" };
+        cur.mrr = r2(cur.mrr + Number(c.mrr_net ?? c.mrr ?? 0));
+        vindiByEmail.set(email, cur);
       }
     }
 
@@ -129,6 +165,24 @@ Deno.serve(async (req) => {
         origem_cliente: "yampa", status_pagamento: STATUS_LABEL[s.status] ?? s.status, gateway: "stripe",
         recorrencia_pagamento: "30", fonte: FONTE, tipo_snapshot: "diario",
         classificacao_company: isNew ? null : "complemento BPO",
+      });
+    }
+
+    for (const [email, v] of vindiByEmail) {
+      let existing = mrrByEmail.get(email);
+      if (existing === undefined) { const a = aliasKey(email); if (a && mrrByAlias.has(a)) existing = mrrByAlias.get(a)!; }
+      const isNew = existing === undefined;
+      const diff = r2(v.mrr - (existing ?? 0));
+      if (diff <= 0) continue;
+      details.push({ email, vindi_mrr: v.mrr, base_mrr: existing ?? 0, added: diff, novo: isNew, via: "vindi" });
+      addedMrr = r2(addedMrr + diff);
+      if (isNew) addedAtivos++;
+      inserts.push({
+        data_snapshot: date, data_execucao: date, mes_ref: `${m}/${y}`, company_id: `stripe-bpo-vindi-${email}`, email,
+        status_assinatura: "ativo", plano: v.nome, nome_oferta: v.nome, stripe_price_id: v.price, mrr: diff,
+        origem_cliente: "yampa", status_pagamento: "Em dia", gateway: "vindi",
+        recorrencia_pagamento: "30", fonte: "Vindi (conferência diária)", tipo_snapshot: "diario",
+        classificacao_company: isNew ? null : "complemento Vindi",
       });
     }
 
