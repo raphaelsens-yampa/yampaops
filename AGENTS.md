@@ -33,6 +33,6 @@
 - Access control lives in `src/lib/accessRegistry.ts`: every route, menu item, tab or sensitive action must use an area registered there (with optional `minRole`/`parent`) and be checked via `canView/canCreate/canEdit` (level permission AND role minimum); new features default to Admin-only until levels are configured, and `accessRegistry.test.ts` fails on unregistered areas or new literal role comparisons, so menu, routes and level editor never diverge.
 - RD Station CRM deals sync (`rd-crm-sync`, hourly, one invocation per pipeline) into the existing `ac_funnel_*` tables tagged `crm_source='rd'`, so screens read ActiveCampaign history plus RD without separate code paths.
 - Campaign pacing trend = declared `campaign_projections` spread over remaining campaign business days (Geral adds the auto non-campaign trend), so plans drive trend and cards.
-- Weekly report: PDF/Excel/Slides share one section list (`weeklyExport.ts`) so exports match the screen.
+- Weekly report exports share one section list (`weeklyExport.ts`).
 
-- Vindi sales (new gateway) are written by `vindi-sync` into `stripe_conversions`/`stripe_churn_events` with synthetic `vindi_*` ids, only once a bill is paid, re-reading the Vindi API on webhook and hourly cron (payload untrusted), so every panel consolidates both gateways without new code paths.
+- Vindi sales: `vindi-sync` writes paid bills/cancellations into `stripe_conversions`/`stripe_churn_events` (`vindi_*` ids), so panels consolidate both gateways.
