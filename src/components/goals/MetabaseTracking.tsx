@@ -1,4 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaged } from "@/lib/supabasePaged";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,6 +186,24 @@ function endOfWeek(d: Date) {
 }
 
 export function MetabaseTracking() {
+  const { canEdit } = useAuth();
+  const [reloadKey, setReloadKey] = useState(0);
+  const [refreshingMrr, setRefreshingMrr] = useState(false);
+  const refreshBpoMrr = async () => {
+    setRefreshingMrr(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-bpo-mrr-sync", { body: {} });
+      if (error) throw error;
+      if (data?.skipped) toast.warning(data.skipped);
+      else if (data?.error) throw new Error(data.error);
+      else toast.success(`MRR atualizado: ${data?.ajustes ?? 0} clientes BPO/Vindi conferidos, +R$ ${Number(data?.added_mrr ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(`Não foi possível atualizar o MRR: ${(e as Error).message}`);
+    } finally {
+      setRefreshingMrr(false);
+    }
+  };
   const [period, setPeriod] = useState<Period>("year");
   const now = new Date();
   const [customFrom, setCustomFrom] = useState(new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10));
@@ -281,7 +302,7 @@ export function MetabaseTracking() {
 
   useEffect(() => {
     (async () => {
-      setLoading(true);
+      if (reloadKey === 0) setLoading(true);
       const [aggRes, goalsRes, capRes] = await Promise.all([
         supabase.from("metabase_monthly_agg").select("*"),
         supabase.from("goals").select("*"),
@@ -292,7 +313,7 @@ export function MetabaseTracking() {
       setMaxCapture(((capRes.data as any[]) || [])[0]?.capture_date || null);
       setLoading(false);
     })();
-  }, []);
+  }, [reloadKey]);
 
   // Retenção (Pré-churn) tem como fonte canônica os lançamentos realizados
   // no painel de Metas Táticas, e não o agregado mensal do Metabase.
@@ -1670,6 +1691,13 @@ export function MetabaseTracking() {
         return (
           <>
             <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
+              {canEdit("goals_strategic_mrr_refresh") && (
+                <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={refreshBpoMrr} disabled={refreshingMrr}
+                  title="Confere agora na Stripe (BPO) e na Vindi e atualiza o MRR total de hoje">
+                  <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshingMrr ? "animate-spin" : ""}`} />
+                  {refreshingMrr ? "Atualizando MRR..." : "Atualizar MRR BPO/Vindi"}
+                </Button>
+              )}
               <span className="text-xs text-muted-foreground">Meta:</span>
               <div className="inline-flex rounded-md border p-0.5 bg-muted/40">
 
