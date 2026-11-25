@@ -634,14 +634,14 @@ export function MetabaseTracking() {
     return [...kept, ...added];
   };
 
-  // Cross-sell (Sales): toda venda paga de BPO. Venda nova conta o MRR cheio;
+  // Cross-sell (Sales): toda venda paga de BPO avulso (Time Financeiro é plano completo, não entra). Venda nova conta o MRR cheio;
   // upsell para BPO conta só o acréscimo (delta).
   const [bpoRows, setBpoRows] = useState<any[]>([]);
   useEffect(() => {
     let cancelled = false;
     fetchAllPaged<any>(() => supabase.from("stripe_conversions")
       .select("conversion_type, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id, plan_name, customer_email")
-      .eq("payment_status", "paid").ilike("plan_name", "%bpo%")
+      .eq("payment_status", "paid").ilike("plan_name", "%bpo%").not("plan_name", "ilike", "%time financeiro%")
       .gte("converted_at", `${year}-01-01T00:00:00-03:00`).lte("converted_at", `${year}-12-31T23:59:59.999-03:00`)
       .order("converted_at").order("id") as never,
     ).then(({ data }) => { if (!cancelled) setBpoRows((data as any[]) || []); });
