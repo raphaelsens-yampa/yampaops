@@ -640,7 +640,7 @@ export function MetabaseTracking() {
   useEffect(() => {
     let cancelled = false;
     fetchAllPaged<any>(() => supabase.from("stripe_conversions")
-      .select("conversion_type, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id, plan_name")
+      .select("conversion_type, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id, plan_name, customer_email")
       .eq("payment_status", "paid").ilike("plan_name", "%bpo%")
       .gte("converted_at", `${year}-01-01T00:00:00-03:00`).lte("converted_at", `${year}-12-31T23:59:59.999-03:00`)
       .order("converted_at").order("id") as never,
@@ -651,7 +651,7 @@ export function MetabaseTracking() {
     const cats = categories.filter((c) => String((c as any).slug || "").startsWith("cross_sell"));
     if (!cats.length) return [];
     const asOf = historicalMode ? refDate : todayKey;
-    const byMonth = new Map<string, { mrr: number; n: number }>();
+    const byMonth = new Map<string, { mrr: number; n: number; emails: Set<string> }>();
     for (const r of bpoRows) {
       const d = new Date(r.converted_at).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       if (d > asOf) continue;
@@ -662,13 +662,18 @@ export function MetabaseTracking() {
         : type === "new" || !type ? Math.max(Number(r.mrr_net ?? r.mrr ?? 0), 0) : 0;
       if (!v) continue;
       const m = `${d.slice(0, 7)}-01`;
-      const cur = byMonth.get(m) ?? { mrr: 0, n: 0 };
-      cur.mrr += v; cur.n += 1; byMonth.set(m, cur);
+      const cur = byMonth.get(m) ?? { mrr: 0, n: 0, emails: new Set<string>() };
+      cur.mrr += v; cur.n += 1;
+      cur.emails.add(String(r.customer_email || r.stripe_event_id || cur.n).trim().toLowerCase());
+      byMonth.set(m, cur);
     }
     const out: AggRow[] = [];
+    // Categoria de MRR recebe o valor; a de quantidade recebe o número de contas.
     cats.forEach((c) => byMonth.forEach((v, m) => out.push({
       year_month: m, metric_key: "cross_sell_bpo", scope: "company", team_id: null, user_id: null, campaign_id: null,
-      category_id: c.id, area: "sales", realized_amount: Math.round(v.mrr * 100) / 100, deals_count: v.n,
+      category_id: c.id, area: "sales",
+      realized_amount: (c as any).metric_type === "count" ? v.emails.size : Math.round(v.mrr * 100) / 100,
+      deals_count: v.emails.size,
     } as AggRow)));
     return out;
   }, [bpoRows, categories, originFilter, gatewayFilter, historicalMode, refDate, todayKey]);
