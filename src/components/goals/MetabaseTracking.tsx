@@ -634,8 +634,47 @@ export function MetabaseTracking() {
     return [...kept, ...added];
   };
 
+  // Cross-sell (Sales): toda venda paga de BPO. Venda nova conta o MRR cheio;
+  // upsell para BPO conta só o acréscimo (delta).
+  const [bpoRows, setBpoRows] = useState<any[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllPaged<any>(() => supabase.from("stripe_conversions")
+      .select("conversion_type, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id, plan_name")
+      .eq("payment_status", "paid").ilike("plan_name", "%bpo%")
+      .gte("converted_at", `${year}-01-01T00:00:00-03:00`).lte("converted_at", `${year}-12-31T23:59:59.999-03:00`)
+      .order("converted_at").order("id") as never,
+    ).then(({ data }) => { if (!cancelled) setBpoRows((data as any[]) || []); });
+    return () => { cancelled = true; };
+  }, [year]);
+  const crossSellAgg = useMemo<AggRow[]>(() => {
+    const cats = categories.filter((c) => String((c as any).slug || "").startsWith("cross_sell"));
+    if (!cats.length) return [];
+    const asOf = historicalMode ? refDate : todayKey;
+    const byMonth = new Map<string, { mrr: number; n: number }>();
+    for (const r of bpoRows) {
+      const d = new Date(r.converted_at).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      if (d > asOf) continue;
+      if (isOriginFiltered(originFilter) && stripeConversionOrigin(r) !== originFilter) continue;
+      if (gatewayFilter !== "all" && conversionGateway(r) !== gatewayFilter) continue;
+      const type = String(r.conversion_type || "").toLowerCase();
+      const v = type === "upsell" ? Math.max(Number(r.delta_mrr || 0), 0)
+        : type === "new" || !type ? Math.max(Number(r.mrr_net ?? r.mrr ?? 0), 0) : 0;
+      if (!v) continue;
+      const m = `${d.slice(0, 7)}-01`;
+      const cur = byMonth.get(m) ?? { mrr: 0, n: 0 };
+      cur.mrr += v; cur.n += 1; byMonth.set(m, cur);
+    }
+    const out: AggRow[] = [];
+    cats.forEach((c) => byMonth.forEach((v, m) => out.push({
+      year_month: m, metric_key: "cross_sell_bpo", scope: "company", team_id: null, user_id: null, campaign_id: null,
+      category_id: c.id, area: "sales", realized_amount: Math.round(v.mrr * 100) / 100, deals_count: v.n,
+    } as AggRow)));
+    return out;
+  }, [bpoRows, categories, originFilter, gatewayFilter, historicalMode, refDate, todayKey]);
+
   /** Fonte de realizado efetiva */
-  const sourceAgg = useMemo<AggRow[]>(() => {
+  const sourceAggBase = useMemo<AggRow[]>(() => {
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
     if (!isOriginFiltered(originFilter)) return [...applyOpenMonthStripe(base), ...tacticalRetentionAgg];
@@ -644,9 +683,14 @@ export function MetabaseTracking() {
     return applyOpenMonthStripe(originAgg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [originFilter, gatewayFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg, openMonthStripeRows, openMonthCsRecoveries, categories, year, todayKey]);
+  const sourceAgg = useMemo<AggRow[]>(() => {
+    const crossIds = new Set(crossSellAgg.map((r) => r.category_id));
+    return [...sourceAggBase.filter((r) => !crossIds.has(r.category_id)), ...crossSellAgg];
+  }, [sourceAggBase, crossSellAgg]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
+    if (String((categories.find((c) => c.id === id) as any)?.slug || "").startsWith("cross_sell")) return false;
     if (gatewayFilter !== "all") {
       if (id === RETENTION_CAT) return true;
       if (gatewayFilter === "vindi") {
