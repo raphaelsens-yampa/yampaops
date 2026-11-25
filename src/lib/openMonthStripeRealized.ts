@@ -35,3 +35,14 @@ export function openMonthSalesFromStripe(rows: StripePaidRow[]): OpenMonthSales 
 
 /** Slugs de categoria substituídos no mês aberto. */
 export const OPEN_MONTH_STRIPE_SLUGS = ["new_mrr", "recuperados", "upsell"] as const;
+
+/** Gateway de cobrança de uma venda paga. */
+export type Gateway = "stripe" | "vindi" | "4blue";
+export type GatewayFilter = "all" | Gateway;
+
+export function conversionGateway(row: { stripe_event_id?: string | null; attribution_source?: string | null }): Gateway {
+  const id = String(row.stripe_event_id || "");
+  if (id.startsWith("vindi_")) return "vindi";
+  if (id.startsWith("4blue:") || row.attribution_source === "metabase_4blue") return "4blue";
+  return "stripe";
+}

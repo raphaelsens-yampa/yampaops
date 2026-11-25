@@ -43,7 +43,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
 import { resolveSnapshotAsOf } from "@/lib/snapshotAsOf";
-import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS } from "@/lib/openMonthStripeRealized";
+import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS, conversionGateway, type GatewayFilter } from "@/lib/openMonthStripeRealized";
 import { fetchOfficialCsRecoveries, sumCsRecoveries, type CsRecovery } from "@/lib/csRecoveries";
 
 
@@ -248,6 +248,7 @@ export function MetabaseTracking() {
 
   const [productScope, setProductScope] = useState<ProductScope>("yampafin");
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
+  const [gatewayFilter, setGatewayFilter] = useState<GatewayFilter>("all");
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [teamId, setTeamId] = useState<string>("all");
@@ -562,7 +563,7 @@ export function MetabaseTracking() {
     const monthStart = `${todayKey.slice(0, 7)}-01`;
     fetchAllPaged<any>(() => supabase
       .from("stripe_conversions")
-      .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at")
+      .select("conversion_type, is_reactivation, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id")
       .eq("payment_status", "paid")
       .gte("converted_at", `${monthStart}T00:00:00-03:00`)
       .lte("converted_at", `${todayKey}T23:59:59.999-03:00`)
@@ -575,11 +576,13 @@ export function MetabaseTracking() {
     if (historicalMode || !openMonthStripeRows) return rows;
     const ym = `${todayKey.slice(0, 7)}-01`;
     if (!ym.startsWith(String(year))) return rows;
-    const filtered = isOriginFiltered(originFilter)
+    const byOrigin = isOriginFiltered(originFilter)
       ? openMonthStripeRows.filter((r) => stripeConversionOrigin(r) === originFilter)
       : openMonthStripeRows;
+    const filtered = gatewayFilter === "all" ? byOrigin : byOrigin.filter((r) => conversionGateway(r) === gatewayFilter);
     const sales = openMonthSalesFromStripe(filtered);
-    sales.recuperados += sumCsRecoveries(openMonthCsRecoveries, `${todayKey.slice(0, 7)}-01`, todayKey, originFilter);
+    // Recuperações lançadas pelo CS não têm gateway: só entram sem filtro de gateway.
+    if (gatewayFilter === "all") sales.recuperados += sumCsRecoveries(openMonthCsRecoveries, `${todayKey.slice(0, 7)}-01`, todayKey, originFilter);
     const idBySlug = new Map<string, string>();
     categories.forEach((c) => {
       const slug = (c as any).slug as string;
@@ -601,6 +604,10 @@ export function MetabaseTracking() {
 
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
+    if (gatewayFilter !== "all") {
+      // Recorte por gateway: só existe para as vendas pagas do mês aberto.
+      return historicalMode ? [] : applyOpenMonthStripe([]);
+    }
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
     if (!isOriginFiltered(originFilter)) return [...applyOpenMonthStripe(base), ...tacticalRetentionAgg];
@@ -608,10 +615,14 @@ export function MetabaseTracking() {
     if (originFilter === "yampa") return [...applyOpenMonthStripe(originAgg), ...tacticalRetentionAgg];
     return applyOpenMonthStripe(originAgg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg, openMonthStripeRows, categories, year, todayKey]);
+  }, [originFilter, gatewayFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg, openMonthStripeRows, openMonthCsRecoveries, categories, year, todayKey]);
 
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
+    if (gatewayFilter !== "all") {
+      const gslug = (categories.find((c) => c.id === id) as any)?.slug as string | undefined;
+      if (!gslug || !(OPEN_MONTH_STRIPE_SLUGS as readonly string[]).includes(gslug)) return true;
+    }
     if (!isOriginFiltered(originFilter)) return false;
     // Retenção é uma apuração operacional do painel tático: pertence à Yampa.
     if (id === RETENTION_CAT) return originFilter === "4blue";
@@ -1346,6 +1357,18 @@ export function MetabaseTracking() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="w-full sm:w-[180px]">
+                  <Label className="text-xs">Gateway</Label>
+                  <Select value={gatewayFilter} onValueChange={(v) => setGatewayFilter(v as GatewayFilter)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="stripe">Stripe</SelectItem>
+                      <SelectItem value="vindi">Vindi</SelectItem>
+                      <SelectItem value="4blue">4blue</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="w-full sm:w-auto">
                   <Label className="text-xs">Cenário de crescimento</Label>
                   <GoalScenarioSelector />
@@ -1353,6 +1376,12 @@ export function MetabaseTracking() {
               </div>
               {productScope !== "yampafin" && (
                 <p className="mb-4 text-xs text-amber-600">{YAMPA20_SCOPE_NOTE}</p>
+              )}
+              {gatewayFilter !== "all" && (
+                <p className="mb-4 text-xs text-amber-600">
+                  Recorte por gateway mostra as vendas pagas do mês em andamento (Vendas novas, Recuperados e Upsell).
+                  O Total de MRR e as demais métricas aparecem como "—", porque a base oficial não informa o gateway de cada cliente.
+                </p>
               )}
               {isOriginFiltered(originFilter) && (
                 <p className="mb-4 text-xs text-amber-600">
