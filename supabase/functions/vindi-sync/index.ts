@@ -67,6 +67,20 @@ Deno.serve(async (req) => {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
   try {
+    // Todo plano Vindi ganha linha no Mapa de Preços (área "Vindi" até o usuário ajustar).
+    const plans = await listAll('plans', '')
+    if (!dry && plans.length) {
+      const { data: have, error: hErr } = await supabase.from('commission_price_map').select('price_id').like('price_id', 'vindi_plan_%')
+      if (hErr) throw hErr
+      const known = new Set((have ?? []).map((h: any) => h.price_id))
+      const missing = plans.filter((p: any) => !known.has(`vindi_plan_${p.id}`))
+      const { error } = missing.length === 0 ? { error: null } : await supabase.from('commission_price_map').insert(missing.map((p: any) => {
+        const m = Number(p.interval_count) || 1, vista = /vista/i.test(p.name)
+        return { price_id: `vindi_plan_${p.id}`, offer_name: p.name, price_name: p.name, plan_name: p.name, area: 'Vindi',
+          payment_type: m === 1 ? 'mensal' : m === 12 ? (vista ? 'anual_avista' : 'anual_mensalizado') : null }
+      }))
+      if (error) throw error
+    }
     const subs = await listAll('subscriptions', `created_at>=${START}`)
     const result = { assinaturas: subs.length, vendas_pagas: 0, aguardando_pagamento: 0, cancelamentos: 0, gravadas: 0, preview: [] as any[] }
 
