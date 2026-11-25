@@ -43,6 +43,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, RotateCcw, ChevronDown, Info, History } from "lucide-react";
 import { resolveSnapshotAsOf } from "@/lib/snapshotAsOf";
+import { crossSellStockAt, isCrossSellPlan, type BpoChurn } from "@/lib/crossSell";
 import { openMonthSalesFromStripe, OPEN_MONTH_STRIPE_SLUGS, conversionGateway, type GatewayFilter } from "@/lib/openMonthStripeRealized";
 import { fetchOfficialCsRecoveries, sumCsRecoveries, type CsRecovery } from "@/lib/csRecoveries";
 
@@ -634,49 +635,47 @@ export function MetabaseTracking() {
     return [...kept, ...added];
   };
 
-  // Cross-sell (Sales): toda venda paga de BPO avulso (Time Financeiro é plano completo, não entra). Venda nova conta o MRR cheio;
-  // upsell para BPO conta só o acréscimo (delta).
+  // Cross-sell (Sales): add-on BPO avulso como ESTOQUE ativo no fim de cada mês
+  // (Time Financeiro é plano completo, não entra). Ver src/lib/crossSell.ts.
   const [bpoRows, setBpoRows] = useState<any[]>([]);
+  const [bpoChurns, setBpoChurns] = useState<BpoChurn[]>([]);
   useEffect(() => {
     let cancelled = false;
+    const sp = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
     fetchAllPaged<any>(() => supabase.from("stripe_conversions")
-      .select("conversion_type, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id, plan_name, customer_email")
+      .select("conversion_type, mrr, mrr_net, delta_mrr, origem_cliente, attribution_source, converted_at, stripe_event_id, plan_name, customer_email, stripe_subscription_id")
       .eq("payment_status", "paid").ilike("plan_name", "%bpo%").not("plan_name", "ilike", "%time financeiro%")
-      .gte("converted_at", `${year}-01-01T00:00:00-03:00`).lte("converted_at", `${year}-12-31T23:59:59.999-03:00`)
       .order("converted_at").order("id") as never,
-    ).then(({ data }) => { if (!cancelled) setBpoRows((data as any[]) || []); });
+    ).then(({ data }) => { if (!cancelled) setBpoRows(((data as any[]) || []).map((r) => ({ ...r, date: sp(r.converted_at) }))); });
+    fetchAllPaged<any>(() => supabase.from("stripe_churn_events")
+      .select("stripe_subscription_id, customer_email, canceled_at, plan_name")
+      .ilike("plan_name", "%bpo%").order("canceled_at").order("id") as never,
+    ).then(({ data }) => { if (!cancelled) setBpoChurns(((data as any[]) || []).filter((r) => r.canceled_at).map((r) => ({ stripe_subscription_id: r.stripe_subscription_id, customer_email: r.customer_email, date: sp(r.canceled_at) }))); });
     return () => { cancelled = true; };
-  }, [year]);
+  }, []);
   const crossSellAgg = useMemo<AggRow[]>(() => {
     const cats = categories.filter((c) => String((c as any).slug || "").startsWith("cross_sell"));
     if (!cats.length) return [];
     const asOf = historicalMode ? refDate : todayKey;
-    const byMonth = new Map<string, { mrr: number; n: number; emails: Set<string> }>();
-    for (const r of bpoRows) {
-      const d = new Date(r.converted_at).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-      if (d > asOf) continue;
-      if (isOriginFiltered(originFilter) && stripeConversionOrigin(r) !== originFilter) continue;
-      if (gatewayFilter !== "all" && conversionGateway(r) !== gatewayFilter) continue;
-      const type = String(r.conversion_type || "").toLowerCase();
-      const v = type === "upsell" ? Math.max(Number(r.delta_mrr || 0), 0)
-        : type === "new" || !type ? Math.max(Number(r.mrr_net ?? r.mrr ?? 0), 0) : 0;
-      if (!v) continue;
-      const m = `${d.slice(0, 7)}-01`;
-      const cur = byMonth.get(m) ?? { mrr: 0, n: 0, emails: new Set<string>() };
-      cur.mrr += v; cur.n += 1;
-      cur.emails.add(String(r.customer_email || r.stripe_event_id || cur.n).trim().toLowerCase());
-      byMonth.set(m, cur);
-    }
+    const sales = bpoRows.filter((r) => isCrossSellPlan(r.plan_name)
+      && (!isOriginFiltered(originFilter) || stripeConversionOrigin(r) === originFilter)
+      && (gatewayFilter === "all" || conversionGateway(r) === gatewayFilter));
     const out: AggRow[] = [];
-    // Categoria de MRR recebe o valor; a de quantidade recebe o número de contas.
-    cats.forEach((c) => byMonth.forEach((v, m) => out.push({
-      year_month: m, metric_key: "cross_sell_bpo", scope: "company", team_id: null, user_id: null, campaign_id: null,
-      category_id: c.id, area: "sales",
-      realized_amount: (c as any).metric_type === "count" ? v.emails.size : Math.round(v.mrr * 100) / 100,
-      deals_count: v.emails.size,
-    } as AggRow)));
+    for (let mo = 1; mo <= 12; mo++) {
+      const ym = `${year}-${String(mo).padStart(2, "0")}`;
+      if (`${ym}-01` > asOf) break;
+      const last = new Date(Date.UTC(year, mo, 0)).toISOString().slice(0, 10);
+      const st = crossSellStockAt(sales, bpoChurns, last < asOf ? last : asOf);
+      if (!st.accounts) continue;
+      cats.forEach((c) => out.push({
+        year_month: `${ym}-01`, metric_key: "cross_sell_bpo", scope: "company", team_id: null, user_id: null, campaign_id: null,
+        category_id: c.id, area: "sales",
+        realized_amount: (c as any).metric_type === "count" ? st.accounts : st.mrr,
+        deals_count: st.accounts,
+      } as AggRow));
+    }
     return out;
-  }, [bpoRows, categories, originFilter, gatewayFilter, historicalMode, refDate, todayKey]);
+  }, [bpoRows, bpoChurns, categories, originFilter, gatewayFilter, historicalMode, refDate, todayKey, year]);
 
   /** Fonte de realizado efetiva */
   const sourceAggBase = useMemo<AggRow[]>(() => {
