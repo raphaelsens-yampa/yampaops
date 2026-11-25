@@ -1272,7 +1272,12 @@ export function MetabaseTracking() {
       let realized = 0;
       let target = 0;
       let revisedTarget = 0;
-      categoriesForTable.forEach((c) => {
+      // "Todas": somar categorias de naturezas diferentes (MRR + quantidade + churn
+      // + Cross-sell...) não tem sentido; cards e gráfico mostram o Total de MRR.
+      const chartCats = categoryId === "all"
+        ? categoriesForTable.filter((c) => c.id === BASE_MRR_CAT)
+        : categoriesForTable;
+      chartCats.forEach((c) => {
         realized += realizedByCatMonth.get(`${c.id}|${idx}`) || 0;
         const t = targetByCatMonth.get(`${c.id}|${idx}`) || 0;
         target += t;
@@ -1287,7 +1292,7 @@ export function MetabaseTracking() {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, revised, compareWindow]);
+  }, [monthList, categoriesForTable, realizedByCatMonth, targetByCatMonth, revised, compareWindow, categoryId]);
 
   // MRR (Total de MRR) realizado por mês — base do "% de Crescimento a.m.".
   // Já respeita o recorte de produto/origem pois parte de `scopedAgg`.
