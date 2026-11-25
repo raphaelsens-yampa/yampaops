@@ -247,8 +247,23 @@ export function MetabaseTracking() {
   };
 
   const [productScope, setProductScope] = useState<ProductScope>("yampafin");
-  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
+  const [originFilterRaw, setOriginFilter] = useState<OriginFilter>("all");
   const [gatewayFilter, setGatewayFilter] = useState<GatewayFilter>("all");
+  // Gateway define a origem: Stripe e Vindi = clientes Yampa; 4blue = origem 4blue.
+  const originFilter: OriginFilter = gatewayFilter === "all"
+    ? originFilterRaw
+    : gatewayFilter === "4blue" ? ("4blue" as OriginFilter) : ("yampa" as OriginFilter);
+  // Clientes cobrados pela Vindi (linhas de ajuste stripe-bpo-vindi-*), por foto diária.
+  const [vindiRows, setVindiRows] = useState<{ data_snapshot: string; mrr: number }[]>([]);
+  useEffect(() => {
+    if (gatewayFilter === "all" || gatewayFilter === "4blue") return;
+    let cancelled = false;
+    fetchAllPaged<any>(() => supabase.from("metas_ativos_pagantes_daily")
+      .select("data_snapshot, mrr").like("company_id", "stripe-bpo-vindi-%")
+      .eq("status_assinatura", "ativo").order("data_snapshot").order("id") as never,
+    ).then(({ data }) => { if (!cancelled) setVindiRows(((data as any[]) || []).map((r) => ({ data_snapshot: String(r.data_snapshot).slice(0, 10), mrr: Number(r.mrr || 0) }))); });
+    return () => { cancelled = true; };
+  }, [gatewayFilter]);
   const [scope, setScope] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [teamId, setTeamId] = useState<string>("all");
@@ -522,6 +537,23 @@ export function MetabaseTracking() {
   const originAgg = useMemo<AggRow[]>(() => {
     if (!isOriginFiltered(originFilter) || !originMonthly.size) return [];
     const out: AggRow[] = [];
+    // Vindi por mês: última foto do mês (até a data de referência).
+    const asOf = historicalMode ? refDate : todayKey;
+    const vindiByMonth = new Map<string, { date: string; mrr: number; qtd: number }>();
+    for (const r of vindiRows) {
+      if (r.data_snapshot > asOf) continue;
+      const mk = r.data_snapshot.slice(0, 7);
+      const cur = vindiByMonth.get(mk);
+      if (!cur || r.data_snapshot > cur.date) vindiByMonth.set(mk, { date: r.data_snapshot, mrr: r.mrr, qtd: 1 });
+      else if (r.data_snapshot === cur.date) { cur.mrr += r.mrr; cur.qtd += 1; }
+    }
+    const gw = (month: string, metric: string, v: number) => {
+      if (gatewayFilter !== "stripe" && gatewayFilter !== "vindi") return v;
+      if (metric !== "total_mrr" && metric !== "ativos") return v;
+      const vi = vindiByMonth.get(month);
+      const vv = metric === "total_mrr" ? (vi?.mrr ?? 0) : (vi?.qtd ?? 0);
+      return gatewayFilter === "vindi" ? vv : v - vv;
+    };
     originMetricByCategoryId.forEach((metric, categoryId) => {
       const cat = categories.find((c) => c.id === categoryId);
       for (const [key, value] of originMonthly) {
@@ -539,13 +571,13 @@ export function MetabaseTracking() {
           campaign_id: null,
           category_id: categoryId,
           area: (cat as any)?.area ?? null,
-          realized_amount: isPct ? value.mrr : isQty ? value.qtd : value.mrr,
+          realized_amount: gw(month, metric, isPct ? value.mrr : isQty ? value.qtd : value.mrr),
           deals_count: value.qtd,
         });
       }
     });
     return out;
-  }, [originFilter, originMonthly, originMetricByCategoryId, categories, year]);
+  }, [originFilter, originMonthly, originMetricByCategoryId, categories, year, gatewayFilter, vindiRows, historicalMode, refDate, todayKey]);
 
   // Mês aberto: vendas novas, recuperados e upsell vêm dos pagamentos
   // confirmados da Stripe (mesma base das Metas Táticas e Operacionais).
@@ -604,15 +636,11 @@ export function MetabaseTracking() {
 
   /** Fonte de realizado efetiva */
   const sourceAgg = useMemo<AggRow[]>(() => {
-    if (gatewayFilter !== "all") {
-      // Recorte por gateway: só existe para as vendas pagas do mês aberto.
-      return historicalMode ? [] : applyOpenMonthStripe([]);
-    }
     const base = (!historicalMode ? agg : hasSnapshotForRef ? snapshotAsAgg : [])
       .filter((row) => row.category_id !== RETENTION_CAT);
     if (!isOriginFiltered(originFilter)) return [...applyOpenMonthStripe(base), ...tacticalRetentionAgg];
     // Registros táticos de retenção são lançamentos da operação Yampa.
-    if (originFilter === "yampa") return [...applyOpenMonthStripe(originAgg), ...tacticalRetentionAgg];
+    if (originFilter === "yampa" && gatewayFilter === "all") return [...applyOpenMonthStripe(originAgg), ...tacticalRetentionAgg];
     return applyOpenMonthStripe(originAgg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [originFilter, gatewayFilter, originAgg, historicalMode, hasSnapshotForRef, agg, snapshotAsAgg, tacticalRetentionAgg, openMonthStripeRows, openMonthCsRecoveries, categories, year, todayKey]);
@@ -620,8 +648,12 @@ export function MetabaseTracking() {
   /** No recorte por origem, categorias sem quebra na base mostram "—" */
   const originUnavailableCategory = (id: string) => {
     if (gatewayFilter !== "all") {
-      const gslug = (categories.find((c) => c.id === id) as any)?.slug as string | undefined;
-      if (!gslug || !(OPEN_MONTH_STRIPE_SLUGS as readonly string[]).includes(gslug)) return true;
+      if (id === RETENTION_CAT) return true;
+      if (gatewayFilter === "vindi") {
+        const gslug = (categories.find((c) => c.id === id) as any)?.slug as string | undefined;
+        const ok = ["total_de_mrr_ms3g6o38", "usuarios_ativos_pagantes_ms8yyce5", ...OPEN_MONTH_STRIPE_SLUGS];
+        if (!gslug || !ok.includes(gslug)) return true;
+      }
     }
     if (!isOriginFiltered(originFilter)) return false;
     // Retenção é uma apuração operacional do painel tático: pertence à Yampa.
@@ -1348,7 +1380,7 @@ export function MetabaseTracking() {
                 )}
                 <div className="w-full sm:w-[220px]">
                   <Label className="text-xs">Origem</Label>
-                  <Select value={originFilter} onValueChange={(v) => setOriginFilter(v as OriginFilter)}>
+                  <Select value={originFilterRaw} disabled={gatewayFilter !== "all"} onValueChange={(v) => setOriginFilter(v as OriginFilter)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {ORIGIN_OPTIONS.map((o) => (
@@ -1379,8 +1411,8 @@ export function MetabaseTracking() {
               )}
               {gatewayFilter !== "all" && (
                 <p className="mb-4 text-xs text-amber-600">
-                  Recorte por gateway mostra as vendas pagas do mês em andamento (Vendas novas, Recuperados e Upsell).
-                  O Total de MRR e as demais métricas aparecem como "—", porque a base oficial não informa o gateway de cada cliente.
+                  Gateway: Stripe = clientes Yampa da base (sem os da Vindi); Vindi = clientes ativos cobrados pela Vindi;
+                  4blue = clientes de origem 4blue. Na Vindi, só Total de MRR, Usuários e vendas do mês têm recorte.
                 </p>
               )}
               {isOriginFiltered(originFilter) && (

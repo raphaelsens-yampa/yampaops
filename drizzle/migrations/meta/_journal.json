@@ -162,6 +162,13 @@
       "when": 1795457629670,
       "tag": "0022_weekly_report_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795645751742,
+      "tag": "0023_migration",
+      "breakpoints": true
     }
   ]
 }
