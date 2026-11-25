@@ -1691,7 +1691,7 @@ export function MetabaseTracking() {
         return (
           <>
             <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:justify-end">
-              {canEdit("goals_strategic_mrr_refresh") && (
+              {canEdit("goals_strategic") && (
                 <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={refreshBpoMrr} disabled={refreshingMrr}
                   title="Confere agora na Stripe (BPO) e na Vindi e atualiza o MRR total de hoje">
                   <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshingMrr ? "animate-spin" : ""}`} />

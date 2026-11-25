@@ -28,7 +28,6 @@ export const CRM_SECTIONS = [
       { key: "one_page_diretoria", label: "OnePage Diretoria", route: "/one-page-diretoria" },
       { key: "goals", label: "Metas", route: "/goals" },
       { key: "goals_strategic", label: "Metas — Estratégicas", parent: "goals" },
-      { key: "goals_strategic_mrr_refresh", label: "Metas Estratégicas — Atualizar MRR BPO/Vindi agora", parent: "goals_strategic", minRole: "tatico" },
       { key: "goals_tactical", label: "Metas — Táticas", parent: "goals" },
       { key: "goals_pacing", label: "Metas Táticas — Pacing New MRR e Churn", parent: "goals_tactical" },
       { key: "goals_operational_sales", label: "Metas Operacionais — Sales" },
