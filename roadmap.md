@@ -179,3 +179,9 @@
 - [ ] Fase 4: Chatwoot → notas no RD CRM
 - [ ] Fase 5: RD Marketing (leads e etiquetas)
 - [ ] Fase 6: desligar rotinas e chave do AC
+
+## Vindi (novo gateway desde 23/11)
+- [x] Chave de API salva e validada (produção)
+- [ ] Webhook vindi-webhook (bill_paid, subscription_canceled) gravando vendas pagas
+- [ ] Importação retroativa desde 23/11
+- [ ] Somar Vindi nas telas de metas e relatórios
