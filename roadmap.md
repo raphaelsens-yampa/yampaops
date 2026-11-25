@@ -182,6 +182,8 @@
 
 ## Vindi (novo gateway desde 23/11)
 - [x] Chave de API salva e validada (produção)
-- [ ] Webhook vindi-webhook (bill_paid, subscription_canceled) gravando vendas pagas
-- [ ] Importação retroativa desde 23/11
-- [ ] Somar Vindi nas telas de metas e relatórios
+- [x] Rotina vindi-sync (webhook + a cada hora) gravando vendas pagas e cancelamentos
+- [x] Importação retroativa desde 23/11 (17 vendas pagas)
+- [x] Somar Vindi nas telas de metas e relatórios (mesma base de conversões)
+- [ ] Cadastrar planos Vindi no Mapa de Preços (área/vendedor) — aguardando usuário
+- [ ] Configurar URL do webhook na Vindi — aguardando usuário

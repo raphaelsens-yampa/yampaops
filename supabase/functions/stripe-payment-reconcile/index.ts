@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
   let q = supabase.from("stripe_conversions")
     .select("id, stripe_subscription_id, stripe_invoice_id, payment_status, customer_email")
     .not("stripe_subscription_id", "is", null)
+    .not("stripe_subscription_id", "like", "vindi_%") // Vindi: status vem do vindi-sync
     .or("attribution_source.is.null,attribution_source.neq.metabase_4blue")
     .order("converted_at", { ascending: false })
     .limit(Math.max(1, Math.min(1000, Number(body?.limit) || 200)));

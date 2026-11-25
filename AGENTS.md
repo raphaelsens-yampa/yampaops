@@ -34,3 +34,5 @@
 - RD Station CRM deals sync (`rd-crm-sync`, hourly, one invocation per pipeline) into the existing `ac_funnel_*` tables tagged `crm_source='rd'`, so screens read ActiveCampaign history plus RD without separate code paths.
 - Campaign pacing trend = declared `campaign_projections` spread over remaining campaign business days (Geral adds the auto non-campaign trend), so plans drive trend and cards.
 - Weekly report: PDF/Excel/Slides share one section list (`weeklyExport.ts`) so exports match the screen.
+
+- Vindi sales (new gateway) are written by `vindi-sync` into `stripe_conversions`/`stripe_churn_events` with synthetic `vindi_*` ids, only once a bill is paid, re-reading the Vindi API on webhook and hourly cron (payload untrusted), so every panel consolidates both gateways without new code paths.
